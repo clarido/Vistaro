@@ -10,6 +10,28 @@ A CLI designed to generate HTML mockup UI from screenshots using Vision LLMs, an
 - **⚛️ Framework Targeting**: Render raw `html` blocks, or explicitly define `--framework react` to export responsive Tailwind TSX components.
 - **🤖 Headless Pilot Ready**: Highly composable CLI perfectly suited for zero-touch interaction by terminal AI agents (Claude Code, Antigravity, Codex).
 
+## Examples
+
+### 1. Project Library Tutorial
+Watch the CLI take a static React dashboard screenshot and animate a complete, realistic user workflow sequence.
+
+**Original Input Screenshot:**
+> *(Drag and drop your `projects-library.png` here when editing this README on GitHub)*
+
+**Generated Output Video:**
+> *(Drag and drop your `ClaridoProjectsLibraryTutorial.mp4` here when editing this README on GitHub)*
+
+---
+
+### 2. Team Directory Interaction
+Extracting a complex UI layout and commanding the DOM to autonomously highlight and click a specific table row.
+
+**Original Input Screenshot:**
+> *(Drag and drop your `team.png` here when editing this README on GitHub)*
+
+**Generated Output Video:**
+> *(Drag and drop your `ClaridoTeamLibraryTutorial.mp4` here when editing this README on GitHub)*
+
 ## Tech Stack
 - **Runtime**: Node.js & TypeScript (`tsx`)
 - **CLI Framework**: `commander`
