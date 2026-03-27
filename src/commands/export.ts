@@ -80,9 +80,41 @@ export async function exportCommand(outputDir: string, options: { duration: stri
             if (options.voiceover && fs.existsSync(options.voiceover)) {
                 console.log(`Generating TTS audio from ${options.voiceover}...`);
                 const scriptPath = path.resolve(options.voiceover);
-                const audioOut = path.join(tempVideoDir, 'audio.aiff');
-                // Use macOS native say command to generate AIFF
-                execSync(`say -f "${scriptPath}" -o "${audioOut}"`);
+                const scriptText = fs.readFileSync(scriptPath, 'utf8');
+                let audioOut = path.join(tempVideoDir, 'audio.aiff');
+                
+                const openAiKey = process.env.OPENAI_API_KEY;
+                if (openAiKey) {
+                    console.log(`OPENAI_API_KEY detected. Generating high-quality audio using OpenAI TTS-1...`);
+                    audioOut = path.join(tempVideoDir, 'audio.mp3');
+                    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${openAiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: 'tts-1',
+                            input: scriptText,
+                            voice: 'alloy'
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error(`OpenAI TTS Error: ${errorText}`);
+                        console.log(`Falling back to native macOS 'say'...`);
+                        audioOut = path.join(tempVideoDir, 'audio.aiff');
+                        execSync(`say -f "${scriptPath}" -o "${audioOut}"`);
+                    } else {
+                        const buffer = await response.arrayBuffer();
+                        fs.writeFileSync(audioOut, Buffer.from(buffer));
+                    }
+                } else {
+                    console.log(`Falling back to native macOS 'say'. Provide OPENAI_API_KEY for hyper-realistic voiceovers.`);
+                    execSync(`say -f "${scriptPath}" -o "${audioOut}"`);
+                }
+
                 // Update FFmpeg to multiply video and audio
                 cmd = `"${ffmpegStatic}" -y -i "${webmFile}" -i "${audioOut}" -c:v libx264 -preset fast -crf 22 -c:a aac "${outputFile}"`;
             }
