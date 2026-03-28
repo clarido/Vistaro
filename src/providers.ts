@@ -36,7 +36,7 @@ export async function generateContent(
              });
         }
 
-        const result = await model.generateContent([{role: 'user', parts: contents}]);
+        const result = await model.generateContent({ contents: [{ role: 'user', parts: contents }] });
         return result.response.text();
     } else if (config.provider === 'claude') {
         const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -57,14 +57,15 @@ export async function generateContent(
         content.push({ type: 'text', text: userPrompt });
 
         const msg = await anthropic.messages.create({
-            model: 'claude-3-7-sonnet-20250219',
+            model: 'claude-sonnet-4-6',
             max_tokens: 8000,
             system: systemPrompt,
             messages: [{ role: 'user', content }]
         });
 
-        // @ts-ignore
-        return msg.content[0].text;
+        const block = msg.content[0];
+        if (block.type !== 'text') throw new Error('Unexpected response type: ' + block.type);
+        return block.text;
     }
 
     throw new Error('Unsupported provider: ' + config.provider);

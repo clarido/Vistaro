@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import * as path from 'path';
 import * as fs from 'fs';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 
 export async function exportCommand(outputDir: string, options: { duration: string, output: string, device: string, voiceover?: string, theme?: string, width?: string, height?: string }) {
@@ -42,6 +42,10 @@ export async function exportCommand(outputDir: string, options: { duration: stri
     await page.goto(fileUrl, { waitUntil: 'load' });
     
     const durationMs = parseInt(options.duration) * 1000;
+    if (isNaN(durationMs) || durationMs <= 0) {
+        console.error(`Error: Invalid duration "${options.duration}". Must be a positive number of seconds.`);
+        process.exit(1);
+    }
     console.log(`Recording for ${options.duration} seconds...`);
     
     // Wait for the requested duration to let animations play
@@ -69,20 +73,20 @@ export async function exportCommand(outputDir: string, options: { duration: stri
             throw new Error('ffmpeg-static binary not found');
         }
 
-        let cmd = '';
+        let ffmpegArgs: string[] = [];
         if (outputFile.toLowerCase().endsWith('.gif')) {
             console.log(`Optimizing frames for high-quality GIF export...`);
             // Use FFmpeg palettegen for crisp, optimized web GIFs at 15fps
-            cmd = `"${ffmpegStatic}" -y -i "${webmFile}" -vf "fps=15,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" -loop 0 "${outputFile}"`;
+            ffmpegArgs = ['-y', '-i', webmFile, '-vf', 'fps=15,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse', '-loop', '0', outputFile];
         } else {
-            cmd = `"${ffmpegStatic}" -y -i "${webmFile}" -c:v libx264 -preset fast -crf 22 "${outputFile}"`;
-            
+            ffmpegArgs = ['-y', '-i', webmFile, '-c:v', 'libx264', '-preset', 'fast', '-crf', '22', outputFile];
+
             if (options.voiceover && fs.existsSync(options.voiceover)) {
                 console.log(`Generating TTS audio from ${options.voiceover}...`);
                 const scriptPath = path.resolve(options.voiceover);
                 const scriptText = fs.readFileSync(scriptPath, 'utf8');
                 let audioOut = path.join(tempVideoDir, 'audio.aiff');
-                
+
                 const openAiKey = process.env.OPENAI_API_KEY;
                 if (openAiKey) {
                     console.log(`OPENAI_API_KEY detected. Generating high-quality audio using OpenAI TTS-1...`);
@@ -99,29 +103,29 @@ export async function exportCommand(outputDir: string, options: { duration: stri
                             voice: 'alloy'
                         })
                     });
-                    
+
                     if (!response.ok) {
                         const errorText = await response.text();
                         console.error(`OpenAI TTS Error: ${errorText}`);
                         console.log(`Falling back to native macOS 'say'...`);
                         audioOut = path.join(tempVideoDir, 'audio.aiff');
-                        execSync(`say -f "${scriptPath}" -o "${audioOut}"`);
+                        execFileSync('say', ['-f', scriptPath, '-o', audioOut]);
                     } else {
                         const buffer = await response.arrayBuffer();
                         fs.writeFileSync(audioOut, Buffer.from(buffer));
                     }
                 } else {
                     console.log(`Falling back to native macOS 'say'. Provide OPENAI_API_KEY for hyper-realistic voiceovers.`);
-                    execSync(`say -f "${scriptPath}" -o "${audioOut}"`);
+                    execFileSync('say', ['-f', scriptPath, '-o', audioOut]);
                 }
 
-                // Update FFmpeg to multiply video and audio
-                cmd = `"${ffmpegStatic}" -y -i "${webmFile}" -i "${audioOut}" -c:v libx264 -preset fast -crf 22 -c:a aac "${outputFile}"`;
+                // Update FFmpeg args to mux video and audio
+                ffmpegArgs = ['-y', '-i', webmFile, '-i', audioOut, '-c:v', 'libx264', '-preset', 'fast', '-crf', '22', '-c:a', 'aac', outputFile];
             }
         }
 
-        // Run FFmpeg synchronously
-        execSync(cmd, { stdio: 'ignore' });
+        // Run FFmpeg with safe argument passing (no shell interpolation)
+        execFileSync(ffmpegStatic, ffmpegArgs, { stdio: 'ignore' });
         
         console.log(`\nSuccess! Video exported successfully to ${outputFile}`);
     } catch (error: any) {

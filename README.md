@@ -12,16 +12,17 @@ Built by an AI, for an AI. Tell your AI to run `npx tsx cli.ts --help` to read t
 - **Framework Targeting**: Render raw `html` blocks, or explicitly define `--framework react` to export responsive Tailwind TSX components.
 - **Headless Pilot Ready**: Highly composable CLI perfectly suited for zero-touch interaction by terminal AI agents (Claude Code, Antigravity, Codex).
 
-## Examples
+## Example
 
-### 1. Project Library Tutorial
-Watch the CLI take a static React dashboard screenshot and animate a complete, realistic user workflow sequence.
+### Firm Profile Animation
+Watch the CLI take a static dashboard screenshot and animate a complete, realistic user workflow sequence.
 
 **Original Input Screenshot:**
-> <img width="1414" height="716" alt="firm_profile" src="https://github.com/user-attachments/assets/744cd3d5-c4cd-4c15-b671-460667965def" />
+> <img width="1414" height="716" alt="screenshot input" src="https://github.com/user-attachments/assets/744cd3d5-c4cd-4c15-b671-460667965def" />
 
 **Generated Output Video:**
 > https://github.com/user-attachments/assets/83137d30-9bb8-41c4-9dab-27328cedf36a
+
 ---
 
 ## Tech Stack
