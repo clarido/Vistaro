@@ -2,6 +2,8 @@
 
 A CLI designed to generate HTML mockup UI from screenshots using Vision LLMs, animate them with CSS via Text LLMs, and export to `.mp4` locally using headless Chromium and FFmpeg.
 
+Built by an AI, for an AI. Tell your AI to run `npx tsx cli.ts --help` to read the orchestration usage guide.
+
 ## Features
 - **🪄 Screenshot to UI**: Feed it a static image, and it uses Vision LLMs to extract a pristine, responsive HTML/CSS markup reproduction.
 - **🎬 AI-Driven Animation**: Orchestrate powerful CSS keyframes (typing, clicking, fading) purely from text prompts via a clean JSON timeline configuration.
@@ -44,8 +46,8 @@ Extracting a complex UI layout and commanding the DOM to autonomously highlight 
 2. Run `npm install`
 3. Run `npx playwright install chromium`
 4. **Provide your LLM API Keys**
-   - *Manual mode*: Create a `.env` file with `GEMINI_API_KEY="..."` or `ANTHROPIC_API_KEY="..."` (and optionally `OPENAI_API_KEY="..."` for hyper-realistic TTS voiceovers).
-   - *Agentic mode*: Skip this! If you run this project using **Claude Code**, **Antigravity**, or **Codex**, they will automatically pipe their own keys and execute the commands for you.
+   - Create a `.env` file with `GEMINI_API_KEY="..."` or `ANTHROPIC_API_KEY="..."` (and optionally `OPENAI_API_KEY="..."` for hyper-realistic TTS voiceovers).
+   - *(Note: If you are actively using an AI coding agent like Antigravity, you can actually skip the `.env` file! Just make sure to upload/paste your screenshot directly into the agent's chat interface (since some agents can't freely read local images yet). The agent can analyze the uploaded image, natively write your HTML/CSS and animation JSON directly to your hard drive, and then seamlessly execute your local headless `export` command which requires zero API keys!)*
 
 ## Quick Start (End-to-End)
 Want to see it in action quickly? Grab a screenshot of any UI (e.g. `app-screenshot.png`), lay it in this folder, and run these 3 commands:
@@ -104,8 +106,8 @@ npx tsx cli.ts export <output_directory> --duration 8 --output result.gif [optio
 > **Tip:** Passing `--theme dark` natively enforces the active CSS media-query to dark mode during Playwright recording. If `--voiceover` is also provided, the CLI will pipe macOS native Text-to-Speech seamlessly through the final MP4.
 
 ## 🤖 Running via AI Agents (Claude Code, Antigravity, Codex)
-Because this is a completely headless CLI, you can hand it over entirely to an agentic coding assistant! If you use an assistant like **Claude Code**, **Antigravity**, or **Codex**, you can simply drop a screenshot in your folder and tell the agent:
+Because this is a completely headless CLI, you can hand it over entirely to an agentic coding assistant! If you use an assistant like **Claude Code**, **Antigravity**, or **Codex**, you can simply paste your actual screenshot directly into the agent's chat window and tell the agent:
 
-> *"Take `app-screenshot.png`, extract it, generate an animation where clicking the primary button causes a ripple, and export the final video."*
+> *"Look at this screenshot I just attached, extract it, generate an animation timeline where clicking the primary button causes a ripple, and export the final video."*
 
-The assistant will automatically execute the TSX commands on your behalf, pipe its own API keys if needed, and hand you the finished `.mp4`.
+The assistant will natively write the HTML and JSON timelines using its own built-in LLM brain, and then execute the local Playwright `export` command to render the MP4 without ever needing `.env` API keys!
