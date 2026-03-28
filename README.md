@@ -5,12 +5,12 @@ A CLI designed to generate HTML mockup UI from screenshots using Vision LLMs, an
 Built by an AI, for an AI. Tell your AI to run `npx tsx cli.ts --help` to read the orchestration usage guide.
 
 ## Features
-- 🪄 **Screenshot to UI**: Feed it a static image, and it uses Vision LLMs to extract a pristine, responsive HTML/CSS markup reproduction.
-- 🎬 **AI-Driven Animation**: Orchestrate powerful CSS keyframes (typing, clicking, fading) purely from text prompts via a clean JSON timeline configuration.
-- 🎙️ **Voiceovers & Subtitles**: Natively overlays styled subtitles that match your animation delays, and leverages macOS Text-to-Speech to synthesize voiceover audio directly into the final video.
-- 🌗 **Theme & Viewport Modes**: Natively forces `--device desktop|mobile` resolutions and triggers specific `--theme light|dark` media queries when recording.
-- ⚛️ **Framework Targeting**: Render raw `html` blocks, or explicitly define `--framework react` to export responsive Tailwind TSX components.
-- 🤖 **Headless Pilot Ready**: Highly composable CLI perfectly suited for zero-touch interaction by terminal AI agents (Claude Code, Antigravity, Codex).
+- **Screenshot to UI**: Feed it a static image, and it uses Vision LLMs to extract a pristine, responsive HTML/CSS markup reproduction.
+- **AI-Driven Animation**: Orchestrate powerful CSS keyframes (typing, clicking, fading) purely from text prompts via a clean JSON timeline configuration.
+- **Voiceovers & Subtitles**: Natively overlays styled subtitles that match your animation delays, and leverages macOS Text-to-Speech to synthesize voiceover audio directly into the final video.
+- **Theme & Viewport Modes**: Natively forces `--device desktop|mobile` resolutions and triggers specific `--theme light|dark` media queries when recording.
+- **Framework Targeting**: Render raw `html` blocks, or explicitly define `--framework react` to export responsive Tailwind TSX components.
+- **Headless Pilot Ready**: Highly composable CLI perfectly suited for zero-touch interaction by terminal AI agents (Claude Code, Antigravity, Codex).
 
 ## Examples
 
