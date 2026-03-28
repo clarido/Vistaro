@@ -16,33 +16,50 @@ program
 
 program.addHelpText('after', `
 =========================================
-🤖 LLM ORCHESTRATOR USAGE GUIDE
+USAGE GUIDE
 =========================================
-This CLI tool allows AI agents (like Claude Code) to build and record animated UI mockups.
+This CLI tool builds and records animated UI mockups. It can be used standalone
+with an API key, or as a toolkit for LLM agents (like Claude Code) who generate
+the HTML themselves.
 
-RECOMMENDED WORKFLOW:
-1. EXTRACT: Analyze a UI screenshot and generate a clean HTML/CSS mockup.
-   => npx tsx cli.ts extract <image_path> <output_dir> --provider <gemini|claude> [--abstraction none|moderate|high]
+WORKFLOW A — WITH API KEY (standalone):
+  Requires GEMINI_API_KEY or ANTHROPIC_API_KEY (env var or .env file).
 
-2. ANIMATE: Inject CSS animations into the mockup based on a natural language prompt.
-   => npx tsx cli.ts animate <output_dir> "<prompt_describing_animation>" --provider <gemini|claude>
+  1. EXTRACT: Convert a screenshot to HTML/CSS.
+     => npx tsx cli.ts extract <image_path> <output_dir> --provider <gemini|claude>
 
-3. EXPORT: Load the HTML in a headless browser and record it as an MP4 or GIF.
-   => npx tsx cli.ts export <output_dir> --duration <seconds> --output <video.mp4|result.gif>
-   
-NOTES FOR LLM AGENTS:
-- Let the CLI commands do the work! Avoid editing the HTML/CSS manually unless it's a small structural fix.
-- Always run \`extract\` first to establish the baseline DOM structure.
-- You can run \`animate\` multiple times on the same directory to incrementally add animations.
-- Use \`--abstraction high\` or \`--abstraction moderate\` during extraction if the prompt requests a wireframe or simplified structural mockup instead of 1-to-1 text matching.
+  2. ANIMATE: Add animations via natural language prompt.
+     => npx tsx cli.ts animate <output_dir> "<prompt>" --provider <gemini|claude>
+
+  3. EXPORT: Record to MP4 or GIF.
+     => npx tsx cli.ts export <output_dir> --duration <seconds> --output <file.mp4>
+
+WORKFLOW B — WITHOUT API KEY (LLM agent like Claude Code):
+  The agent acts as the brain — no API key needed. Just paste or provide a
+  screenshot in the chat. The agent will:
+
+  1. Look at the screenshot and write index.html directly into <output_dir>.
+  2. Optionally create anim.config.json with a timeline.
+  3. Write animated.html with CSS animations and subtitles.
+  4. Run only the export command to record the video:
+     => npx tsx cli.ts export <output_dir> --duration <seconds> --output <file.mp4>
+
+MODEL CONFIGURATION:
+  Override the default model via CLI flag or environment variable:
+  - CLI:  --model gemini-2.5-flash  or  --model claude-haiku-4-5-20251001
+  - Env:  GEMINI_MODEL=gemini-2.5-flash  or  CLAUDE_MODEL=claude-haiku-4-5-20251001
+  - Defaults: gemini-2.5-pro (Gemini), claude-sonnet-4-6 (Claude)
+
+  If the requested provider's API key is missing but the other is available,
+  the CLI will automatically fall back to the available provider.
 
 CONFIG TIMELINES (anim.config.json):
-If you need strict execution, run \`npx tsx cli.ts init-config <dir>\` to scaffold the JSON timeline schema. Example:
-[
-  { "time": "0s", "action": "fadeIn", "target": "#screen1", "subtitle": "First step..." },
-  { "time": "2s", "action": "click", "target": ".btn-primary", "subtitle": "Now click the button." }
-]
-The \`animate\` command will ingest this file exactly if it exists!
+  Run \`npx tsx cli.ts init-config <dir>\` to scaffold the JSON timeline schema:
+  [
+    { "time": "0s", "action": "fadeIn", "target": "#screen1", "subtitle": "First step..." },
+    { "time": "2s", "action": "click", "target": ".btn-primary", "subtitle": "Click the button." }
+  ]
+  The \`animate\` command ingests this file if it exists.
 `);
 
 program
@@ -68,6 +85,7 @@ program
   .argument('<image_path>', 'Path to the screenshot image')
   .argument('<output_dir>', 'Directory to save the generated HTML essence')
   .option('-p, --provider <provider>', 'LLM provider (gemini or claude)', 'gemini')
+  .option('-m, --model <model>', 'LLM model ID (e.g. gemini-2.5-flash, claude-haiku-4-5-20251001). Defaults per provider')
   .option('-a, --abstraction <level>', 'Abstraction distillation level: none, moderate, high', 'none')
   .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
   .option('-f, --framework <type>', 'Output framework: html or react', 'html')
@@ -80,6 +98,7 @@ program
   .argument('<output_dir>', 'Directory containing the generated HTML essence')
   .argument('<prompt>', 'Prompt describing the desired animation')
   .option('-p, --provider <provider>', 'LLM provider (gemini or claude)', 'gemini')
+  .option('-m, --model <model>', 'LLM model ID (e.g. gemini-2.5-flash, claude-haiku-4-5-20251001). Defaults per provider')
   .option('-c, --cursor <style>', 'Cursor style: mac, windows, none', 'none')
   .option('-l, --loop', 'Loop the generated HTML animation endlessly')
   .action((dir, prompt, opts) => animateCommand(dir, prompt, opts));
