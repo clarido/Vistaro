@@ -5,12 +5,12 @@ A CLI designed to generate HTML mockup UI from screenshots using Vision LLMs, an
 Built by an AI, for an AI. Tell your AI to run `npx tsx cli.ts --help` to read the orchestration usage guide.
 
 ## Features
-- **🪄 Screenshot to UI**: Feed it a static image, and it uses Vision LLMs to extract a pristine, responsive HTML/CSS markup reproduction.
-- **🎬 AI-Driven Animation**: Orchestrate powerful CSS keyframes (typing, clicking, fading) purely from text prompts via a clean JSON timeline configuration.
-- **🎙️ Voiceovers & Subtitles**: Natively overlays styled subtitles that match your animation delays, and leverages macOS Text-to-Speech to synthesize voiceover audio directly into the final video.
-- **🌗 Theme & Viewport Modes**: Natively forces `--device desktop|mobile` resolutions and triggers specific `--theme light|dark` media queries when recording.
-- **⚛️ Framework Targeting**: Render raw `html` blocks, or explicitly define `--framework react` to export responsive Tailwind TSX components.
-- **🤖 Headless Pilot Ready**: Highly composable CLI perfectly suited for zero-touch interaction by terminal AI agents (Claude Code, Antigravity, Codex).
+- ** Screenshot to UI**: Feed it a static image, and it uses Vision LLMs to extract a pristine, responsive HTML/CSS markup reproduction.
+- ** AI-Driven Animation**: Orchestrate powerful CSS keyframes (typing, clicking, fading) purely from text prompts via a clean JSON timeline configuration.
+- ** Voiceovers & Subtitles**: Natively overlays styled subtitles that match your animation delays, and leverages macOS Text-to-Speech to synthesize voiceover audio directly into the final video.
+- ** Theme & Viewport Modes**: Natively forces `--device desktop|mobile` resolutions and triggers specific `--theme light|dark` media queries when recording.
+- ** Framework Targeting**: Render raw `html` blocks, or explicitly define `--framework react` to export responsive Tailwind TSX components.
+- ** Headless Pilot Ready**: Highly composable CLI perfectly suited for zero-touch interaction by terminal AI agents (Claude Code, Antigravity, Codex).
 
 ## Examples
 
@@ -95,7 +95,7 @@ npx tsx cli.ts export <output_directory> --duration 8 --output result.gif [optio
 ```
 > **Tip:** Passing `--theme dark` natively enforces the active CSS media-query to dark mode during Playwright recording. If `--voiceover` is also provided, the CLI will pipe macOS native Text-to-Speech seamlessly through the final MP4.
 
-## 🤖 Running via AI Agents (Claude Code, Antigravity, Codex)
+## Running via AI Agents (Claude Code, Antigravity, Codex)
 Because this is a completely headless CLI, you can hand it over entirely to an agentic coding assistant! If you use an assistant like **Claude Code**, **Antigravity**, or **Codex**, you can simply paste your actual screenshot directly into the agent's chat window and tell the agent:
 
 > *"Look at this screenshot I just attached, extract it, generate an animation timeline where clicking the primary button causes a ripple, and export the final video."*
