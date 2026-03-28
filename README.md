@@ -18,21 +18,11 @@ Built by an AI, for an AI. Tell your AI to run `npx tsx cli.ts --help` to read t
 Watch the CLI take a static React dashboard screenshot and animate a complete, realistic user workflow sequence.
 
 **Original Input Screenshot:**
-> *(Drag and drop your `projects-library.png` here when editing this README on GitHub)*
+> <img width="1414" height="716" alt="firm_profile" src="https://github.com/user-attachments/assets/744cd3d5-c4cd-4c15-b671-460667965def" />
 
 **Generated Output Video:**
-> *(Drag and drop your `ClaridoProjectsLibraryTutorial.mp4` here when editing this README on GitHub)*
-
+> https://github.com/user-attachments/assets/83137d30-9bb8-41c4-9dab-27328cedf36a
 ---
-
-### 2. Team Directory Interaction
-Extracting a complex UI layout and commanding the DOM to autonomously highlight and click a specific table row.
-
-**Original Input Screenshot:**
-> *(Drag and drop your `team.png` here when editing this README on GitHub)*
-
-**Generated Output Video:**
-> *(Drag and drop your `ClaridoTeamLibraryTutorial.mp4` here when editing this README on GitHub)*
 
 ## Tech Stack
 - **Runtime**: Node.js & TypeScript (`tsx`)
