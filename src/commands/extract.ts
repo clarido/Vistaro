@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { generateContent, ProviderConfig } from '../providers';
+import { generateContent, ProviderConfig, resolveProvider } from '../providers';
 
 function getSystemPrompt(abstraction: string, device: string, framework: string, theme: string): string {
     let abstractionRule = "";
@@ -30,7 +30,7 @@ ${frameworkRules}
 ${abstractionRule}`;
 }
 
-export async function extractCommand(imagePath: string, outputDir: string, options: { provider: string, abstraction: string, device: string, framework: string, theme: string }) {
+export async function extractCommand(imagePath: string, outputDir: string, options: { provider: string, model?: string, abstraction: string, device: string, framework: string, theme: string }) {
     console.log(`Starting extraction using provider: ${options.provider} (Framework: ${options.framework}, Abstraction: ${options.abstraction}, Device: ${options.device}, Theme: ${options.theme})`);
     
     const imgResolved = path.resolve(imagePath);
@@ -45,7 +45,8 @@ export async function extractCommand(imagePath: string, outputDir: string, optio
 
     try {
         console.log('Analyzing image and generating HTML essence... (this may take a minute)');
-        const config: ProviderConfig = { provider: options.provider as 'gemini' | 'claude' };
+        const resolved = resolveProvider(options.provider);
+        const config: ProviderConfig = { provider: resolved, model: options.model };
         
         const prompt = getSystemPrompt(options.abstraction || 'none', options.device || 'desktop', options.framework || 'html', options.theme || 'light');
         let htmlContent = await generateContent(

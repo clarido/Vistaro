@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { generateContent, ProviderConfig } from '../providers';
+import { generateContent, ProviderConfig, resolveProvider } from '../providers';
 
 const SYSTEM_PROMPT = `You are an expert CSS / UI Animator. You will be provided with the HTML source code of a UI component, and a prompt describing how it should be animated.
 
@@ -12,7 +12,7 @@ RULES:
 5. The animations should be high-quality, smooth, and dynamic. Consider timing, easing, and delays nicely.
 6. Do NOT change the layout or structure unnecessarily, just inject the animation styling.`;
 
-export async function animateCommand(outputDir: string, prompt: string, options: { provider: string, cursor: string, loop?: boolean }) {
+export async function animateCommand(outputDir: string, prompt: string, options: { provider: string, model?: string, cursor: string, loop?: boolean }) {
     console.log(`Starting animation using provider: ${options.provider}. Cursor: ${options.cursor}`);
     const htmlPath = path.resolve(outputDir, 'index.html');
     
@@ -24,7 +24,8 @@ export async function animateCommand(outputDir: string, prompt: string, options:
     try {
         const baseHtml = fs.readFileSync(htmlPath, 'utf-8');
         console.log('Generating animation CSS/JS... (this may take a minute)');
-        const config: ProviderConfig = { provider: options.provider as 'gemini' | 'claude' };
+        const resolved = resolveProvider(options.provider);
+        const config: ProviderConfig = { provider: resolved, model: options.model };
         
         let cursorInstruction = '';
         if (options.cursor !== 'none') {
