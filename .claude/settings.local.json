@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(du:*)",
+      "Bash(pip3 show:*)",
+      "Bash(grep -v '^$')",
+      "Bash(git filter-repo:*)",
+      "Bash(git remote:*)",
+      "Bash(git config:*)"
+    ]
+  }
+}
