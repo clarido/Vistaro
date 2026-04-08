@@ -73,7 +73,8 @@ program
       const config = [
           { time: '0s', action: 'fadeIn', target: '#screen1', subtitle: 'Welcome to the dashboard.' },
           { time: '2s', action: 'click', target: '.btn-primary', subtitle: 'Click the primary button to begin.' },
-          { time: '3s', action: 'transitionScreen', target: '#screen2', subtitle: null }
+          { time: '3.5s', action: 'type', target: '.chat-input', value: 'Generate a report', subtitle: 'Enter your prompt here.' },
+          { time: '5.5s', action: 'transitionScreen', target: '#screen2', subtitle: null }
       ];
       fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(config, null, 2));
       console.log('Created anim.config.json timeline schema!');

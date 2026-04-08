@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Clarido Dashboard</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: radial-gradient(circle at 50% 50%, #2D2E3A 0%, #0F0F14 100%); color: #E5E7EB; height: 100vh; overflow: hidden; }
+        
+        #macos-window { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 1100px; height: 700px; background-color: #212228; border-radius: 12px; overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08); display: flex; flex-direction: column; z-index: 10; }
+
+        .traffic-lights { display: flex; gap: 8px; margin-right: 24px; }
+        .traffic-lights div { width: 12px; height: 12px; border-radius: 50%; }
+        .tl-red { background: #FF5F56; }
+        .tl-yellow { background: #FFBD2E; }
+        .tl-green { background: #27C93F; }
+
+        /* Top Navigation */
+        .topbar { height: 56px; border-bottom: 1px solid #374151; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; }
+        .logo-area { display: flex; align-items: center; gap: 20px; }
+        .logo { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-right: 20px; }
+        .logo svg { width: 20px; height: 20px; fill: #60A5FA; }
+        .nav-links { display: flex; gap: 24px; font-size: 13px; font-weight: 500; color: #9CA3AF; }
+        .nav-link.active { color: #F3F4F6; border-bottom: 2px solid #3B82F6; padding-bottom: 19px; position: relative; top: 10px; }
+        .right-nav { display: flex; align-items: center; gap: 16px; }
+        .avatar { width: 28px; height: 28px; background: #E5E7EB; color: #1F2937; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+
+        /* Sub-header */
+        .subheader { margin: 24px; border: 1px solid #374151; border-radius: 8px; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #9CA3AF; background: #26272E; flex-shrink: 0; }
+        .sub-left { display: flex; align-items: center; gap: 24px; }
+        .highlight-text { color: #E5E7EB; }
+        .deadline { color: #F59E0B; }
+        .btn-export { background: transparent; border: 1px solid #4B5563; color: #D1D5DB; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .btn-export:hover { background: #374151; }
+
+        /* Main Workspace */
+        .workspace { display: flex; flex: 1; border-top: 1px solid #374151; overflow: hidden; }
+        
+        /* Left Column - Outline */
+        .outline-panel { flex: 1; padding: 24px; overflow-y: auto; }
+        h2 { font-size: 18px; font-weight: 600; margin: 0 0 24px 0; color: #F9FAFB; display: flex; justify-content: space-between; }
+        .section-count { font-size: 13px; font-weight: 400; color: #6B7280; }
+        
+        .list-item { border: 1px solid #374151; border-radius: 6px; padding: 12px 16px; margin-bottom: -1px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.1s; }
+        .list-item:hover { background: #2A2B32; }
+        .list-item.selected { background: #2A2B32; border-left: 3px solid #3B82F6; }
+        .item-left { display: flex; align-items: center; gap: 12px; }
+        .arrow { color: #6B7280; font-size: 10px; }
+        .badge { background: #374151; color: #9CA3AF; padding: 4px 10px; border-radius: 12px; font-size: 11px; }
+
+        /* Right Column - Editor / Properties */
+        .properties-panel { width: 400px; border-left: 1px solid #374151; background: #26272E; display: flex; flex-direction: column; overflow-y: auto; }
+        
+        /* Default Properties View */
+        #right-panel-default { padding: 24px; flex: 1; }
+        .prop-title { border: 1px solid #374151; background: #2D2E36; padding: 10px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+        .field-label { font-size: 11px; font-weight: 600; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .field-box { border: 1px solid #374151; background: #2A2B32; padding: 10px; border-radius: 6px; font-size: 13px; color: #D1D5DB; display: flex; align-items: center; gap: 8px; }
+        .comment-box { border: 1px solid #374151; background: #212228; padding: 12px; border-radius: 6px; font-size: 13px; color: #6B7280; width: 100%; box-sizing: border-box; }
+        
+        /* Editor View */
+        #right-panel-editor { display: none; flex: 1; display: flex; flex-direction: column; }
+        .editor-header { padding: 16px 24px; border-bottom: 1px solid #374151; }
+        .editor-title { font-size: 14px; font-weight: 600; color: #F9FAFB; display: flex; align-items: center; gap: 8px; }
+        .editor-toolbar { padding: 10px 24px; border-bottom: 1px solid #374151; display: flex; gap: 16px; color: #9CA3AF; font-size: 14px; }
+        .editor-content { padding: 24px; font-size: 14px; line-height: 1.6; color: #D1D5DB; flex: 1; overflow-y: auto; outline: none; }
+        
+        /* Chat bubble floating */
+        .floating-chat { position: absolute; bottom: 24px; right: 24px; width: 44px; height: 44px; background: #3B82F6; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+
+    
+        #desktop { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform-origin: center center; }
+        
+        .sticky-note { position: absolute; width: 180px; height: 180px; padding: 20px; font-family: 'Marker Felt', 'Comic Sans MS', sans-serif; font-size: 20px; color: #333; box-shadow: 2px 8px 16px rgba(0,0,0,0.4); z-index: 5; box-sizing: border-box; }
+        #sticky-1 { top: 5%; left: 15vw; background: #FEF08A; transform: rotate(-6deg); }
+        #sticky-2 { top: 25%; left: 8vw; background: #BAE6FD; transform: rotate(4deg); }
+        #sticky-3 { top: 8%; left: 28vw; background: #FBCFE8; transform: rotate(-2deg); }
+
+        #img-window-1 { position: absolute; left: -40vw; top: 10vh; width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08); transform: rotate(-3deg); z-index: 8; background: #212228; }
+        #img-window-2 { position: absolute; left: 80vw; top: 5vh; width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08); transform: rotate(2deg); z-index: 8; background: #212228; }
+        .img-content { width: 100%; display: block; opacity: 0.95; }
+        
+        #cinematic-text { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.95); font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif; font-size: 72px; font-weight: 500; color: #FFFFFF; text-shadow: 0 10px 40px rgba(0,0,0,0.8); text-align: center; opacity: 0; pointer-events: none; z-index: 999; width: 100vw; transition: all 3s cubic-bezier(0.25, 1, 0.5, 1); }
+</style>
+
+<style>
+#anim-cli-cursor { position: fixed; top: 0; left: 0; transform: translate(50vw, 120vh); width: 28px; height: 28px; z-index: 99999; pointer-events: none; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230F172A" stroke="white" stroke-width="1.5"><path d="M4 2v20l5.83-5.83 3.96 8.5 3.65-1.7-3.96-8.5H22L4 2z"/></svg>') no-repeat; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform-origin: top left; transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+</style>
+
+<style>
+#anim-cli-subtitle-layer { position: fixed; bottom: 40px; left: 0; right: 0; display: flex; justify-content: center; z-index: 99998; pointer-events: none; padding: 0 40px; }
+.anim-cli-sub-item { position: absolute; bottom: 0; background: rgba(20,20,20,0.75); color: white; padding: 16px 32px; border-radius: 12px; font-family: -apple-system, sans-serif; font-size: 20px; line-height: 1.4; text-align: center; max-width: 800px; box-shadow: 0 20px 40px -8px rgba(0,0,0,0.5); opacity: 0; font-weight: 500; letter-spacing: 0.3px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.15); }
+@keyframes anim-cli-subFade { 0% { opacity: 0; transform: translateY(15px) scale(0.95); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); } 10%, 90% { opacity: 1; transform: translateY(0) scale(1); animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0); } 100% { opacity: 0; transform: translateY(-10px) scale(0.95); } }
+.anim-sub-0 { opacity: 0; animation: anim-cli-subFade 2.0s ease 0.0s forwards; }
+.anim-sub-1 { opacity: 0; animation: anim-cli-subFade 3.0s ease 2.0s forwards; }
+.anim-sub-3 { opacity: 0; animation: anim-cli-subFade 4.0s ease 5.0s forwards; }
+</style>
+</head>
+<body>
+
+  <div id="desktop">
+  <!-- Floating Application Window Wrapper -->
+  <div id="macos-window">
+
+      <!-- Top Navigation -->
+      <div class="topbar">
+          <div class="logo-area">
+              <div class="traffic-lights">
+                  <div class="tl-red"></div>
+                  <div class="tl-yellow"></div>
+                  <div class="tl-green"></div>
+              </div>
+              <div class="logo">
+                  <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13.5h-13L12 6.5z"/></svg>
+                  Clarido
+              </div>
+              <div class="nav-links">
+                  <div class="nav-link active">My proposals</div>
+                  <div class="nav-link">My content ⌄</div>
+                  <div class="nav-link">Settings ⌄</div>
+              </div>
+          </div>
+          <div class="right-nav">
+              <div style="color: #9CA3AF;">🔔</div>
+              <div style="color: #9CA3AF;">❓</div>
+              <div class="avatar">J</div>
+          </div>
+      </div>
+
+      <!-- Sub Header -->
+      <div class="subheader">
+          <div class="sub-left">
+              <div>Client <span class="highlight-text">Gouvernement du Canada - Travaux publics... ⌄</span></div>
+              <div style="border-left: 1px solid #374151; padding-left: 24px;">Deadline <span class="deadline">14 avril 2026 ⌄</span></div>
+          </div>
+          <button class="btn-export" id="btn-export">Export Word</button>
+      </div>
+
+      <!-- Workspace -->
+      <div class="workspace">
+          
+          <!-- Left Panel: Outline -->
+          <div class="outline-panel">
+              <h2>Proposal Outline <span class="section-count">0/10 sections</span></h2>
+              
+              <div class="list-item">
+                  <div class="item-left"><span class="arrow">▶</span> 1. Page couverture</div>
+                  <div class="badge">To complete</div>
+              </div>
+              <div class="list-item">
+                  <div class="item-left"><span class="arrow">▶</span> 2. Table des matières</div>
+                  <div class="badge">To complete</div>
+              </div>
+              
+              <!-- Target Item: Demande de propositions -->
+              <div class="list-item" id="item-3" onclick="toggleEditor()">
+                  <div class="item-left"><span class="arrow">▶</span> 3. Demande de propositions</div>
+                  <div class="badge">To complete</div>
+              </div>
+              
+              <div class="list-item">
+                  <div class="item-left"><span class="arrow">▶</span> 4. 1. Introduction</div>
+                  <div class="badge">To complete</div>
+              </div>
+              <div class="list-item">
+                  <div class="item-left"><span class="arrow">▶</span> 5. 2. Dates clés</div>
+                  <div class="badge">To complete</div>
+              </div>
+              <div class="list-item">
+                  <div class="item-left"><span class="arrow">▶</span> 6. E-01 — Qualification et affiliation...</div>
+                  <div class="badge">To complete</div>
+              </div>
+          </div>
+
+          <!-- Right Panel Container -->
+          <div class="properties-panel">
+              
+              <!-- Default View -->
+              <div id="right-panel-default">
+                  <div class="prop-title">
+                      1 — Page couverture <span>↕</span>
+                  </div>
+                  <div style="color: #9CA3AF; font-size: 11px; margin-bottom: 24px; letter-spacing: 0.5px;">~0 WORDS</div>
+                  
+                  <div class="grid-2">
+                      <div>
+                          <div class="field-label">Status</div>
+                          <div class="field-box" style="width: auto; display: inline-flex;">To complete ⌄</div>
+                      </div>
+                      <div>
+                          <div class="field-label">Assignee</div>
+                          <div style="color: #9CA3AF; font-size: 13px; display: flex; align-items: center; height: 40px;">👤 Unassigned</div>
+                      </div>
+                  </div>
+                  
+                  <div class="grid-2">
+                      <div>
+                          <div class="field-label">Start Date</div>
+                          <div class="field-box">📅 No date</div>
+                      </div>
+                      <div>
+                          <div class="field-label">Due Date</div>
+                          <div class="field-box">📅 No date</div>
+                      </div>
+                  </div>
+                  
+                  <hr style="border: 0; border-top: 1px solid #374151; margin: 24px 0;">
+                  
+                  <div class="field-label">Comments</div>
+                  <div style="display: flex; gap: 12px;">
+                      <div class="avatar" style="background: #1E3A8A; color: #93C5FD; flex-shrink: 0;">J</div>
+                      <input type="text" class="comment-box" placeholder="Write a comment..." />
+                  </div>
+              </div>
+              
+              <!-- Editor View -->
+              <div id="right-panel-editor" style="display: none;">
+                  <div class="editor-header">
+                      <div class="editor-title"><span style="color:#6B7280; font-size:12px;">⌄</span> 3. Demande de propositions <span class="badge" style="margin-left:auto;">To complete</span></div>
+                  </div>
+                  <div class="editor-toolbar">
+                      <b>H₂</b> <b>H₃</b> <b>❞</b> | <b>B</b> <i>I</i> <u>U</u> <s>S</s> | <b>≣</b> <b>≡</b> | <b>🔗</b>
+                  </div>
+                  <div class="editor-content" id="text-editor" contenteditable="true">
+                      Section: Demande de propositions<br><br>
+                      Proposal Prepared for:<br>
+                      Gouvernement du Canada - Travaux publics et Approvisionnement (BAA)<br>
+                      Projet test26<br><br>
+                      Provided by:<br>
+                      [Nom du Prestataire], [Titre professionnel]<br>
+                      [Organisation du Prestataire]<br>
+                      [adresse e-mail]<br><br>
+                      [Adresse du Prestataire]<br>
+                      +Numéro de téléphone<br><br>
+                      <ul>
+                          <li>Le Bureau des affaires d'approvisionnement (BAA) sollicite des propositions pour la prestation de services-conseils en dotation professionnelle et en efficience des processus à l'intention des organismes fédéraux affiliés officiels.</li>
+                      </ul>
+                      <span id="editor-type-target"></span>
+                  </div>
+              </div>
+
+          </div>
+      </div>
+
+      <div class="floating-chat"><span style="color:white;">💬</span></div>
+  </div>
+
+
+  <div class="sticky-note" id="sticky-1">FIX AUTH FLOW by next week</div>
+  <div class="sticky-note" id="sticky-2">Don't forget to eat dinner</div>
+  <div class="sticky-note" id="sticky-3">Retry storm took down staging at 2am again...<br><br>retro needed</div>
+
+  <div id="img-window-1">
+      <div style="height:36px;background:#26272E;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid #374151;">
+          <div class="traffic-lights"><div class="tl-red"></div><div class="tl-yellow"></div><div class="tl-green"></div></div>
+      </div>
+      <img class="img-content" src="media__1775686698830.png">
+  </div>
+  <div id="img-window-2">
+      <div style="height:36px;background:#26272E;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid #374151;">
+          <div class="traffic-lights"><div class="tl-red"></div><div class="tl-yellow"></div><div class="tl-green"></div></div>
+      </div>
+      <img class="img-content" src="media__1775686710006.png">
+  </div>
+
+  <div id="cinematic-text">How can you build and deploy<br>agents at scale...</div>
+</div>
+
+  <script>
+      function toggleEditor() {
+          document.getElementById('right-panel-default').style.display = 'none';
+          document.getElementById('right-panel-editor').style.display = 'flex';
+          document.getElementById('item-3').classList.add('selected');
+      }
+  </script>
+
+    <div id="anim-cli-cursor"></div>
+    <div id="anim-cli-subtitle-layer">
+<div class="anim-cli-sub-item anim-sub-0">Reviewing the proposal progress.</div>
+<div class="anim-cli-sub-item anim-sub-1">Opening a specific section.</div>
+<div class="anim-cli-sub-item anim-sub-3">Drafting the response.</div></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  
+  const timeline = [{"time": "0s", "action": "fadeIn", "target": "body", "subtitle": "Reviewing the proposal progress."}, {"time": "2s", "action": "click", "target": "#item-3", "subtitle": "Opening a specific section."}, {"time": "4s", "action": "click", "target": "#text-editor"}, {"time": "5s", "action": "type", "target": "#editor-type-target", "value": "We will ensure rigorous compliance with all requirements.", "subtitle": "Drafting the response."}, {"time": "7s", "action": "camera", "scale": 1.25, "x": "-65vw", "y": "10vh"}, {"time": "9s", "action": "showText", "target": "#cinematic-text"}];
+  const cursor = document.getElementById('anim-cli-cursor');
+  if (!cursor) return;
+  timeline.forEach((step, index) => {
+    if (!step.target || step.target === 'body') return;
+    const ms = parseFloat(step.time.replace('s','')) * 1000;
+    setTimeout(() => {
+      const el = document.querySelector(step.target);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        let tx = rect.left + rect.width / 2;
+        let ty = rect.top + rect.height / 2;
+        if (step.xOffset) tx += parseFloat(step.xOffset);
+        if (step.yOffset) ty += parseFloat(step.yOffset);
+        const transitionSpeed = index === 0 ? '1.4s' : '0.8s';
+        cursor.style.transition = 'all ' + transitionSpeed + ' cubic-bezier(0.16, 1, 0.3, 1)';
+        cursor.style.transform = 'translate(' + tx + 'px, ' + ty + 'px)';
+        setTimeout(() => {
+          cursor.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(0.85)';
+          setTimeout(() => {
+            cursor.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(1)';
+            if (step.action === 'focus' || step.action === 'click' || step.action === 'type') {
+               document.querySelectorAll('.input, button').forEach(n => { n.style.borderColor = '#E2E8F0'; n.style.boxShadow = 'none'; n.style.background = (n.tagName==='BUTTON' && n.classList.contains('btn-primary')) ? '#3B82F6' : '#FAFAFA'; });
+               if (step.action === 'click' && typeof el.onclick === 'function') { el.onclick(); } else { el.focus(); if (step.action === 'click') el.click(); }
+               if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                   el.style.borderColor = '#3B82F6';
+                   el.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.15)';
+                   el.style.background = '#FFF';
+               }
+            }
+            if (step.action === 'type' && step.value) {
+               if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') { el.value = ''; }
+               else { el.innerText = ''; }
+               let i = 0;
+               let intId = setInterval(() => {
+                   if (i < step.value.length) {
+                       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') { el.value += step.value[i]; }
+                       else { el.innerText += step.value[i]; }
+                       i++;
+                   } else {
+                       clearInterval(intId);
+                   }
+               }, 40);
+            }
+          }, 150);
+        }, 800);
+      }
+    }, ms);
+  });
+});
+</script>
+
+</body>
+</html>

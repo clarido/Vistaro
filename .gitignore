@@ -10,3 +10,7 @@ node_modules/
 
 # Debug files
 *-debug.png
+
+# Claude Code local data
+.claude/
+.claude/
