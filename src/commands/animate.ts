@@ -155,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         let x = step.x != null ? step.x : '0px';
         let y = step.y != null ? step.y : '0px';
+        // A bare number here would produce an invalid unitless translate() and drop the whole transform.
         if (typeof x === 'number') x = x + 'px';
         if (typeof y === 'number') y = y + 'px';
         const scale = step.scale || 1;
@@ -213,6 +214,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (step.action === 'click') {
               ripple(tx, ty);
               el.focus();
+              // el.click() (not el.onclick()) so checkbox toggling, addEventListener
+              // listeners, and default actions all fire like a real user click.
               el.click();
             } else {
               el.focus();
