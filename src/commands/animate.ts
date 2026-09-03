@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { generateContent, ProviderConfig, resolveProvider } from '../providers';
+import { recordEvent } from '../manifest';
 
 const SYSTEM_PROMPT = `You are an expert CSS / UI Animator. You will be provided with the HTML source code of a UI component, and a prompt describing how it should be animated.
 
@@ -12,7 +13,7 @@ RULES:
 5. The animations should be high-quality, smooth, and dynamic. Consider timing, easing, and delays nicely.
 6. Do NOT change the layout or structure unnecessarily, just inject the animation styling.`;
 
-export async function animateCommand(outputDir: string, prompt: string, options: { provider: string, model?: string, cursor: string, loop?: boolean }) {
+export async function animateCommand(outputDir: string, prompt: string, options: { provider: string, model?: string, cursor: string, loop?: boolean, locale?: string }) {
     console.log(`Starting animation using provider: ${options.provider}. Cursor: ${options.cursor}`);
     const htmlPath = path.resolve(outputDir, 'index.html');
 
@@ -261,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const outPath = path.join(outputDir, 'animated.html');
         fs.writeFileSync(outPath, animatedHtml, 'utf-8');
+        recordEvent(outputDir, { command: 'animate', prompt, provider: options.provider, model: options.model, cursor: options.cursor, loop: !!options.loop, locale: options.locale });
         console.log(`\nSuccess! Animated HTML saved to ${outPath}`);
     } catch (error: any) {
         console.error('Failed to animate UI:', error.message);

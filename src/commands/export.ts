@@ -3,8 +3,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { execFileSync } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
+import { recordEvent } from '../manifest';
 
-export async function exportCommand(outputDir: string, options: { duration: string, output: string, device: string, voiceover?: string, theme?: string, width?: string, height?: string }) {
+export async function exportCommand(outputDir: string, options: { duration: string, output: string, device: string, voiceover?: string, theme?: string, width?: string, height?: string, locale?: string }) {
     console.log(`Starting video export. Target duration: ${options.duration}s. Device: ${options.device}`);
     
     // We expect the animated HTML to be either animated.html or index.html
@@ -129,6 +130,7 @@ export async function exportCommand(outputDir: string, options: { duration: stri
         // Run FFmpeg with safe argument passing (no shell interpolation)
         execFileSync(ffmpegStatic, ffmpegArgs, { stdio: 'ignore' });
         
+        recordEvent(outputDir, { command: 'export', duration: options.duration, output: options.output, device: options.device, theme: options.theme, voiceover: options.voiceover, locale: options.locale });
         console.log(`\nSuccess! Video exported successfully to ${outputFile}`);
     } catch (error: any) {
         console.error('Video conversion failed:', error.message);

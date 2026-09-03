@@ -24,7 +24,9 @@ src/
     extract.ts            # Screenshot -> HTML/CSS via Vision LLM
     animate.ts            # HTML -> animated HTML via Text LLM
     export.ts             # Playwright + FFmpeg recording to MP4/GIF
+    localize.ts           # Scaffold a translated locale dir from an existing one
   providers.ts            # LLM provider abstraction (Gemini, Claude)
+  manifest.ts             # Writes anim.manifest.json -- a recorded history of commands run per output dir
 ```
 
 ## Getting help
@@ -49,6 +51,9 @@ npx tsx cli.ts animate <output_dir> "<prompt>" [--provider gemini|claude]
 
 # Export to video (no API key needed)
 npx tsx cli.ts export <output_dir> --duration <seconds> --output <file.mp4>
+
+# Scaffold a translated locale dir reusing the same timeline (no API key needed)
+npx tsx cli.ts localize <output_dir> <locale>
 ```
 
 ## Multiple screenshots
@@ -89,6 +94,18 @@ When acting as the agent, skip `extract` and `animate`. Instead:
 3. Write `animated.html` with CSS keyframe animations and subtitle overlays.
 4. Run: `npx tsx cli.ts export <output_dir> --duration <seconds> --output <file.mp4>`
 
+## Recording what was done, and re-running for other languages
+
+Every `animate`, `export`, and `localize` call **automatically** appends a timestamped entry to `<output_dir>/anim.manifest.json` (command, options, prompt, locale) -- this is a real record written by the CLI itself, not something you need to maintain by hand. Read it with `cat <output_dir>/anim.manifest.json` if you need to know what has already been done to a given output directory (e.g. resuming someone else's work, or checking whether a video was already exported for a locale).
+
+If a user needs the same demo in multiple languages, don't rebuild the timeline from scratch -- reuse it:
+
+1. `npx tsx cli.ts localize <source_dir> <locale>` scaffolds `<locale>/` (e.g. `fr/`) as a sibling of `<source_dir>`, copying `index.html`, `anim.config.json`, and any local media (screenshots) as a starting point.
+2. Edit the **text only** in the new directory: translate visible copy in `index.html` and the `"subtitle"` strings in `anim.config.json`. Leave every `"time"`/`"action"`/`"target"` untouched -- targets are CSS selectors (`#btn-primary`), not text, so the exact same choreography (clicks, camera pans, highlights) replays correctly against the translated screen as long as element IDs/classes are unchanged.
+3. Write `animated.html` for the new locale the same way you did for the original (or run `animate`), then `npx tsx cli.ts export <locale_dir> --duration <seconds> --output demo-<locale>.mp4 --locale <locale>`.
+
+This is the intended workflow specifically because it needs no new tooling to translate content -- you (the agent) already read and write the visible text; `localize` just saves you from re-deriving the timeline and re-copying media by hand.
+
 ## Cinematic polish (Scribe-style output)
 
 Two things separate a good demo video from an amateur one: a **spotlight highlight** on whatever the cursor is about to interact with, and a **cinematic camera** that pushes in on the relevant area instead of holding a static wide shot the whole time. Both are now first-class:
@@ -126,6 +143,7 @@ Then, wherever your timeline script moves the fake cursor to an element and clic
 - `--loop` -- loop animation endlessly
 - `--voiceover <script.txt>` -- macOS TTS voiceover in exported video
 - `--width` / `--height` -- override the export resolution (defaults: 1920x1080 desktop, 390x844 mobile, recorded at 2x pixel density for crisp/retina-quality video; encoded with libx264 `-crf 18 -preset slow` for near-lossless output)
+- `--locale <code>` (on `animate`/`export`) -- tags the recorded manifest entry with a locale code (e.g. `en`, `fr`); purely metadata, doesn't change rendering
 
 ## Code style
 

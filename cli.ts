@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv';
 import { extractCommand } from './src/commands/extract';
 import { animateCommand } from './src/commands/animate';
 import { exportCommand } from './src/commands/export';
+import { localizeCommand } from './src/commands/localize';
 
 dotenv.config();
 
@@ -52,6 +53,16 @@ MODEL CONFIGURATION:
 
   If the requested provider's API key is missing but the other is available,
   the CLI will automatically fall back to the available provider.
+
+RECORDING & MULTI-LANGUAGE EXPORTS:
+  Every animate/export/localize call appends a timestamped entry to
+  <output_dir>/anim.manifest.json automatically -- a record of what was done.
+
+  To reuse a timeline for another language instead of rebuilding it:
+    => npx tsx cli.ts localize <output_dir> <locale>
+  This scaffolds <locale>/ with index.html + anim.config.json copied over. Translate
+  the visible text and "subtitle" strings only -- targets are CSS selectors, not
+  text, so the same choreography (clicks, camera pans, highlights) replays correctly.
 
 CONFIG TIMELINES (anim.config.json):
   Run \`npx tsx cli.ts init-config <dir>\` to scaffold the JSON timeline schema:
@@ -107,6 +118,7 @@ program
   .option('-m, --model <model>', 'LLM model ID (e.g. gemini-2.5-flash, claude-haiku-4-5-20251001). Defaults per provider')
   .option('-c, --cursor <style>', 'Cursor style: mac, windows, none', 'none')
   .option('-l, --loop', 'Loop the generated HTML animation endlessly')
+  .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
   .action((dir, prompt, opts) => animateCommand(dir, prompt, opts));
 
 program
@@ -120,6 +132,15 @@ program
   .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
   .option('-t, --theme <mode>', 'Color scheme mode for Playwright: light or dark', 'light')
   .option('-v, --voiceover <path>', 'Path to a text file containing the voiceover script')
+  .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
   .action((dir, opts) => exportCommand(dir, opts));
+
+program
+  .command('localize')
+  .description('Scaffold a translated locale directory from an existing output dir, reusing the same timeline/choreography')
+  .argument('<source_dir>', 'Existing output directory to localize from (contains index.html, optionally anim.config.json)')
+  .argument('<locale>', 'Target locale code, e.g. fr, es, ja')
+  .option('-o, --output-dir <dir>', 'Directory to scaffold into (default: a sibling directory named after the locale)')
+  .action((src, locale, opts) => localizeCommand(src, locale, opts));
 
 program.parse(process.argv);

@@ -142,3 +142,22 @@ for standalone usage; agents skip them entirely.
 **Example prompt:**
 > *"Look at this screenshot I just pasted, extract it, generate an animation timeline
 > where clicking the primary button causes a ripple, and export the final video."*
+
+## Recording history & multi-language exports
+
+Every `animate`, `export`, and `localize` run writes a timestamped entry (command, options, prompt) to `<output_directory>/anim.manifest.json` automatically -- a record of what was done to that directory, with no extra setup.
+
+If you need the same demo in several languages, reuse the choreography instead of rebuilding it:
+```bash
+# Scaffold a French locale from an existing English output dir
+npx tsx cli.ts localize ./output/en fr
+# -> creates ./output/fr/ with index.html + anim.config.json copied over
+
+# Translate the visible text in ./output/fr/index.html and the "subtitle"
+# strings in ./output/fr/anim.config.json (leave time/action/target untouched --
+# targets are CSS selectors, not text, so the same clicks/camera pans replay correctly)
+
+# Then export the localized video the same way
+npx tsx cli.ts export ./output/fr --duration 8 --output demo-fr.mp4 --locale fr
+```
+`--locale` is optional metadata recorded in the manifest; it doesn't change rendering.
