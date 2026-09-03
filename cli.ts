@@ -57,9 +57,13 @@ CONFIG TIMELINES (anim.config.json):
   Run \`npx tsx cli.ts init-config <dir>\` to scaffold the JSON timeline schema:
   [
     { "time": "0s", "action": "fadeIn", "target": "#screen1", "subtitle": "First step..." },
-    { "time": "2s", "action": "click", "target": ".btn-primary", "subtitle": "Click the button." }
+    { "time": "2s", "action": "click", "target": ".btn-primary", "subtitle": "Click the button." },
+    { "time": "4s", "action": "camera", "target": ".btn-primary", "scale": 1.3, "duration": 2 },
+    { "time": "7s", "action": "scroll", "target": "#footer" }
   ]
-  The \`animate\` command ingests this file if it exists.
+  The \`animate\` command ingests this file if it exists. With --cursor set, click/focus/type/
+  highlight steps automatically get a spotlight highlight + click ripple; camera pans/zooms the
+  page toward a target; scroll smooth-scrolls an element into view.
 `);
 
 program
@@ -74,7 +78,8 @@ program
           { time: '0s', action: 'fadeIn', target: '#screen1', subtitle: 'Welcome to the dashboard.' },
           { time: '2s', action: 'click', target: '.btn-primary', subtitle: 'Click the primary button to begin.' },
           { time: '3.5s', action: 'type', target: '.chat-input', value: 'Generate a report', subtitle: 'Enter your prompt here.' },
-          { time: '5.5s', action: 'transitionScreen', target: '#screen2', subtitle: null }
+          { time: '5.5s', action: 'camera', target: '.chat-input', scale: 1.3, duration: 2 },
+          { time: '8s', action: 'transitionScreen', target: '#screen2', subtitle: null }
       ];
       fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(config, null, 2));
       console.log('Created anim.config.json timeline schema!');

@@ -89,6 +89,31 @@ When acting as the agent, skip `extract` and `animate`. Instead:
 3. Write `animated.html` with CSS keyframe animations and subtitle overlays.
 4. Run: `npx tsx cli.ts export <output_dir> --duration <seconds> --output <file.mp4>`
 
+## Cinematic polish (Scribe-style output)
+
+Two things separate a good demo video from an amateur one: a **spotlight highlight** on whatever the cursor is about to interact with, and a **cinematic camera** that pushes in on the relevant area instead of holding a static wide shot the whole time. Both are now first-class:
+
+- `npx tsx cli.ts animate` (LLM-driven path, `--cursor mac|windows` + `anim.config.json`) injects all of this automatically: a glowing spotlight box around the target element on `click`/`focus`/`type`/`highlight` steps, an expanding ripple pulse on `click`, and support for `camera` and `scroll` steps.
+- When you (the agent) hand-write `animated.html` directly -- the common path since you skip `extract`/`animate` -- replicate the same visual language so output quality stays consistent. Paste this before `</head>` and `</body>`:
+
+```html
+<style>
+#anim-cli-highlight { position: fixed; border-radius: 10px; border: 2px solid #3B82F6; box-shadow: 0 0 0 4px rgba(59,130,246,0.18), 0 0 28px rgba(59,130,246,0.35); pointer-events: none; z-index: 99996; opacity: 0; transition: left .5s cubic-bezier(.16,1,.3,1), top .5s cubic-bezier(.16,1,.3,1), width .5s cubic-bezier(.16,1,.3,1), height .5s cubic-bezier(.16,1,.3,1); }
+#anim-cli-highlight.anim-cli-pulse { animation: anim-cli-highlightPulse 1.3s cubic-bezier(.16,1,.3,1) forwards; }
+@keyframes anim-cli-highlightPulse { 0% { opacity:0 } 15% { opacity:1 } 75% { opacity:1 } 100% { opacity:0 } }
+.anim-cli-ripple { position: fixed; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%; background: rgba(59,130,246,.35); border: 2px solid rgba(59,130,246,.65); pointer-events:none; z-index:99997; animation: anim-cli-rippleAnim .6s cubic-bezier(.16,1,.3,1) forwards; }
+@keyframes anim-cli-rippleAnim { 0% { width:14px; height:14px; margin:-7px 0 0 -7px; opacity:.9 } 100% { width:80px; height:80px; margin:-40px 0 0 -40px; opacity:0 } }
+</style>
+```
+
+Then, wherever your timeline script moves the fake cursor to an element and clicks/types into it, call a `highlight(el)` helper that positions `#anim-cli-highlight` over the element's `getBoundingClientRect()` (with ~6px padding) and re-triggers the `.anim-cli-pulse` class, and a `ripple(x, y)` helper that drops a `.anim-cli-ripple` div at the click point and removes it after ~700ms. For a camera push-in, transition `document.body.style.transform` (e.g. `scale(1.3) translate(Xpx, Ypx)` computed to center the target element) over 1.5-3s with `cubic-bezier(.65,0,.35,1)` -- see `src/commands/animate.ts` for the exact reference implementation if you want to copy it verbatim.
+
+**Timeline action vocabulary** (works whether you write the timeline as JSON for `animate` or drive your own hand-written script):
+- `fadeIn`, `click`, `focus`, `type` (types `value` char-by-char), `transitionScreen`
+- `highlight` -- spotlight an element without clicking it (good for "notice this" beats)
+- `camera` -- `{ "action": "camera", "target": "#el", "scale": 1.3, "duration": 2 }` pans/zooms the whole page to center on `target` (or use explicit `x`/`y` instead of `target`)
+- `scroll` -- `{ "action": "scroll", "target": "#el" }` smooth-scrolls the element into view
+
 ## CLI options
 
 - `--provider gemini|claude` -- select LLM provider (auto-falls back if key missing)
@@ -100,6 +125,7 @@ When acting as the agent, skip `extract` and `animate`. Instead:
 - `--cursor mac|windows|none` -- cursor style in animations
 - `--loop` -- loop animation endlessly
 - `--voiceover <script.txt>` -- macOS TTS voiceover in exported video
+- `--width` / `--height` -- override the export resolution (defaults: 1920x1080 desktop, 390x844 mobile, recorded at 2x pixel density for crisp/retina-quality video; encoded with libx264 `-crf 18 -preset slow` for near-lossless output)
 
 ## Code style
 

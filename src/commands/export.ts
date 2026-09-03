@@ -23,11 +23,12 @@ export async function exportCommand(outputDir: string, options: { duration: stri
     const tempVideoDir = path.join(outputDir, '.temp-video');
     
     const isMobile = options.device === 'mobile';
-    const vWidth = options.width ? parseInt(options.width) : (isMobile ? 390 : 1280);
-    const vHeight = options.height ? parseInt(options.height) : (isMobile ? 844 : 720);
+    const vWidth = options.width ? parseInt(options.width) : (isMobile ? 390 : 1920);
+    const vHeight = options.height ? parseInt(options.height) : (isMobile ? 844 : 1080);
 
     const context = await browser.newContext({
         viewport: { width: vWidth, height: vHeight },
+        deviceScaleFactor: 2,
         colorScheme: options.theme === 'dark' ? 'dark' : 'light',
         recordVideo: {
             dir: tempVideoDir,
@@ -76,10 +77,10 @@ export async function exportCommand(outputDir: string, options: { duration: stri
         let ffmpegArgs: string[] = [];
         if (outputFile.toLowerCase().endsWith('.gif')) {
             console.log(`Optimizing frames for high-quality GIF export...`);
-            // Use FFmpeg palettegen for crisp, optimized web GIFs at 15fps
-            ffmpegArgs = ['-y', '-i', webmFile, '-vf', 'fps=15,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse', '-loop', '0', outputFile];
+            // Use FFmpeg palettegen for crisp, optimized web GIFs at 20fps
+            ffmpegArgs = ['-y', '-i', webmFile, '-vf', 'fps=20,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse=dither=sierra2_4a', '-loop', '0', outputFile];
         } else {
-            ffmpegArgs = ['-y', '-i', webmFile, '-c:v', 'libx264', '-preset', 'fast', '-crf', '22', outputFile];
+            ffmpegArgs = ['-y', '-i', webmFile, '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', outputFile];
 
             if (options.voiceover && fs.existsSync(options.voiceover)) {
                 console.log(`Generating TTS audio from ${options.voiceover}...`);
@@ -119,8 +120,9 @@ export async function exportCommand(outputDir: string, options: { duration: stri
                     execFileSync('say', ['-f', scriptPath, '-o', audioOut]);
                 }
 
-                // Update FFmpeg args to mux video and audio
-                ffmpegArgs = ['-y', '-i', webmFile, '-i', audioOut, '-c:v', 'libx264', '-preset', 'fast', '-crf', '22', '-c:a', 'aac', outputFile];
+                // Update FFmpeg args to mux video and audio (keep the full requested --duration
+                // even if the voiceover is shorter, rather than truncating to the shorter stream)
+                ffmpegArgs = ['-y', '-i', webmFile, '-i', audioOut, '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', outputFile];
             }
         }
 

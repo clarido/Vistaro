@@ -105,10 +105,14 @@ npx tsx cli.ts animate <output_directory> "<animation prompt instruction...>" [o
 > ```json
 > [
 >   { "time": "0s", "action": "fadeIn", "target": "#screen1", "subtitle": "Welcome to the dashboard." },
->   { "time": "2s", "action": "click", "target": ".btn-primary", "subtitle": "Click to begin." }
+>   { "time": "2s", "action": "click", "target": ".btn-primary", "subtitle": "Click to begin." },
+>   { "time": "4s", "action": "camera", "target": ".btn-primary", "scale": 1.3, "duration": 2 },
+>   { "time": "7s", "action": "scroll", "target": "#footer" }
 > ]
 > ```
 > **Subtitles are fully supported!** The CLI reads the `subtitle` keys and drops an absolute-positioned DOM overlay onto the video, flawlessly tracking your CSS animation delays without the LLM needing to hallucinate it!
+>
+> **Cinematic polish, automatically.** With `--cursor mac|windows`, every `click`/`focus`/`type` step gets a glowing spotlight highlight on the target element plus an expanding click ripple -- no need to hand-author these. `camera` pans/zooms the whole page to frame an element (or an explicit `x`/`y`), and `scroll` smooth-scrolls it into view. Use `highlight` as a standalone "notice this" beat without a click.
 
 Capture the animating HTML via screen recording and save (MP4 or GIF):
 ```bash
@@ -119,6 +123,8 @@ npx tsx cli.ts export <output_directory> --duration 8 --output result.gif [optio
 # --voiceover script.txt
 ```
 > **Tip:** Passing `--theme dark` natively enforces the active CSS media-query to dark mode during Playwright recording. If `--voiceover` is also provided, the CLI will pipe macOS native Text-to-Speech seamlessly through the final MP4.
+>
+> **Quality by default.** Desktop exports record at 1920x1080 (mobile: 390x844) with 2x pixel density for crisp, retina-quality frames, and encode with `libx264 -crf 18 -preset slow` (near-lossless) plus `+faststart` for instant web playback. Override with `--width`/`--height` if you need something else.
 
 ## Running via AI Agents (Claude Code, Codex, Antigravity)
 This CLI is designed to work as a toolkit for AI coding agents. The key difference
