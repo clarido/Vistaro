@@ -131,11 +131,14 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
                 rect: result.rect ?? null, targetRect: result.targetRect, callout: null, error: result.error,
             };
             try {
+                // Subtitle bar (and optionally the cursor) hidden for EVERY guide frame, the poster included:
+                // a subtitle burned into the cover image would also leak the previous locale's text.
+                await page.evaluate((o) => (window as any).__anim.beginCapture(o), { hideCursor: !!opts.hideCursor });
                 if (!poster && opts.poster !== false) {
                     poster = path.join(opts.assetsDir, 'poster.png');
+                    await page.evaluate(() => (window as any).__anim.nextFrames(2));
                     await page.screenshot({ path: poster, type: 'png' });
                 }
-                await page.evaluate((o) => (window as any).__anim.beginCapture(o), { hideCursor: !!opts.hideCursor });
                 // Badge + spotlight for every guide step with a resolvable target ("notice this" is a real
                 // instruction for the reader): cursor actions on the box runStep used, other actions on the
                 // target's sized box. rect/callout are null only for target-less steps or failed ones.

@@ -17,6 +17,15 @@ const cli = (args: string[]) => spawnSync(process.execPath, ['--import', 'tsx', 
 
 const pngSize = (file: string) => { const b = fs.readFileSync(file); return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) }; };
 
+/** Fraction of dark pixels (luma < 110) in the centre-bottom band where the subtitle pill sits (2x frames of a 1280x800 viewport). */
+function subtitleBandDarkFraction(file: string): number {
+    const res = spawnSync(require('ffmpeg-static'), ['-i', file, '-vf', 'crop=1000:140:780:1400', '-f', 'rawvideo', '-pix_fmt', 'gray', '-'], { maxBuffer: 64 * 1024 * 1024 });
+    const px = res.stdout;
+    let dark = 0;
+    for (let i = 0; i < px.length; i++) if (px[i] < 110) dark++;
+    return px.length ? dark / px.length : NaN;
+}
+
 let work: string;
 before(() => {
     if (skip) return;
@@ -212,6 +221,16 @@ test('export --guide --clips: video block, chapters, poster, clips wired into gu
     assert.match(html, /addTextTrack\('subtitles'/);
     assert.ok(fs.existsSync(path.join(work, 'g', 'assets', 'poster.png')), 'poster written when a video is linked');
     assert.ok(!JSON.stringify(g).includes(work), 'no absolute paths in guide.json');
+    // Subtitle bar absent from the poster and from every step frame (the fixture page is light, the pill is dark).
+    // Positive control: a preview frame of the click step, where the subtitle "Open it." is showing.
+    const control = cli(['preview', dir, '--step', '2', '--at', 'interaction', '--width', '1280', '--height', '800', '-o', path.join(work, 'control.png')]);
+    assert.equal(control.status, 0, control.stderr);
+    const ctrl = subtitleBandDarkFraction(path.join(work, 'control.png'));
+    assert.ok(ctrl > 0.02, `positive control shows a subtitle pill: ${ctrl}`);
+    for (const f of ['assets/poster.png', ...g.steps.map(s => s.image!)]) {
+        const frac = subtitleBandDarkFraction(path.join(work, 'g', f));
+        assert.ok(frac < 0.005, `${f}: subtitle band dark fraction ${frac} (control ${ctrl})`);
+    }
     // subtitles must show from a plain file:// open (no browser flags): Chromium blocks <track src> there
     const cueCount = spawnSync(process.execPath, ['-e', `
         const { chromium } = require('playwright'); const { pathToFileURL } = require('url');
