@@ -1,38 +1,69 @@
-[
-  { 
-    "time": "0s", 
-    "action": "fadeIn", 
-    "target": "body", 
-    "subtitle": "Reviewing the proposal progress." 
+{
+  "meta": {
+    "title": "Draft a proposal response",
+    "slug": "draft-proposal-response",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2500,
+    "resetFocusStyles": true
   },
-  { 
-    "time": "2s", 
-    "action": "click", 
-    "target": "#item-3", 
-    "subtitle": "Opening a specific section." 
-  },
-  { 
-    "time": "4s", 
-    "action": "click", 
-    "target": "#text-editor"
-  },
-  {
-    "time": "5s",
-    "action": "type",
-    "target": "#editor-type-target",
-    "value": "We will ensure rigorous compliance with all requirements.",
-    "subtitle": "Drafting the response."
-  },
-  {
-    "time": "7s",
-    "action": "camera",
-    "scale": 1.25,
-    "x": "-65vw",
-    "y": "10vh"
-  },
-  {
-    "time": "9s",
-    "action": "showText",
-    "target": "#cinematic-text"
-  }
-]
+  "steps": [
+    {
+      "id": "intro",
+      "time": "0s",
+      "action": "fadeIn",
+      "target": "body",
+      "title": "Overview",
+      "subtitle": "Reviewing the proposal progress."
+    },
+    {
+      "id": "open-section",
+      "time": "2s",
+      "action": "click",
+      "target": "#item-3",
+      "title": "Open the section",
+      "subtitle": "Opening a specific section."
+    },
+    {
+      "id": "focus-editor",
+      "time": "4s",
+      "action": "click",
+      "target": "#text-editor",
+      "title": "Focus the editor"
+    },
+    {
+      "id": "draft",
+      "time": "5s",
+      "action": "type",
+      "target": "#editor-type-target",
+      "value": "We will ensure rigorous compliance with all requirements.",
+      "title": "Draft the response",
+      "subtitle": "Drafting the response."
+    },
+    {
+      "id": "zoom",
+      "time": "7s",
+      "action": "camera",
+      "scale": 1.25,
+      "x": "-65vw",
+      "y": "10vh",
+      "guide": false
+    },
+    {
+      "id": "pull-back",
+      "time": "8.5s",
+      "action": "camera",
+      "scale": 1,
+      "duration": 2,
+      "guide": false
+    },
+    {
+      "id": "closing",
+      "time": "9s",
+      "action": "fadeIn",
+      "target": "#cinematic-text",
+      "title": "Closing"
+    }
+  ]
+}

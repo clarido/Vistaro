@@ -1,0 +1,87 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import { Timeline, computeDurationMs, DEFAULT_CPS } from './schema';
+
+/** Absolute path of the plain-JS browser runtime, read from disk and injected as text. */
+export const RUNTIME_PATH = path.join(__dirname, 'runtime.js');
+
+let cachedRuntime: string | undefined;
+
+/** Source of src/engine/runtime.js (cached after first read). */
+export function runtimeSource(): string {
+    if (cachedRuntime === undefined) cachedRuntime = fs.readFileSync(RUNTIME_PATH, 'utf8');
+    return cachedRuntime;
+}
+
+export type CursorStyle = 'mac' | 'windows' | 'none';
+
+export interface InjectOptions {
+    /** CLI cursor override; falls back to meta.cursor, then 'mac'. */
+    cursor?: CursorStyle | string;
+    loop?: boolean;
+    drift?: boolean;
+    resetFocusStyles?: boolean;
+    /** Override the computed playback length (used for the loop reload). */
+    durationMs?: number;
+}
+
+export interface BootOptions {
+    cursor: CursorStyle;
+    loop: boolean;
+    drift: boolean;
+    resetFocusStyles: boolean;
+    durationMs: number;
+    /** Typing speed used when a `type` step has no `cps` (schema DEFAULT_CPS). */
+    defaultCps: number;
+    timeline?: { meta: Record<string, any>; steps: any[] };
+    cursorPoint?: { x: number; y: number } | null;
+}
+
+function normalizeCursor(c: unknown): CursorStyle {
+    return c === 'windows' || c === 'none' ? c : 'mac';
+}
+
+/** Resolve the options handed to `__anim.boot` from timeline meta + CLI overrides. */
+export function bootOptions(timeline: Timeline, opts: InjectOptions = {}, withTimeline = true): BootOptions {
+    const meta = timeline.meta || {};
+    const boot: BootOptions = {
+        cursor: normalizeCursor(opts.cursor ?? meta.cursor ?? 'mac'),
+        loop: !!opts.loop,
+        drift: opts.drift ?? (meta.drift !== undefined ? !!meta.drift : true),
+        resetFocusStyles: opts.resetFocusStyles ?? !!meta.resetFocusStyles,
+        durationMs: opts.durationMs ?? computeDurationMs(timeline),
+        defaultCps: DEFAULT_CPS,
+    };
+    if (withTimeline) boot.timeline = { meta: { title: meta.title, slug: meta.slug, locale: meta.locale }, steps: timeline.steps };
+    return boot;
+}
+
+/** JSON safe to embed inside a <script> element. */
+export function scriptJson(value: unknown): string {
+    return JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+}
+
+const START = '<!-- anim-cli-runtime:start -->';
+const END = '<!-- anim-cli-runtime:end -->';
+
+/** Remove a previously injected runtime block so build is idempotent on its own output. */
+export function stripRuntime(html: string): string {
+    const s = html.indexOf(START);
+    const e = html.indexOf(END);
+    if (s === -1 || e === -1 || e < s) return html;
+    return html.slice(0, s) + html.slice(e + END.length);
+}
+
+/**
+ * Inline the runtime plus a `__anim.boot({...})` call before </body>.
+ * The page self-plays when opened directly; a Playwright driver sets
+ * `window.__ANIM_DRIVEN = true` before load to keep the in-page scheduler off.
+ */
+export function buildAnimatedHtml(html: string, timeline: Timeline, opts: InjectOptions = {}): string {
+    const boot = bootOptions(timeline, opts, true);
+    const block = `\n${START}\n<script>\n${runtimeSource()}\nwindow.__anim.boot(${scriptJson(boot)});\n</script>\n${END}\n`;
+    let out = stripRuntime(html);
+    if (/<\/body>/i.test(out)) out = out.replace(/<\/body>/i, `${block}</body>`);
+    else out += block;
+    return out;
+}

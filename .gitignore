@@ -14,3 +14,8 @@ node_modules/
 # Claude Code local data
 .claude/
 .claude/
+
+# Generated previews
+preview.png
+preview-step-*.png
+.temp-video/

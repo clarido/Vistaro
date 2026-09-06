@@ -5,15 +5,17 @@ import { extractCommand } from './src/commands/extract';
 import { animateCommand } from './src/commands/animate';
 import { exportCommand } from './src/commands/export';
 import { localizeCommand } from './src/commands/localize';
+import { buildCommand } from './src/commands/build';
+import { initConfigCommand } from './src/commands/init-config';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const program = new Command();
 
 program
   .name('anim-cli')
   .description('HTML Video Editor CLI powered by LLMs')
-  .version('1.0.0');
+  .version('1.1.0');
 
 program.addHelpText('after', `
 =========================================
@@ -40,10 +42,9 @@ WORKFLOW B — WITHOUT API KEY (LLM agent like Claude Code):
   screenshot in the chat. The agent will:
 
   1. Look at the screenshot and write index.html directly into <output_dir>.
-  2. Optionally create anim.config.json with a timeline.
-  3. Write animated.html with CSS animations and subtitles.
-  4. Run only the export command to record the video:
-     => npx tsx cli.ts export <output_dir> --duration <seconds> --output <file.mp4>
+  2. Write anim.config.json with the timeline (npx tsx cli.ts init-config <output_dir>).
+  4. Build it:         npx tsx cli.ts build <output_dir>      (writes animated.html, no LLM)
+  6. Record the video: npx tsx cli.ts export <output_dir> --duration <seconds> --output <file.mp4>
 
 MODEL CONFIGURATION:
   Override the default model via CLI flag or environment variable:
@@ -55,7 +56,7 @@ MODEL CONFIGURATION:
   the CLI will automatically fall back to the available provider.
 
 RECORDING & MULTI-LANGUAGE EXPORTS:
-  Every animate/export/localize call appends a timestamped entry to
+  Every animate/build/export/localize call appends a timestamped entry to
   <output_dir>/anim.manifest.json automatically -- a record of what was done.
 
   To reuse a timeline for another language instead of rebuilding it:
@@ -66,35 +67,28 @@ RECORDING & MULTI-LANGUAGE EXPORTS:
 
 CONFIG TIMELINES (anim.config.json):
   Run \`npx tsx cli.ts init-config <dir>\` to scaffold the JSON timeline schema:
-  [
-    { "time": "0s", "action": "fadeIn", "target": "#screen1", "subtitle": "First step..." },
-    { "time": "2s", "action": "click", "target": ".btn-primary", "subtitle": "Click the button." },
-    { "time": "4s", "action": "camera", "target": ".btn-primary", "scale": 1.3, "duration": 2 },
-    { "time": "7s", "action": "scroll", "target": "#footer" }
-  ]
-  The \`animate\` command ingests this file if it exists. With --cursor set, click/focus/type/
-  highlight steps automatically get a spotlight highlight + click ripple; camera pans/zooms the
-  page toward a target; scroll smooth-scrolls an element into view.
+  {
+    "meta": { "title": "Create your first report", "cursor": "mac" },
+    "steps": [
+      { "time": "0s", "action": "fadeIn", "target": "body", "title": "Overview", "subtitle": "First step..." },
+      { "time": "2s", "action": "click", "target": ".btn-primary", "title": "Open", "subtitle": "Click the button." },
+      { "time": "4s", "action": "camera", "target": ".btn-primary", "scale": 1.3, "duration": 2 },
+      { "time": "7s", "action": "scroll", "target": "#footer" }
+    ]
+  }
+  A bare array of steps (no "meta") is also accepted. "time" is the moment the interaction
+  happens ("2s", "2000ms" or a number of seconds); the cursor starts moving up to 950ms earlier.
+  Actions: wait, click, focus, type (with "value"), highlight, hover, camera, scroll, fadeIn,
+  transitionScreen. click/focus/type/highlight steps get a spotlight highlight + click ripple;
+  camera pans/zooms the page toward a target; scroll smooth-scrolls an element into view.
 `);
 
 program
   .command('init-config')
   .description('Scaffold an anim.config.json timeline file in the target directory')
   .argument('<output_dir>', 'Directory to initialize the config in')
-  .action((dir) => {
-      const fs = require('fs');
-      const path = require('path');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      const config = [
-          { time: '0s', action: 'fadeIn', target: '#screen1', subtitle: 'Welcome to the dashboard.' },
-          { time: '2s', action: 'click', target: '.btn-primary', subtitle: 'Click the primary button to begin.' },
-          { time: '3.5s', action: 'type', target: '.chat-input', value: 'Generate a report', subtitle: 'Enter your prompt here.' },
-          { time: '5.5s', action: 'camera', target: '.chat-input', scale: 1.3, duration: 2 },
-          { time: '8s', action: 'transitionScreen', target: '#screen2', subtitle: null }
-      ];
-      fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(config, null, 2));
-      console.log('Created anim.config.json timeline schema!');
-  });
+  .option('--force', 'Overwrite an existing anim.config.json')
+  .action((dir, opts) => initConfigCommand(dir, opts));
 
 program
   .command('extract')
@@ -122,6 +116,17 @@ program
   .action((dir, prompt, opts) => animateCommand(dir, prompt, opts));
 
 program
+  .command('build')
+  .description('Build animated.html from index.html + anim.config.json (no LLM, no API key)')
+  .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
+  .option('-c, --cursor <style>', 'Cursor style: mac, windows, none (default: meta.cursor or mac)')
+  .option('-l, --loop', 'Loop the animation endlessly when opened in a browser')
+  .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
+  .option('--force', 'Build even if the timeline has validation errors')
+  .option('-o, --output <file>', 'Write the built HTML somewhere other than <output_dir>/animated.html')
+  .action((dir, opts) => buildCommand(dir, opts));
+
+program
   .command('export')
   .description('Export the animated HTML to an MP4 video using Playwright')
   .argument('<output_dir>', 'Directory containing the animated HTML essence')
@@ -143,4 +148,7 @@ program
   .option('-o, --output-dir <dir>', 'Directory to scaffold into (default: a sibling directory named after the locale)')
   .action((src, locale, opts) => localizeCommand(src, locale, opts));
 
-program.parse(process.argv);
+program.parseAsync(process.argv).catch((e) => {
+  console.error(`Error: ${e && e.message ? e.message : e}`);
+  process.exit(1);
+});

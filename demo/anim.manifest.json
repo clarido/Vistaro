@@ -1,0 +1,91 @@
+{
+  "history": [
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": false,
+      "locale": "en",
+      "force": false,
+      "output": "demo/animated.html",
+      "timestamp": "2026-09-06T20:19:59.309Z"
+    },
+    {
+      "command": "build",
+      "cursor": "windows",
+      "loop": false,
+      "locale": "en",
+      "force": false,
+      "output": "demo/animated.html",
+      "timestamp": "2026-09-06T20:19:59.908Z"
+    },
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": false,
+      "locale": "en",
+      "force": false,
+      "output": "demo/animated.html",
+      "timestamp": "2026-09-06T20:20:00.598Z"
+    },
+    {
+      "command": "animate",
+      "prompt": "x",
+      "provider": "gemini",
+      "cursor": "mac",
+      "loop": false,
+      "timestamp": "2026-09-06T20:20:01.914Z"
+    },
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": false,
+      "locale": "en",
+      "force": false,
+      "output": "demo/animated.html",
+      "timestamp": "2026-09-06T20:20:02.585Z"
+    },
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": false,
+      "locale": "en",
+      "force": false,
+      "output": "demo/animated.html",
+      "timestamp": "2026-09-06T20:22:47.056Z"
+    },
+    {
+      "command": "export",
+      "duration": "12",
+      "output": "/tmp/radiant-frost/work/out.mp4",
+      "device": "desktop",
+      "theme": "light",
+      "timestamp": "2026-09-06T20:23:43.852Z"
+    },
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": false,
+      "locale": "en",
+      "force": false,
+      "output": "demo/animated.html",
+      "timestamp": "2026-09-06T20:26:53.811Z"
+    },
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": false,
+      "locale": "en",
+      "force": false,
+      "output": "demo/animated.html",
+      "timestamp": "2026-09-06T20:29:48.250Z"
+    },
+    {
+      "command": "export",
+      "duration": "13",
+      "output": "/tmp/radiant-frost/work/out.mp4",
+      "device": "desktop",
+      "theme": "light",
+      "timestamp": "2026-09-06T20:30:39.556Z"
+    }
+  ]
+}

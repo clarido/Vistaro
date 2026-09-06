@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Basic fixture</title>
+<style>
+  body { margin: 0; font-family: -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+  #app { display: flex; height: 100vh; }
+  #rail { width: 260px; background: #fff; border-right: 1px solid #e2e8f0; padding: 24px; }
+  #main { flex: 1; padding: 40px; }
+  button { padding: 10px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; }
+  .btn-primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+  #panel { display: none; margin-top: 24px; padding: 24px; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; }
+  #panel.open { display: block; }
+  #field { width: 420px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; }
+  #note { margin-top: 24px; padding: 12px; background: #fef3c7; border-radius: 8px; width: 320px; }
+  #screen2 { display: none; }
+  #banner { opacity: 0; transition: opacity 3s ease; font-size: 40px; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="rail">
+    <h2>Fixture</h2>
+    <button id="btn" class="btn-primary" onclick="openPanel()">Open panel</button>
+    <div id="note">Notice this note.</div>
+  </div>
+  <div id="main">
+    <div id="screen1">
+      <h1>Screen one</h1>
+      <div id="panel">
+        <label for="field">Name</label>
+        <input id="field" class="input" type="text" placeholder="Type here">
+      </div>
+      <div id="banner">Banner text</div>
+    </div>
+    <div id="screen2"><h1>Screen two</h1></div>
+  </div>
+</div>
+<script>
+  var clicks = 0;
+  function openPanel() {
+    clicks++;
+    document.getElementById('panel').classList.add('open');
+    document.body.setAttribute('data-clicks', String(clicks));
+  }
+  document.getElementById('btn').addEventListener('click', function () {
+    document.body.setAttribute('data-listener', 'fired');
+  });
+</script>
+</body>
+</html>

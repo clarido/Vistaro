@@ -1,6 +1,6 @@
 {
   "name": "screenshot-animator",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "HTML Video Editor CLI. Generates HTML mockup UI from screenshots using Vision LLMs, animates them, and exports to .mp4",
   "main": "cli.ts",
   "bin": {
@@ -8,9 +8,15 @@
   },
   "scripts": {
     "start": "tsx cli.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --import tsx --test test/*.test.ts"
   },
-  "keywords": ["cli", "playwright", "ffmpeg", "llm", "video-generation"],
+  "keywords": [
+    "cli",
+    "playwright",
+    "ffmpeg",
+    "llm",
+    "video-generation"
+  ],
   "author": "JF",
   "license": "ISC",
   "dependencies": {
