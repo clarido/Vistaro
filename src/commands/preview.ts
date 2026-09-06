@@ -7,6 +7,8 @@ import { renderContactSheet, SheetFrame } from '../media/contactSheet';
 
 export interface PreviewOptions extends ViewportOptions {
     step?: string | number;
+    /** 'interaction' (default): capture at interaction + 300ms, the guide capture point. 'end': after the step completed. */
+    at?: string;
     output?: string;
     cursor?: string;
     locale?: string;
@@ -21,7 +23,8 @@ export function frameLabel(step: Step): string {
 
 /**
  * `preview <dir>`: run the timeline step by step (no drift), screenshot each step
- * ~300ms after its interaction, and write a labelled contact sheet to <dir>/preview.png.
+ * 300ms after its interaction (inside the highlight pulse; `--at end` captures after the
+ * step completed instead), and write a labelled contact sheet to <dir>/preview.png.
  * `--step N` writes that single frame at full resolution to <dir>/preview-step-N.png.
  */
 export async function previewCommand(dir: string, options: PreviewOptions = {}): Promise<void> {
@@ -44,6 +47,11 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
         process.exit(1);
     }
 
+    const at = options.at ?? 'interaction';
+    if (at !== 'interaction' && at !== 'end') {
+        console.error(`Error: --at must be "interaction" or "end".`);
+        process.exit(1);
+    }
     const only = options.step !== undefined ? parseInt(String(options.step), 10) : undefined;
     if (only !== undefined && (!Number.isFinite(only) || only < 1 || only > timeline.steps.length)) {
         console.error(`Error: --step must be between 1 and ${timeline.steps.length}.`);
@@ -60,11 +68,13 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
         await runTimeline(page, steps, {
             mode: 'step',
             settleMs: 300,
+            afterStepAt: at === 'end' ? 'completion' : 'interaction',
             afterStep: async (step, result) => {
                 if (only !== undefined && step.index !== only) return;
                 const png = await page.screenshot({ type: 'png' });
                 frames.push({ label: frameLabel(step), png, error: result.error });
-                const status = result.error ? `FAILED: ${result.error}` : `interaction at ${result.actualMs}ms`;
+                const status = result.error ? `FAILED: ${result.error}`
+                    : at === 'end' ? `interaction at ${result.actualMs}ms, completed at ${result.completedMs}ms` : `interaction at ${result.actualMs}ms`;
                 console.log(`  ${frameLabel(step)}  (${status})`);
             },
         });

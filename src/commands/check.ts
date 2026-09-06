@@ -27,8 +27,10 @@ function issueFor(step: Step, level: Issue['level'], message: string, field = 't
 }
 
 /** Run the timeline in a headless page (step mode, instant) and probe each target right before its step. */
-export async function browserCheck(dir: string, timeline: Timeline, opts: ViewportOptions): Promise<Issue[]> {
+export async function browserCheck(dir: string, timeline: Timeline, opts: ViewportOptions, staticIssues: Issue[] = []): Promise<Issue[]> {
     const issues: Issue[] = [];
+    // Steps whose target is already statically wrong would only produce a duplicate browser error.
+    const staticTargetErrors = new Set(staticIssues.filter(i => i.level === 'error' && i.field === 'target').map(i => i.step));
     const htmlPath = path.resolve(dir, 'index.html');
     if (!fs.existsSync(htmlPath)) {
         issues.push({ level: 'error', message: `${htmlPath} not found` });
@@ -91,7 +93,7 @@ export async function browserCheck(dir: string, timeline: Timeline, opts: Viewpo
             },
             afterStep: (step, result) => {
                 // A missing target was already reported by the probe above; don't list it twice.
-                if (result.error && !reportedMissing.has(step.index)) {
+                if (result.error && !reportedMissing.has(step.index) && !staticTargetErrors.has(step.index)) {
                     issues.push(issueFor(step, 'error', `step failed in the browser: ${result.error}`, 'action'));
                 }
             },
@@ -116,7 +118,7 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
     if (timeline) {
         issues.push(...validateTimeline(timeline));
         if (!options.static && !hasErrors(issues.filter(i => i.field === 'time' || i.field === 'action'))) {
-            issues.push(...await browserCheck(dir, timeline, options));
+            issues.push(...await browserCheck(dir, timeline, options, issues));
         } else if (!options.static) {
             note = 'Browser pass skipped until the timing/action errors above are fixed.';
         }

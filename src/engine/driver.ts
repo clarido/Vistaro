@@ -8,8 +8,13 @@ import { runtimeSource, bootOptions, InjectOptions } from './inject';
  * - timed mode: each step starts at `timeMs - leadMs` on the wall clock (video export).
  * - step mode: steps run back-to-back with a fixed lead, awaiting each one (check/preview/guide).
  *
- * `actualMs` is measured in the page (relative to `__anim.start()`), at the moment the
- * interaction happened. VTT/chapters/guide data derive from it.
+ * `runStep` resolves at the INTERACTION moment (click, first typed char, camera start);
+ * the step's completion (typing done, camera/fade finished) is awaited separately via
+ * `__anim.whenDone(token)`. `actualMs` / `completedMs` are measured in the page relative
+ * to `__anim.start()`. VTT/chapters/guide data derive from `actualMs`.
+ *
+ * Hooks (`beforeStep`/`afterStep`) never reject the run: a throwing hook is recorded in
+ * `result.error` so callers with `finally` cleanup (export) always get their results.
  */
 
 export interface StepResult {
@@ -18,7 +23,10 @@ export interface StepResult {
     action: string;
     target?: string;
     scheduledMs: number;
+    /** Interaction moment (NaN when the step failed before interacting). */
     actualMs: number;
+    /** Moment the step finished animating (typing, camera, fade). */
+    completedMs?: number;
     rect?: { x: number; y: number; width: number; height: number } | null;
     point?: { x: number; y: number } | null;
     error?: string;
@@ -26,14 +34,16 @@ export interface StepResult {
 
 export interface RunOptions {
     mode: 'timed' | 'step';
-    /** Pause after each step resolves before `afterStep` (step mode only). Default 300. */
+    /** Pause after the interaction before `afterStep` (step mode only). Default 300. */
     settleMs?: number;
     /** Cursor lead in step mode. Default 950. */
     leadMs?: number;
     /** Skip all waits inside the page (typing, camera, fades). Step mode only. */
     instant?: boolean;
-    /** Reject a step that has not resolved after this long. Default 30000. */
+    /** Reject a step that has not interacted / completed after this long. Default 30000. */
     stepTimeoutMs?: number;
+    /** When `afterStep` fires: at interaction (+ settleMs, the guide capture point) or after the step completed. Default 'interaction'. */
+    afterStepAt?: 'interaction' | 'completion';
     beforeStep?: (step: Step) => void | Promise<void>;
     afterStep?: (step: Step, result: StepResult) => void | Promise<void>;
 }
@@ -47,7 +57,7 @@ export async function ensureRuntime(page: Page, timeline: Timeline, opts: Inject
     await page.waitForFunction(() => (window as any).__anim && (window as any).__anim.isReady());
 }
 
-function errorMessage(e: any): string {
+export function errorMessage(e: any): string {
     const msg = String(e && e.message ? e.message : e);
     return msg.split('\n')[0].replace(/^page\.evaluate:\s*/, '').replace(/^Error:\s*/, '');
 }
@@ -59,37 +69,77 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
     });
 }
 
+function appendError(result: StepResult, msg: string): void {
+    result.error = result.error ? `${result.error}; ${msg}` : msg;
+}
+
 export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptions): Promise<StepResult[]> {
     const steps = timeline.steps;
     const settleMs = opts.settleMs ?? 300;
     const stepTimeoutMs = opts.stepTimeoutMs ?? 30000;
+    const afterStepAt = opts.afterStepAt ?? 'interaction';
     const results: StepResult[] = new Array(steps.length);
 
     await page.evaluate(() => (window as any).__anim.start());
     const t0 = Date.now();
 
-    const fire = async (i: number, leadMs: number) => {
+    const label = (step: Step) => `step ${step.index} (${step.action}${step.target ? ' ' + step.target : ''})`;
+
+    const fire = async (i: number, leadMs: number): Promise<void> => {
         const step = steps[i];
-        if (opts.beforeStep) await opts.beforeStep(step);
-        let result: StepResult;
+        const result: StepResult = {
+            index: step.index, id: step.id, action: step.action, target: step.target,
+            scheduledMs: step.timeMs, actualMs: NaN,
+        };
+        results[i] = result;
+
+        if (opts.beforeStep) {
+            try { await opts.beforeStep(step); }
+            catch (e: any) { appendError(result, `beforeStep hook: ${errorMessage(e)}`); return; }
+        }
+
+        let token: number | undefined;
         try {
-            result = await withTimeout(
+            const r: StepResult & { token?: number } = await withTimeout(
                 page.evaluate(
                     ([s, o]) => (window as any).__anim.runStep(s, o),
                     [step, { leadMs, instant: !!opts.instant }] as [Step, { leadMs: number; instant: boolean }],
                 ),
                 stepTimeoutMs,
-                `step ${step.index} (${step.action}${step.target ? ' ' + step.target : ''})`,
+                label(step),
             );
+            token = r.token;
+            delete r.token;
+            Object.assign(result, r);
         } catch (e: any) {
-            result = {
-                index: step.index, id: step.id, action: step.action, target: step.target,
-                scheduledMs: step.timeMs, actualMs: NaN, error: errorMessage(e),
-            };
+            appendError(result, errorMessage(e));
+            return;
         }
+
+        // Driver-side actions at the interaction moment.
+        if (step.action === 'press' && typeof step.value === 'string') {
+            try { await page.keyboard.press(step.value); }
+            catch (e: any) { appendError(result, `keyboard.press(${JSON.stringify(step.value)}): ${errorMessage(e)}`); }
+        }
+
+        const awaitCompletion = async () => {
+            if (token === undefined || Number.isFinite(result.completedMs ?? NaN)) return;
+            try {
+                result.completedMs = await withTimeout(
+                    page.evaluate((t) => (window as any).__anim.whenDone(t), token),
+                    stepTimeoutMs,
+                    `${label(step)} completion`,
+                );
+            } catch (e: any) { appendError(result, errorMessage(e)); }
+        };
+
+        if (afterStepAt === 'completion') await awaitCompletion();
         if (opts.mode === 'step' && settleMs > 0 && !opts.instant) await page.waitForTimeout(settleMs);
-        if (opts.afterStep) await opts.afterStep(step, result);
-        results[i] = result;
+        if (opts.afterStep) {
+            try { await opts.afterStep(step, result); }
+            catch (e: any) { appendError(result, `afterStep hook: ${errorMessage(e)}`); }
+        }
+        await awaitCompletion();
     };
 
     if (opts.mode === 'step') {
@@ -110,7 +160,9 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
         const startAt = t0 + step.timeMs - leadMs;
         const delay = startAt - Date.now();
         if (delay > 0) await page.waitForTimeout(delay);
-        pending.push(fire(i, leadMs));
+        // fire() never rejects (hook and evaluate errors land in result.error), so an
+        // unhandled rejection cannot escape before Promise.all.
+        pending.push(fire(i, leadMs).catch((e) => { appendError(results[i], errorMessage(e)); }));
     }
     await Promise.all(pending);
     return results;

@@ -38,16 +38,23 @@ export function resolveViewport(opts: ViewportOptions): { width: number; height:
 export async function launchPage(opts: LaunchOptions = {}): Promise<LaunchedPage> {
     const { width, height } = resolveViewport(opts);
     const browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({
-        viewport: { width, height },
-        deviceScaleFactor: opts.deviceScaleFactor ?? 2,
-        colorScheme: opts.theme === 'dark' ? 'dark' : 'light',
-        ...(opts.recordVideoDir ? { recordVideo: { dir: opts.recordVideoDir, size: { width, height } } } : {}),
-    });
-    if (opts.driven !== false) {
-        await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    let context: BrowserContext;
+    let page: Page;
+    try {
+        context = await browser.newContext({
+            viewport: { width, height },
+            deviceScaleFactor: opts.deviceScaleFactor ?? 2,
+            colorScheme: opts.theme === 'dark' ? 'dark' : 'light',
+            ...(opts.recordVideoDir ? { recordVideo: { dir: opts.recordVideoDir, size: { width, height } } } : {}),
+        });
+        if (opts.driven !== false) {
+            await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+        }
+        page = await context.newPage();
+    } catch (e) {
+        await browser.close().catch(() => {});
+        throw e;
     }
-    const page = await context.newPage();
     const close = async () => {
         await page.close().catch(() => {});
         await context.close().catch(() => {});

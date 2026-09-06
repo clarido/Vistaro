@@ -48,6 +48,7 @@
       "scale": 1.25,
       "x": "-65vw",
       "y": "10vh",
+      "duration": 1.5,
       "guide": false
     },
     {

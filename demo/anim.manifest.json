@@ -86,6 +86,23 @@
       "device": "desktop",
       "theme": "light",
       "timestamp": "2026-09-06T20:30:39.556Z"
+    },
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": false,
+      "locale": "en",
+      "force": false,
+      "output": "demo/animated.html",
+      "timestamp": "2026-09-06T20:49:33.309Z"
+    },
+    {
+      "command": "export",
+      "duration": "13",
+      "output": "/tmp/radiant-frost/work/out.mp4",
+      "device": "desktop",
+      "theme": "light",
+      "timestamp": "2026-09-06T20:50:36.457Z"
     }
   ]
 }

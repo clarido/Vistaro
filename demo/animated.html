@@ -327,7 +327,10 @@
     point: null,
     t0: null,
     currentScreen: null,
-    timers: []
+    timers: [],
+    intervals: [],
+    completions: {},
+    nextToken: 1
   };
 
   function onReady(fn) {
@@ -364,30 +367,35 @@
   }
 
   // --- boot: styles + overlays ----------------------------------------------------
+  // Idempotent: a second boot with a different cursor swaps the cursor CSS.
   function installStyles() {
-    if (document.getElementById('anim-cli-runtime-style')) return;
     var css = '';
     if (state.opts.cursor && state.opts.cursor !== 'none') css += (CURSOR_CSS[state.opts.cursor] || CURSOR_CSS.mac) + '\n';
     css += SUBTITLE_CSS + '\n' + EFFECTS_CSS + '\n';
-    var style = document.createElement('style');
-    style.id = 'anim-cli-runtime-style';
-    style.textContent = css;
-    (document.head || document.documentElement).appendChild(style);
+    var style = document.getElementById('anim-cli-runtime-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'anim-cli-runtime-style';
+      (document.head || document.documentElement).appendChild(style);
+    }
+    if (style.textContent !== css) style.textContent = css;
   }
 
+  // Idempotent: creates missing overlays, removes the cursor when cursor is 'none'.
   function createOverlays() {
     var root = overlayRoot();
     var cursor = document.getElementById('anim-cli-cursor');
     if (state.opts.cursor && state.opts.cursor !== 'none') {
       if (!cursor) { cursor = document.createElement('div'); cursor.id = 'anim-cli-cursor'; }
-      root.appendChild(cursor);
+      if (cursor.parentNode !== root) root.appendChild(cursor);
       state.cursor = cursor;
-    } else if (cursor) {
-      cursor.remove();
+    } else {
+      if (cursor) cursor.remove();
+      state.cursor = null;
     }
     var layer = document.getElementById('anim-cli-subtitle-layer');
     if (!layer) { layer = document.createElement('div'); layer.id = 'anim-cli-subtitle-layer'; }
-    root.appendChild(layer);
+    if (layer.parentNode !== root) root.appendChild(layer);
     state.subtitleLayer = layer;
   }
 
@@ -403,18 +411,21 @@
     opts = opts || {};
     for (var k in opts) if (Object.prototype.hasOwnProperty.call(opts, k)) state.opts[k] = opts[k];
     onReady(function () {
+      installStyles();
+      createOverlays();
       if (!state.booted) {
         state.booted = true;
-        installStyles();
-        createOverlays();
         document.body.style.transformOrigin = 'center center';
         applyDrift();
       }
       if (state.opts.cursorPoint && state.cursor) placeCursor(state.opts.cursorPoint.x, state.opts.cursorPoint.y);
       state.ready = true;
       dispatch('anim:ready', { driven: !!window.__ANIM_DRIVEN });
-      if (state.opts.timeline && !window.__ANIM_DRIVEN) {
-        play(state.opts.timeline, { loop: !!state.opts.loop, durationMs: state.opts.durationMs });
+      var tl = state.opts.timeline;
+      var steps = tl && (Array.isArray(tl) ? tl : tl.steps);
+      // No steps (e.g. `animate --loop` without a config): nothing to play, and no reload loop.
+      if (steps && steps.length && !window.__ANIM_DRIVEN) {
+        play(tl, { loop: !!state.opts.loop, durationMs: state.opts.durationMs });
       }
     });
     return api;
@@ -553,6 +564,7 @@
       }
       tick(); // first character lands exactly at the interaction moment
       var intId = setInterval(tick, interval);
+      state.intervals.push(intId);
       if (value.length <= 1) { clearInterval(intId); resolve(); }
     });
   }
@@ -693,15 +705,16 @@
       return;
     }
 
-    var point = null;
-    if (el && CURSOR_ACTIONS[action]) {
+    function measurePoint() {
       var rect = el.getBoundingClientRect();
       var tx = rect.left + rect.width / 2;
       var ty = rect.top + rect.height / 2;
       if (step.xOffset) tx += parseFloat(step.xOffset);
       if (step.yOffset) ty += parseFloat(step.yOffset);
-      point = { x: tx, y: ty };
+      return { x: tx, y: ty };
     }
+    var hasPoint = !!(el && CURSOR_ACTIONS[action]);
+    var point = hasPoint ? measurePoint() : null;
 
     var travelMs = Math.max(0, leadMs - PRESS_MS);
     var pressMs = Math.min(PRESS_MS, leadMs);
@@ -709,8 +722,14 @@
     if (point) moveCursor(point.x, point.y, travelMs);
 
     setTimeout(function () {
-      if (el && CURSOR_ACTIONS[action]) highlight(el);
-      if (point) pressCursor(point.x, point.y, pressMs);
+      if (hasPoint) {
+        // Re-measure at arrival: a camera move or a layout-expanding click during the
+        // travel would leave the cursor, ripple and highlight on stale coordinates.
+        var fresh = measurePoint();
+        if (fresh.x !== point.x || fresh.y !== point.y) { point = fresh; placeCursor(point.x, point.y); }
+        highlight(el);
+        pressCursor(point.x, point.y, pressMs);
+      }
       setTimeout(function () {
         if (point) releaseCursor(point.x, point.y);
         interact();
@@ -719,6 +738,7 @@
 
     function interact() {
       var actualMs = now();
+      var token = state.nextToken++;
       var result = {
         index: step.index,
         id: step.id,
@@ -727,7 +747,8 @@
         scheduledMs: timeMsOf(step),
         actualMs: actualMs,
         rect: rectOf(el),
-        point: point
+        point: point,
+        token: token
       };
       if (step.subtitle) showSubtitle(step.subtitle, step.subtitleMs);
       var done = Promise.resolve();
@@ -759,8 +780,8 @@
             break;
           case 'highlight':
           case 'wait':
-          case 'navigate': // handled by the Node driver (page.goto); no-op in the page
-          case 'press':    // handled by the Node driver (keyboard.press); no-op in the page
+          case 'press':    // the Node driver calls page.keyboard.press(value) when runStep resolves; no-op in the page
+          case 'navigate': // not implemented until `record` (Phase 4): validation warns, no-op in the page
             break;
           case 'camera':
             done = camera(step, instant);
@@ -783,8 +804,30 @@
         return;
       }
       dispatch('anim:step', result);
-      done.then(function () { resolve(result); }, reject);
+      // Resolve at the interaction; completion (typing/camera/fade finished) is tracked
+      // separately and awaited with whenDone(token) / whenIdle().
+      var completion = done.then(function () {
+        delete state.completions[token];
+        return now();
+      }, function (e) {
+        delete state.completions[token];
+        throw e;
+      });
+      completion.catch(function () {});
+      state.completions[token] = completion;
+      resolve(result);
     }
+  }
+
+  /** Resolves with the completion time (ms) of the step that returned `token`. */
+  function whenDone(token) {
+    var c = state.completions[token];
+    return c ? c : Promise.resolve(now());
+  }
+  /** Resolves once every in-flight step has completed. */
+  function whenIdle() {
+    var all = Object.keys(state.completions).map(function (k) { return state.completions[k].catch(function () {}); });
+    return Promise.all(all).then(function () { return now(); });
   }
 
   // --- optional in-page scheduler (only when animated.html is opened directly) ---------
@@ -801,6 +844,10 @@
     var steps = Array.isArray(timeline) ? timeline : (timeline && timeline.steps) || [];
     stop();
     start();
+    if (!steps.length) {
+      dispatch('anim:play', { steps: 0, durationMs: 0, loop: false });
+      return;
+    }
     var prev = null, maxMs = 0;
     steps.forEach(function (step, i) {
       if (step.index == null) step.index = i + 1;
@@ -820,6 +867,8 @@
   function stop() {
     state.timers.forEach(clearTimeout);
     state.timers = [];
+    state.intervals.forEach(clearInterval);
+    state.intervals = [];
   }
 
   var api = {
@@ -829,6 +878,8 @@
     play: play,
     stop: stop,
     runStep: runStep,
+    whenDone: whenDone,
+    whenIdle: whenIdle,
     now: now,
     isReady: function () { return state.ready; },
     getState: function () { return { ready: state.ready, point: state.point, opts: state.opts, cursor: !!state.cursor }; },
@@ -851,7 +902,7 @@
   window.__anim = api;
 })();
 
-window.__anim.boot({"cursor":"mac","loop":false,"drift":true,"resetFocusStyles":true,"durationMs":13000,"defaultCps":25,"timeline":{"meta":{"title":"Draft a proposal response","slug":"draft-proposal-response","locale":"en"},"steps":[{"id":"intro","time":"0s","action":"fadeIn","target":"body","title":"Overview","subtitle":"Reviewing the proposal progress.","index":1,"timeMs":0,"subtitleMs":2000},{"id":"open-section","time":"2s","action":"click","target":"#item-3","title":"Open the section","subtitle":"Opening a specific section.","index":2,"timeMs":2000,"subtitleMs":3000},{"id":"focus-editor","time":"4s","action":"click","target":"#text-editor","title":"Focus the editor","index":3,"timeMs":4000},{"id":"draft","time":"5s","action":"type","target":"#editor-type-target","value":"We will ensure rigorous compliance with all requirements.","title":"Draft the response","subtitle":"Drafting the response.","index":4,"timeMs":5000,"subtitleMs":4000},{"id":"zoom","time":"7s","action":"camera","scale":1.25,"x":"-65vw","y":"10vh","guide":false,"index":5,"timeMs":7000},{"id":"pull-back","time":"8.5s","action":"camera","scale":1,"duration":2,"guide":false,"index":6,"timeMs":8500},{"id":"closing","time":"9s","action":"fadeIn","target":"#cinematic-text","title":"Closing","index":7,"timeMs":9000}]}});
+window.__anim.boot({"cursor":"mac","loop":false,"drift":true,"resetFocusStyles":true,"durationMs":13000,"defaultCps":25,"timeline":{"meta":{"title":"Draft a proposal response","slug":"draft-proposal-response","locale":"en"},"steps":[{"id":"intro","time":"0s","action":"fadeIn","target":"body","title":"Overview","subtitle":"Reviewing the proposal progress.","index":1,"timeMs":0,"subtitleMs":2000},{"id":"open-section","time":"2s","action":"click","target":"#item-3","title":"Open the section","subtitle":"Opening a specific section.","index":2,"timeMs":2000,"subtitleMs":3000},{"id":"focus-editor","time":"4s","action":"click","target":"#text-editor","title":"Focus the editor","index":3,"timeMs":4000},{"id":"draft","time":"5s","action":"type","target":"#editor-type-target","value":"We will ensure rigorous compliance with all requirements.","title":"Draft the response","subtitle":"Drafting the response.","index":4,"timeMs":5000,"subtitleMs":4000},{"id":"zoom","time":"7s","action":"camera","scale":1.25,"x":"-65vw","y":"10vh","duration":1.5,"guide":false,"index":5,"timeMs":7000},{"id":"pull-back","time":"8.5s","action":"camera","scale":1,"duration":2,"guide":false,"index":6,"timeMs":8500},{"id":"closing","time":"9s","action":"fadeIn","target":"#cinematic-text","title":"Closing","index":7,"timeMs":9000}]}});
 </script>
 <!-- anim-cli-runtime:end -->
 </body>

@@ -31,10 +31,14 @@ export const CURSOR_ACTIONS: ReadonlySet<string> = new Set(['click', 'focus', 't
 /** Deprecated aliases, rewritten at parse time. */
 export const ACTION_ALIASES: Record<string, Action> = { showText: 'fadeIn' };
 
+// These four are mirrored as literals in src/engine/runtime.js (plain JS cannot import);
+// test/constants.test.ts asserts they stay equal.
 export const DEFAULT_LEAD_MS = 950;
-export const DEFAULT_TAIL_MS = 2500;
 export const DEFAULT_CPS = 25;
 export const DEFAULT_CAMERA_DURATION_S = 2.5;
+export const DEFAULT_FADE_MS = 800;
+export const DEFAULT_SCROLL_MS = 600;
+export const DEFAULT_TAIL_MS = 2500;
 export const SUBTITLE_HOLD_MS = 4000;
 export const SUBTITLE_MIN_MS = 1000;
 
@@ -159,7 +163,7 @@ export function parseTimeline(raw: unknown): Timeline {
             throw new Error(`step ${index} must be an object`);
         }
         const src = s as Record<string, any>;
-        let action = typeof src.action === 'string' ? src.action : src.action;
+        let action = src.action;
         let deprecatedAction: string | undefined;
         if (typeof action === 'string' && ACTION_ALIASES[action]) {
             deprecatedAction = action;
@@ -216,8 +220,8 @@ export function intrinsicDurationMs(step: Step): number {
         case 'type': return typingDurationMs(step);
         case 'camera': return Math.round((typeof step.duration === 'number' ? step.duration : DEFAULT_CAMERA_DURATION_S) * 1000);
         case 'fadeIn':
-        case 'transitionScreen': return 800;
-        case 'scroll': return 600;
+        case 'transitionScreen': return DEFAULT_FADE_MS;
+        case 'scroll': return DEFAULT_SCROLL_MS;
         default: return 0;
     }
 }
@@ -302,8 +306,9 @@ export function validateTimeline(timeline: Timeline): Issue[] {
             if (s.action === 'type' && (typeof s.value !== 'string' || s.value.length === 0)) {
                 issues.push(issueFor(s, 'error', 'action "type" requires a non-empty "value" string', 'value'));
             }
-            if (s.action === 'navigate' && (typeof s.url !== 'string' || !s.url)) {
-                issues.push(issueFor(s, 'error', 'action "navigate" requires a "url"', 'url'));
+            if (s.action === 'navigate') {
+                if (typeof s.url !== 'string' || !s.url) issues.push(issueFor(s, 'error', 'action "navigate" requires a "url"', 'url'));
+                else issues.push(issueFor(s, 'warning', 'action "navigate" is not implemented until `record` (Phase 4); it does nothing in build/export', 'action'));
             }
             if (s.action === 'press' && (typeof s.value !== 'string' || !s.value)) {
                 issues.push(issueFor(s, 'error', 'action "press" requires a "value" (key name, e.g. "Enter")', 'value'));

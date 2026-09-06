@@ -106,6 +106,79 @@ test('runTimeline(step) returns measured results and consecutive camera steps do
     await context.close();
 });
 
+test('runTimeline(timed): interactions land within 100ms of schedule, results carry completedMs', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(fixture, 'index.html')));
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'anim.config.json'), 'utf8')));
+    await ensureRuntime(page, tl, { drift: false });
+    const results = await runTimeline(page, tl, { mode: 'timed' });
+    assert.equal(results.length, 8);
+    for (const r of results) {
+        assert.equal(r.error, undefined, `step ${r.index}: ${r.error}`);
+        assert.ok(Math.abs(r.actualMs - r.scheduledMs) <= 100, `step ${r.index} ${r.action}: actual ${r.actualMs} vs scheduled ${r.scheduledMs}`);
+        assert.ok(Number.isFinite(r.completedMs) && r.completedMs! >= r.actualMs, `step ${r.index} completedMs`);
+    }
+    const typeStep = results[2];
+    assert.ok(typeStep.completedMs! - typeStep.actualMs >= 40, 'typing "Ada" at 50cps completes ~40ms after the first char');
+    assert.equal(await page.inputValue('#field'), 'Ada');
+    await context.close();
+});
+
+test('runTimeline never rejects on throwing hooks; the error lands in result.error', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(fixture, 'index.html')));
+    const tl = parseTimeline([
+        { time: 0, action: 'wait' },
+        { time: 0.3, action: 'click', target: '#btn' },
+        { time: 0.6, action: 'highlight', target: '#note' },
+    ]);
+    await ensureRuntime(page, tl, { drift: false });
+    let unhandled: any = null;
+    const onUnhandled = (e: any) => { unhandled = e; };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+        for (const mode of ['timed', 'step'] as const) {
+            const results = await runTimeline(page, tl, {
+                mode, settleMs: 0,
+                beforeStep: (s) => { if (s.index === 1) throw new Error('hook boom'); },
+                afterStep: async (s) => { if (s.index === 3) throw new Error('after boom'); },
+            });
+            assert.match(results[0].error!, /beforeStep hook: hook boom/);
+            assert.ok(Number.isNaN(results[0].actualMs), 'a step whose beforeStep threw does not run');
+            assert.equal(results[1].error, undefined);
+            assert.match(results[2].error!, /afterStep hook: after boom/);
+            assert.ok(Number.isFinite(results[2].actualMs), 'the step itself still ran');
+        }
+        await new Promise(r => setTimeout(r, 50));
+        assert.equal(unhandled, null, `unhandled rejection: ${unhandled && unhandled.message}`);
+    } finally {
+        process.off('unhandledRejection', onUnhandled);
+    }
+    await context.close();
+});
+
+test('press step sends a real key through page.keyboard at the interaction', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(fixture, 'index.html')));
+    await page.evaluate(() => { document.addEventListener('keydown', (e) => document.body.setAttribute('data-key', e.key)); });
+    const tl = parseTimeline([
+        { time: 0, action: 'click', target: '#btn' },
+        { time: 0.2, action: 'focus', target: '#field' },
+        { time: 0.4, action: 'press', value: 'Enter' },
+    ]);
+    await ensureRuntime(page, tl, { drift: false });
+    const results = await runTimeline(page, tl, { mode: 'step', settleMs: 0, instant: true });
+    assert.equal(results[2].error, undefined);
+    assert.equal(await page.getAttribute('body', 'data-key'), 'Enter');
+    await context.close();
+});
+
 test('runTimeline reports a missing target as a per-step error and keeps going', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
@@ -205,6 +278,9 @@ test('preview writes a contact sheet and a single full-size frame', { skip }, ()
     assert.ok(fs.existsSync(sheet));
     assert.ok(fs.statSync(sheet).size > 10000);
     assert.match(r.stdout, /#2 · 1\.0s · click #btn · Open the panel/);
+    const end = cli(['preview', dir, '--at', 'end', '--step', '3', '--width', '1280', '--height', '800']);
+    assert.equal(end.status, 0, end.stderr + end.stdout);
+    assert.match(end.stdout, /completed at \d+ms/);
     const one = cli(['preview', dir, '--step', '3', '--width', '1280', '--height', '800']);
     assert.equal(one.status, 0, one.stderr + one.stdout);
     const frame = path.join(dir, 'preview-step-3.png');
