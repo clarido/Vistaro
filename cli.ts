@@ -6,6 +6,8 @@ import { animateCommand } from './src/commands/animate';
 import { exportCommand } from './src/commands/export';
 import { localizeCommand } from './src/commands/localize';
 import { buildCommand } from './src/commands/build';
+import { checkCommand } from './src/commands/check';
+import { previewCommand } from './src/commands/preview';
 import { initConfigCommand } from './src/commands/init-config';
 
 dotenv.config({ quiet: true });
@@ -43,7 +45,9 @@ WORKFLOW B — WITHOUT API KEY (LLM agent like Claude Code):
 
   1. Look at the screenshot and write index.html directly into <output_dir>.
   2. Write anim.config.json with the timeline (npx tsx cli.ts init-config <output_dir>).
+  3. Validate it:      npx tsx cli.ts check <output_dir>
   4. Build it:         npx tsx cli.ts build <output_dir>      (writes animated.html, no LLM)
+  5. Review frames:    npx tsx cli.ts preview <output_dir>    (writes preview.png, one frame per step)
   6. Record the video: npx tsx cli.ts export <output_dir> --duration <seconds> --output <file.mp4>
 
 MODEL CONFIGURATION:
@@ -125,6 +129,34 @@ program
   .option('--force', 'Build even if the timeline has validation errors')
   .option('-o, --output <file>', 'Write the built HTML somewhere other than <output_dir>/animated.html')
   .action((dir, opts) => buildCommand(dir, opts));
+
+program
+  .command('check')
+  .description('Validate anim.config.json: schema, timing, and (unless --static) every target selector in a headless browser')
+  .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
+  .option('--static', 'Schema and timing checks only, no browser')
+  .option('--json', 'Print the issues as JSON on stdout')
+  .option('--locale <code>', 'Locale code (e.g. en, fr)')
+  .option('-w, --width <pixels>', 'Viewport width for the browser pass')
+  .option('-H, --height <pixels>', 'Viewport height for the browser pass')
+  .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
+  .option('-t, --theme <mode>', 'Color scheme mode: light or dark', 'light')
+  .action((dir, opts) => checkCommand(dir, opts));
+
+program
+  .command('preview')
+  .description('Render one labelled frame per step to <output_dir>/preview.png (or a single full-size frame with --step N)')
+  .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
+  .option('-s, --step <n>', 'Write only step N (1-based) at full resolution to preview-step-N.png')
+  .option('-o, --output <file>', 'Output PNG path')
+  .option('-c, --cursor <style>', 'Cursor style: mac, windows, none (default: meta.cursor or mac)')
+  .option('--locale <code>', 'Locale code (e.g. en, fr)')
+  .option('--force', 'Preview even if the timeline has validation errors')
+  .option('-w, --width <pixels>', 'Viewport width in pixels')
+  .option('-H, --height <pixels>', 'Viewport height in pixels')
+  .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
+  .option('-t, --theme <mode>', 'Color scheme mode: light or dark', 'light')
+  .action((dir, opts) => previewCommand(dir, opts));
 
 program
   .command('export')
