@@ -1,14 +1,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
-import { Step, Timeline, CURSOR_ACTIONS } from '../engine/schema';
-import { runTimeline, StepResult } from '../engine/driver';
+import { Step, Timeline, captureAtFor } from '../engine/schema';
+import { runTimeline, StepResult, errorMessage } from '../engine/driver';
 
 /**
  * Guide capture (Scribe/Tango style): replay the timeline in driver step mode on a page that
- * records no video, and at each step's capture point (interaction + settleMs) hold the spotlight,
- * show the numbered DOM callout, take the full frame and an optional crop. All marks are DOM
- * elements owned by runtime.js (`__anim.markStep` / `__anim.unmark`); no image processing.
+ * records no video, and at each step's capture point (cursor actions: interaction + settleMs;
+ * state actions such as type/camera/fadeIn: completion, see schema.captureAtFor) hide the
+ * subtitle bar, hold the spotlight + numbered DOM badge on cursor targets, take the full frame
+ * and an optional crop. All marks are DOM elements owned by runtime.js
+ * (`__anim.beginCapture` / `markStep` / `endCapture`); no image processing.
  */
 
 export interface Box { x: number; y: number; width: number; height: number }
@@ -23,13 +25,15 @@ export interface CapturedStep {
     scheduledMs: number;
     actualMs: number;
     completedMs?: number;
+    /** Moment the frame was taken: 'interaction' or 'completion'. */
+    capturedAt: 'interaction' | 'completion';
     title?: string;
     subtitle?: string;
     narration?: string;
     note?: string;
-    /** Full-frame PNG (absolute path). */
-    image: string;
-    /** Cropped PNG around the rect (absolute path), when cropping is on and the step has a rect. */
+    /** Full-frame PNG (absolute path). Missing only when the screenshot itself failed. */
+    image?: string;
+    /** Cropped PNG around the rect (absolute path), when cropping is on, the step has a rect, and the crop is smaller than the frame. */
     crop?: string;
     /** Box the spotlight framed, CSS px (the sized ancestor when the target is 0x0). */
     rect?: Box | null;
@@ -47,6 +51,8 @@ export interface CaptureOptions {
     settleMs?: number;
     /** Hide the fake cursor in guide frames (default false: the cursor shows where to click). */
     hideCursor?: boolean;
+    /** Write assets/poster.png (only useful when a video will be linked). Default true. */
+    poster?: boolean;
     log?: (m: string) => void;
 }
 
@@ -81,12 +87,31 @@ export function cropBox(rect: Box, pad: number, viewport: { width: number; heigh
     return { x, y, width: Math.max(1, right - x), height: Math.max(1, bottom - y) };
 }
 
+
+const STALE_ASSET = /^(step-\d+(\.crop)?\.(png|mp4|gif|mp3|m4a|aac|aiff)|poster\.png)$/i;
+
+/** Remove generated step assets from a previous capture (pattern-scoped: never touches other files). */
+export function cleanStaleAssets(assetsDir: string): string[] {
+    if (!fs.existsSync(assetsDir)) return [];
+    const removed: string[] = [];
+    for (const name of fs.readdirSync(assetsDir)) {
+        if (!STALE_ASSET.test(name)) continue;
+        const full = path.join(assetsDir, name);
+        if (!fs.statSync(full).isFile()) continue;
+        fs.unlinkSync(full);
+        removed.push(name);
+    }
+    return removed;
+}
+
 /**
  * Run the timeline in step mode on `page` (already navigated + runtime booted, drift off) and
- * capture one frame per guide step. Returns absolute asset paths.
+ * capture one frame per guide step. Returns absolute asset paths. Steps that fail in the browser
+ * still get an entry (with `error`, the plain frame when possible, no marks).
  */
 export async function captureGuide(page: Page, timeline: Timeline, opts: CaptureOptions): Promise<GuideCapture> {
     fs.mkdirSync(opts.assetsDir, { recursive: true });
+    cleanStaleAssets(opts.assetsDir);
     const captured: CapturedStep[] = [];
     let poster: string | undefined;
     let number = 0;
@@ -94,41 +119,55 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
     const results = await runTimeline(page, timeline, {
         mode: 'step',
         settleMs: opts.settleMs ?? 300,
-        afterStepAt: 'interaction',
+        afterStepAt: 'auto',
         afterStep: async (step, result) => {
             if (!isGuideStep(step)) return;
             number++;
             const base = path.join(opts.assetsDir, stepFileBase(step.index));
             const entry: CapturedStep = {
                 index: step.index, id: step.id, number, action: step.action, target: step.target,
-                scheduledMs: step.timeMs, actualMs: result.actualMs, completedMs: result.completedMs,
+                scheduledMs: step.timeMs, actualMs: result.actualMs, completedMs: result.completedMs, capturedAt: captureAtFor(step),
                 title: step.title, subtitle: step.subtitle ?? undefined, narration: step.narration, note: step.note,
-                image: base + '.png', rect: result.rect ?? null, targetRect: result.targetRect, callout: null, error: result.error,
+                rect: result.rect ?? null, targetRect: result.targetRect, callout: null, error: result.error,
             };
-            if (!poster) {
-                poster = path.join(opts.assetsDir, 'poster.png');
-                await page.evaluate(() => (window as any).__anim.unmark());
-                await page.screenshot({ path: poster, type: 'png' });
+            try {
+                if (!poster && opts.poster !== false) {
+                    poster = path.join(opts.assetsDir, 'poster.png');
+                    await page.screenshot({ path: poster, type: 'png' });
+                }
+                await page.evaluate((o) => (window as any).__anim.beginCapture(o), { hideCursor: !!opts.hideCursor });
+                // Badge + spotlight for every guide step with a resolvable target ("notice this" is a real
+                // instruction for the reader): cursor actions on the box runStep used, other actions on the
+                // target's sized box. rect/callout are null only for target-less steps or failed ones.
+                const marks = step.target && !result.error
+                    ? await page.evaluate((o) => (window as any).__anim.markStep(o), { target: step.target, number })
+                    : null;
+                if (marks) {
+                    // One rule for frame, rect and crop: the box the marks framed (runStep's sized ancestor).
+                    entry.rect = marks.rect;
+                    entry.targetRect = marks.targetRect ?? entry.targetRect;
+                    entry.callout = marks.callout;
+                }
+                await page.evaluate(() => (window as any).__anim.nextFrames(2));
+                entry.image = base + '.png';
+                await page.screenshot({ path: entry.image, type: 'png' });
+                const rect = entry.rect;
+                const pad = step.crop === false ? false : (typeof step.crop === 'number' ? step.crop : opts.crop);
+                if (pad !== false && rect && rect.width > 0 && rect.height > 0) {
+                    const clip = cropBox(rect, pad, opts.viewport);
+                    // A crop that is the whole frame (e.g. fadeIn body) adds nothing.
+                    if (clip.width < opts.viewport.width || clip.height < opts.viewport.height) {
+                        entry.crop = base + '.crop.png';
+                        await page.screenshot({ path: entry.crop, type: 'png', clip });
+                    }
+                }
+            } catch (e: any) {
+                entry.error = entry.error ? `${entry.error}; ${errorMessage(e)}` : `capture: ${errorMessage(e)}`;
+                if (entry.image && !fs.existsSync(entry.image)) entry.image = undefined;
+            } finally {
+                await page.evaluate(() => (window as any).__anim.endCapture()).catch(() => {});
             }
-            // Marks only for cursor actions with a target (fades/scrolls just show the state).
-            const marks = CURSOR_ACTIONS.has(step.action) && step.target && !result.error
-                ? await page.evaluate((o) => (window as any).__anim.markStep(o), { target: step.target, number, hideCursor: !!opts.hideCursor })
-                : null;
-            if (marks) {
-                entry.callout = marks.callout;
-                if (!entry.rect) entry.rect = marks.rect;
-                // Let the held spotlight and badge paint before the shot.
-                await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
-            }
-            await page.screenshot({ path: entry.image, type: 'png' });
-            const rect = entry.rect;
-            const pad = step.crop === false ? false : (typeof step.crop === 'number' ? step.crop : opts.crop);
-            if (pad !== false && rect && rect.width > 0 && rect.height > 0) {
-                entry.crop = base + '.crop.png';
-                await page.screenshot({ path: entry.crop, type: 'png', clip: cropBox(rect, pad, opts.viewport) });
-            }
-            if (marks) await page.evaluate(() => (window as any).__anim.unmark());
-            opts.log?.(`  ${number}. step ${step.index} ${step.action}${step.target ? ' ' + step.target : ''}${step.title ? ' · ' + step.title : ''}${result.error ? '  FAILED: ' + result.error : ''}`);
+            opts.log?.(`  ${number}. step ${step.index} ${step.action}${step.target ? ' ' + step.target : ''}${step.title ? ' · ' + step.title : ''}${entry.error ? '  FAILED: ' + entry.error : ''}`);
             captured.push(entry);
         },
     });

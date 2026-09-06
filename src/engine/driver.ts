@@ -1,5 +1,5 @@
 import type { Page } from 'playwright';
-import { Step, Timeline, leadMsFor, DEFAULT_LEAD_MS } from './schema';
+import { Step, Timeline, leadMsFor, DEFAULT_LEAD_MS, captureAtFor } from './schema';
 import { runtimeSource, bootOptions, InjectOptions } from './inject';
 
 /**
@@ -53,8 +53,12 @@ export interface RunOptions {
     instant?: boolean;
     /** Reject a step that has not interacted / completed after this long. Default 30000. */
     stepTimeoutMs?: number;
-    /** When `afterStep` fires: at interaction (+ settleMs, the guide capture point) or after the step completed. Default 'interaction'. */
-    afterStepAt?: 'interaction' | 'completion';
+    /**
+     * When `afterStep` fires: at the interaction (+ settleMs), after the step completed, or 'auto'
+     * (per action via schema.captureAtFor: cursor actions at interaction, state actions at completion).
+     * Default 'interaction'.
+     */
+    afterStepAt?: 'interaction' | 'completion' | 'auto';
     beforeStep?: (step: Step) => void | Promise<void>;
     afterStep?: (step: Step, result: StepResult) => void | Promise<void>;
 }
@@ -116,14 +120,15 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
             try { await opts.beforeStep(step); }
             catch (e: any) { appendError(result, `beforeStep hook: ${errorMessage(e)}`); hookFailed = true; }
         }
-        if (hookFailed) {
-            // The step is skipped, but afterStep still runs so callers see the error.
+        // A step that did not run (hook threw, target vanished, page navigated) still reaches
+        // afterStep with result.error set, so guides keep an entry (and numbering) and exit 1.
+        const finishFailed = async () => {
             if (opts.afterStep) {
                 try { await opts.afterStep(step, result); }
                 catch (e: any) { appendError(result, `afterStep hook: ${errorMessage(e)}`); }
             }
-            return;
-        }
+        };
+        if (hookFailed) { await finishFailed(); return; }
 
         let token: number | undefined;
         try {
@@ -140,6 +145,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
             Object.assign(result, r);
         } catch (e: any) {
             appendError(result, errorMessage(e));
+            await finishFailed();
             return;
         }
 
@@ -160,7 +166,8 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
             } catch (e: any) { appendError(result, errorMessage(e)); }
         };
 
-        if (afterStepAt === 'completion') await awaitCompletion();
+        const at = afterStepAt === 'auto' ? captureAtFor(step) : afterStepAt;
+        if (at === 'completion') await awaitCompletion();
         if (opts.mode === 'step' && settleMs > 0 && !opts.instant) await page.waitForTimeout(settleMs);
         if (opts.afterStep) {
             try { await opts.afterStep(step, result); }

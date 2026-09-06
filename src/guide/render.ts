@@ -10,13 +10,23 @@ export interface GuideStepJson {
     target?: string;
     scheduledMs: number;
     actualMs: number;
+    /** Moment the frame was taken: cursor actions at the interaction, state actions at completion. */
+    capturedAt: 'interaction' | 'completion';
     title?: string;
     subtitle?: string;
     narration?: string;
     note?: string;
-    image: string;
+    /** Full frame; absent only when the screenshot itself failed (see `error`). */
+    image?: string;
     crop?: string;
+    /**
+     * Box the spotlight framed (the sized ancestor when the target was 0x0), CSS px. null when the
+     * step has no element to locate (target-less press/navigate) or failed: the frame just shows the result.
+     */
     rect?: { x: number; y: number; width: number; height: number } | null;
+    /** The raw target box when it differs from `rect`. */
+    targetRect?: { x: number; y: number; width: number; height: number };
+    /** Badge position (top-left, CSS px, clamped into the viewport). null exactly when `rect` is null. */
     callout?: { number: number; x: number; y: number } | null;
     clip?: string;
     audio?: string;
@@ -31,6 +41,8 @@ export interface GuideVideoJson {
     subtitles?: string;
     narration: boolean;
     chapters: { startMs: number; endMs: number; title: string }[];
+    /** Subtitle cues inlined for guide.html (a <track> file is blocked by CORS on file://). */
+    cues?: { startMs: number; endMs: number; text: string }[];
 }
 
 export interface GuideJson {
@@ -41,6 +53,7 @@ export interface GuideJson {
     locale: string;
     baseLocale: string;
     generatedAt: string;
+    /** `dir` is the source directory's basename only (never an absolute path). */
     source: { dir: string; contentHash: string; tool: string };
     viewport: { width: number; height: number; deviceScaleFactor: number; theme: string };
     video: GuideVideoJson | null;
@@ -67,11 +80,13 @@ export function renderMarkdown(g: GuideJson): string {
     for (const s of g.steps) {
         lines.push(`## ${s.number}. ${mdEsc(stepHeading(s))}`, '');
         if (s.note) lines.push(s.note, '');
-        lines.push(`![Step ${s.number}](${s.crop || s.image})`, '');
+        if (s.crop || s.image) lines.push(`![Step ${s.number}](${s.crop || s.image})`, '');
+        if (s.error) lines.push(`> **Capture failed:** ${s.error}`, '');
         if (s.subtitle) lines.push(`> ${s.subtitle}`, '');
         if (s.clip) lines.push(`[Clip](${s.clip})`, '');
     }
-    lines.push('---', '', `Generated ${g.generatedAt} by ${g.source.tool} from \`${g.source.dir}\` (${g.source.contentHash.slice(0, 19)}…).`, '');
+    const dirName = g.source.dir.split(/[\\/]/).filter(Boolean).pop() || g.source.dir;
+    lines.push('---', '', `Generated ${g.generatedAt} by ${g.source.tool} from \`${dirName}\` (${g.source.contentHash.slice(0, 19)}…).`, '');
     return lines.join('\n');
 }
 
@@ -92,7 +107,7 @@ export function renderHtml(g: GuideJson): string {
     .clip { display: inline-block; margin-top: 8px; font-size: 14px; color: #2563eb; }
     footer { margin-top: 48px; font-size: 13px; color: #94a3b8; }`;
     const video = g.video ? `
-    <video controls preload="metadata"${g.video.poster ? ` poster="${esc(g.video.poster)}"` : ''} src="${esc(g.video.file)}">${g.video.subtitles ? `<track kind="subtitles" src="${esc(g.video.subtitles)}" srclang="${esc(g.locale)}" label="${esc(g.locale)}" default>` : ''}</video>
+    <video controls preload="metadata"${g.video.poster ? ` poster="${esc(g.video.poster)}"` : ''} src="${esc(g.video.file)}">${g.video.subtitles && !(g.video.cues && g.video.cues.length) ? `<track kind="subtitles" src="${esc(g.video.subtitles)}" srclang="${esc(g.locale)}" label="${esc(g.locale)}" default>` : ''}</video>
     ${g.video.chapters.length ? `<p class="chapters">${g.video.chapters.map(c => `<a href="#t=${(c.startMs / 1000).toFixed(1)}" data-start="${c.startMs}">${(c.startMs / 1000).toFixed(1)}s ${esc(c.title)}</a>`).join('')}</p>` : ''}` : '';
     const steps = g.steps.map(s => `
     <section class="step" id="${esc(s.id)}">
@@ -100,16 +115,24 @@ export function renderHtml(g: GuideJson): string {
       <div>
         <h2>${esc(stepHeading(s))}</h2>
         ${s.note ? `<p class="note">${esc(s.note)}</p>` : ''}
-        <img src="${esc(s.crop || s.image)}" alt="Step ${s.number}${s.title ? ': ' + esc(s.title) : ''}" loading="lazy">
+        ${(s.crop || s.image) ? `<img src="${esc(s.crop || s.image!)}" alt="Step ${s.number}${s.title ? ': ' + esc(s.title) : ''}" loading="lazy">` : ''}
+        ${s.error ? `<p class="note"><strong>Capture failed:</strong> ${esc(s.error)}</p>` : ''}
         ${s.subtitle ? `<blockquote>${esc(s.subtitle)}</blockquote>` : ''}
         ${s.clip ? `<a class="clip" href="${esc(s.clip)}">Watch this step</a>` : ''}
       </div>
     </section>`).join('');
-    const script = g.video && g.video.chapters.length ? `
+    const cuesJson = g.video && g.video.cues && g.video.cues.length ? JSON.stringify(g.video.cues).replace(/</g, '\\u003c') : '';
+    const script = g.video && (g.video.chapters.length || cuesJson) ? `
     <script>
-      document.querySelectorAll('.chapters a').forEach(function (a) {
-        a.addEventListener('click', function (e) { e.preventDefault(); var v = document.querySelector('video'); v.currentTime = Number(a.dataset.start) / 1000; v.play(); });
-      });
+      (function () {
+        var v = document.querySelector('video');
+        document.querySelectorAll('.chapters a').forEach(function (a) {
+          a.addEventListener('click', function (e) { e.preventDefault(); v.currentTime = Number(a.dataset.start) / 1000; v.play(); });
+        });
+        ${cuesJson ? `var track = v.addTextTrack('subtitles', ${JSON.stringify(g.locale)}, ${JSON.stringify(g.locale)});
+        ${cuesJson}.forEach(function (c) { track.addCue(new VTTCue(c.startMs / 1000, c.endMs / 1000, c.text)); });
+        track.mode = 'showing';` : ''}
+      })();
     </script>` : '';
     return `<!doctype html>
 <html lang="${esc(g.locale)}">

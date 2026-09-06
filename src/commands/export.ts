@@ -7,6 +7,7 @@ import { launchPage, fileUrl, ViewportOptions } from '../browser';
 import { encodeMp4, encodeGif, cutClip, probeDurationMs } from '../media/ffmpeg';
 import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions, NarrationClip } from '../media/tts';
 import { buildGuide, resolveCrop, VideoInfo } from './guide';
+import { hashGuideDir } from '../catalog';
 import { subtitleCues, buildVtt } from '../media/vtt';
 import { chaptersFor, ffmetadata } from '../media/chapters';
 
@@ -121,9 +122,10 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     if (!driven && hasRuntime) console.log('Note: no anim.config.json next to animated.html; recording with a blind wait (the page self-plays).');
     if (!driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} has no timeline runtime; recording a blind ${formatTime(durationMs)} wait. Run \`build\` for driven exports (auto duration, subtitles, chapters).`);
     if (driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} was not built; injecting the runtime for this export (run \`build\` to persist it).`);
-    if (isGif && (options.narration || options.voiceover || options.clips || options.subtitles !== false || options.chapters !== false)) {
-        console.log('Note: .gif output has no audio, chapters or subtitle track; --narration/--voiceover/--clips/subtitles/chapters are ignored.');
+    if (isGif && (options.narration || options.voiceover || options.clips || options.guide || options.subtitles !== false || options.chapters !== false)) {
+        console.error('warning  .gif output has no audio, chapters or subtitle track: --narration/--voiceover/subtitles/chapters are ignored, and there is no video link/clips for .gif output in the guide.');
     }
+    if (options.guide && !driven) throw new Error('--guide needs anim.config.json (guide steps come from the timeline)');
 
     // Fail fast (before a long recording) on things we can check now.
     const voice: VoiceOptions = {};
@@ -297,7 +299,6 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     // Pass 2: guide capture on a fresh page in the same browser (no video, no drift).
     let guideDir: string | undefined;
     if (options.guide) {
-        if (!driven) throw new Error('--guide needs anim.config.json (guide steps come from the timeline)');
         guideDir = path.resolve(options.guideDir || path.join(outputDir, 'guide'));
         const actual = new Map<number, number>();
         for (const r of results) if (Number.isFinite(r.actualMs)) actual.set(r.index, r.actualMs);
@@ -310,18 +311,20 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         console.log('Capturing guide frames...');
         const g = await buildGuide(launched.browser, outputDir, timeline!, {
             outDir: guideDir, crop: resolveCrop(options.crop), clips: options.clips, video, viewport: options,
-            hideCursor: options.hideCursor, log: m => console.log(m),
+            hideCursor: options.hideCursor, locale: options.locale, log: m => console.log(m), warn: m => console.error(m),
         });
         summary.guide = g.json;
         const failed = g.capture.steps.filter(s => s.error);
         if (failed.length) console.error(`warning  ${failed.length} guide step(s) failed during capture; see guide.json "error" fields.`);
     }
 
+    // Paths in the manifest are relative to the output directory (never absolute, never cwd-relative).
+    const relToDir = (p: string) => path.relative(path.resolve(outputDir), p).split(path.sep).join('/');
     recordEvent(outputDir, {
-        command: 'export', duration: durationMs / 1000, output: options.output, device: options.device, theme: options.theme,
+        command: 'export', duration: durationMs / 1000, output: relToDir(outputFile), device: options.device, theme: options.theme,
         voiceover: options.voiceover, narration: !!options.narration, subtitles: summary.vtt ? path.basename(summary.vtt) : false,
         chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), locale: options.locale ?? timeline?.meta.locale,
-        driven, guide: guideDir, steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, error: r.error })),
+        driven, guide: guideDir ? relToDir(guideDir) : undefined, contentHash: driven ? hashGuideDir(outputDir) : undefined, steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, error: r.error })),
     });
     return summary;
     }

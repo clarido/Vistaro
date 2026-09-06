@@ -6,13 +6,13 @@
       "loop": false,
       "locale": "en",
       "force": false,
-      "output": "demo/animated.html",
-      "timestamp": "2026-09-06T21:33:55.999Z"
+      "output": "animated.html",
+      "timestamp": "2026-09-06T22:21:25.636Z"
     },
     {
       "command": "export",
-      "duration": 14.509,
-      "output": "demo/demo.mp4",
+      "duration": 14.505,
+      "output": "demo.mp4",
       "device": "desktop",
       "theme": "light",
       "narration": false,
@@ -21,30 +21,31 @@
       "clips": [],
       "locale": "en",
       "driven": true,
+      "contentHash": "sha256:e2693ac136839eb7c7bb8cbba925aef0ac9f10747ef59f80fcbca1a29d0ab0bd",
       "steps": [
         {
           "index": 1,
           "id": "intro",
-          "actualMs": 2,
-          "completedMs": 806
+          "actualMs": 3,
+          "completedMs": 804
         },
         {
           "index": 2,
           "id": "open-section",
-          "actualMs": 2012,
-          "completedMs": 2014
+          "actualMs": 2005,
+          "completedMs": 2008
         },
         {
           "index": 3,
           "id": "focus-editor",
-          "actualMs": 4011,
-          "completedMs": 4019
+          "actualMs": 4006,
+          "completedMs": 4014
         },
         {
           "index": 4,
           "id": "draft",
-          "actualMs": 5007,
-          "completedMs": 7290
+          "actualMs": 5006,
+          "completedMs": 7287
         },
         {
           "index": 5,
@@ -56,16 +57,16 @@
           "index": 6,
           "id": "pull-back",
           "actualMs": 8504,
-          "completedMs": 10506
+          "completedMs": 10505
         },
         {
           "index": 7,
           "id": "closing",
-          "actualMs": 9007,
-          "completedMs": 12009
+          "actualMs": 9004,
+          "completedMs": 12005
         }
       ],
-      "timestamp": "2026-09-06T21:34:17.829Z"
+      "timestamp": "2026-09-06T22:21:46.896Z"
     },
     {
       "command": "guide",
@@ -73,8 +74,9 @@
       "crop": 120,
       "locale": "en",
       "steps": 5,
-      "video": "demo/demo.mp4",
-      "timestamp": "2026-09-06T21:49:45.714Z"
+      "video": "demo.mp4",
+      "contentHash": "sha256:e2693ac136839eb7c7bb8cbba925aef0ac9f10747ef59f80fcbca1a29d0ab0bd",
+      "timestamp": "2026-09-06T22:22:11.797Z"
     }
   ]
 }

@@ -149,7 +149,7 @@ program
   .description('Render one labelled frame per step to <output_dir>/preview.png (or a single full-size frame with --step N)')
   .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
   .option('-s, --step <n>', 'Write only step N (1-based) at full resolution to preview-step-N.png')
-  .option('--at <when>', 'Capture point per step: "interaction" (300ms after the click/keystroke, the guide capture point) or "end" (after typing/camera/fade finished)', 'interaction')
+  .option('--at <when>', 'Capture point per step: "auto" (like the guide: clicks at the interaction, typing/camera/fades at completion), "interaction", or "end"', 'auto')
   .option('-o, --output <file>', 'Output PNG path')
   .option('-c, --cursor <style>', 'Cursor style: mac, windows, none (default: meta.cursor or mac)')
   .option('--locale <code>', 'Locale code (e.g. en, fr)')

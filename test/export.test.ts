@@ -51,6 +51,8 @@ test('export: driven recording, auto duration, .vtt, chapters, manifest', { skip
     const last = manifest.history.at(-1);
     assert.equal(last.command, 'export');
     assert.equal(last.driven, true);
+    assert.equal(last.output, '../out.mp4', 'output recorded relative to the dir');
+    assert.match(last.contentHash, /^sha256:/);
     assert.equal(last.chapters, chapters.length);
     assert.equal(last.steps.length, 9);
     assert.ok(Math.abs(last.duration * 1000 - measured) <= 750, 'manifest records the real export length');

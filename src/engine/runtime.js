@@ -60,6 +60,7 @@
     point: null,
     t0: null,
     currentScreen: null,
+    lastSpot: null,
     timers: [],
     intervals: [],
     completions: {},
@@ -283,15 +284,27 @@
     if (h) { h.classList.remove('anim-cli-hold'); h.classList.remove('anim-cli-pulse'); }
   }
 
+  var CALLOUT_SIZE = 32;
+  /** Badge position: centred on the highlight box's top-left corner, clamped into the viewport
+   *  (moved inside the box when there is no room outside). Returns the clamped CSS px position. */
+  function calloutPosition(rect) {
+    var x = rect.left - 6 - CALLOUT_SIZE / 2;
+    var y = rect.top - 6 - CALLOUT_SIZE / 2;
+    if (x < 0) x = Math.max(0, rect.left + 4);
+    if (y < 0) y = Math.max(0, rect.top + 4);
+    if (x + CALLOUT_SIZE > window.innerWidth) x = Math.max(0, window.innerWidth - CALLOUT_SIZE);
+    if (y + CALLOUT_SIZE > window.innerHeight) y = Math.max(0, window.innerHeight - CALLOUT_SIZE);
+    return { x: Math.round(x), y: Math.round(y) };
+  }
   function showCallout(n, el) {
     var c = document.getElementById('anim-cli-callout');
     if (!c) { c = document.createElement('div'); c.id = 'anim-cli-callout'; overlayRoot().appendChild(c); }
-    var rect = el.getBoundingClientRect();
+    var pos = calloutPosition(el.getBoundingClientRect());
     c.textContent = String(n);
-    c.style.left = (rect.left - 6 - 16) + 'px';
-    c.style.top = (rect.top - 6 - 16) + 'px';
+    c.style.left = pos.x + 'px';
+    c.style.top = pos.y + 'px';
     c.style.display = 'block';
-    return { number: n, x: rect.left - 6 - 16, y: rect.top - 6 - 16 };
+    return { number: n, x: pos.x, y: pos.y };
   }
   function hideCallout() {
     var c = document.getElementById('anim-cli-callout');
@@ -299,26 +312,38 @@
   }
 
   /**
-   * Guide capture marks: hold the spotlight on the target's sized box, show the numbered
-   * callout badge at its top-left, hide the subtitle bar. Returns the boxes in CSS px.
-   * All DOM, no image processing. Undo with unmark().
+   * Guide capture session (all DOM, no image processing):
+   *   beginCapture({hideCursor}) hides the subtitle bar (and optionally the cursor) for EVERY guide
+   *   frame; markStep({target, number}) additionally holds the spotlight on the box runStep used for
+   *   that target (the sized ancestor chosen at arrival, so the frame, rect and crop agree even
+   *   after typing gave a 0x0 span a size) and shows the numbered badge; endCapture() undoes both.
    */
+  function beginCapture(o) {
+    o = o || {};
+    if (state.subtitleLayer) state.subtitleLayer.style.visibility = 'hidden';
+    if (o.hideCursor && state.cursor) state.cursor.style.visibility = 'hidden';
+  }
   function markStep(o) {
     o = o || {};
     var el = o.target === 'body' ? document.body : (o.target ? document.querySelector(o.target) : null);
     if (!el) return null;
-    var spot = anchorOf(el);
+    var spot = (state.lastSpot && state.lastSpot.target === o.target && state.lastSpot.el.isConnected) ? state.lastSpot.el : anchorOf(el);
     holdHighlight(spot);
     var callout = o.number != null ? showCallout(o.number, spot) : null;
-    if (state.subtitleLayer) state.subtitleLayer.style.visibility = 'hidden';
-    if (o.hideCursor && state.cursor) state.cursor.style.visibility = 'hidden';
     return { rect: rectOf(spot), targetRect: spot !== el ? rectOf(el) : undefined, callout: callout };
   }
-  function unmark() {
+  function endCapture() {
     releaseHighlight();
     hideCallout();
     if (state.subtitleLayer) state.subtitleLayer.style.visibility = '';
     if (state.cursor) state.cursor.style.visibility = '';
+  }
+  /** Resolves after n animation frames (lets held marks paint before a screenshot). */
+  function nextFrames(n) {
+    return new Promise(function (resolve) {
+      var left = Math.max(1, n || 1);
+      (function tick() { requestAnimationFrame(function () { if (--left <= 0) resolve(); else tick(); }); })();
+    });
   }
 
   function resetFocusStyles() {
@@ -524,6 +549,7 @@
     if (hasPoint && isClipped(el)) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     // A 0x0 target (an empty span/caret) cannot carry a spotlight: use the nearest sized ancestor.
     var spotEl = hasPoint ? anchorOf(el) : el;
+    if (hasPoint) state.lastSpot = { target: step.target, el: spotEl };
     function measurePoint() {
       var rect = el.getBoundingClientRect();
       var tx = rect.left + rect.width / 2;
@@ -724,8 +750,11 @@
     releaseHighlight: releaseHighlight,
     showCallout: showCallout,
     hideCallout: hideCallout,
+    beginCapture: beginCapture,
     markStep: markStep,
-    unmark: unmark,
+    endCapture: endCapture,
+    unmark: endCapture,
+    nextFrames: nextFrames,
     ripple: ripple,
     typeInto: typeInto,
     camera: camera,

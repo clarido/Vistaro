@@ -5,9 +5,9 @@ import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
 import { parseTimeline } from '../src/engine/schema';
-import { isGuideStep, cropBox } from '../src/guide/capture';
+import { isGuideStep, cropBox, cleanStaleAssets } from '../src/guide/capture';
 import { renderMarkdown, renderHtml, stepHeading, GuideJson } from '../src/guide/render';
-import { hashGuideDir } from '../src/catalog';
+import { hashGuideDir, referencedLocalFiles } from '../src/catalog';
 import { listChapters } from '../src/media/ffmpeg';
 
 const skip = process.env.SKIP_BROWSER === '1';
@@ -46,8 +46,8 @@ test('renderMarkdown/renderHtml produce the documented structure', () => {
         viewport: { width: 1280, height: 800, deviceScaleFactor: 2, theme: 'light' },
         video: { file: '../out.mp4', durationMs: 5000, poster: 'assets/poster.png', subtitles: '../out.vtt', narration: false, chapters: [{ startMs: 0, endMs: 2000, title: 'Overview' }] },
         steps: [
-            { index: 2, number: 1, id: 'open', action: 'click', target: '#btn', scheduledMs: 1000, actualMs: 1003, title: 'Open the panel', subtitle: 'Open it.', note: 'Top left.', image: 'assets/step-02.png', crop: 'assets/step-02.crop.png', rect: { x: 1, y: 2, width: 3, height: 4 }, callout: { number: 1, x: -21, y: -20 } },
-            { index: 3, number: 2, id: 'name', action: 'type', target: '#field', scheduledMs: 2000, actualMs: 2001, image: 'assets/step-03.png', rect: null, callout: null },
+            { index: 2, number: 1, id: 'open', action: 'click', target: '#btn', scheduledMs: 1000, actualMs: 1003, capturedAt: 'interaction', title: 'Open the panel', subtitle: 'Open it.', note: 'Top left.', image: 'assets/step-02.png', crop: 'assets/step-02.crop.png', rect: { x: 1, y: 2, width: 3, height: 4 }, callout: { number: 1, x: -21, y: -20 } },
+            { index: 3, number: 2, id: 'name', action: 'type', target: '#field', scheduledMs: 2000, actualMs: 2001, capturedAt: 'completion', image: 'assets/step-03.png', rect: null, callout: null },
         ],
     };
     const md = renderMarkdown(g);
@@ -71,14 +71,48 @@ test('hashGuideDir changes with content and ignores generated files', () => {
     fs.writeFileSync(path.join(d, 'animated.html'), 'generated');
     fs.writeFileSync(path.join(d, 'anim.manifest.json'), '{}');
     assert.equal(hashGuideDir(d), h1);
-    fs.writeFileSync(path.join(d, 'index.html'), '<p>b</p>');
-    assert.notEqual(hashGuideDir(d), h1);
+    fs.writeFileSync(path.join(d, 'preview.png'), 'x');
+    fs.writeFileSync(path.join(d, 'out.gif'), 'x');
+    fs.writeFileSync(path.join(d, 'unused.png'), 'x');
+    assert.equal(hashGuideDir(d), h1, 'previews, exports and unreferenced media are ignored');
+    fs.writeFileSync(path.join(d, 'index.html'), '<p>a</p><img src="shot.png"><div style="background:url(bg.jpg)"></div><a href="https://x.y/z.png">x</a>');
+    const h2 = hashGuideDir(d);
+    assert.notEqual(h2, h1);
+    assert.deepEqual(referencedLocalFiles(d), ['bg.jpg', 'shot.png']);
+    fs.writeFileSync(path.join(d, 'shot.png'), 'pixels');
+    const h3 = hashGuideDir(d);
+    assert.notEqual(h3, h2, 'a referenced media file counts once it exists');
+    fs.writeFileSync(path.join(d, 'shot.png'), 'other pixels');
+    assert.notEqual(hashGuideDir(d), h3, 'and its bytes count');
     assert.match(h1, /^sha256:[0-9a-f]{64}$/);
+    fs.rmSync(d, { recursive: true, force: true });
+});
+
+/** Mirror of runtime.js calloutPosition(): badge centred on the box's top-left, clamped into the viewport. */
+function expectedCallout(rect: { x: number; y: number; width: number; height: number }, number: number, vp: { width: number; height: number }) {
+    let x = rect.x - 6 - 16, y = rect.y - 6 - 16;
+    if (x < 0) x = Math.max(0, rect.x + 4);
+    if (y < 0) y = Math.max(0, rect.y + 4);
+    if (x + 32 > vp.width) x = Math.max(0, vp.width - 32);
+    if (y + 32 > vp.height) y = Math.max(0, vp.height - 32);
+    return { number, x: Math.round(x), y: Math.round(y) };
+}
+
+test('cleanStaleAssets removes only generated step files', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-stale-'));
+    for (const f of ['step-01.png', 'step-01.crop.png', 'step-02.mp4', 'step-03.aiff', 'poster.png', 'keep.txt', 'notes-step-01.png']) fs.writeFileSync(path.join(d, f), 'x');
+    const removed = cleanStaleAssets(d).sort();
+    assert.deepEqual(removed, ['poster.png', 'step-01.crop.png', 'step-01.png', 'step-02.mp4', 'step-03.aiff']);
+    assert.deepEqual(fs.readdirSync(d).sort(), ['keep.txt', 'notes-step-01.png']);
+    assert.deepEqual(cleanStaleAssets(path.join(d, 'missing')), []);
     fs.rmSync(d, { recursive: true, force: true });
 });
 
 test('guide <dir> without a video: screenshots, crops, callouts, guide.json/.md/.html', { skip }, () => {
     const dir = path.join(work, 'basic');
+    fs.mkdirSync(path.join(dir, 'guide', 'assets'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'guide', 'assets', 'step-99.png'), 'stale');
+    fs.writeFileSync(path.join(dir, 'guide', 'assets', 'keep.txt'), 'mine');
     const r = cli(['guide', dir, '--width', '1280', '--height', '800']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
     assert.match(r.stdout, /No exported video found/);
@@ -94,21 +128,36 @@ test('guide <dir> without a video: screenshots, crops, callouts, guide.json/.md/
     const click = g.steps[0];
     assert.equal(click.title, 'Open the panel');
     assert.ok(click.rect && click.rect.width > 50 && click.rect.height > 20);
-    assert.deepEqual(click.callout, { number: 1, x: click.rect!.x - 22, y: click.rect!.y - 22 });
+    assert.deepEqual(click.callout, expectedCallout(click.rect!, 1, { width: 1280, height: 800 }));
+    assert.equal(click.capturedAt, 'interaction');
+    assert.equal(g.steps.find(s => s.id === 'name')!.capturedAt, 'completion');
+    assert.ok(!fs.existsSync(path.join(dir, 'guide', 'assets', 'step-99.png')), 'stale assets are removed before capture');
+    assert.ok(fs.existsSync(path.join(dir, 'guide', 'assets', 'keep.txt')), 'unrelated files are left alone');
     assert.equal(click.image, 'assets/step-02.png');
     assert.equal(click.crop, 'assets/step-02.crop.png');
     for (const s of g.steps) {
-        assert.ok(fs.existsSync(path.join(dir, 'guide', s.image)), s.image);
+        assert.ok(s.image && fs.existsSync(path.join(dir, 'guide', s.image)), s.image);
         assert.equal(s.error, undefined, `step ${s.index}: ${s.error}`);
     }
-    assert.deepEqual(pngSize(path.join(dir, 'guide', click.image)), { width: 2560, height: 1600 });
+    assert.deepEqual(pngSize(path.join(dir, 'guide', click.image!)), { width: 2560, height: 1600 });
     const crop = pngSize(path.join(dir, 'guide', click.crop!));
     const expected = cropBox(click.rect!, 120, { width: 1280, height: 800 });
     assert.ok(Math.abs(crop.width - expected.width * 2) <= 2 && Math.abs(crop.height - expected.height * 2) <= 2, `crop ${JSON.stringify(crop)} vs ${JSON.stringify(expected)}`);
     assert.ok(crop.width < 2560);
     const caret = g.steps.find(s => s.id === 'caret')!;
-    assert.ok(caret.rect && caret.rect.width > 100, 'caret step uses the sized ancestor box');
-    assert.ok(fs.existsSync(path.join(dir, 'guide', 'assets', 'poster.png')));
+    assert.ok(caret.rect && caret.rect.width > 100 && caret.rect.height > 50, `caret step frames the sized ancestor (#log) even after typing sized the span: ${JSON.stringify(caret.rect)}`);
+    assert.ok(caret.targetRect && caret.targetRect.width > 0, 'the typed span is reported as targetRect at completion');
+    assert.equal(caret.capturedAt, 'completion');
+    assert.deepEqual(caret.callout, expectedCallout(caret.rect!, caret.number, { width: 1280, height: 800 }), 'badge sits on the same box as rect');
+    // every step with a resolvable target gets a badge, state actions included
+    for (const s of g.steps) {
+        assert.ok(s.rect && s.callout && s.callout.number === s.number, `step ${s.index} ${s.action}: ${JSON.stringify(s.callout)}`);
+        assert.ok(s.image && fs.existsSync(path.join(dir, 'guide', s.image)));
+    }
+    const screen2 = g.steps.find(s => s.id === 'screen2')!;
+    assert.equal(screen2.capturedAt, 'completion');
+    assert.ok(!fs.existsSync(path.join(dir, 'guide', 'assets', 'poster.png')), 'no poster without a video to link');
+    assert.equal(g.source.dir, 'basic', 'source.dir is a basename');
     const md = fs.readFileSync(path.join(dir, 'guide', 'guide.md'), 'utf8');
     assert.match(md, /^# Basic fixture/);
     assert.match(md, /## 1\. Open the panel/);
@@ -116,6 +165,26 @@ test('guide <dir> without a video: screenshots, crops, callouts, guide.json/.md/
     assert.ok(fs.existsSync(path.join(dir, 'guide', 'guide.html')));
     const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8'));
     assert.equal(manifest.history.at(-1).command, 'guide');
+});
+
+test('a target that vanished keeps its guide entry with error, plain frame, no marks; exit 1', { skip }, () => {
+    const dir = path.join(work, 'vanish');
+    fs.cpSync(fixture, dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { cursor: 'mac' }, steps: [
+        { time: 0, action: 'click', target: '#btn', title: 'Open' },
+        { time: 1, action: 'highlight', target: '#gone', title: 'Vanished' },
+        { time: 2, action: 'highlight', target: '#note', title: 'Notice' },
+    ] }));
+    const r = cli(['guide', dir, '--force', '--width', '1280', '--height', '800']);
+    assert.equal(r.status, 1, r.stderr + r.stdout);
+    const g: GuideJson = JSON.parse(fs.readFileSync(path.join(dir, 'guide', 'guide.json'), 'utf8'));
+    assert.deepEqual(g.steps.map(s => [s.number, s.id]), [[1, 'step-01'], [2, 'step-02'], [3, 'step-03']], 'numbering does not shift');
+    const gone = g.steps[1];
+    assert.match(gone.error!, /target not found: #gone/);
+    assert.equal(gone.callout, null);
+    assert.ok(gone.image && fs.existsSync(path.join(dir, 'guide', gone.image)), 'plain frame still captured');
+    assert.equal(g.steps[2].error, undefined);
+    assert.equal(g.steps[2].callout!.number, 3);
 });
 
 test('export --guide --clips: video block, chapters, poster, clips wired into guide.json; guide.html has the video', { skip }, () => {
@@ -139,7 +208,29 @@ test('export --guide --clips: video block, chapters, poster, clips wired into gu
     assert.equal(listChapters(path.join(work, 'g', click.clip!)).length, 0, 'clips carry no chapters');
     const html = fs.readFileSync(path.join(work, 'g', 'guide.html'), 'utf8');
     assert.match(html, /<video[^>]*src="\.\.\/out\.mp4">/);
-    assert.match(html, /<track kind="subtitles" src="\.\.\/out\.vtt"/);
+    assert.ok(g.video!.cues && g.video!.cues.length >= 2, 'cues inlined in guide.json');
+    assert.match(html, /addTextTrack\('subtitles'/);
+    assert.ok(fs.existsSync(path.join(work, 'g', 'assets', 'poster.png')), 'poster written when a video is linked');
+    assert.ok(!JSON.stringify(g).includes(work), 'no absolute paths in guide.json');
+    // subtitles must show from a plain file:// open (no browser flags): Chromium blocks <track src> there
+    const cueCount = spawnSync(process.execPath, ['-e', `
+        const { chromium } = require('playwright'); const { pathToFileURL } = require('url');
+        (async () => { const b = await chromium.launch(); const p = await b.newPage();
+          await p.goto(pathToFileURL(process.argv[1]).href); await p.waitForTimeout(300);
+          const n = await p.evaluate(() => { const t = document.querySelector('video').textTracks; return t.length ? (t[0].cues ? t[0].cues.length : -1) : 0; });
+          console.log(n); await b.close(); })();`, path.join(work, 'g', 'guide.html')], { cwd: root, encoding: 'utf8' });
+    assert.equal(parseInt(cueCount.stdout.trim(), 10) >= 2, true, `cues on file://: ${cueCount.stdout} ${cueCount.stderr}`);
     const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8'));
-    assert.equal(manifest.history.at(-1).guide, path.join(work, 'g'));
+    const ev = manifest.history.at(-1);
+    assert.equal(ev.guide, '../g', 'manifest paths are relative to the output dir');
+    assert.equal(ev.output, '../out.mp4');
+    assert.match(ev.contentHash, /^sha256:/);
+    assert.ok(!JSON.stringify(manifest).includes(work), 'no absolute paths in the manifest');
+    // `guide` alone resolves the video against the dir (the manifest path is dir-relative, the cwd is
+    // the repo root, which has no ../out.mp4) and warns when the sources changed since the export
+    fs.appendFileSync(path.join(dir, 'index.html'), '<!-- edited -->');
+    const again = cli(['guide', dir, '--width', '1280', '--height', '800']);
+    assert.equal(again.status, 0, again.stderr + again.stdout);
+    assert.match(again.stdout, /Using video .*out\.mp4/);
+    assert.match(again.stderr, /exported from different sources/);
 });

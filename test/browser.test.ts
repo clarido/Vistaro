@@ -213,6 +213,32 @@ test('0x0 typing target: spotlight uses the sized ancestor, caret is scrolled in
     await context.close();
 });
 
+test('a target removed mid-run still reaches afterStep with the error (no silent skip)', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(fixture, 'index.html')));
+    const tl = parseTimeline([
+        { time: 0, action: 'click', target: '#btn' },
+        { time: 0.5, action: 'highlight', target: '#note' },
+        { time: 1, action: 'highlight', target: '#field' },
+    ]);
+    await ensureRuntime(page, tl, { drift: false });
+    const seen: number[] = [];
+    const results = await runTimeline(page, tl, {
+        mode: 'step', settleMs: 0, instant: true,
+        beforeStep: async (s) => { if (s.index === 2) await page.evaluate(() => document.getElementById('note')!.remove()); },
+        afterStep: (s) => { seen.push(s.index); },
+    });
+    assert.deepEqual(seen, [1, 2, 3]);
+    assert.match(results[1].error!, /target not found: #note/);
+    assert.ok(Number.isNaN(results[1].actualMs));
+    assert.equal(results[2].error, undefined);
+    // the guide badge never shows during a plain run
+    assert.equal(await page.evaluate(() => { const c = document.getElementById('anim-cli-callout'); return !c || getComputedStyle(c).display === 'none'; }), true);
+    await context.close();
+});
+
 test('runTimeline reports a missing target as a per-step error and keeps going', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });

@@ -27,6 +27,20 @@ export const TARGET_REQUIRED: ReadonlySet<string> = new Set([
 ]);
 /** Actions where the cursor travels to the target and a spotlight highlight is shown. */
 export const CURSOR_ACTIONS: ReadonlySet<string> = new Set(['click', 'focus', 'type', 'highlight', 'hover']);
+/** Actions whose result is only visible once they finish (typing, camera, fades, scroll). */
+export const STATE_ACTIONS: ReadonlySet<string> = new Set(['type', 'camera', 'fadeIn', 'transitionScreen', 'scroll', 'navigate']);
+
+export type CaptureAt = 'interaction' | 'completion';
+
+/**
+ * When a guide/preview frame of this step is taken: cursor actions at the interaction (+settle,
+ * inside the held spotlight), state actions at completion (full typed text, zoomed framing,
+ * faded-in element). `step.captureAt` overrides.
+ */
+export function captureAtFor(step: Step): CaptureAt {
+    if (step.captureAt === 'interaction' || step.captureAt === 'completion') return step.captureAt;
+    return STATE_ACTIONS.has(step.action) ? 'completion' : 'interaction';
+}
 
 /** Deprecated aliases, rewritten at parse time. */
 export const ACTION_ALIASES: Record<string, Action> = { showText: 'fadeIn' };
@@ -76,6 +90,8 @@ export interface Step {
     translatable?: boolean;
     crop?: number | false;
     guide?: boolean;
+    /** Guide/preview frame moment override: "interaction" or "completion" (default per action, see captureAtFor). */
+    captureAt?: 'interaction' | 'completion';
     waitFor?: string | number;
     url?: string;
     cps?: number;
@@ -334,6 +350,9 @@ export function validateTimeline(timeline: Timeline): Issue[] {
         }
         if (s.cps !== undefined && (typeof s.cps !== 'number' || s.cps <= 0)) {
             issues.push(issueFor(s, 'error', '"cps" must be a positive number', 'cps'));
+        }
+        if (s.captureAt !== undefined && s.captureAt !== 'interaction' && s.captureAt !== 'completion') {
+            issues.push(issueFor(s, 'error', '"captureAt" must be "interaction" or "completion"', 'captureAt'));
         }
         if (s.waitFor !== undefined && typeof s.waitFor !== 'string' && typeof s.waitFor !== 'number') {
             issues.push(issueFor(s, 'error', '"waitFor" must be a selector string or a number of milliseconds', 'waitFor'));

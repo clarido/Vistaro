@@ -1,13 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadTimeline, validateTimeline, formatIssue, hasErrors, formatTime, Step } from '../engine/schema';
+import { loadTimeline, validateTimeline, formatIssue, hasErrors, formatTime, Step, captureAtFor } from '../engine/schema';
 import { runTimeline, ensureRuntime } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions } from '../browser';
 import { renderContactSheet, SheetFrame } from '../media/contactSheet';
 
 export interface PreviewOptions extends ViewportOptions {
     step?: string | number;
-    /** 'interaction' (default): capture at interaction + 300ms, the guide capture point. 'end': after the step completed. */
+    /** 'auto' (default, per action like the guide), 'interaction' (+300ms), or 'end' (after the step completed). */
     at?: string;
     output?: string;
     cursor?: string;
@@ -47,9 +47,9 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
         process.exit(1);
     }
 
-    const at = options.at ?? 'interaction';
-    if (at !== 'interaction' && at !== 'end') {
-        console.error(`Error: --at must be "interaction" or "end".`);
+    const at = options.at ?? 'auto';
+    if (at !== 'interaction' && at !== 'end' && at !== 'auto') {
+        console.error(`Error: --at must be "auto", "interaction" or "end".`);
         process.exit(1);
     }
     const only = options.step !== undefined ? parseInt(String(options.step), 10) : undefined;
@@ -68,13 +68,13 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
         await runTimeline(page, steps, {
             mode: 'step',
             settleMs: 300,
-            afterStepAt: at === 'end' ? 'completion' : 'interaction',
+            afterStepAt: at === 'end' ? 'completion' : at === 'auto' ? 'auto' : 'interaction',
             afterStep: async (step, result) => {
                 if (only !== undefined && step.index !== only) return;
                 const png = await page.screenshot({ type: 'png' });
                 frames.push({ label: frameLabel(step), png, error: result.error });
                 const status = result.error ? `FAILED: ${result.error}`
-                    : at === 'end' ? `interaction at ${result.actualMs}ms, completed at ${result.completedMs}ms` : `interaction at ${result.actualMs}ms`;
+                    : (at === 'end' || (at === 'auto' && captureAtFor(step) === 'completion')) ? `interaction at ${result.actualMs}ms, completed at ${result.completedMs}ms` : `interaction at ${result.actualMs}ms`;
                 console.log(`  ${frameLabel(step)}  (${status})`);
             },
         });
