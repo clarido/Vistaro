@@ -66,6 +66,15 @@
         }
       ],
       "timestamp": "2026-09-06T21:34:17.829Z"
+    },
+    {
+      "command": "guide",
+      "output": "guide",
+      "crop": 120,
+      "locale": "en",
+      "steps": 5,
+      "video": "demo/demo.mp4",
+      "timestamp": "2026-09-06T21:49:45.714Z"
     }
   ]
 }

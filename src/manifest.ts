@@ -18,7 +18,7 @@ function manifestPath(outputDir: string): string {
     return path.join(outputDir, 'anim.manifest.json');
 }
 
-function readManifest(outputDir: string): Manifest {
+export function readManifest(outputDir: string): Manifest {
     const p = manifestPath(outputDir);
     if (fs.existsSync(p)) {
         try {

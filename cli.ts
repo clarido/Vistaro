@@ -9,6 +9,7 @@ import { buildCommand } from './src/commands/build';
 import { checkCommand } from './src/commands/check';
 import { previewCommand } from './src/commands/preview';
 import { initConfigCommand } from './src/commands/init-config';
+import { guideCommand } from './src/commands/guide';
 
 dotenv.config({ quiet: true });
 
@@ -176,9 +177,31 @@ program
   .option('--no-chapters', 'Do not embed MP4 chapters for titled steps')
   .option('--clips <format>', 'Also cut one clip per step next to the video: mp4 or gif')
   .option('--tail <ms>', 'Hold after the last step (overrides meta.tailMs, default 2500)')
+  .option('--guide', 'Also write the step-by-step guide (guide.json, guide.md, guide.html, assets/) after the video')
+  .option('--guide-dir <dir>', 'Guide output directory (default: <output_dir>/guide)')
+  .option('--crop <px>', 'Guide crops: padding around each step\'s box in px (default 120)')
+  .option('--no-crop', 'Guide: full frames only, no crops')
+  .option('--hide-cursor', 'Guide: hide the fake cursor in the step screenshots')
   .option('--force', 'Export even if the timeline has validation errors')
   .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
   .action((dir, opts) => exportCommand(dir, opts));
+
+program
+  .command('guide')
+  .description('Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) from index.html + anim.config.json; links the last exported video when present')
+  .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
+  .option('-o, --output <dir>', 'Guide output directory (default: <output_dir>/guide)')
+  .option('--crop <px>', 'Padding around each step\'s box for the cropped image, in px (default 120)')
+  .option('--no-crop', 'Full frames only, no crops')
+  .option('--clips <format>', 'Cut one clip per step from the last exported video: mp4 or gif')
+  .option('--hide-cursor', 'Hide the fake cursor in the step screenshots')
+  .option('--locale <code>', 'Locale code (e.g. en, fr)')
+  .option('--force', 'Capture even if the timeline has validation errors')
+  .option('-w, --width <pixels>', 'Viewport width in pixels')
+  .option('-H, --height <pixels>', 'Viewport height in pixels')
+  .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
+  .option('-t, --theme <mode>', 'Color scheme mode: light or dark', 'light')
+  .action((dir, opts) => guideCommand(dir, opts));
 
 program
   .command('localize')

@@ -63,6 +63,19 @@ export async function launchPage(opts: LaunchOptions = {}): Promise<LaunchedPage
     return { browser, context, page, width, height, close };
 }
 
+/** A second driven page in an existing browser (no video), e.g. the guide capture pass after an export. */
+export async function newDrivenPage(browser: Browser, opts: ViewportOptions & { deviceScaleFactor?: number } = {}): Promise<{ context: BrowserContext; page: Page; close: () => Promise<void> }> {
+    const { width, height } = resolveViewport(opts);
+    const context = await browser.newContext({
+        viewport: { width, height },
+        deviceScaleFactor: opts.deviceScaleFactor ?? 2,
+        colorScheme: opts.theme === 'dark' ? 'dark' : 'light',
+    });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    return { context, page, close: async () => { await page.close().catch(() => {}); await context.close().catch(() => {}); } };
+}
+
 /** file:// URL for a local path (properly percent-encoded). */
 export function fileUrl(p: string): string {
     return pathToFileURL(path.resolve(p)).href;

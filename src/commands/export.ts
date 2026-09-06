@@ -5,7 +5,8 @@ import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors,
 import { runTimeline, ensureRuntime, StepResult } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions } from '../browser';
 import { encodeMp4, encodeGif, cutClip, probeDurationMs } from '../media/ffmpeg';
-import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions } from '../media/tts';
+import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions, NarrationClip } from '../media/tts';
+import { buildGuide, resolveCrop, VideoInfo } from './guide';
 import { subtitleCues, buildVtt } from '../media/vtt';
 import { chaptersFor, ffmetadata } from '../media/chapters';
 
@@ -23,6 +24,11 @@ export interface ExportOptions extends ViewportOptions {
     tail?: string;
     force?: boolean;
     locale?: string;
+    /** Also capture the step-by-step guide (guide.json/.md/.html + assets) after the video. */
+    guide?: boolean;
+    guideDir?: string;
+    crop?: string | number | false;
+    hideCursor?: boolean;
 }
 
 export interface ExportSummary {
@@ -32,6 +38,7 @@ export interface ExportSummary {
     chapters: number;
     narration?: string;
     clips: string[];
+    guide?: string;
     results: StepResult[];
 }
 
@@ -58,7 +65,8 @@ export async function exportCommand(outputDir: string, options: ExportOptions): 
             (summary.vtt ? `, subtitles ${rel(summary.vtt)}` : '') +
             (summary.chapters ? `, ${summary.chapters} chapters` : '') +
             (summary.narration ? `, narration mixed in` : '') +
-            (summary.clips.length ? `, ${summary.clips.length} clips` : '') + '.');
+            (summary.clips.length ? `, ${summary.clips.length} clips` : '') +
+            (summary.guide ? `, guide ${rel(path.dirname(summary.guide))}/` : '') + '.');
     } catch (error: any) {
         console.error(`Export failed: ${error && error.message ? error.message : error}`);
         process.exitCode = 1;
@@ -178,9 +186,16 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         await page.close().catch(() => {});
         closeWall = Date.now();
         if (process.env.ANIM_DEBUG) console.error(`page.close took ${closeWall - closeStart}ms`);
-        await launched.close(); // flushes the webm to disk
-        if (process.env.ANIM_DEBUG) console.error(`context+browser close took ${Date.now() - closeWall}ms; load->t0 ${t0Wall - loadWall}ms`);
+        await launched.context.close().catch(() => {}); // flushes the webm to disk; the browser stays up for --guide
+        if (process.env.ANIM_DEBUG) console.error(`context close took ${Date.now() - closeWall}ms; load->t0 ${t0Wall - loadWall}ms`);
     }
+    try {
+        return await encodeAndFinish();
+    } finally {
+        await launched.browser.close().catch(() => {});
+    }
+
+    async function encodeAndFinish(): Promise<ExportSummary> {
 
     const files = fs.readdirSync(tempVideoDir).filter(f => f.endsWith('.webm'));
     if (files.length === 0) throw new Error('video recording failed, no .webm found.');
@@ -207,6 +222,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     fs.mkdirSync(path.dirname(outputFile), { recursive: true });
     const base = outputFile.replace(/\.[^.]+$/, '');
     const summary: ExportSummary = { output: outputFile, durationMs, chapters: 0, clips: [], results };
+    let narrationClips: NarrationClip[] | undefined;
 
     // Actual interaction times (fall back to scheduled when a step failed).
     const actualMs = (step: Step) => {
@@ -247,6 +263,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
                 for (const w of narrationOverruns(clips, durationMs)) console.error(`warning  ${w}`);
                 audio = mixNarration(clips, path.join(tempVideoDir, 'narration.m4a'));
                 summary.narration = audio;
+                narrationClips = clips;
             }
         } else if (options.voiceover) {
             console.log(`Generating TTS audio from ${options.voiceover}...`);
@@ -277,11 +294,35 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         console.error(`warning  encoded length is ${measured}ms, expected ${durationMs}ms`);
     }
 
+    // Pass 2: guide capture on a fresh page in the same browser (no video, no drift).
+    let guideDir: string | undefined;
+    if (options.guide) {
+        if (!driven) throw new Error('--guide needs anim.config.json (guide steps come from the timeline)');
+        guideDir = path.resolve(options.guideDir || path.join(outputDir, 'guide'));
+        const actual = new Map<number, number>();
+        for (const r of results) if (Number.isFinite(r.actualMs)) actual.set(r.index, r.actualMs);
+        const clipFiles = new Map<number, string>();
+        for (const c of summary.clips) { const m = /-step-(\d+)\.(mp4|gif)$/.exec(c); if (m) clipFiles.set(parseInt(m[1], 10), c); }
+        const video: VideoInfo | undefined = isGif ? undefined : {
+            file: outputFile, durationMs, vtt: summary.vtt, narration: !!narrationClips && narrationClips.length > 0,
+            actualMs: actual, narrationClips, clipFiles,
+        };
+        console.log('Capturing guide frames...');
+        const g = await buildGuide(launched.browser, outputDir, timeline!, {
+            outDir: guideDir, crop: resolveCrop(options.crop), clips: options.clips, video, viewport: options,
+            hideCursor: options.hideCursor, log: m => console.log(m),
+        });
+        summary.guide = g.json;
+        const failed = g.capture.steps.filter(s => s.error);
+        if (failed.length) console.error(`warning  ${failed.length} guide step(s) failed during capture; see guide.json "error" fields.`);
+    }
+
     recordEvent(outputDir, {
         command: 'export', duration: durationMs / 1000, output: options.output, device: options.device, theme: options.theme,
         voiceover: options.voiceover, narration: !!options.narration, subtitles: summary.vtt ? path.basename(summary.vtt) : false,
         chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), locale: options.locale ?? timeline?.meta.locale,
-        driven, steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, error: r.error })),
+        driven, guide: guideDir, steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, error: r.error })),
     });
     return summary;
+    }
 }

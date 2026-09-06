@@ -298,6 +298,29 @@
     if (c) c.style.display = 'none';
   }
 
+  /**
+   * Guide capture marks: hold the spotlight on the target's sized box, show the numbered
+   * callout badge at its top-left, hide the subtitle bar. Returns the boxes in CSS px.
+   * All DOM, no image processing. Undo with unmark().
+   */
+  function markStep(o) {
+    o = o || {};
+    var el = o.target === 'body' ? document.body : (o.target ? document.querySelector(o.target) : null);
+    if (!el) return null;
+    var spot = anchorOf(el);
+    holdHighlight(spot);
+    var callout = o.number != null ? showCallout(o.number, spot) : null;
+    if (state.subtitleLayer) state.subtitleLayer.style.visibility = 'hidden';
+    if (o.hideCursor && state.cursor) state.cursor.style.visibility = 'hidden';
+    return { rect: rectOf(spot), targetRect: spot !== el ? rectOf(el) : undefined, callout: callout };
+  }
+  function unmark() {
+    releaseHighlight();
+    hideCallout();
+    if (state.subtitleLayer) state.subtitleLayer.style.visibility = '';
+    if (state.cursor) state.cursor.style.visibility = '';
+  }
+
   function resetFocusStyles() {
     document.querySelectorAll('.input, button').forEach(function (n) {
       n.style.borderColor = '#E2E8F0';
@@ -701,6 +724,8 @@
     releaseHighlight: releaseHighlight,
     showCallout: showCallout,
     hideCallout: hideCallout,
+    markStep: markStep,
+    unmark: unmark,
     ripple: ripple,
     typeInto: typeInto,
     camera: camera,

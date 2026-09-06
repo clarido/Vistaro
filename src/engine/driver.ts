@@ -3,6 +3,14 @@ import { Step, Timeline, leadMsFor, DEFAULT_LEAD_MS } from './schema';
 import { runtimeSource, bootOptions, InjectOptions } from './inject';
 
 /**
+ * RULES FOR page.evaluate CALLBACKS (here, in check/preview/capture/record):
+ *   - No inner function declarations or arrow functions assigned to consts inside the callback.
+ *     tsx/esbuild wraps them in a `__name(fn, "name")` helper that exists in the Node bundle but
+ *     not inside the page; Playwright serializes the callback source, so the page throws
+ *     "ReferenceError: __name is not defined" (silently, if the caller swallows hook errors).
+ *   - Anything non-trivial lives in src/engine/runtime.js (plain JS, injected as text) and is
+ *     called through window.__anim (e.g. __anim.anchorOf, __anim.selectorOf, __anim.markStep).
+ *
  * Node-side scheduler: drives `window.__anim.runStep` in a Playwright page.
  *
  * - timed mode: each step starts at `timeMs - leadMs` on the wall clock (video export).

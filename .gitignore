@@ -21,3 +21,4 @@ preview-step-*.png
 .temp-video/
 .cache/
 *.vtt
+demo/guide/
