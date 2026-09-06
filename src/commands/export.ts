@@ -2,8 +2,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { recordEvent } from '../manifest';
 import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS } from '../engine/schema';
-import { runTimeline, ensureRuntime, StepResult } from '../engine/driver';
+import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions } from '../browser';
+import { bootOptions } from '../engine/inject';
 import { encodeMp4, encodeGif, cutClip, probeDurationMs } from '../media/ffmpeg';
 import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions, NarrationClip } from '../media/tts';
 import { buildGuide, resolveCrop, VideoInfo } from './guide';
@@ -30,6 +31,14 @@ export interface ExportOptions extends ViewportOptions {
     guideDir?: string;
     crop?: string | number | false;
     hideCursor?: boolean;
+}
+
+/** A live page instead of a local file: the runtime is injected at document start and navigations are survived. */
+export interface LiveSession {
+    url: string;
+    storageState?: string;
+    /** Manifest command name (`record`). */
+    command: string;
 }
 
 export interface ExportSummary {
@@ -76,18 +85,20 @@ export async function exportCommand(outputDir: string, options: ExportOptions): 
     }
 }
 
-export async function runExport(outputDir: string, options: ExportOptions, tempVideoDir: string): Promise<ExportSummary> {
-    // We expect the animated HTML to be either animated.html or index.html
+export async function runExport(outputDir: string, options: ExportOptions, tempVideoDir: string, session?: LiveSession): Promise<ExportSummary> {
+    // We expect the animated HTML to be either animated.html or index.html (a live session has no local page).
     let htmlPath = path.resolve(outputDir, 'animated.html');
-    if (!fs.existsSync(htmlPath)) {
-        htmlPath = path.resolve(outputDir, 'index.html');
-        if (!fs.existsSync(htmlPath)) throw new Error(`could not find animated.html or index.html in ${outputDir}`);
+    if (!session) {
+        if (!fs.existsSync(htmlPath)) {
+            htmlPath = path.resolve(outputDir, 'index.html');
+            if (!fs.existsSync(htmlPath)) throw new Error(`could not find animated.html or index.html in ${outputDir}`);
+        }
     }
-    const html = fs.readFileSync(htmlPath, 'utf8');
-    const hasRuntime = html.includes('window.__anim');
+    const hasRuntime = session ? true : fs.readFileSync(htmlPath, 'utf8').includes('window.__anim');
 
-    // Timeline (optional for legacy directories without anim.config.json).
+    // Timeline (optional for legacy directories without anim.config.json; required for a live session).
     let timeline: Timeline | undefined;
+    if (session && !fs.existsSync(path.resolve(outputDir, 'anim.config.json'))) throw new Error(`anim.config.json not found in ${outputDir} (record needs a timeline)`);
     if (fs.existsSync(path.resolve(outputDir, 'anim.config.json'))) {
         timeline = loadTimeline(outputDir, { locale: options.locale });
         const issues = validateTimeline(timeline);
@@ -119,9 +130,9 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
 
     const driven = !!timeline;
     const isGif = options.output.toLowerCase().endsWith('.gif');
-    if (!driven && hasRuntime) console.log('Note: no anim.config.json next to animated.html; recording with a blind wait (the page self-plays).');
-    if (!driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} has no timeline runtime; recording a blind ${formatTime(durationMs)} wait. Run \`build\` for driven exports (auto duration, subtitles, chapters).`);
-    if (driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} was not built; injecting the runtime for this export (run \`build\` to persist it).`);
+    if (!session && !driven && hasRuntime) console.log('Note: no anim.config.json next to animated.html; recording with a blind wait (the page self-plays).');
+    if (!session && !driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} has no timeline runtime; recording a blind ${formatTime(durationMs)} wait. Run \`build\` for driven exports (auto duration, subtitles, chapters).`);
+    if (!session && driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} was not built; injecting the runtime for this export (run \`build\` to persist it).`);
     if (isGif && (options.narration || options.voiceover || options.clips || options.guide || options.subtitles !== false || options.chapters !== false)) {
         console.error('warning  .gif output has no audio, chapters or subtitle track: --narration/--voiceover/subtitles/chapters are ignored, and there is no video link/clips for .gif output in the guide.');
     }
@@ -139,32 +150,46 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         if (options.voice) { if (engine === 'openai') voice.openai = options.voice; else voice.say = options.voice; }
     }
 
-    console.log(`Starting video export. Duration: ${formatTime(durationMs)}. Device: ${options.device || 'desktop'}.`);
+    console.log(`Starting video ${session ? 'recording' : 'export'}. Duration: ${formatTime(durationMs)}. Device: ${options.device || 'desktop'}.`);
     // __ANIM_DRIVEN only when the Node driver runs the timeline; a built page without a config self-plays.
-    const launched = await launchPage({ ...options, recordVideoDir: tempVideoDir, driven });
+    // Live pages get the runtime at document start (survives navigations) and the auth storage state.
+    const launched = await launchPage({ ...options, recordVideoDir: tempVideoDir, driven, storageState: session?.storageState, runtime: !!session });
     const { page } = launched;
+    const pageUrl = session ? session.url : fileUrl(htmlPath);
+    // Live pages: no body drift by default (a transformed <body> can break a real app's fixed layout).
+    const liveBoot = session && timeline ? bootOptions(timeline, { drift: timeline.meta.drift === true }, false) : undefined;
+    const live: LiveOptions | undefined = liveBoot ? { boot: liveBoot } : undefined;
+    const open = async (p: import('playwright').Page) => {
+        await p.goto(pageUrl, { waitUntil: 'load' });
+        if (session) await p.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+    };
     let results: StepResult[] = [];
+    const runState: RunState = { t0Wall: 0, shiftMs: 0, lastPoint: null, navigations: 0 };
     let t0Wall = 0;
     let firstPaintWall = NaN;
     let loadWall = 0;
     let closeWall = 0;
     try {
-        console.log(`Opening ${fileUrl(htmlPath)} in headless browser...`);
-        await page.goto(fileUrl(htmlPath), { waitUntil: 'load' });
+        console.log(`Opening ${pageUrl} in headless browser...`);
+        await open(page);
         loadWall = Date.now();
         if (driven) {
-            await ensureRuntime(page, timeline!, {});
+            if (live) await ensureRuntime(page, timeline!, { drift: timeline!.meta.drift === true });
+            else await ensureRuntime(page, timeline!, {});
             // Make sure a few frames of the settled page are in the recording before the clock starts,
             // so t0 is always at a positive offset that can be trimmed exactly.
             await page.waitForTimeout(START_SETTLE_MS);
-            results = await runTimeline(page, timeline!, { mode: 'timed' });
-            const clocks: { t0Wall: number; firstPaintWall: number } = await page.evaluate(() => {
-                const s = (window as any).__anim.getState();
-                const paint = performance.getEntriesByType('paint').find(e => e.name === 'first-paint');
-                return { t0Wall: s.timeOrigin + s.t0, firstPaintWall: paint ? performance.timeOrigin + paint.startTime : NaN };
-            });
-            t0Wall = clocks.t0Wall;
-            firstPaintWall = clocks.firstPaintWall;
+            // The first document's first paint is where Playwright's recording starts; read it now
+            // (the entry can lag the load event by a few frames), before any navigation replaces the document.
+            await page.waitForFunction(() => performance.getEntriesByType('paint').some(e => e.name === 'first-paint'), null, { timeout: 1500 }).catch(() => {});
+            firstPaintWall = await page.evaluate(() => { const paint = performance.getEntriesByType('paint').find(e => e.name === 'first-paint'); return paint ? performance.timeOrigin + paint.startTime : NaN; });
+            results = await runTimeline(page, timeline!, { mode: 'timed', live, state: runState });
+            t0Wall = runState.t0Wall;
+            if (runState.shiftMs > 0) {
+                console.log(`waitFor delays shifted the timeline by ${runState.shiftMs}ms; the recording is extended accordingly.`);
+                if (!autoDuration) durationMs += runState.shiftMs;
+            }
+            if (runState.navigations) console.log(`Survived ${runState.navigations} navigation${runState.navigations > 1 ? 's' : ''}; runtime re-booted each time.`);
             if (autoDuration) {
                 // Do not trust the static estimate alone: an element's own CSS transition (e.g. a 3s
                 // fade) is only known once measured, so hold until the last step really completed + tail.
@@ -175,7 +200,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
                 }
                 if (lastCompleted + tailMs > durationMs) durationMs = lastCompleted + tailMs;
             }
-            const nowMs: number = await page.evaluate(() => (window as any).__anim.now());
+            const nowMs = Date.now() - t0Wall; // Node-owned clock (valid across navigations)
             if (nowMs < durationMs) await page.waitForTimeout(durationMs - nowMs);
             for (const r of results) if (r.error) console.error(`warning  step ${r.index} (${r.action}${r.target ? ' ' + r.target : ''}) failed during recording: ${r.error}`);
         } else {
@@ -312,6 +337,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         const g = await buildGuide(launched.browser, outputDir, timeline!, {
             outDir: guideDir, crop: resolveCrop(options.crop), clips: options.clips, video, viewport: options,
             hideCursor: options.hideCursor, locale: options.locale, log: m => console.log(m), warn: m => console.error(m),
+            session: session ? { open, storageState: session.storageState, live: live! } : undefined,
         });
         summary.guide = g.json;
         const failed = g.capture.steps.filter(s => s.error);
@@ -321,10 +347,13 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     // Paths in the manifest are relative to the output directory (never absolute, never cwd-relative).
     const relToDir = (p: string) => path.relative(path.resolve(outputDir), p).split(path.sep).join('/');
     recordEvent(outputDir, {
-        command: 'export', duration: durationMs / 1000, output: relToDir(outputFile), device: options.device, theme: options.theme,
+        command: session ? session.command : 'export', url: session?.url, storageState: session?.storageState ? relToDir(path.resolve(session.storageState)) : undefined,
+        navigations: runState.navigations || undefined, shiftMs: runState.shiftMs || undefined,
+        duration: durationMs / 1000, output: relToDir(outputFile), device: options.device, theme: options.theme,
         voiceover: options.voiceover, narration: !!options.narration, subtitles: summary.vtt ? path.basename(summary.vtt) : false,
         chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), locale: options.locale ?? timeline?.meta.locale,
-        driven, guide: guideDir ? relToDir(guideDir) : undefined, contentHash: driven ? hashGuideDir(outputDir) : undefined, steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, error: r.error })),
+        driven, guide: guideDir ? relToDir(guideDir) : undefined, contentHash: driven ? hashGuideDir(outputDir) : undefined,
+        steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, navigated: r.navigated || undefined, waitedMs: r.waitedMs || undefined, error: r.error })),
     });
     return summary;
     }

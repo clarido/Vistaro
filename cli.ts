@@ -10,6 +10,7 @@ import { checkCommand } from './src/commands/check';
 import { previewCommand } from './src/commands/preview';
 import { initConfigCommand } from './src/commands/init-config';
 import { guideCommand } from './src/commands/guide';
+import { recordCommand } from './src/commands/record';
 
 dotenv.config({ quiet: true });
 
@@ -185,6 +186,33 @@ program
   .option('--force', 'Export even if the timeline has validation errors')
   .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
   .action((dir, opts) => exportCommand(dir, opts));
+
+program
+  .command('record')
+  .description('Record the timeline against a live page (URL) instead of a local mockup: real navigations, waitFor, storage state')
+  .argument('<output_dir>', 'Directory containing anim.config.json (targets are selectors in the live app, e.g. [data-help="save"])')
+  .option('--url <url>', 'Page to open (default: meta.url in anim.config.json)')
+  .option('--storage-state <file>', 'Playwright storage state (cookies/localStorage), e.g. from `npx playwright codegen --save-storage auth.json`')
+  .option('-o, --output <file>', 'Output video file path (.mp4 or .gif)', 'output.mp4')
+  .option('-d, --duration <seconds>', 'Override the recording length in seconds (default: computed from the timeline)')
+  .option('-w, --width <pixels>', 'Width of the recorded video in pixels')
+  .option('-H, --height <pixels>', 'Height of the recorded video in pixels')
+  .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
+  .option('-t, --theme <mode>', 'Color scheme mode: light or dark', 'light')
+  .option('--narration', 'Synthesize each step\'s narration and mix it in')
+  .option('--voice <name>', 'TTS voice')
+  .option('--no-subtitles', 'Do not write <output>.vtt')
+  .option('--no-chapters', 'Do not embed MP4 chapters')
+  .option('--clips <format>', 'Also cut one clip per step: mp4 or gif')
+  .option('--tail <ms>', 'Hold after the last step (overrides meta.tailMs)')
+  .option('--guide', 'Also capture the step guide against the live page (re-navigates, replays in step mode)')
+  .option('--guide-dir <dir>', 'Guide output directory (default: <output_dir>/guide)')
+  .option('--crop <px>', 'Guide crops: padding around each step\'s box in px (default 120)')
+  .option('--no-crop', 'Guide: full frames only')
+  .option('--hide-cursor', 'Guide: hide the fake cursor in step screenshots')
+  .option('--force', 'Record even if the timeline has validation errors')
+  .option('--locale <code>', 'Locale code for this output (e.g. en, fr)')
+  .action((dir, opts) => recordCommand(dir, opts));
 
 program
   .command('guide')

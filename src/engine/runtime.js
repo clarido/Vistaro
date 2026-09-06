@@ -692,7 +692,8 @@
     if (prev && isFinite(timeMsOf(prev)) && isFinite(t)) lead = Math.min(lead, Math.max(0, t - timeMsOf(prev)));
     return lead;
   }
-  function start() { state.t0 = performance.now(); return 0; }
+  /** Start (or, after a navigation, continue) the timeline clock: now() == elapsedMs right after this call. */
+  function start(elapsedMs) { state.t0 = performance.now() - (elapsedMs || 0); return elapsedMs || 0; }
   function play(timeline, o) {
     o = o || {};
     var steps = Array.isArray(timeline) ? timeline : (timeline && timeline.steps) || [];

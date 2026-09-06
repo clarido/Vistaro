@@ -336,7 +336,7 @@ export function validateTimeline(timeline: Timeline): Issue[] {
             }
             if (s.action === 'navigate') {
                 if (typeof s.url !== 'string' || !s.url) issues.push(issueFor(s, 'error', 'action "navigate" requires a "url"', 'url'));
-                else issues.push(issueFor(s, 'warning', 'action "navigate" is not implemented until `record` (Phase 4); it does nothing in build/export', 'action'));
+                else issues.push(issueFor(s, 'warning', 'action "navigate" only runs under `record` (live pages); build/export/preview ignore it', 'action'));
             }
             if (s.action === 'press' && (typeof s.value !== 'string' || !s.value)) {
                 issues.push(issueFor(s, 'error', 'action "press" requires a "value" (key name, e.g. "Enter")', 'value'));

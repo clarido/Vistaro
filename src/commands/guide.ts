@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { Browser } from 'playwright';
+import type { Browser, Page } from 'playwright';
 import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, leadMsFor } from '../engine/schema';
-import { ensureRuntime, StepResult } from '../engine/driver';
+import { ensureRuntime, StepResult, LiveOptions } from '../engine/driver';
 import { launchPage, fileUrl, resolveViewport, ViewportOptions, newDrivenPage } from '../browser';
 import { captureGuide, CapturedStep, GuideCapture } from '../guide/capture';
 import { writeGuide, GuideJson, GuideStepJson, GuideVideoJson } from '../guide/render';
@@ -86,17 +86,20 @@ export function videoFromManifest(dir: string): VideoInfo | undefined {
 export async function buildGuide(browser: Browser, dir: string, timeline: Timeline, opts: {
     outDir: string; crop: number | false; clips?: string; video?: VideoInfo; viewport: ViewportOptions & { deviceScaleFactor?: number };
     hideCursor?: boolean; locale?: string; log?: (m: string) => void; warn?: (m: string) => void;
+    /** Live page (record): how to open it, the auth state, and the driver's live options. */
+    session?: { open: (page: Page) => Promise<void>; storageState?: string; live: LiveOptions };
 }): Promise<{ json: string; md: string; html: string; capture: GuideCapture }> {
     const { width, height } = resolveViewport(opts.viewport);
     const assetsDir = path.join(opts.outDir, 'assets');
     const rel = (p: string) => path.relative(opts.outDir, p).split(path.sep).join('/');
 
-    const driven = await newDrivenPage(browser, { ...opts.viewport, deviceScaleFactor: opts.viewport.deviceScaleFactor ?? 2 });
+    const driven = await newDrivenPage(browser, { ...opts.viewport, deviceScaleFactor: opts.viewport.deviceScaleFactor ?? 2, storageState: opts.session?.storageState, runtime: !!opts.session });
     let capture: GuideCapture;
     try {
-        await driven.page.goto(fileUrl(path.join(dir, 'index.html')), { waitUntil: 'load' });
+        if (opts.session) await opts.session.open(driven.page);
+        else await driven.page.goto(fileUrl(path.join(dir, 'index.html')), { waitUntil: 'load' });
         await ensureRuntime(driven.page, timeline, { drift: false });
-        capture = await captureGuide(driven.page, timeline, { assetsDir, crop: opts.crop, viewport: { width, height }, hideCursor: opts.hideCursor, poster: !!opts.video, log: opts.log });
+        capture = await captureGuide(driven.page, timeline, { assetsDir, crop: opts.crop, viewport: { width, height }, hideCursor: opts.hideCursor, poster: !!opts.video, live: opts.session?.live, log: opts.log });
     } finally {
         await driven.close();
     }

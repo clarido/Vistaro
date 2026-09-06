@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
 import { Step, Timeline, captureAtFor } from '../engine/schema';
-import { runTimeline, StepResult, errorMessage } from '../engine/driver';
+import { runTimeline, StepResult, errorMessage, LiveOptions } from '../engine/driver';
 
 /**
  * Guide capture (Scribe/Tango style): replay the timeline in driver step mode on a page that
@@ -53,6 +53,8 @@ export interface CaptureOptions {
     hideCursor?: boolean;
     /** Write assets/poster.png (only useful when a video will be linked). Default true. */
     poster?: boolean;
+    /** Live page handling (record): navigations survived, waitFor honoured. */
+    live?: LiveOptions;
     log?: (m: string) => void;
 }
 
@@ -120,6 +122,7 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
         mode: 'step',
         settleMs: opts.settleMs ?? 300,
         afterStepAt: 'auto',
+        live: opts.live,
         afterStep: async (step, result) => {
             if (!isGuideStep(step)) return;
             number++;
