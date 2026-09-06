@@ -104,6 +104,8 @@ test('computeDurationMs = last interaction + intrinsic duration + tail', () => {
     assert.equal(computeDurationMs(tl), 5000 + 1000 + 1000);
     const tl2 = parseTimeline([{ time: '2s', action: 'camera', scale: 1.2, duration: 2 }]);
     assert.equal(computeDurationMs(tl2), 2000 + 2000 + 2500);
+    const tl3 = parseTimeline([{ time: 1, action: 'fadeIn', target: '#t' }, { time: 2, action: 'fadeIn', target: '#t', duration: 3 }]);
+    assert.equal(computeDurationMs(tl3), 2000 + 3000 + 2500, 'explicit fade duration wins over the 800ms default');
 });
 
 test('subtitleWindows: until next subtitle, else +4s, never under 1s', () => {

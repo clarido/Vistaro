@@ -79,9 +79,15 @@ export interface Step {
     waitFor?: string | number;
     url?: string;
     cps?: number;
+    /** camera: zoom factor (1 = none). */
     scale?: number;
     x?: number | string;
     y?: number | string;
+    /**
+     * Seconds. camera: length of the pan/zoom (default 2.5). fadeIn / transitionScreen: length of the
+     * fade; when set it overrides the element's own CSS transition, when absent the runtime honours
+     * that transition and the static estimate is 0.8s.
+     */
     duration?: number;
     xOffset?: number | string;
     yOffset?: number | string;
@@ -220,7 +226,7 @@ export function intrinsicDurationMs(step: Step): number {
         case 'type': return typingDurationMs(step);
         case 'camera': return Math.round((typeof step.duration === 'number' ? step.duration : DEFAULT_CAMERA_DURATION_S) * 1000);
         case 'fadeIn':
-        case 'transitionScreen': return DEFAULT_FADE_MS;
+        case 'transitionScreen': return typeof step.duration === 'number' && step.duration >= 0 ? Math.round(step.duration * 1000) : DEFAULT_FADE_MS;
         case 'scroll': return DEFAULT_SCROLL_MS;
         default: return 0;
     }

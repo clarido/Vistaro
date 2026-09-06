@@ -103,6 +103,72 @@
       "device": "desktop",
       "theme": "light",
       "timestamp": "2026-09-06T20:50:36.457Z"
+    },
+    {
+      "command": "export",
+      "duration": 14.511,
+      "output": "/tmp/radiant-frost/work/demo-full.mp4",
+      "device": "desktop",
+      "theme": "light",
+      "narration": true,
+      "subtitles": "demo-full.vtt",
+      "chapters": 5,
+      "clips": [
+        "demo-full-step-01.mp4",
+        "demo-full-step-02.mp4",
+        "demo-full-step-03.mp4",
+        "demo-full-step-04.mp4",
+        "demo-full-step-05.mp4",
+        "demo-full-step-06.mp4",
+        "demo-full-step-07.mp4"
+      ],
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "intro",
+          "actualMs": 3,
+          "completedMs": 805
+        },
+        {
+          "index": 2,
+          "id": "open-section",
+          "actualMs": 2006,
+          "completedMs": 2010
+        },
+        {
+          "index": 3,
+          "id": "focus-editor",
+          "actualMs": 4005,
+          "completedMs": 4011
+        },
+        {
+          "index": 4,
+          "id": "draft",
+          "actualMs": 5005,
+          "completedMs": 7286
+        },
+        {
+          "index": 5,
+          "id": "zoom",
+          "actualMs": 7004,
+          "completedMs": 8504
+        },
+        {
+          "index": 6,
+          "id": "pull-back",
+          "actualMs": 8503,
+          "completedMs": 10504
+        },
+        {
+          "index": 7,
+          "id": "closing",
+          "actualMs": 9010,
+          "completedMs": 12011
+        }
+      ],
+      "timestamp": "2026-09-06T21:04:43.467Z"
     }
   ]
 }

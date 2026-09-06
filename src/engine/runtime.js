@@ -346,16 +346,20 @@
     var cs = getComputedStyle(el);
     return cs.display !== 'none' && cs.visibility !== 'hidden';
   }
-  function fadeIn(el, instant) {
-    var ms = instant ? 0 : FADE_MS;
+  // `durationMs` (from a step's `duration`, seconds) overrides the element's own transition;
+  // without it an element that transitions its own opacity (e.g. `transition: all 3s`) keeps it.
+  function fadeIn(el, instant, durationMs) {
+    var explicit = typeof durationMs === 'number' && durationMs >= 0;
+    var ms = instant ? 0 : (explicit ? durationMs : FADE_MS);
     var cs = getComputedStyle(el);
-    // Does the element already transition its own opacity (e.g. `transition: all 3s`)? Then let it.
     var props = (cs.transitionProperty || '').split(',').map(function (s) { return s.trim(); });
     var durs = (cs.transitionDuration || '').split(',').map(function (s) { return parseFloat(s) || 0; });
     var ownOpacityMs = 0;
-    props.forEach(function (p, i) {
-      if (p === 'opacity' || p === 'all') ownOpacityMs = Math.max(ownOpacityMs, (durs[i] != null ? durs[i] : durs[0]) * 1000);
-    });
+    if (!explicit) {
+      props.forEach(function (p, i) {
+        if (p === 'opacity' || p === 'all') ownOpacityMs = Math.max(ownOpacityMs, (durs[i] != null ? durs[i] : durs[0]) * 1000);
+      });
+    }
     var inlineTransition = el.style.transition;
     if (cs.display === 'none') {
       el.style.display = el.getAttribute('data-anim-display') || '';
@@ -371,12 +375,15 @@
     if (!ownOpacityMs && ms > 0) {
       // Add an opacity transition without dropping an existing inline one (e.g. the body's camera transform).
       el.style.transition = (inlineTransition ? inlineTransition + ', ' : '') + 'opacity ' + ms + 'ms ease';
+    } else if (explicit && ms === 0) {
+      el.style.transition = 'none';
     }
     el.style.opacity = '1';
     return wait(instant ? 0 : Math.max(ms, ownOpacityMs));
   }
-  function transitionScreen(el, instant) {
-    var ms = instant ? 0 : FADE_MS;
+  function transitionScreen(el, instant, durationMs) {
+    var explicit = typeof durationMs === 'number' && durationMs >= 0;
+    var ms = instant ? 0 : (explicit ? durationMs : FADE_MS);
     var prev = [];
     if (state.currentScreen && state.currentScreen !== el) prev = [state.currentScreen];
     else if (el.parentElement) {
@@ -390,7 +397,10 @@
       setTimeout(function () { p.style.display = 'none'; }, Math.round(ms / 2));
     });
     state.currentScreen = el;
-    return wait(Math.round(ms / 2)).then(function () { return fadeIn(el, instant); });
+    return wait(Math.round(ms / 2)).then(function () { return fadeIn(el, instant, explicit ? ms : undefined); });
+  }
+  function stepDurationMs(step) {
+    return typeof step.duration === 'number' && step.duration >= 0 ? Math.round(step.duration * 1000) : undefined;
   }
 
   function showSubtitle(text, ms) {
@@ -523,10 +533,10 @@
             done = scrollTo(el, instant);
             break;
           case 'fadeIn':
-            done = fadeIn(el, instant);
+            done = fadeIn(el, instant, stepDurationMs(step));
             break;
           case 'transitionScreen':
-            done = transitionScreen(el, instant);
+            done = transitionScreen(el, instant, stepDurationMs(step));
             break;
           default:
             throw new Error('unknown action: ' + action);
@@ -615,7 +625,10 @@
     whenIdle: whenIdle,
     now: now,
     isReady: function () { return state.ready; },
-    getState: function () { return { ready: state.ready, point: state.point, opts: state.opts, cursor: !!state.cursor }; },
+    getState: function () {
+      return { ready: state.ready, point: state.point, opts: state.opts, cursor: !!state.cursor,
+        t0: state.t0, timeOrigin: performance.timeOrigin, inFlight: Object.keys(state.completions).length };
+    },
     moveCursor: moveCursor,
     placeCursor: placeCursor,
     highlight: highlight,

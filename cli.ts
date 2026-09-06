@@ -161,15 +161,22 @@ program
 
 program
   .command('export')
-  .description('Export the animated HTML to an MP4 video using Playwright')
-  .argument('<output_dir>', 'Directory containing the animated HTML essence')
-  .option('-d, --duration <seconds>', 'Duration of the export in seconds', '5')
+  .description('Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narration)')
+  .argument('<output_dir>', 'Directory containing index.html + anim.config.json (or a legacy animated.html)')
+  .option('-d, --duration <seconds>', 'Override the export length in seconds (default: computed from the timeline; 5 without a config)')
   .option('-o, --output <file>', 'Output video file path (.mp4 or .gif)', 'output.mp4')
   .option('-w, --width <pixels>', 'Width of the exported video in pixels')
   .option('-H, --height <pixels>', 'Height of the exported video in pixels')
   .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
   .option('-t, --theme <mode>', 'Color scheme mode for Playwright: light or dark', 'light')
-  .option('-v, --voiceover <path>', 'Path to a text file containing the voiceover script')
+  .option('--narration', 'Synthesize each step\'s "narration" (or "subtitle") and mix it in at the step\'s time (OPENAI_API_KEY or macOS say)')
+  .option('--voice <name>', 'TTS voice (OpenAI voice name, or a macOS `say` voice)')
+  .option('-v, --voiceover <path>', 'Path to a text file with a whole-video voiceover script (legacy, starts at 0s)')
+  .option('--no-subtitles', 'Do not write <output>.vtt')
+  .option('--no-chapters', 'Do not embed MP4 chapters for titled steps')
+  .option('--clips <format>', 'Also cut one clip per step next to the video: mp4 or gif')
+  .option('--tail <ms>', 'Hold after the last step (overrides meta.tailMs, default 2500)')
+  .option('--force', 'Export even if the timeline has validation errors')
   .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
   .action((dir, opts) => exportCommand(dir, opts));
 

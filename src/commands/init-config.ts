@@ -17,7 +17,7 @@ export const CONFIG_SCAFFOLD = {
         { id: 'prompt', time: '3.5s', action: 'type', target: '.chat-input', value: 'Generate a report', title: 'Describe the report', subtitle: 'Enter your prompt here.', translatable: true },
         { id: 'zoom', time: '5.5s', action: 'camera', target: '.chat-input', scale: 1.3, duration: 2, guide: false },
         { id: 'notice', time: '8s', action: 'highlight', target: '#status', title: 'Watch the status', subtitle: 'The status updates when the report is ready.' },
-        { id: 'result', time: '10s', action: 'transitionScreen', target: '#screen2', title: 'Review the result' },
+        { id: 'result', time: '10s', action: 'transitionScreen', target: '#screen2', duration: 0.8, title: 'Review the result' },
     ],
 };
 

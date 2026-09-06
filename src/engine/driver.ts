@@ -52,8 +52,15 @@ export interface RunOptions {
 export async function ensureRuntime(page: Page, timeline: Timeline, opts: InjectOptions = {}): Promise<void> {
     const present = await page.evaluate(() => !!(window as any).__anim);
     if (!present) await page.addScriptTag({ content: runtimeSource() });
-    const boot = bootOptions(timeline, opts, false);
-    await page.evaluate((o) => { (window as any).__anim.boot(o); }, boot as any);
+    const boot: Record<string, any> = bootOptions(timeline, opts, false);
+    if (present) {
+        // A built page already booted with its own cursor/drift/reset settings (e.g. `build --cursor
+        // windows`); only override what the caller passed explicitly.
+        if (opts.cursor === undefined) delete boot.cursor;
+        if (opts.drift === undefined) delete boot.drift;
+        if (opts.resetFocusStyles === undefined) delete boot.resetFocusStyles;
+    }
+    await page.evaluate((o) => { (window as any).__anim.boot(o); }, boot);
     await page.waitForFunction(() => (window as any).__anim && (window as any).__anim.isReady());
 }
 

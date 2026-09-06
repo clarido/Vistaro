@@ -19,3 +19,4 @@ node_modules/
 preview.png
 preview-step-*.png
 .temp-video/
+.cache/
