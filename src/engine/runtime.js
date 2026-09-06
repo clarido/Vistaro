@@ -98,6 +98,50 @@
     var r = el.getBoundingClientRect();
     return { x: r.left, y: r.top, width: r.width, height: r.height };
   }
+  /** Nearest self-or-ancestor with a non-zero box (an empty <span> has none). */
+  function anchorOf(el) {
+    var a = el;
+    while (a && a !== document.documentElement) {
+      var r = a.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) return a;
+      a = a.parentElement;
+    }
+    return el;
+  }
+  /** A readable CSS selector for an element (#id, else tag.class:nth-of-type chain up to an id'd ancestor). */
+  function selectorOf(n) {
+    var parts = [];
+    var cur = n;
+    while (cur && cur !== document.documentElement) {
+      if (cur.id) { parts.unshift('#' + CSS.escape(cur.id)); break; }
+      var part = cur.tagName.toLowerCase();
+      if (cur.classList.length) part += '.' + Array.prototype.map.call(cur.classList, function (c) { return CSS.escape(c); }).join('.');
+      var parent = cur.parentElement;
+      if (parent) {
+        var same = Array.prototype.filter.call(parent.children, function (c) { return c.tagName === cur.tagName; });
+        if (same.length > 1) part += ':nth-of-type(' + (same.indexOf(cur) + 1) + ')';
+      }
+      parts.unshift(part);
+      cur = parent;
+    }
+    return parts.join(' > ');
+  }
+  /** Is the element's centre outside the viewport or outside an overflow-clipping ancestor? */
+  function isClipped(el) {
+    var r = el.getBoundingClientRect();
+    var px = r.left + r.width / 2, py = r.top + r.height / 2;
+    if (px < 0 || py < 0 || px > window.innerWidth || py > window.innerHeight) return true;
+    var a = el.parentElement;
+    while (a && a !== document.documentElement) {
+      var cs = getComputedStyle(a);
+      if (cs.overflow !== 'visible' || cs.overflowX !== 'visible' || cs.overflowY !== 'visible') {
+        var ar = a.getBoundingClientRect();
+        if (px < ar.left || px > ar.right || py < ar.top || py > ar.bottom) return true;
+      }
+      a = a.parentElement;
+    }
+    return false;
+  }
 
   // --- boot: styles + overlays ----------------------------------------------------
   // Idempotent: a second boot with a different cursor swaps the cursor CSS.
@@ -276,11 +320,13 @@
     if (isField(el)) el.value = text; else el.textContent = text;
     el.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  function typeInto(el, value, cps, instant) {
+  // `onProgress` (every 5 chars and at the end) lets the caller re-position the spotlight as the content grows.
+  function typeInto(el, value, cps, instant, onProgress) {
     value = value == null ? '' : String(value);
     setTyped(el, '');
     if (instant) {
       setTyped(el, value);
+      if (onProgress) onProgress(value.length);
       return Promise.resolve();
     }
     var interval = 1000 / (cps > 0 ? cps : (state.opts.defaultCps || DEFAULT_CPS));
@@ -290,6 +336,7 @@
         if (i < value.length) {
           i++;
           setTyped(el, value.slice(0, i));
+          if (onProgress && (i % 5 === 0 || i === value.length)) onProgress(i);
         } else {
           clearInterval(intId);
           resolve();
@@ -448,15 +495,25 @@
       return;
     }
 
+    var hasPoint = !!(el && CURSOR_ACTIONS[action]);
+    // A target hidden inside a scrolled/overflow container (e.g. the caret span at the end of a
+    // long editor) is scrolled into view first, like a real user's caret would be.
+    if (hasPoint && isClipped(el)) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    // A 0x0 target (an empty span/caret) cannot carry a spotlight: use the nearest sized ancestor.
+    var spotEl = hasPoint ? anchorOf(el) : el;
     function measurePoint() {
       var rect = el.getBoundingClientRect();
       var tx = rect.left + rect.width / 2;
       var ty = rect.top + rect.height / 2;
+      if (spotEl !== el) {
+        // Keep the cursor on the caret position when it lies inside the anchor, else centre it.
+        var a = spotEl.getBoundingClientRect();
+        if (tx < a.left || tx > a.right || ty < a.top || ty > a.bottom) { tx = a.left + a.width / 2; ty = a.top + a.height / 2; }
+      }
       if (step.xOffset) tx += parseFloat(step.xOffset);
       if (step.yOffset) ty += parseFloat(step.yOffset);
       return { x: tx, y: ty };
     }
-    var hasPoint = !!(el && CURSOR_ACTIONS[action]);
     var point = hasPoint ? measurePoint() : null;
 
     var travelMs = Math.max(0, leadMs - PRESS_MS);
@@ -470,7 +527,7 @@
         // travel would leave the cursor, ripple and highlight on stale coordinates.
         var fresh = measurePoint();
         if (fresh.x !== point.x || fresh.y !== point.y) { point = fresh; placeCursor(point.x, point.y); }
-        highlight(el);
+        highlight(spotEl);
         pressCursor(point.x, point.y, pressMs);
       }
       setTimeout(function () {
@@ -489,7 +546,8 @@
         target: step.target,
         scheduledMs: timeMsOf(step),
         actualMs: actualMs,
-        rect: rectOf(el),
+        rect: rectOf(spotEl),          // what the spotlight/callout framed
+        targetRect: spotEl !== el ? rectOf(el) : undefined,
         point: point,
         token: token
       };
@@ -515,7 +573,11 @@
             if (state.opts.resetFocusStyles) resetFocusStyles();
             el.focus();
             focusStyle(el);
-            done = typeInto(el, step.value, step.cps, instant);
+            done = typeInto(el, step.value, step.cps, instant, function () {
+              // A 0x0 caret span gains a line box once text lands; keep it in view and track the spotlight.
+              if (isClipped(el)) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+              positionHighlight(spotEl);
+            });
             break;
           case 'hover':
             el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
@@ -631,6 +693,9 @@
     },
     moveCursor: moveCursor,
     placeCursor: placeCursor,
+    anchorOf: anchorOf,
+    isClipped: isClipped,
+    selectorOf: selectorOf,
     highlight: highlight,
     holdHighlight: holdHighlight,
     releaseHighlight: releaseHighlight,

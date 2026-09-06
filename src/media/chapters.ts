@@ -15,7 +15,8 @@ export function chaptersFor(timeline: Timeline, durationMs: number, startMsOf: (
     for (let i = 0; i < titled.length; i++) {
         const s = titled[i];
         const startMs = Math.max(0, Math.round(startMsOf(s)));
-        const endMs = Math.round(i + 1 < titled.length ? startMsOf(titled[i + 1]) : durationMs);
+        if (startMs >= durationMs) continue; // past the end of a shortened export
+        const endMs = Math.min(Math.round(i + 1 < titled.length ? startMsOf(titled[i + 1]) : durationMs), Math.round(durationMs));
         if (endMs <= startMs) continue;
         out.push({ index: s.index, id: s.id, startMs, endMs, title: s.title!.trim() });
     }

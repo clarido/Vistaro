@@ -44,7 +44,7 @@ test('built page self-plays: anim:step fires within 100ms of each time, real han
     });
     await page.goto(fileUrl(builtPath));
     assert.equal(await page.evaluate(() => typeof (window as any).__anim), 'object');
-    await page.waitForFunction(() => (window as any).__events.length >= 8, null, { timeout: 15000 });
+    await page.waitForFunction(() => (window as any).__events.length >= 9, null, { timeout: 15000 });
     const events: any[] = await page.evaluate(() => (window as any).__events);
     for (const ev of events) {
         assert.ok(Math.abs(ev.actualMs - ev.scheduledMs) <= 100, `step ${ev.index} ${ev.action}: actual ${ev.actualMs} vs scheduled ${ev.scheduledMs}`);
@@ -91,8 +91,8 @@ test('runTimeline(step) returns measured results and consecutive camera steps do
             if (s.action === 'camera') transforms[s.id] = await page.evaluate(() => document.body.style.transform);
         },
     });
-    assert.deepEqual(seen, [1, 2, 3, 4, 5, 6, 7, 8]);
-    assert.equal(results.length, 8);
+    assert.deepEqual(seen, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    assert.equal(results.length, 9);
     for (const r of results) {
         assert.equal(r.error, undefined, `step ${r.index}: ${r.error}`);
         assert.ok(Number.isFinite(r.actualMs));
@@ -114,7 +114,7 @@ test('runTimeline(timed): interactions land within 100ms of schedule, results ca
     const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'anim.config.json'), 'utf8')));
     await ensureRuntime(page, tl, { drift: false });
     const results = await runTimeline(page, tl, { mode: 'timed' });
-    assert.equal(results.length, 8);
+    assert.equal(results.length, 9);
     for (const r of results) {
         assert.equal(r.error, undefined, `step ${r.index}: ${r.error}`);
         assert.ok(Math.abs(r.actualMs - r.scheduledMs) <= 100, `step ${r.index} ${r.action}: actual ${r.actualMs} vs scheduled ${r.scheduledMs}`);
@@ -179,6 +179,40 @@ test('press step sends a real key through page.keyboard at the interaction', { s
     await context.close();
 });
 
+test('0x0 typing target: spotlight uses the sized ancestor, caret is scrolled into view, text is visible', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(fixture, 'index.html')));
+    const tl = parseTimeline([{ time: 0, action: 'type', target: '#caret', value: 'hello there', cps: 50 }]);
+    await ensureRuntime(page, tl, { drift: false });
+    const before = await page.evaluate(() => (window as any).__anim.isClipped(document.getElementById('caret')));
+    assert.equal(before, true, '#caret starts scrolled out of view inside #log');
+    let boxAtCapture: any;
+    const results = await runTimeline(page, tl, {
+        mode: 'step', settleMs: 100,
+        afterStep: async () => {
+            boxAtCapture = await page.evaluate(() => {
+                const h = document.getElementById('anim-cli-highlight')!.getBoundingClientRect();
+                const log = document.getElementById('log')!.getBoundingClientRect();
+                const caret = document.getElementById('caret')!.getBoundingClientRect();
+                return { h: { x: h.x, y: h.y, width: h.width, height: h.height }, log: { x: log.x, y: log.y, width: log.width, height: log.height }, caret: { x: caret.x, y: caret.y, width: caret.width }, opacity: getComputedStyle(document.getElementById('anim-cli-highlight')!).opacity, typed: document.getElementById('caret')!.textContent };
+            });
+        },
+    });
+    const r = results[0];
+    assert.equal(r.error, undefined);
+    assert.ok(r.rect && r.rect.width > 100 && r.rect.height > 50, `StepResult.rect is the sized ancestor box: ${JSON.stringify(r.rect)}`);
+    assert.ok(r.targetRect && r.targetRect.width === 0, 'raw target rect is reported separately');
+    assert.ok(boxAtCapture.h.width >= boxAtCapture.log.width && boxAtCapture.h.height >= boxAtCapture.log.height, `highlight ${JSON.stringify(boxAtCapture.h)} covers #log ${JSON.stringify(boxAtCapture.log)}`);
+    assert.ok(parseFloat(boxAtCapture.opacity) > 0.5, 'spotlight visible at the capture point');
+    assert.ok(boxAtCapture.typed.length >= 1, 'first characters typed at capture');
+    assert.ok(boxAtCapture.caret.y >= boxAtCapture.log.y && boxAtCapture.caret.y <= boxAtCapture.log.y + boxAtCapture.log.height, 'caret scrolled into the visible part of #log');
+    assert.equal(await page.evaluate(() => (window as any).__anim.isClipped(document.getElementById('caret'))), false);
+    assert.equal(await page.textContent('#caret'), 'hello there');
+    await context.close();
+});
+
 test('runTimeline reports a missing target as a per-step error and keeps going', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
@@ -212,6 +246,9 @@ test('check: clean fixture exits 0; broken copy lists every error with step/time
     const ok = cli(['check', path.join(work, 'basic')]);
     assert.equal(ok.status, 0, ok.stdout + ok.stderr);
     assert.match(ok.stdout, /OK:/);
+    assert.match(ok.stdout, /info {3}\s+step 9 .*spotlight uses its sized ancestor #log/);
+    const okJson = JSON.parse(cli(['check', path.join(work, 'basic'), '--json']).stdout);
+    assert.deepEqual(okJson.map((i: any) => [i.level, i.step, i.highlightFallback]), [['info', 9, '#log']]);
 
     const broken = path.join(work, 'broken');
     fs.cpSync(fixture, broken, { recursive: true });

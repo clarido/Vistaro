@@ -15,6 +15,7 @@
     { "id": "zoom-again", "time": "3s", "action": "camera", "target": "#field", "scale": 1.3, "duration": 0.3 },
     { "id": "notice", "time": "3.5s", "action": "highlight", "target": "#note", "title": "Notice the note" },
     { "id": "banner", "time": "4s", "action": "fadeIn", "target": "#banner", "title": "Banner" },
-    { "id": "screen2", "time": "4.5s", "action": "transitionScreen", "target": "#screen2", "title": "Second screen" }
+    { "id": "screen2", "time": "4.5s", "action": "transitionScreen", "target": "#screen2", "title": "Second screen" },
+    { "id": "caret", "time": "5s", "action": "type", "target": "#caret", "value": "done", "cps": 50, "title": "Type at a clipped caret" }
   ]
 }

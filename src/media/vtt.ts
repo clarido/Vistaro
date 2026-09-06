@@ -1,4 +1,4 @@
-import { Step, Timeline, SUBTITLE_HOLD_MS, SUBTITLE_MIN_MS } from '../engine/schema';
+import { Step, Timeline, subtitleWindows } from '../engine/schema';
 
 export interface Cue {
     index: number;
@@ -23,18 +23,11 @@ function plainText(html: string): string {
 }
 
 /**
- * Subtitle cues using the same rule as the in-page subtitles (until the next subtitle,
- * else +4s, never under 1s), anchored on the given start times (actual interaction times
- * during export; scheduled times otherwise).
+ * Subtitle cues: the in-page subtitle windows (schema.subtitleWindows) anchored on the given start
+ * times (actual interaction times during export), clamped to `durationMs`, with HTML stripped.
  */
-export function subtitleCues(timeline: Timeline, startMsOf: (step: Step) => number = s => s.timeMs): Cue[] {
-    const subs = timeline.steps.filter(s => s.subtitle && Number.isFinite(startMsOf(s)));
-    return subs.map((s, i) => {
-        const startMs = startMsOf(s);
-        const nextMs = i + 1 < subs.length ? startMsOf(subs[i + 1]) : startMs + SUBTITLE_HOLD_MS;
-        const endMs = startMs + Math.max(SUBTITLE_MIN_MS, nextMs - startMs);
-        return { index: s.index, id: s.id, startMs, endMs, text: plainText(String(s.subtitle)) };
-    });
+export function subtitleCues(timeline: Timeline, startMsOf: (step: Step) => number = s => s.timeMs, durationMs?: number): Cue[] {
+    return subtitleWindows(timeline, startMsOf, durationMs).map(w => ({ ...w, text: plainText(w.text) }));
 }
 
 export function buildVtt(cues: Cue[]): string {

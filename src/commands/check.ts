@@ -14,6 +14,9 @@ interface TargetProbe {
     error?: string;
     count: number;
     rendered?: boolean;
+    clipped?: boolean;
+    anchored?: boolean;
+    anchorSelector?: string;
     width?: number;
     height?: number;
     display?: string;
@@ -61,12 +64,24 @@ export async function browserCheck(dir: string, timeline: Timeline, opts: Viewpo
                     const rendered = typeof (el as any).checkVisibility === 'function'
                         ? (el as any).checkVisibility({ visibilityProperty: true })
                         : cs.display !== 'none' && cs.visibility !== 'hidden';
+                    const anim = (window as any).__anim;
+                    const anchor = anim.anchorOf(el);
+                    const ar = anchor.getBoundingClientRect();
+                    // No inner function declarations here: tsx/esbuild would wrap them in a `__name`
+                    // helper that does not exist inside the page (the callback is serialized by Playwright).
+                    // The runtime scrolls a clipped target into view before interacting; mirror that here
+                    // so the warning only fires when scrolling cannot reveal it.
+                    let clipped = anim.isClipped(el);
+                    if (clipped) { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); clipped = anim.isClipped(el); }
                     return {
-                        count: all.length, width: r.width, height: r.height, rendered,
+                        count: all.length, width: r.width, height: r.height, rendered, clipped,
+                        anchored: anchor !== el && ar.width > 0 && ar.height > 0,
+                        anchorSelector: anchor !== el ? anim.selectorOf(anchor) : undefined,
                         display: cs.display, visibility: cs.visibility, opacity: parseFloat(cs.opacity),
                         inViewport: r.bottom > 0 && r.right > 0 && r.top < window.innerHeight && r.left < window.innerWidth,
                     };
                 }, step.target);
+                if (process.env.ANIM_DEBUG) console.error(`probe step ${step.index} ${step.target}: ${JSON.stringify(probe)}`);
                 if (probe.error) {
                     issues.push(issueFor(step, 'error', `invalid selector ${JSON.stringify(step.target)}: ${probe.error}`));
                     return;
@@ -82,9 +97,16 @@ export async function browserCheck(dir: string, timeline: Timeline, opts: Viewpo
                 const revealsTarget = step.action === 'fadeIn' || step.action === 'transitionScreen';
                 if (!revealsTarget && probe.rendered === false) {
                     issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} is hidden when this step runs (display: ${probe.display}, visibility: ${probe.visibility}, or an ancestor is hidden)`));
-                } else if (!revealsTarget && step.action !== 'type' && (!probe.width || !probe.height)) {
-                    // An empty span/input being typed into is legitimately 0x0; anything else 0x0 is suspicious.
-                    issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} has zero size when this step runs (${Math.round(probe.width || 0)}x${Math.round(probe.height || 0)}px)`));
+                } else if (!revealsTarget && (!probe.width || !probe.height) && !(step.action === 'type' && probe.anchored)) {
+                    // An empty caret span being typed into is fine when a sized ancestor can carry the spotlight;
+                    // any other 0x0 target renders nothing in the frame.
+                    issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} has zero size when this step runs (${Math.round(probe.width || 0)}x${Math.round(probe.height || 0)}px)${step.action === 'type' ? ' and no sized ancestor to spotlight' : ''}`));
+                } else if (step.action === 'type' && probe.anchored && (!probe.width || !probe.height)) {
+                    const info = issueFor(step, 'info', `target ${JSON.stringify(step.target)} is 0x0 (empty caret); the spotlight uses its sized ancestor ${probe.anchorSelector}`);
+                    info.highlightFallback = probe.anchorSelector;
+                    issues.push(info);
+                } else if (!revealsTarget && CURSOR_ACTIONS.has(step.action) && probe.clipped) {
+                    issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} is clipped by an overflow container and cannot be scrolled into view; the cursor and typed text will be off-frame`));
                 } else if (!revealsTarget && probe.opacity === 0) {
                     issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} has opacity 0 when this step runs`));
                 } else if (!revealsTarget && step.action !== 'scroll' && CURSOR_ACTIONS.has(step.action) && probe.inViewport === false) {
@@ -123,17 +145,19 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
             note = 'Browser pass skipped until the timing/action errors above are fixed.';
         }
     }
-    issues.sort((a, b) => (a.step ?? 0) - (b.step ?? 0) || (a.level === b.level ? 0 : a.level === 'error' ? -1 : 1));
+    const rank = { error: 0, warning: 1, info: 2 };
+    issues.sort((a, b) => (a.step ?? 0) - (b.step ?? 0) || rank[a.level] - rank[b.level]);
 
     const errors = issues.filter(i => i.level === 'error').length;
-    const warnings = issues.length - errors;
+    const warnings = issues.filter(i => i.level === 'warning').length;
+    const infos = issues.length - errors - warnings;
     if (options.json) {
         process.stdout.write(JSON.stringify(issues, null, 2) + '\n');
     } else {
         for (const issue of issues) console.log(formatIssue(issue));
         const where = path.resolve(dir, 'anim.config.json');
-        if (issues.length === 0) console.log(`OK: ${where} (${timeline!.steps.length} steps, ${options.static ? 'static' : 'static + browser'} check).`);
-        else console.log(`\n${errors} error(s), ${warnings} warning(s) in ${where}${options.static ? ' (static check only)' : ''}.`);
+        if (errors + warnings === 0) console.log(`${infos ? '\n' : ''}OK: ${where} (${timeline!.steps.length} steps, ${options.static ? 'static' : 'static + browser'} check${infos ? `, ${infos} info` : ''}).`);
+        else console.log(`\n${errors} error(s), ${warnings} warning(s)${infos ? `, ${infos} info` : ''} in ${where}${options.static ? ' (static check only)' : ''}.`);
     }
     if (note) log(note);
     process.exitCode = errors > 0 ? 1 : 0;

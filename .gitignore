@@ -20,3 +20,4 @@ preview.png
 preview-step-*.png
 .temp-video/
 .cache/
+*.vtt

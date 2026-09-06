@@ -100,8 +100,9 @@ export function cutClip(input: string, output: string, startMs: number, endMs: n
         encodeGif(input, output, { startMs, durationMs });
         return;
     }
+    // -map_chapters -1: a clip must not inherit the master's chapter list.
     run(['-y', '-ss', (startMs / 1000).toFixed(3), '-t', (durationMs / 1000).toFixed(3), '-i', input,
-        '-map', '0:v:0', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-pix_fmt', 'yuv420p',
+        '-map', '0:v:0', '-map', '0:a?', '-map_chapters', '-1', '-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-pix_fmt', 'yuv420p',
         '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', output]);
 }
 

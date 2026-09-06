@@ -5,7 +5,7 @@ import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors,
 import { runTimeline, ensureRuntime, StepResult } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions } from '../browser';
 import { encodeMp4, encodeGif, cutClip, probeDurationMs } from '../media/ffmpeg';
-import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, VoiceOptions } from '../media/tts';
+import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions } from '../media/tts';
 import { subtitleCues, buildVtt } from '../media/vtt';
 import { chaptersFor, ffmetadata } from '../media/chapters';
 
@@ -36,6 +36,12 @@ export interface ExportSummary {
 }
 
 const LEGACY_DEFAULT_DURATION_S = 5;
+/** Settle after boot before the timeline clock starts (a few captured frames precede t0). */
+const START_SETTLE_MS = 120;
+/** Measured lag between the document's first-paint entry and Playwright's first recorded frame. */
+const FIRST_FRAME_LAG_MS = 35;
+/** Playwright records at a fixed 25fps. */
+const RECORD_FRAME_MS = 40;
 
 /**
  * `export <dir>`: record the timeline with Playwright (driven by src/engine/driver.ts),
@@ -103,33 +109,61 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     }
 
     const driven = !!timeline;
-    if (!driven && hasRuntime) console.log('Note: no anim.config.json next to animated.html; recording with a blind wait.');
+    const isGif = options.output.toLowerCase().endsWith('.gif');
+    if (!driven && hasRuntime) console.log('Note: no anim.config.json next to animated.html; recording with a blind wait (the page self-plays).');
     if (!driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} has no timeline runtime; recording a blind ${formatTime(durationMs)} wait. Run \`build\` for driven exports (auto duration, subtitles, chapters).`);
     if (driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} was not built; injecting the runtime for this export (run \`build\` to persist it).`);
+    if (isGif && (options.narration || options.voiceover || options.clips || options.subtitles !== false || options.chapters !== false)) {
+        console.log('Note: .gif output has no audio, chapters or subtitle track; --narration/--voiceover/--clips/subtitles/chapters are ignored.');
+    }
+
+    // Fail fast (before a long recording) on things we can check now.
+    const voice: VoiceOptions = {};
+    if (!isGif && options.narration) {
+        if (!driven) throw new Error('--narration needs anim.config.json (narration text comes from the steps)');
+        const engine = ttsEngine(); // throws with a clear message on Linux without OPENAI_API_KEY
+        if (options.voice) { if (engine === 'openai') voice.openai = options.voice; else voice.say = options.voice; }
+    } else if (!isGif && options.voiceover) {
+        if (!fs.existsSync(options.voiceover)) throw new Error(`voiceover script not found: ${options.voiceover}`);
+        const engine = ttsEngine();
+        if (options.voice) { if (engine === 'openai') voice.openai = options.voice; else voice.say = options.voice; }
+    }
 
     console.log(`Starting video export. Duration: ${formatTime(durationMs)}. Device: ${options.device || 'desktop'}.`);
-    const launched = await launchPage({ ...options, recordVideoDir: tempVideoDir, driven: true });
+    // __ANIM_DRIVEN only when the Node driver runs the timeline; a built page without a config self-plays.
+    const launched = await launchPage({ ...options, recordVideoDir: tempVideoDir, driven });
     const { page } = launched;
     let results: StepResult[] = [];
-    let startOffsetMs = 0;
+    let t0Wall = 0;
+    let firstPaintWall = NaN;
+    let loadWall = 0;
+    let closeWall = 0;
     try {
-        const pageCreatedWall = Date.now();
         console.log(`Opening ${fileUrl(htmlPath)} in headless browser...`);
         await page.goto(fileUrl(htmlPath), { waitUntil: 'load' });
+        loadWall = Date.now();
         if (driven) {
             await ensureRuntime(page, timeline!, {});
+            // Make sure a few frames of the settled page are in the recording before the clock starts,
+            // so t0 is always at a positive offset that can be trimmed exactly.
+            await page.waitForTimeout(START_SETTLE_MS);
             results = await runTimeline(page, timeline!, { mode: 'timed' });
-            const t0Wall: number = await page.evaluate(() => { const s = (window as any).__anim.getState(); return s.timeOrigin + s.t0; });
-            startOffsetMs = Math.max(0, Math.round(t0Wall - pageCreatedWall));
+            const clocks: { t0Wall: number; firstPaintWall: number } = await page.evaluate(() => {
+                const s = (window as any).__anim.getState();
+                const paint = performance.getEntriesByType('paint').find(e => e.name === 'first-paint');
+                return { t0Wall: s.timeOrigin + s.t0, firstPaintWall: paint ? performance.timeOrigin + paint.startTime : NaN };
+            });
+            t0Wall = clocks.t0Wall;
+            firstPaintWall = clocks.firstPaintWall;
             if (autoDuration) {
                 // Do not trust the static estimate alone: an element's own CSS transition (e.g. a 3s
                 // fade) is only known once measured, so hold until the last step really completed + tail.
                 const tailMs = typeof timeline!.meta.tailMs === 'number' ? timeline!.meta.tailMs : DEFAULT_TAIL_MS;
                 const lastCompleted = Math.max(0, ...results.map(r => Number.isFinite(r.completedMs ?? NaN) ? r.completedMs! : 0));
-                if (lastCompleted + tailMs > durationMs) {
+                if (lastCompleted + tailMs > durationMs + 100) {
                     console.log(`Extending to ${formatTime(lastCompleted + tailMs)}: the last step completed at ${lastCompleted}ms (static estimate was ${formatTime(durationMs)}).`);
-                    durationMs = lastCompleted + tailMs;
                 }
+                if (lastCompleted + tailMs > durationMs) durationMs = lastCompleted + tailMs;
             }
             const nowMs: number = await page.evaluate(() => (window as any).__anim.now());
             if (nowMs < durationMs) await page.waitForTimeout(durationMs - nowMs);
@@ -138,12 +172,36 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             await page.waitForTimeout(durationMs);
         }
     } finally {
+        // The recorder writes its final frame when the page actually closes (inside page.close()),
+        // not when we decide to close, so stamp the wall clock right after the page is gone.
+        const closeStart = Date.now();
+        await page.close().catch(() => {});
+        closeWall = Date.now();
+        if (process.env.ANIM_DEBUG) console.error(`page.close took ${closeWall - closeStart}ms`);
         await launched.close(); // flushes the webm to disk
+        if (process.env.ANIM_DEBUG) console.error(`context+browser close took ${Date.now() - closeWall}ms; load->t0 ${t0Wall - loadWall}ms`);
     }
 
     const files = fs.readdirSync(tempVideoDir).filter(f => f.endsWith('.webm'));
     if (files.length === 0) throw new Error('video recording failed, no .webm found.');
     const webmFile = path.join(tempVideoDir, files[0]);
+
+    // Where the timeline's t0 sits in the recording. Playwright's video t=0 is the first screencast
+    // frame, which arrives FIRST_FRAME_LAG_MS after the document's first paint (measured, see
+    // test "first changed video frame"); the end of the file is useless as an anchor because the
+    // recorder pads the tail with max(gap since the last frame, 1s) at close.
+    let startOffsetMs = 0;
+    if (driven && t0Wall) {
+        const anchor = Number.isFinite(firstPaintWall) ? firstPaintWall + FIRST_FRAME_LAG_MS : loadWall;
+        // Snap to the nearest recorded frame (the recorder emits exact 40ms frames), 1ms before its
+        // timestamp so ffmpeg keeps that frame: the cut error is then within half a frame either way.
+        const frames = Math.round(Math.max(0, t0Wall - anchor) / RECORD_FRAME_MS);
+        startOffsetMs = frames > 0 ? frames * RECORD_FRAME_MS - 1 : 0;
+        if (process.env.ANIM_DEBUG) {
+            console.error(`trim: first-paint -> t0 ${Math.round(t0Wall - firstPaintWall)}ms, load -> t0 ${Math.round(t0Wall - loadWall)}ms, t0 -> close ${Math.round(closeWall - t0Wall)}ms, recorded ${probeDurationMs(webmFile)}ms, offset ${startOffsetMs}ms`);
+            fs.copyFileSync(webmFile, path.resolve(options.output).replace(/\.[^.]+$/, '') + '.debug.webm');
+        }
+    }
 
     const outputFile = path.resolve(options.output);
     fs.mkdirSync(path.dirname(outputFile), { recursive: true });
@@ -162,7 +220,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     } else {
         // Subtitles (.vtt next to the video).
         if (driven && options.subtitles !== false) {
-            const cues = subtitleCues(timeline!, actualMs);
+            const cues = subtitleCues(timeline!, actualMs, durationMs);
             if (cues.length) {
                 summary.vtt = base + '.vtt';
                 fs.writeFileSync(summary.vtt, buildVtt(cues));
@@ -180,10 +238,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         }
         // Audio: per-step narration, or the legacy whole-script voiceover.
         let audio: string | undefined;
-        const voice: VoiceOptions = {};
-        if (options.voice) { voice.openai = options.voice; voice.say = options.voice; }
         if (options.narration) {
-            if (!driven) throw new Error('--narration needs anim.config.json (narration text comes from the steps)');
             console.log('Synthesizing narration per step...');
             const clips = await synthesizeSteps(timeline!, actualMs, { dir: outputDir, voice, log: m => console.log(m) });
             if (!clips.length) {
@@ -194,7 +249,6 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
                 summary.narration = audio;
             }
         } else if (options.voiceover) {
-            if (!fs.existsSync(options.voiceover)) throw new Error(`voiceover script not found: ${options.voiceover}`);
             console.log(`Generating TTS audio from ${options.voiceover}...`);
             audio = await synthesizeScript(options.voiceover, voice, tempVideoDir);
             summary.narration = audio;
@@ -209,6 +263,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             for (let i = 0; i < steps.length; i++) {
                 const s = steps[i];
                 const start = Math.max(0, actualMs(s) - leadMsFor(s, steps[i - 1]));
+                if (start >= durationMs) continue; // past the end of a shortened export
                 const end = i + 1 < steps.length ? Math.max(start + 500, actualMs(steps[i + 1]) - leadMsFor(steps[i + 1], s)) : durationMs;
                 const clip = `${base}-step-${String(s.index).padStart(2, '0')}.${ext}`;
                 cutClip(outputFile, clip, start, Math.min(end, durationMs));

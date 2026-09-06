@@ -7,168 +7,65 @@
       "locale": "en",
       "force": false,
       "output": "demo/animated.html",
-      "timestamp": "2026-09-06T20:19:59.309Z"
-    },
-    {
-      "command": "build",
-      "cursor": "windows",
-      "loop": false,
-      "locale": "en",
-      "force": false,
-      "output": "demo/animated.html",
-      "timestamp": "2026-09-06T20:19:59.908Z"
-    },
-    {
-      "command": "build",
-      "cursor": "mac",
-      "loop": false,
-      "locale": "en",
-      "force": false,
-      "output": "demo/animated.html",
-      "timestamp": "2026-09-06T20:20:00.598Z"
-    },
-    {
-      "command": "animate",
-      "prompt": "x",
-      "provider": "gemini",
-      "cursor": "mac",
-      "loop": false,
-      "timestamp": "2026-09-06T20:20:01.914Z"
-    },
-    {
-      "command": "build",
-      "cursor": "mac",
-      "loop": false,
-      "locale": "en",
-      "force": false,
-      "output": "demo/animated.html",
-      "timestamp": "2026-09-06T20:20:02.585Z"
-    },
-    {
-      "command": "build",
-      "cursor": "mac",
-      "loop": false,
-      "locale": "en",
-      "force": false,
-      "output": "demo/animated.html",
-      "timestamp": "2026-09-06T20:22:47.056Z"
+      "timestamp": "2026-09-06T21:33:55.999Z"
     },
     {
       "command": "export",
-      "duration": "12",
-      "output": "/tmp/radiant-frost/work/out.mp4",
+      "duration": 14.509,
+      "output": "demo/demo.mp4",
       "device": "desktop",
       "theme": "light",
-      "timestamp": "2026-09-06T20:23:43.852Z"
-    },
-    {
-      "command": "build",
-      "cursor": "mac",
-      "loop": false,
-      "locale": "en",
-      "force": false,
-      "output": "demo/animated.html",
-      "timestamp": "2026-09-06T20:26:53.811Z"
-    },
-    {
-      "command": "build",
-      "cursor": "mac",
-      "loop": false,
-      "locale": "en",
-      "force": false,
-      "output": "demo/animated.html",
-      "timestamp": "2026-09-06T20:29:48.250Z"
-    },
-    {
-      "command": "export",
-      "duration": "13",
-      "output": "/tmp/radiant-frost/work/out.mp4",
-      "device": "desktop",
-      "theme": "light",
-      "timestamp": "2026-09-06T20:30:39.556Z"
-    },
-    {
-      "command": "build",
-      "cursor": "mac",
-      "loop": false,
-      "locale": "en",
-      "force": false,
-      "output": "demo/animated.html",
-      "timestamp": "2026-09-06T20:49:33.309Z"
-    },
-    {
-      "command": "export",
-      "duration": "13",
-      "output": "/tmp/radiant-frost/work/out.mp4",
-      "device": "desktop",
-      "theme": "light",
-      "timestamp": "2026-09-06T20:50:36.457Z"
-    },
-    {
-      "command": "export",
-      "duration": 14.511,
-      "output": "/tmp/radiant-frost/work/demo-full.mp4",
-      "device": "desktop",
-      "theme": "light",
-      "narration": true,
-      "subtitles": "demo-full.vtt",
+      "narration": false,
+      "subtitles": "demo.vtt",
       "chapters": 5,
-      "clips": [
-        "demo-full-step-01.mp4",
-        "demo-full-step-02.mp4",
-        "demo-full-step-03.mp4",
-        "demo-full-step-04.mp4",
-        "demo-full-step-05.mp4",
-        "demo-full-step-06.mp4",
-        "demo-full-step-07.mp4"
-      ],
+      "clips": [],
       "locale": "en",
       "driven": true,
       "steps": [
         {
           "index": 1,
           "id": "intro",
-          "actualMs": 3,
-          "completedMs": 805
+          "actualMs": 2,
+          "completedMs": 806
         },
         {
           "index": 2,
           "id": "open-section",
-          "actualMs": 2006,
-          "completedMs": 2010
+          "actualMs": 2012,
+          "completedMs": 2014
         },
         {
           "index": 3,
           "id": "focus-editor",
-          "actualMs": 4005,
-          "completedMs": 4011
+          "actualMs": 4011,
+          "completedMs": 4019
         },
         {
           "index": 4,
           "id": "draft",
-          "actualMs": 5005,
-          "completedMs": 7286
+          "actualMs": 5007,
+          "completedMs": 7290
         },
         {
           "index": 5,
           "id": "zoom",
-          "actualMs": 7004,
-          "completedMs": 8504
+          "actualMs": 7006,
+          "completedMs": 8507
         },
         {
           "index": 6,
           "id": "pull-back",
-          "actualMs": 8503,
-          "completedMs": 10504
+          "actualMs": 8504,
+          "completedMs": 10506
         },
         {
           "index": 7,
           "id": "closing",
-          "actualMs": 9010,
-          "completedMs": 12011
+          "actualMs": 9007,
+          "completedMs": 12009
         }
       ],
-      "timestamp": "2026-09-06T21:04:43.467Z"
+      "timestamp": "2026-09-06T21:34:17.829Z"
     }
   ]
 }

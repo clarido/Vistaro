@@ -52,7 +52,7 @@ test('export: driven recording, auto duration, .vtt, chapters, manifest', { skip
     assert.equal(last.command, 'export');
     assert.equal(last.driven, true);
     assert.equal(last.chapters, chapters.length);
-    assert.equal(last.steps.length, 8);
+    assert.equal(last.steps.length, 9);
     assert.ok(Math.abs(last.duration * 1000 - measured) <= 750, 'manifest records the real export length');
     assert.ok(last.steps[6].completedMs >= last.steps[6].actualMs + 2900, 'banner fade completion measured');
 });
@@ -88,6 +88,49 @@ test('export: validation errors exit 1 without --force; legacy dir without confi
     assert.equal(l.status, 0, l.stderr + l.stdout);
     assert.match(l.stdout, /blind/);
     assert.ok(Math.abs(probeDurationMs(path.join(work, 'legacy.mp4')) - 1000) <= 750);
+});
+
+test('export: a built page without a config self-plays during the blind wait', { skip }, () => {
+    const dir = path.join(work, 'selfplay');
+    fs.mkdirSync(dir);
+    fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><html><head><style>body{margin:0;background:#fff;height:100vh}</style></head><body><button id="b" onclick="document.body.style.background=\'#f00\'">go</button></body></html>');
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { tailMs: 400, cursor: 'none', drift: false }, steps: [{ time: 0.5, action: 'click', target: '#b' }] }));
+    assert.equal(cli(['build', dir]).status, 0);
+    fs.rmSync(path.join(dir, 'anim.config.json'));
+    const out = path.join(work, 'selfplay.mp4');
+    const r = cli(['export', dir, '-o', out, '--duration', '1.5', '--width', '320', '--height', '200']);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    assert.match(r.stdout, /self-plays/);
+    const frames = samplePixels(out, 300, 190);
+    assert.ok(frames.some(f => f.r > 200 && f.g < 80), 'the click ran: a red frame exists');
+});
+
+/** Per-frame colour of one pixel plus its timestamp, straight from ffmpeg. */
+function samplePixels(file: string, x: number, y: number): { ptsMs: number; r: number; g: number; b: number }[] {
+    // Convert to RGB before cropping: a 1x1 crop is invalid on yuv420p (chroma planes round to 0). 2x2 block = 12 bytes/frame.
+    const res = spawnSync(require('ffmpeg-static'), ['-i', file, '-vf', `format=rgb24,crop=2:2:${x}:${y},showinfo`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 64 * 1024 * 1024 });
+    const pts = [...res.stderr.toString().matchAll(/pts_time:\s*([\d.]+)/g)].map(m => Math.round(parseFloat(m[1]) * 1000));
+    const px = res.stdout;
+    return pts.map((ptsMs, i) => ({ ptsMs, r: px[i * 12], g: px[i * 12 + 1], b: px[i * 12 + 2] }));
+}
+
+test('export: the first changed video frame lands within one frame of the measured actualMs', { skip }, () => {
+    const dir = path.join(work, 'flash');
+    fs.mkdirSync(dir);
+    fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><html><head><style>body{margin:0;background:#fff;height:100vh}button{position:absolute;left:10px;top:10px}</style></head><body><button id="b" onclick="document.body.style.background=\'#f00\'">go</button></body></html>');
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { tailMs: 600, cursor: 'none', drift: false }, steps: [{ time: 1, action: 'click', target: '#b' }] }));
+    const out = path.join(work, 'flash.mp4');
+    const r = cli(['export', dir, '-o', out, '--width', '320', '--height', '200', '--no-chapters', '--no-subtitles']);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8'));
+    const actualMs: number = manifest.history.at(-1).steps[0].actualMs;
+    const frames = samplePixels(out, 300, 190);
+    assert.ok(frames.length > 20, `frames: ${frames.length}`);
+    const first = frames.findIndex(f => f.r > 200 && f.g < 80);
+    assert.ok(first > 0, 'a red frame exists after a white one');
+    const frameMs = frames[1].ptsMs - frames[0].ptsMs;
+    const delta = frames[first].ptsMs - actualMs;
+    assert.ok(Math.abs(delta) <= frameMs + 5, `first red frame at ${frames[first].ptsMs}ms vs actualMs ${actualMs}ms (delta ${delta}ms, frame ${frameMs}ms)`);
 });
 
 test('export --narration mixes per-step TTS (macOS say) and caches clips', { skip: skip || process.platform !== 'darwin' || process.env.SKIP_TTS === '1' }, () => {

@@ -104,7 +104,8 @@ export interface Timeline {
 }
 
 export interface Issue {
-    level: 'error' | 'warning';
+    /** info = nothing wrong, but worth knowing (e.g. which ancestor carries the spotlight for a 0x0 target). */
+    level: 'error' | 'warning' | 'info';
     /** 1-based step index, when the issue concerns a single step. */
     step?: number;
     id?: string;
@@ -114,6 +115,8 @@ export interface Issue {
     time?: string | number;
     action?: string;
     target?: string;
+    /** Selector of the sized ancestor the spotlight uses when the target itself is 0x0. */
+    highlightFallback?: string;
 }
 
 export interface SubtitleWindow {
@@ -243,19 +246,22 @@ export function computeDurationMs(timeline: Timeline): number {
     return end + tail;
 }
 
-/** Subtitle display windows: each subtitle shows until the next subtitle, or 4s, never less than 1s. */
-export function subtitleWindows(timeline: Timeline): SubtitleWindow[] {
+/**
+ * Subtitle display windows: each subtitle shows until the next subtitle, or 4s, never less than 1s.
+ * `startMsOf` anchors the windows (scheduled times by default; measured interaction times during export);
+ * `durationMs` drops windows starting at/after the end of a shortened export and clamps the last one.
+ */
+export function subtitleWindows(timeline: Timeline, startMsOf: (step: Step) => number = s => s.timeMs, durationMs?: number): SubtitleWindow[] {
     const out: SubtitleWindow[] = [];
-    const steps = timeline.steps;
-    for (let i = 0; i < steps.length; i++) {
-        const s = steps[i];
-        if (!s.subtitle || !Number.isFinite(s.timeMs)) continue;
-        let nextMs = s.timeMs + SUBTITLE_HOLD_MS;
-        for (let j = i + 1; j < steps.length; j++) {
-            if (steps[j].subtitle && Number.isFinite(steps[j].timeMs)) { nextMs = steps[j].timeMs; break; }
-        }
-        const endMs = s.timeMs + Math.max(SUBTITLE_MIN_MS, nextMs - s.timeMs);
-        out.push({ index: s.index, id: s.id, startMs: s.timeMs, endMs, text: String(s.subtitle) });
+    const subs = timeline.steps.filter(s => s.subtitle && Number.isFinite(startMsOf(s)));
+    for (let i = 0; i < subs.length; i++) {
+        const s = subs[i];
+        const startMs = startMsOf(s);
+        if (durationMs !== undefined && startMs >= durationMs) continue;
+        const nextMs = i + 1 < subs.length ? startMsOf(subs[i + 1]) : startMs + SUBTITLE_HOLD_MS;
+        let endMs = startMs + Math.max(SUBTITLE_MIN_MS, nextMs - startMs);
+        if (durationMs !== undefined) endMs = Math.min(endMs, durationMs);
+        out.push({ index: s.index, id: s.id, startMs, endMs, text: String(s.subtitle) });
     }
     return out;
 }
@@ -365,7 +371,7 @@ export function hasErrors(issues: Issue[]): boolean {
 
 /** One readable line per issue, e.g. `error    step 3 (5s type #x): message`. */
 export function formatIssue(issue: Issue): string {
-    const level = issue.level === 'error' ? 'error  ' : 'warning';
+    const level = issue.level === 'error' ? 'error  ' : issue.level === 'info' ? 'info   ' : 'warning';
     if (issue.step === undefined) return `${level}  ${issue.message}`;
     const where = [issue.time !== undefined ? formatTime(parseTime(issue.time)) : null, issue.action, issue.target]
         .filter(Boolean).join(' ');

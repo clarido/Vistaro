@@ -27,7 +27,10 @@ export interface StepResult {
     actualMs: number;
     /** Moment the step finished animating (typing, camera, fade). */
     completedMs?: number;
+    /** Box the spotlight framed: the target, or its nearest sized ancestor when the target is 0x0. */
     rect?: { x: number; y: number; width: number; height: number } | null;
+    /** The raw target box when it differs from `rect` (0x0 caret span). */
+    targetRect?: { x: number; y: number; width: number; height: number };
     point?: { x: number; y: number } | null;
     error?: string;
 }
@@ -100,9 +103,18 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
         };
         results[i] = result;
 
+        let hookFailed = false;
         if (opts.beforeStep) {
             try { await opts.beforeStep(step); }
-            catch (e: any) { appendError(result, `beforeStep hook: ${errorMessage(e)}`); return; }
+            catch (e: any) { appendError(result, `beforeStep hook: ${errorMessage(e)}`); hookFailed = true; }
+        }
+        if (hookFailed) {
+            // The step is skipped, but afterStep still runs so callers see the error.
+            if (opts.afterStep) {
+                try { await opts.afterStep(step, result); }
+                catch (e: any) { appendError(result, `afterStep hook: ${errorMessage(e)}`); }
+            }
+            return;
         }
 
         let token: number | undefined;

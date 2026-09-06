@@ -39,7 +39,9 @@ test('chaptersFor covers titled steps up to the next titled step or the end; ffm
     assert.ok(meta.startsWith(';FFMETADATA1\n'));
     assert.match(meta, /^title=Demo\\; with\\=meta$/m);
     assert.match(meta, /\[CHAPTER\]\nTIMEBASE=1\/1000\nSTART=0\nEND=2000\ntitle=Overview/);
-    assert.equal(chaptersFor(tl, 1000).length, 1, 'chapters past the end are dropped');
+    const short = chaptersFor(tl, 1000);
+    assert.deepEqual(short.map(c => [c.startMs, c.endMs]), [[0, 1000]], 'chapters are clamped to the export length and later ones dropped');
+    assert.deepEqual(subtitleCues(tl, s => s.timeMs, 3000).map(c => [c.startMs, c.endMs]), [[0, 2000], [2000, 3000]], 'cues are clamped and dropped past the end');
 });
 
 test('narrationOf falls back to subtitle; cache key depends on engine, voice and text', () => {
