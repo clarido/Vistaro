@@ -8,6 +8,8 @@ import { parseTimeline } from '../src/engine/schema';
 import { isGuideStep, cropBox, cleanStaleAssets } from '../src/guide/capture';
 import { renderMarkdown, renderHtml, stepHeading, GuideJson } from '../src/guide/render';
 import { hashGuideDir, referencedLocalFiles } from '../src/catalog';
+import { launchPage, fileUrl } from '../src/browser';
+import { ensureRuntime } from '../src/engine/driver';
 import { listChapters } from '../src/media/ffmpeg';
 
 const skip = process.env.SKIP_BROWSER === '1';
@@ -257,4 +259,51 @@ test('export --guide --clips: video block, chapters, poster, clips wired into gu
     assert.equal(again.status, 0, again.stderr + again.stdout);
     assert.match(again.stdout, /Using video .*out\.mp4/);
     assert.match(again.stderr, /exported from different sources/);
+});
+
+test('guide marks never capture mid-transition: whenSettled outlasts a 3s CSS fade, a held spotlight snaps (K-3)', { skip }, async () => {
+    // demo/index.html: #cinematic-text has `transition: all 3s`; the runtime's own completion timer
+    // fires a few frames before the transition visibly ends, and the spotlight box has a 0.5s
+    // position transition. Both used to leave the guide frame timing-dependent (1-2% pixel drift).
+    const dir = path.join(work, 'k3'); fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(path.join(root, 'demo', 'index.html'), path.join(dir, 'index.html'));
+    const timeline = parseTimeline({ meta: { cursor: 'mac' }, steps: [
+        { id: 'open', time: 0.5, action: 'click', target: '#item-3' },
+        { id: 'closing', time: 1.5, action: 'fadeIn', target: '#cinematic-text' },
+    ] });
+    const launched = await launchPage({ width: 1280, height: 720, deviceScaleFactor: 1 });
+    try {
+        const { page } = launched;
+        await page.goto(fileUrl(path.join(dir, 'index.html')), { waitUntil: 'load' });
+        await ensureRuntime(page, timeline, { drift: false });
+        await page.evaluate(() => (window as any).__anim.start());
+        // The spotlight sits on #item-3 first, so the mark on #cinematic-text has to move.
+        await page.evaluate(() => (window as any).__anim.holdHighlight(document.querySelector('#item-3')));
+        const r: any = await page.evaluate((s) => (window as any).__anim.runStep(s, { leadMs: 0 }), timeline.steps[1]);
+        await page.evaluate((t) => (window as any).__anim.whenDone(t), r.token);
+        const early = await page.evaluate(() => getComputedStyle(document.querySelector('#cinematic-text')!).opacity);
+        const settled: any = await page.evaluate(() => (window as any).__anim.whenSettled({ timeoutMs: 10000 }));
+        const late = await page.evaluate(() => getComputedStyle(document.querySelector('#cinematic-text')!).opacity);
+        assert.equal(late, '1', `opacity after whenSettled (was ${early} at completion; waited ${settled.waited}ms for ${settled.animations} animation(s))`);
+        assert.equal(settled.timedOut, false);
+        assert.ok(settled.waited < 9000, `did not hit the hang guard: ${settled.waited}ms`);
+        const m: any = await page.evaluate(() => {
+            const a = (window as any).__anim;
+            const marks = a.markStep({ target: '#cinematic-text', number: 3 });
+            const h = document.getElementById('anim-cli-highlight')!;
+            const b = h.getBoundingClientRect();
+            return { rect: marks.rect, box: { x: b.left, y: b.top, width: b.width, height: b.height }, animations: h.getAnimations().length };
+        });
+        // Measured right after markStep, before any frame: the box is already on its final geometry
+        // (6px padding around the rect, plus the box's own 2px border on each side in its bounding rect).
+        assert.equal(m.animations, 0, 'no transition running on the held spotlight');
+        assert.ok(Math.abs(m.box.x - (m.rect.x - 6)) <= 1 && Math.abs(m.box.width - (m.rect.width + 16)) <= 1, `spotlight snapped: box ${JSON.stringify(m.box)} vs rect ${JSON.stringify(m.rect)}`);
+        assert.ok(Math.abs(m.box.y - (m.rect.y - 6)) <= 1 && Math.abs(m.box.height - (m.rect.height + 16)) <= 1);
+        // A page with an endless animation does not hold the capture for the whole guard.
+        await page.evaluate(() => { const st = document.createElement('style'); st.textContent = '@keyframes spin { to { transform: rotate(360deg) } } #spinner { animation: spin 1s linear infinite; }'; document.head.appendChild(st); const d = document.createElement('div'); d.id = 'spinner'; d.textContent = 'x'; document.body.appendChild(d); });
+        const spin: any = await page.evaluate(() => (window as any).__anim.whenSettled({ timeoutMs: 10000 }));
+        assert.equal(spin.animations, 0, 'infinite animations are skipped');
+    } finally {
+        await launched.close();
+    }
 });

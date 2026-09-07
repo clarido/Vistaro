@@ -178,8 +178,11 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
     } else {
         for (const issue of issues) console.log(formatIssue(issue));
         const where = path.resolve(dir, 'anim.config.json');
-        if (errors + warnings === 0) console.log(`${infos ? '\n' : ''}OK: ${where} (${timeline!.steps.length} steps, ${options.static ? 'static' : 'static + browser'} check${infos ? `, ${infos} info` : ''}).`);
-        else console.log(`\n${errors} error(s), ${warnings} warning(s)${infos ? `, ${infos} info` : ''} in ${where}${options.static ? ' (static check only)' : ''}.`);
+        // --live validates without a page (targets live in the app), so it is a static pass like --static.
+        const browserPass = !options.static && !options.live;
+        const kind = browserPass ? 'static + browser' : options.live ? 'static, live timeline' : 'static';
+        if (errors + warnings === 0) console.log(`${infos ? '\n' : ''}OK: ${where} (${timeline!.steps.length} steps, ${kind} check${infos ? `, ${infos} info` : ''}).`);
+        else console.log(`\n${errors} error(s), ${warnings} warning(s)${infos ? `, ${infos} info` : ''} in ${where}${browserPass ? '' : ` (${kind} check only)`}.`);
     }
     if (note) log(note);
     process.exitCode = errors > 0 ? 1 : 0;

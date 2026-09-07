@@ -54,5 +54,5 @@ export function buildCommand(dir: string, options: BuildOptions = {}): void {
     const durationMs = computeDurationMs(timeline);
     console.log(`Built ${outPath} (${timeline.steps.length} steps, ${formatTime(durationMs)} total, cursor: ${cursor}${options.loop ? ', loop' : ''}).`);
     console.log(`Next: npx tsx cli.ts preview ${dir}   # contact sheet of every step`);
-    console.log(`      npx tsx cli.ts export ${dir} --duration ${Math.ceil(durationMs / 1000)} --output demo.mp4`);
+    console.log(`      npx tsx cli.ts export ${dir} -o demo.mp4 --guide   # length from the timeline (${formatTime(durationMs)})`);
 }

@@ -47,8 +47,8 @@ export function captureAtFor(step: Step): CaptureAt {
 /** Deprecated aliases, rewritten at parse time. */
 export const ACTION_ALIASES: Record<string, Action> = { showText: 'fadeIn' };
 
-// These four are mirrored as literals in src/engine/runtime.js (plain JS cannot import);
-// test/constants.test.ts asserts they stay equal.
+// These, plus DEFAULT_TAIL_MS and SUBTITLE_HOLD_MS below, are mirrored as literals in
+// src/engine/runtime.js (plain JS cannot import); test/constants.test.ts asserts they stay equal.
 export const DEFAULT_LEAD_MS = 950;
 export const DEFAULT_CPS = 25;
 export const DEFAULT_CAMERA_DURATION_S = 2.5;

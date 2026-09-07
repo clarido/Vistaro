@@ -133,7 +133,9 @@ export function assertReachable(url: string, opts: { timeoutMs?: number; ignoreH
     try { u = new URL(url); } catch { return Promise.reject(new Error(`invalid URL: ${sanitizeUrl(url)}`)); }
     if (u.username || u.password) return Promise.reject(new Error(`URLs with embedded credentials are not supported (${sanitizeUrl(url)}); log in once and pass --storage-state auth.json`));
     if (u.protocol === 'file:') {
-        if (!fs.existsSync(decodeURIComponent(u.pathname))) return Promise.reject(new Error(`file not found: ${u.pathname}`));
+        let local = u.pathname;
+        try { local = decodeURIComponent(u.pathname); } catch { /* keep the raw path */ }
+        if (!fs.existsSync(local)) return Promise.reject(new Error(`file not found: ${u.pathname}`));
         return Promise.resolve();
     }
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return Promise.reject(new Error(`unsupported URL scheme: ${u.protocol}`));

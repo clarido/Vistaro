@@ -19,20 +19,39 @@ export function guideSourceFiles(dir: string): string[] {
     return [...out].sort();
 }
 
-/** Local relative paths referenced from index.html (src="", href="", url()) that resolve inside `dir`. */
-export function referencedLocalFiles(dir: string): string[] {
-    const indexPath = path.join(dir, 'index.html');
-    if (!fs.existsSync(indexPath)) return [];
-    const html = fs.readFileSync(indexPath, 'utf8');
-    const refs = new Set<string>();
+/** A src/href/url() reference in an HTML file: as written, and as a decoded path (query/hash stripped). */
+export interface HtmlRef { raw: string; file: string }
+
+/**
+ * Every relative src="", href="" and url() reference in `html` (http:, data:, protocol-relative
+ * and #anchors excluded). A malformed percent sequence keeps the raw text instead of throwing.
+ */
+export function htmlLocalRefs(html: string): HtmlRef[] {
+    const out: HtmlRef[] = [];
+    const seen = new Set<string>();
     const re = /(?:src|href)\s*=\s*["']([^"']+)["']|url\(\s*["']?([^"')]+)["']?\s*\)/gi;
     let m: RegExpExecArray | null;
     while ((m = re.exec(html))) {
         const raw = (m[1] || m[2] || '').trim();
-        if (!raw || /^(?:[a-z]+:|\/\/|#)/i.test(raw)) continue; // http:, data:, protocol-relative, anchors
-        const clean = decodeURIComponent(raw.split(/[?#]/)[0]);
-        const resolved = path.resolve(dir, clean);
-        const rel = path.relative(dir, resolved);
+        if (!raw || seen.has(raw) || /^(?:[a-z]+:|\/\/|#)/i.test(raw)) continue;
+        seen.add(raw);
+        out.push({ raw, file: safeDecode(raw.split(/[?#]/)[0]) });
+    }
+    return out;
+}
+
+/** decodeURIComponent that falls back to the input on a malformed sequence (a literal "%" in a file name). */
+export function safeDecode(s: string): string {
+    try { return decodeURIComponent(s); } catch { return s; }
+}
+
+/** Local relative paths referenced from index.html (src="", href="", url()) that resolve inside `dir`. */
+export function referencedLocalFiles(dir: string): string[] {
+    const indexPath = path.join(dir, 'index.html');
+    if (!fs.existsSync(indexPath)) return [];
+    const refs = new Set<string>();
+    for (const ref of htmlLocalRefs(fs.readFileSync(indexPath, 'utf8'))) {
+        const rel = path.relative(dir, path.resolve(dir, ref.file));
         if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) refs.add(rel.split(path.sep).join('/'));
     }
     return [...refs].sort();

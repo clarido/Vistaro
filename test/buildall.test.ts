@@ -225,7 +225,7 @@ test('build-all: guide x locale outputs, index, --changed-only skips, --diff mar
     const idx3: IndexJson = JSON.parse(fs.readFileSync(path.join(d, 'help-out', 'index.json'), 'utf8'));
     assert.deepEqual(idx3.guides.map(g => [g.locale, g.status, !!g.stale]), [['en', 'skipped', false], ['fr', 'ok', false]], '--only/--locale merge into the previous index; an unedited re-run is not stale');
     assert.match(c3.stdout, /1 index entry kept from the previous run/);
-    assert.ok(idx3.guides.find(g => g.locale === 'fr')!.diff!.maxFraction <= 0.02, 'unedited re-run frames settle: ' + JSON.stringify(idx3.guides[1].diff));
+    assert.ok(idx3.guides.find(g => g.locale === 'fr')!.diff!.maxFraction <= 0.005, 'unedited re-run frames settle (< 0.5%): ' + JSON.stringify(idx3.guides[1].diff));
     // filters that match nothing are an error and leave the index alone
     const indexAfterC3 = fs.readFileSync(path.join(d, 'help-out', 'index.json'), 'utf8');
     const nope = cli(['build-all', 'help.catalog.json', '--only', 'nope'], d);

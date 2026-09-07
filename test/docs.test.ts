@@ -30,5 +30,5 @@ test('the reference lists every command with its arguments and options', () => {
 test('cli.ts version matches package.json and the program does not parse on import', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
     assert.equal(buildProgram().version(), pkg.version);
-    assert.match(pkg.engines?.node || '', />=\s*20/);
+    assert.match(pkg.engines?.node || '', />=\s*20\.6/);
 });

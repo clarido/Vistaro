@@ -125,6 +125,24 @@ test('export: a built page without a config self-plays during the blind wait', {
     assert.ok(frames.some(f => f.r > 200 && f.g < 80), 'the click ran: a red frame exists');
 });
 
+test('export records index.html with the runtime injected, never a stale animated.html: an edit after build shows in the video', { skip }, () => {
+    const dir = path.join(work, 'edited');
+    fs.mkdirSync(dir);
+    const page = (bg: string) => `<!doctype html><html><head><style>body{margin:0;background:${bg};height:100vh}</style></head><body><button id="b">go</button></body></html>`;
+    fs.writeFileSync(path.join(dir, 'index.html'), page('#fff'));
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { tailMs: 400, cursor: 'none', drift: false }, steps: [{ time: 0.5, action: 'click', target: '#b' }] }));
+    assert.equal(cli(['build', dir]).status, 0);
+    assert.match(fs.readFileSync(path.join(dir, 'animated.html'), 'utf8'), /#fff/);
+    // Edit the source after the build: the video must show blue, which only index.html has.
+    fs.writeFileSync(path.join(dir, 'index.html'), page('#00f'));
+    const out = path.join(work, 'edited.mp4');
+    const r = cli(['export', dir, '-o', out, '--width', '320', '--height', '200']);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    const frames = samplePixels(out, 300, 190);
+    assert.ok(frames.length > 5);
+    assert.ok(frames.every(f => f.b > 200 && f.r < 80), `every frame is blue (index.html), not white (animated.html): ${JSON.stringify(frames.slice(0, 3))}`);
+});
+
 /** Per-frame colour of one pixel plus its timestamp, straight from ffmpeg. */
 function samplePixels(file: string, x: number, y: number): { ptsMs: number; r: number; g: number; b: number }[] {
     // Convert to RGB before cropping: a 1x1 crop is invalid on yuv420p (chroma planes round to 0). 2x2 block = 12 bytes/frame.

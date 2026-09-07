@@ -111,13 +111,16 @@ export async function exportCommand(outputDir: string, options: ExportOptions): 
 }
 
 export async function runExport(outputDir: string, options: ExportOptions, tempVideoDir: string, session?: LiveSession): Promise<ExportSummary> {
-    // We expect the animated HTML to be either animated.html or index.html (a live session has no local page).
-    let htmlPath = path.resolve(outputDir, 'animated.html');
+    // Input page (a live session has no local page): with anim.config.json present, index.html is
+    // always recorded with the runtime injected, so an edit to index.html after `build` can never
+    // produce a video that disagrees with check/preview; animated.html is the self-playing page for
+    // humans. Without a timeline, a built animated.html keeps the legacy blind-wait path.
+    let htmlPath = path.resolve(outputDir, 'index.html');
     if (!session) {
-        if (!fs.existsSync(htmlPath)) {
-            htmlPath = path.resolve(outputDir, 'index.html');
-            if (!fs.existsSync(htmlPath)) throw new Error(`could not find animated.html or index.html in ${outputDir}`);
-        }
+        const animated = path.resolve(outputDir, 'animated.html');
+        const hasConfig = fs.existsSync(path.resolve(outputDir, 'anim.config.json'));
+        if ((!hasConfig || !fs.existsSync(htmlPath)) && fs.existsSync(animated)) htmlPath = animated;
+        if (!fs.existsSync(htmlPath)) throw new Error(`could not find index.html or animated.html in ${outputDir}`);
     }
     const hasRuntime = session ? true : fs.readFileSync(htmlPath, 'utf8').includes('window.__anim');
 
@@ -157,7 +160,6 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     const isGif = options.output.toLowerCase().endsWith('.gif');
     if (!session && !driven && hasRuntime) console.log('Note: no anim.config.json next to animated.html; recording with a blind wait (the page self-plays).');
     if (!session && !driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} has no timeline runtime; recording a blind ${formatTime(durationMs)} wait. Run \`build\` for driven exports (auto duration, subtitles, chapters).`);
-    if (!session && driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} was not built; injecting the runtime for this export (run \`build\` to persist it).`);
     if (isGif && (options.narration || options.voiceover || options.clips || options.guide || options.subtitles !== false || options.chapters !== false)) {
         console.error('warning  .gif output has no audio, chapters or subtitle track: --narration/--voiceover/subtitles/chapters are ignored, and there is no video link/clips for .gif output in the guide.');
     }
@@ -392,7 +394,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         command: session ? session.command : 'export', url: session ? sanitizeUrl(session.url) : undefined, storageState: session?.storageState ? relToDir(path.resolve(session.storageState)) : undefined,
         navigations: runState.navigations || undefined, shiftMs: runState.shiftMs || undefined,
         duration: durationMs / 1000, output: relToDir(outputFile), device: options.device, theme: options.theme,
-        voiceover: options.voiceover, narration: !!options.narration, subtitles: summary.vtt ? path.basename(summary.vtt) : false,
+        voiceover: options.voiceover ? relToDir(path.resolve(options.voiceover)) : undefined, narration: !!options.narration, subtitles: summary.vtt ? path.basename(summary.vtt) : false,
         chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), locale: timeline?.locale ?? options.locale ?? timeline?.meta.locale,
         driven, guide: guideDir ? relToDir(guideDir) : undefined, contentHash: driven ? hashGuideDir(outputDir) : undefined,
         steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, navigated: r.navigated || undefined, waitedMs: r.waitedMs || undefined, error: r.error })),

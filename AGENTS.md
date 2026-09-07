@@ -20,7 +20,7 @@ Every command below prints what it wrote; `npx tsx cli.ts --help` and `npx tsx c
 1. **Write the screen.** Put a faithful mockup of the UI in `<dir>/index.html` (inline CSS, real element ids/classes; when the user pasted screenshots, reproduce each one; several screens can live in one file as sections you fade between). Media files referenced from `index.html` go next to it.
 2. **Write the timeline.** `npx tsx cli.ts init-config <dir>` scaffolds `<dir>/anim.config.json` in object form; edit it to match your selectors. Give every step an explicit `id` (translations and guide frames attach to it).
 3. **Check.** `npx tsx cli.ts check <dir>` validates the schema and timing statically, then replays the timeline in a headless browser and probes every target right before its step (missing, hidden, 0x0, clipped, off-screen). Fix errors; read the warnings.
-4. **Build.** `npx tsx cli.ts build <dir>` writes `<dir>/animated.html`, a self-playing page with the cursor, spotlight, ripple, camera and subtitles injected. Open it in a browser if you want to watch it.
+4. **Build.** `npx tsx cli.ts build <dir>` writes `<dir>/animated.html`, a self-playing page with the cursor, spotlight, ripple, camera and subtitles injected, for humans to open in a browser (run `build` again after editing `index.html`; it is a generated file, not tracked). `export` does not read it: with an `anim.config.json` present it always records `index.html` with the runtime injected, so the video can never disagree with `check`/`preview`.
 5. **Preview and iterate.** `npx tsx cli.ts preview <dir>` writes `<dir>/preview.png`, one labelled frame per step (`--step N` writes a single full-size `preview-step-N.png`). **Read the PNG** with your image tool, fix the timeline (a badly placed camera, a subtitle that overlaps, a step that fires too early), and repeat 3 to 5 until the frames look right.
 6. **Export.** `npx tsx cli.ts export <dir> -o demo.mp4 --guide --narration` records the video (length computed from the timeline plus `meta.tailMs`), writes `demo.vtt`, embeds chapters for titled steps, mixes the narration, then captures the guide into `<dir>/guide/`. `--clips mp4` also cuts one clip per step. A `.gif` output skips audio, chapters and subtitles.
 7. **Localize.** `npx tsx cli.ts localize <dir> fr` scaffolds `<dir>/locales/fr/` and a pre-filled `strings.fr.json`; translate the strings and the visible text of the copied `index.html`, then `check`, `build`, `export` that directory. See [Localization](#localization).
@@ -59,8 +59,8 @@ Object form (a bare array of steps is still accepted):
 | `locale` | Language of the inline text (default `en`). |
 | `tailMs` | Hold after the last step, default 2500 (`--tail` overrides). |
 | `cursor` | `mac`, `windows` or `none` (default `mac`). |
-| `resetFocusStyles` | Neutralize the page's own `:focus` outlines during recording. |
-| `drift` | Cursor drift on long glides (default on; `false` for pixel-exact tests). |
+| `resetFocusStyles` | Before each step, reset every `.input` and `button` in the page to fixed light colours (border `#E2E8F0`, no shadow, `#FAFAFA` background, `#3B82F6` for `.btn-primary`): a crutch for mockups built with those classes, not a general focus-outline reset. |
+| `drift` | Slight page drift while the cursor glides (default on for mockups; off on live pages, where a transformed `<body>` can break a real app's fixed layout, unless `"drift": true`). |
 | `voice` | `{ "openai": "alloy", "say": "Samantha" }` narration voices per engine. |
 
 ### Steps
@@ -117,8 +117,11 @@ guide/
     poster.png        first frame (no subtitle bar)
     step-01.png       full frame per guide step, numbered badge + spotlight
     step-01.crop.png  the spotlighted box with `crop` padding (absent when it would be the whole frame)
-    step-01.mp4       with --clips
+    step-01.mp4       with --clips (guide --clips; export --clips writes them next to the video instead)
+    step-01.mp3       with --narration: the step's spoken narration (.aiff with macOS `say`)
 ```
+
+Publishing a guide means copying `guide.*` and the whole `assets/` directory: the audio files are referenced from `guide.json` and can be a third of its size.
 
 ### `guide.json` (version 1)
 
@@ -136,13 +139,14 @@ guide/
     "scheduledMs": 2000, "actualMs": 2004, "capturedAt": "interaction",
     "title": "Open the report builder", "subtitle": "Click the primary button to begin.", "narration": "…", "note": "…",
     "image": "assets/step-02.png", "crop": "assets/step-02.crop.png",
-    "rect": { "x": 1620, "y": 24, "width": 180, "height": 40 }, "targetRect": null,
-    "callout": { "number": 1, "x": 1606, "y": 10 }, "clip": "assets/step-02.mp4", "error": null
-  }]
+    "audio": "assets/step-02.mp3", "audioDurationMs": 2400,
+    "rect": { "x": 1620, "y": 24, "width": 180, "height": 40 },
+    "callout": { "number": 1, "x": 1606, "y": 10 }, "clip": "assets/step-02.mp4"
+  }]   // targetRect, clip, audio, error and the crop are omitted when they do not apply
 }
 ```
 
-`index` is the position in the timeline, `number` the guide numbering (steps with `guide: false` are skipped). `actualMs` is measured in the page; `scheduledMs` is what the timeline said. `rect` is the box the spotlight framed (the sized ancestor of a 0x0 target); `rect` and `callout` are `null` only for target-less or failed steps. Paths are relative to the guide directory; `source.dir` is a basename, never an absolute path.
+`index` is the position in the timeline, `number` the guide numbering (steps with `guide: false` are skipped). `actualMs` is measured in the page; `scheduledMs` is what the timeline said. `rect` is the box the spotlight framed (the sized ancestor of a 0x0 target); `rect` and `callout` are `null` only for target-less or failed steps. `clip` appears when clips were cut: `export --clips` writes `<video>-step-NN.mp4|gif` next to the video and the guide points at them (`../demo-step-02.mp4`); `guide --clips` cuts them into `assets/`. `audio`/`audioDurationMs` appear when the video was narrated: the step's synthesized narration is copied to `assets/step-NN.mp3` (OpenAI) or `.aiff` (macOS `say`). Paths are relative to the guide directory; `source.dir` is a basename, never an absolute path.
 
 ## Localization
 
@@ -177,7 +181,7 @@ Then translate `strings.fr.json` and the visible text in `locales/fr/index.html`
 ```
 
 - Paths are relative to the catalog file. `outputDir` may not be `/`, the home directory, the catalog directory, or overlap a guide directory. Every default is also valid per guide (the guide wins). `outputs` are the extras: `guide` (default), `gif`, `clips`; the video is always produced.
-- `--changed-only` skips a guide × locale whose **build key** (content hash of `index.html`, `anim.config.json`, `strings.*.json` and referenced media + the effective render settings + the tool version) matches `buildKey[locale]` in its manifest. Changing a width in the catalog rebuilds; editing `locales/fr` rebuilds only `fr`.
+- `--changed-only` skips a guide × locale whose **build key** (content hash of `index.html`, `anim.config.json`, `strings.*.json` and referenced media + the effective render settings + the tool version) matches `buildKey[locale]` in its manifest and whose video still exists on disk. Changing a width in the catalog rebuilds; editing `locales/fr` rebuilds only `fr`.
 - `--diff` keeps the previous step frames in `guide/.previous/`, compares them pixel by pixel with the new ones and marks the entry `stale` above `--diff-threshold` (default 2%), with `step-NN.diff.png` next to the previous frames.
 - `--only <slug>` / `--locale <code>` build a subset; the other entries keep their previous index rows. `--dry-run` prints the plan and writes nothing. Failures mark the entry `failed`, exit 1, and stop unless `--continue-on-error`.
 
@@ -189,7 +193,8 @@ Then translate `strings.fr.json` and the visible text in `locales/fr/index.html`
                "status": "ok", "builtAt": "…", "contentHash": "sha256:…", "buildKey": "sha256:…",
                "video": "draft-proposal-response/fr/draft-proposal-response-fr.mp4", "vtt": "…/draft-proposal-response-fr.vtt", "gif": "…", "poster": "…/guide/assets/poster.png",
                "guide": "…/guide/guide.json", "guideMd": "…/guide/guide.md", "guideHtml": "…/guide/guide.html",
-               "durationMs": 14200, "steps": 5, "stale": false, "diff": { "maxFraction": 0.001, "threshold": 0.02, "steps": { "step-02": 0.001 } }, "error": null, "ms": 41000 }] }
+               "durationMs": 14200, "steps": 5, "ms": 41000,
+               "stale": false, "diff": { "maxFraction": 0.001, "threshold": 0.02, "steps": { "step-02": 0.001 } } }] }   // stale/diff only with --diff; error only on failed entries
 ```
 
 Paths are relative to `outputDir`. `status` is `ok`, `failed` (with `error`) or `skipped` (unchanged; links, `builtAt` and `stale` carried from the last build).
@@ -202,7 +207,7 @@ Paths are relative to `outputDir`. `status` is `ok`, `failed` (with `error`) or 
 - `waitFor` on a step waits for a selector (or ms) after a navigation or an async load before the cursor moves; the wait shifts the rest of the timeline and the recording length.
 - `navigate` opens a URL; a click that navigates (form submit, link) is detected and the runtime is re-injected on the new page.
 - Sign in once and reuse the session: `npx playwright codegen --save-storage auth.json https://app.local/login`, then `--storage-state auth.json` (never put credentials in the timeline). `--ignore-https-errors` accepts local self-signed certificates.
-- `npx tsx cli.ts check <dir> --live` validates the timeline without a page; `record` itself fails fast (exit 1) on a missing target.
+- `npx tsx cli.ts check <dir> --live` validates the timeline without a page (it reports a "static, live timeline" check: there is no browser pass, because the targets live in the app). `record` does not stop at a missing target: it records the whole timeline, lists the failed steps at the end and exits 1 (`--force` turns that into a warning), so one broken selector costs one recording, not a partial video.
 - `record <dir> --url <url> --storage-state auth.json -o demo.mp4 --guide` records, then replays the timeline in step mode on the live page to capture the guide frames. A page that already defines `window.__anim` is refused.
 
 ## The manifest: what was done
@@ -235,7 +240,7 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 - Layout: `cli.ts` (commander, `buildProgram()`), `src/engine/` (`schema.ts` parsing/validation, `runtime.js` the in-page engine, `inject.ts` builds `animated.html`, `driver.ts` drives a Playwright page), `src/commands/`, `src/guide/` (capture, render, diff), `src/media/` (ffmpeg, tts, vtt, chapters, contact sheet), `src/catalog.ts`, `src/manifest.ts`, `src/browser.ts`.
 - `runtime.js` is plain browser JavaScript injected as text (no imports, must tolerate document-start injection). The timing constants at the top of `schema.ts` are mirrored as literals there and `test/constants.test.ts` asserts they stay equal.
 - **Rule for `page.evaluate` callbacks:** no inner functions inside the callback. `tsx`/esbuild adds a `__name` helper that does not exist in the page, so the callback throws silently. Put helpers in `runtime.js` and call them by name (`__anim.markStep(...)`).
-- Tests: `npm test` (`node:test` through `tsx`, serial: `--test-concurrency=1`, about 10 minutes with the browser tests; `SKIP_BROWSER=1` skips them). Fixtures: `test/fixtures/basic/` (a mockup with every action) and `test/fixtures/live-app/server.ts` (a login/dashboard app for `record`).
+- Tests: `npm test` (`node:test` through `tsx`, serial: `--test-concurrency=1`, about 10 minutes with the browser tests; `SKIP_BROWSER=1` skips them, `SKIP_TTS=1` skips the macOS `say` narration test). `ANIM_DEBUG=1` makes `check` print every target probe and `export` print page/context close timings and trim details on stderr. Fixtures: `test/fixtures/basic/` (a mockup with every action) and `test/fixtures/live-app/server.ts` (a login/dashboard app for `record`).
 - Docs: `npm run docs` regenerates the CLI reference block below (and in README.md) from `cli.ts`; `npm run docs:check` and `test/docs.test.ts` fail when it is stale.
 
 ## CLI reference
@@ -300,7 +305,7 @@ Write anim.config.json + animated.html from a prompt (needs an LLM API key; agen
 |---|---|
 | `-p, --provider <provider>` | LLM provider (gemini or claude) (default: `gemini`) |
 | `-m, --model <model>` | LLM model ID (e.g. gemini-2.5-flash, claude-haiku-4-5-20251001). Defaults per provider |
-| `-c, --cursor <style>` | Cursor style: mac, windows, none (default: `none`) |
+| `-c, --cursor <style>` | Cursor style: mac, windows, none (default: `mac`) |
 | `-l, --loop` | Loop the generated HTML animation endlessly |
 | `--locale <code>` | Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json |
 

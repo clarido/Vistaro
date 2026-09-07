@@ -84,8 +84,10 @@ STANDALONE WITH AN LLM API KEY (GEMINI_API_KEY or ANTHROPIC_API_KEY, .env or env
   Override the model with --model, GEMINI_MODEL or CLAUDE_MODEL.
 
 RECORD OF WHAT WAS DONE:
-  Every command appends an event to <dir>/anim.manifest.json (command, options, locale,
-  step timings, content hash / build key). Read it before re-doing someone else's work.
+  Every command that writes something (extract, animate, build, export, record, guide,
+  localize, build-all; not check, preview or init-config) appends an event to
+  <dir>/anim.manifest.json (command, options, locale, step timings, content hash / build
+  key). Read it before re-doing someone else's work.
 `);
 
   program
@@ -115,7 +117,7 @@ RECORD OF WHAT WAS DONE:
     .argument('<prompt>', 'Prompt describing the desired animation')
     .option('-p, --provider <provider>', 'LLM provider (gemini or claude)', 'gemini')
     .option('-m, --model <model>', 'LLM model ID (e.g. gemini-2.5-flash, claude-haiku-4-5-20251001). Defaults per provider')
-    .option('-c, --cursor <style>', 'Cursor style: mac, windows, none', 'none')
+    .option('-c, --cursor <style>', 'Cursor style: mac, windows, none', 'mac')
     .option('-l, --loop', 'Loop the generated HTML animation endlessly')
     .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
     .action((dir, prompt, opts) => animateCommand(dir, prompt, opts));

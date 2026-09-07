@@ -28,6 +28,8 @@
   var DEFAULT_CAMERA_S = 2.5;
   var FADE_MS = 800;
   var SCROLL_MS = 600;
+  var DEFAULT_TAIL_MS = 2500;
+  var SUBTITLE_HOLD_MS = 4000;
 
   var ALIASES = { showText: 'fadeIn' };
   var CURSOR_ACTIONS = { click: 1, focus: 1, type: 1, highlight: 1, hover: 1 };
@@ -255,13 +257,16 @@
     return h;
   }
 
-  function positionHighlight(el) {
+  /** Move the spotlight box onto `el`; `snap` skips the 0.5s position transition (guide marks). */
+  function positionHighlight(el, snap) {
     var rect = el.getBoundingClientRect();
     var h = getHighlightBox();
+    if (snap) h.style.transition = 'none';
     h.style.left = (rect.left - 6) + 'px';
     h.style.top = (rect.top - 6) + 'px';
     h.style.width = (rect.width + 12) + 'px';
     h.style.height = (rect.height + 12) + 'px';
+    if (snap) { void h.offsetWidth; h.style.transition = ''; }
     return h;
   }
 
@@ -276,7 +281,8 @@
   /** Keep the spotlight on `el` until releaseHighlight() (used for guide screenshots). */
   function holdHighlight(el) {
     if (!el) return;
-    var h = positionHighlight(el);
+    // A held mark is a static frame element: it snaps into place, no transition to be caught mid-flight.
+    var h = positionHighlight(el, true);
     h.classList.remove('anim-cli-pulse');
     h.classList.add('anim-cli-hold');
   }
@@ -511,7 +517,7 @@
     el.innerHTML = text;
     el.style.animation = 'none';
     void el.offsetWidth;
-    el.style.animation = 'anim-cli-subFade ' + Math.max(1, ms || 4000) + 'ms ease forwards';
+    el.style.animation = 'anim-cli-subFade ' + Math.max(1, ms || SUBTITLE_HOLD_MS) + 'ms ease forwards';
   }
   function hideSubtitle() {
     if (state.subtitleEl) { state.subtitleEl.style.animation = 'none'; state.subtitleEl.style.opacity = '0'; }
@@ -708,39 +714,37 @@
   }
 
   /**
-   * Resolve once every CSS animation/transition running on the target's subtree and on the stage
-   * (body/documentElement, the camera's transform) has finished, or after opts.timeoutMs (default
-   * 3000). Guide frames of fadeIn/transitionScreen/camera/scroll steps are taken after this so a
-   * frame does not land a few frames before the transition settles (a 1-2% pixel diff otherwise).
-   * Returns { waited: ms, animations: n }.
+   * Resolve once every CSS animation/transition running anywhere in the document (page content,
+   * the camera transform on the stage, and the runtime's own overlays: spotlight, badge, ripple)
+   * has finished, except the cursor (idle at a capture) and the subtitle layer (hidden at a
+   * capture), and except animations that never end (spinners). Guide frames are taken after this so
+   * a frame never lands mid-transition (a 1-2% pixel diff between identical runs otherwise).
+   * opts.timeoutMs (default 10000) is only a hang guard. Returns { waited, animations, timedOut }.
    */
   function whenSettled(opts) {
     opts = opts || {};
     var started = now();
-    var timeoutMs = typeof opts.timeoutMs === 'number' ? opts.timeoutMs : 3000;
-    var list = [];
-    var seen = [];
-    function collect(root, subtree) {
-      if (!root || typeof root.getAnimations !== 'function') return;
-      var anims = [];
-      try { anims = root.getAnimations(subtree ? { subtree: true } : undefined); } catch (e) { anims = []; }
-      anims.forEach(function (a) {
-        if (seen.indexOf(a) >= 0) return;
-        seen.push(a);
-        if (a.playState === 'finished' || a.playState === 'idle') return;
-        list.push(a.finished.catch(function () {}));
-      });
+    var timeoutMs = typeof opts.timeoutMs === 'number' ? opts.timeoutMs : 10000;
+    var skipRoots = [state.cursor, state.subtitleLayer].filter(Boolean);
+    function skipped(a) {
+      var t = a.effect && a.effect.target;
+      if (!t) return false;
+      for (var i = 0; i < skipRoots.length; i++) if (skipRoots[i] === t || skipRoots[i].contains(t)) return true;
+      try { var timing = a.effect.getComputedTiming(); if (timing.iterations === Infinity || timing.endTime === Infinity) return true; } catch (e) { /* ignore */ }
+      return false;
     }
-    var el = null;
-    if (opts.target) { try { el = document.querySelector(opts.target); } catch (e) { el = null; } }
-    collect(el, true);
-    collect(document.body, false);
-    collect(document.documentElement, false);
-    // The overlay layer (cursor, spotlight, callouts) is ours; skip it so a long cursor glide does not hold the frame.
-    if (!list.length) return Promise.resolve({ waited: 0, animations: 0 });
-    var timer = new Promise(function (resolve) { setTimeout(resolve, timeoutMs); });
+    var list = [];
+    var anims = [];
+    try { anims = document.getAnimations(); } catch (e) { anims = []; }
+    anims.forEach(function (a) {
+      if (a.playState === 'finished' || a.playState === 'idle' || skipped(a)) return;
+      list.push(a.finished.catch(function () {}));
+    });
+    if (!list.length) return Promise.resolve({ waited: 0, animations: 0, timedOut: false });
+    var timedOut = false;
+    var timer = new Promise(function (resolve) { setTimeout(function () { timedOut = true; resolve(); }, timeoutMs); });
     return Promise.race([Promise.all(list), timer]).then(function () {
-      return { waited: Math.round(now() - started), animations: list.length };
+      return { waited: Math.round(now() - started), animations: list.length, timedOut: timedOut };
     });
   }
 
@@ -775,7 +779,7 @@
       }, Math.max(0, t - lead)));
       prev = step;
     });
-    var durationMs = o.durationMs || (maxMs + 2500);
+    var durationMs = o.durationMs || (maxMs + DEFAULT_TAIL_MS);
     if (o.loop) state.timers.push(setTimeout(function () { location.reload(); }, durationMs));
     dispatch('anim:play', { steps: steps.length, durationMs: durationMs, loop: !!o.loop });
   }

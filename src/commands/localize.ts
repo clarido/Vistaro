@@ -3,7 +3,7 @@ import * as path from 'path';
 import { recordEvent, setManifestFields, readManifest } from '../manifest';
 import { loadTimeline, parseTimeline } from '../engine/schema';
 import { extractStrings, stringsPath, writeStrings, readStrings, StringMap, isLocaleCode, isAutoStepId, diffStrings } from '../engine/strings';
-import { referencedLocalFiles, localeDirFor } from '../catalog';
+import { referencedLocalFiles, localeDirFor, htmlLocalRefs } from '../catalog';
 
 const MEDIA_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.css', '.js', '.woff', '.woff2', '.ttf', '.otf', '.mp4', '.webm', '.mp3'];
 
@@ -148,15 +148,10 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
 
 /** src/href/url() references in index.html that resolve above the source directory. */
 function referencedOutside(dir: string): string[] {
-    const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
     const out = new Set<string>();
-    const re = /(?:src|href)\s*=\s*["']([^"']+)["']|url\(\s*["']?([^"')]+)["']?\s*\)/gi;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(html))) {
-        const raw = (m[1] || m[2] || '').trim();
-        if (!raw || /^(?:[a-z]+:|\/\/|#)/i.test(raw)) continue;
-        const relPath = path.relative(path.resolve(dir), path.resolve(dir, decodeURIComponent(raw.split(/[?#]/)[0])));
-        if (relPath.startsWith('..') || path.isAbsolute(relPath)) out.add(raw);
+    for (const ref of htmlLocalRefs(fs.readFileSync(path.join(dir, 'index.html'), 'utf8'))) {
+        const relPath = path.relative(path.resolve(dir), path.resolve(dir, ref.file));
+        if (relPath.startsWith('..') || path.isAbsolute(relPath)) out.add(ref.raw);
     }
     return [...out];
 }

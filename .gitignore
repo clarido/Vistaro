@@ -13,7 +13,6 @@ node_modules/
 
 # Claude Code local data
 .claude/
-.claude/
 
 # Generated previews
 preview.png
@@ -21,7 +20,9 @@ preview-step-*.png
 .temp-video/
 .cache/
 *.vtt
-demo/guide/
+demo/**/guide/
+# `npx tsx cli.ts build demo` regenerates these (a full copy of runtime.js each time)
+demo/**/animated.html
 
 # build-all outputs
 /help-out/

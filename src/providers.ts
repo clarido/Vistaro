@@ -40,11 +40,6 @@ export async function generateContent(
     userPrompt: string,
     imagePath?: string
 ): Promise<string> {
-    if (process.env.BYPASS_LLM === 'true') {
-         const match = userPrompt.match(/Base HTML:\n([\s\S]*)\n\nAnimation Request:/);
-         if (match) return match[1];
-         return "<html><body>Bypass Mock</body></html>";
-    }
     if (config.provider === 'gemini') {
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {

@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
-import { Step, Timeline, captureAtFor, DEFAULT_CAMERA_DURATION_S, DEFAULT_FADE_MS, DEFAULT_SCROLL_MS } from '../engine/schema';
+import { Step, Timeline, captureAtFor } from '../engine/schema';
 import { runTimeline, StepResult, errorMessage, LiveOptions, isNavigationError } from '../engine/driver';
 
 /**
@@ -70,6 +70,8 @@ export interface GuideCapture {
 /** Steps that get a guide entry: not `guide: false`, and not a target-less wait/camera/scroll. */
 /** Steps whose frame is taken once their CSS transition has settled (see whenSettled in the runtime). */
 const SETTLE_ACTIONS: ReadonlySet<string> = new Set(['fadeIn', 'transitionScreen', 'camera', 'scroll']);
+/** Hang guard for whenSettled: a page transition longer than this is not waited for. */
+const SETTLE_GUARD_MS = 10000;
 
 export function isGuideStep(step: Step): boolean {
     if (step.guide === false) return false;
@@ -143,13 +145,10 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
             };
             try {
                 // Transition-driven steps complete on the runtime's timer a few frames before the CSS
-                // transition visibly settles; wait for the animations themselves (target subtree + stage),
-                // bounded by the declared duration plus a margin, so unedited re-runs diff at ~0%.
+                // transition visibly settles; wait for the animations themselves (whole document, the
+                // timeout is only a hang guard) so unedited re-runs reproduce the same pixels.
                 if (SETTLE_ACTIONS.has(step.action) && !result.error && entry.capturedAt === 'completion') {
-                    const declaredMs = step.action === 'camera' ? (step.duration ?? DEFAULT_CAMERA_DURATION_S) * 1000
-                        : step.action === 'scroll' ? DEFAULT_SCROLL_MS
-                        : (typeof step.duration === 'number' ? step.duration * 1000 : DEFAULT_FADE_MS);
-                    await page.evaluate((o) => (window as any).__anim.whenSettled(o), { target: step.target, timeoutMs: Math.max(1000, declaredMs + 500) });
+                    await page.evaluate((o) => (window as any).__anim.whenSettled(o), { timeoutMs: SETTLE_GUARD_MS });
                 }
                 // Subtitle bar (and optionally the cursor) hidden for EVERY guide frame, the poster included:
                 // a subtitle burned into the cover image would also leak the previous locale's text.
@@ -171,6 +170,8 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
                     entry.targetRect = marks.targetRect ?? entry.targetRect;
                     entry.callout = marks.callout;
                 }
+                // The marks snap into place; anything still animating on the page is awaited once more.
+                await page.evaluate((o) => (window as any).__anim.whenSettled(o), { timeoutMs: SETTLE_GUARD_MS });
                 await page.evaluate(() => (window as any).__anim.nextFrames(2));
                 entry.image = base + '.png';
                 await page.screenshot({ path: entry.image, type: 'png' });

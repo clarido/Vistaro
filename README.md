@@ -34,12 +34,12 @@ Node >= 20. Optional keys in `.env` or the environment: `OPENAI_API_KEY` (narrat
 ```bash
 npx tsx cli.ts init-config ./demo        # scaffold anim.config.json next to your index.html
 npx tsx cli.ts check ./demo              # schema, timing, and every target in a headless browser
-npx tsx cli.ts build ./demo              # animated.html, a self-playing page
+npx tsx cli.ts build ./demo              # animated.html: a self-playing page to open in a browser
 npx tsx cli.ts preview ./demo            # preview.png: one labelled frame per step
 npx tsx cli.ts export ./demo -o demo.mp4 --guide --narration
 ```
 
-`export` writes `demo.mp4`, `demo.vtt`, chapters, and `./demo/guide/` (`guide.json`, `guide.md`, `guide.html`, `assets/step-NN.png`). The length comes from the timeline.
+`export` writes `demo.mp4`, `demo.vtt`, chapters, and `./demo/guide/` (`guide.json`, `guide.md`, `guide.html`, `assets/step-NN.png`). The length comes from the timeline. `animated.html` is generated: run `build` again after editing `index.html` to refresh it, and note that `export` records `index.html` directly, so the video always matches what `check` and `preview` saw.
 
 A timeline is a list of timed interactions on CSS selectors:
 
@@ -161,7 +161,7 @@ Write anim.config.json + animated.html from a prompt (needs an LLM API key; agen
 |---|---|
 | `-p, --provider <provider>` | LLM provider (gemini or claude) (default: `gemini`) |
 | `-m, --model <model>` | LLM model ID (e.g. gemini-2.5-flash, claude-haiku-4-5-20251001). Defaults per provider |
-| `-c, --cursor <style>` | Cursor style: mac, windows, none (default: `none`) |
+| `-c, --cursor <style>` | Cursor style: mac, windows, none (default: `mac`) |
 | `-l, --loop` | Loop the generated HTML animation endlessly |
 | `--locale <code>` | Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json |
 

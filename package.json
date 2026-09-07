@@ -2,7 +2,7 @@
   "name": "screenshot-animator",
   "version": "2.0.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.6"
   },
   "description": "CLI that turns a UI mockup (index.html + anim.config.json) or a live web page into demo videos, step-by-step help guides and their translations, driven by an AI agent or by hand",
   "main": "cli.ts",
