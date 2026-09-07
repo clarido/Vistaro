@@ -4,6 +4,23 @@ import { spawnSync } from 'child_process';
 export const RESET_TIMEOUT_MS = 120000;
 
 /**
+ * Which reset command to run, if any. `--reset-cmd` is the caller's own words and is always honoured;
+ * `meta.reset` comes out of `anim.config.json`, which makes a timeline executable content — a config
+ * from a catalog, a colleague or a repository would otherwise run an arbitrary shell command just by
+ * being recorded. So the file's command runs only with an explicit `--allow-reset`, and refuses loudly
+ * rather than silently skipping a reset the author's timeline depends on.
+ */
+export function resolveResetCommand(o: { explicit?: string; fromTimeline?: string; allowReset?: boolean }): string | undefined {
+    if (o.explicit && o.explicit.trim()) return o.explicit;
+    const fromFile = o.fromTimeline;
+    if (!fromFile || !fromFile.trim()) return undefined;
+    if (!o.allowReset) {
+        throw new Error(`anim.config.json sets "meta.reset" (${fromFile}), which is a shell command from a file: pass --allow-reset to run it, or --reset-cmd "<command>" to give your own`);
+    }
+    return fromFile;
+}
+
+/**
  * Live pages: run the reset command (`--reset-cmd`, or `meta.reset` from the timeline) before a pass
  * over the app, so a timeline that writes data starts from the same state every time (`record --guide`
  * replays the whole timeline a second time). The command is a shell string on purpose: it is the

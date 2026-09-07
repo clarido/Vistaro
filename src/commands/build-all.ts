@@ -20,6 +20,8 @@ export interface BuildAllOptions {
     dryRun?: boolean;
     /** Also stream the children's stdout (stderr is always streamed, prefixed with slug/locale). */
     verbose?: boolean;
+    /** Let a guide's `meta.reset` (a shell command from its anim.config.json) run before each pass. */
+    allowReset?: boolean;
 }
 
 interface StepRun { cmd: string[]; status: number | null; stdout: string; stderr: string; ms: number }
@@ -181,7 +183,7 @@ export async function buildAllCommand(catalogFile: string | undefined, options: 
             ...(guide.record ? [] : [['build', srcDir, '--locale', locale]]),
         ];
         const produce: string[] = guide.record
-            ? ['record', srcDir, '--url', guide.record.url, ...(guide.record.storageState ? ['--storage-state', guide.record.storageState] : []), ...(guide.record.ignoreHttpsErrors ? ['--ignore-https-errors'] : [])]
+            ? ['record', srcDir, '--url', guide.record.url, ...(guide.record.storageState ? ['--storage-state', guide.record.storageState] : []), ...(guide.record.ignoreHttpsErrors ? ['--ignore-https-errors'] : []), ...(options.allowReset ? ['--allow-reset'] : [])]
             : ['export', srcDir];
         produce.push('-o', videoFile, '--locale', locale, ...viewport);
         if (outputs.includes('guide')) {

@@ -369,12 +369,21 @@ test('record: a timed-out waitFor is reported as a warning naming the step, sepa
     const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
     assert.ok(ev.steps[2].waitedMs >= 800 && ev.steps[2].waitedMs < 2500, `per-step waitForTimeoutMs honoured: ${ev.steps[2].waitedMs}`);
     assert.match(ev.steps[2].error, /not found within 800ms/);
+    assert.deepEqual(ev.timedOutSteps, [3], 'which step gave up is persisted, not only in its error text');
     // --fail-fast: no video, exit 1, the reason names the step
     const out = path.join(work, 'failfast.mp4');
     const f = await cli(['record', dir, '-o', out, '--fail-fast', '--width', '1280', '--height', '800']);
     assert.equal(f.status, 1);
     assert.match(f.stderr, /fail-fast: step 3 .*waitFor .*not found within 800ms.*recording was abandoned/);
     assert.equal(fs.existsSync(out), false, 'no video is written when the recording is abandoned');
+    // An abandoned run still records what it did, so it is as auditable as a finished one.
+    const ab = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    assert.equal(ab.command, 'record');
+    assert.equal(ab.output, undefined, 'no video path is claimed');
+    assert.match(ab.aborted, /fail-fast: step 3 .*recording was abandoned/);
+    assert.deepEqual(ab.timedOutSteps, [3]);
+    assert.equal(ab.steps.length, 3, 'it stopped scheduling at the timed-out step');
+    assert.ok(Number.isFinite(ab.steps[0].actualMs), 'the steps it did run are recorded');
 });
 
 test('record --guide: a step that succeeded in the recording but fails on the guide replay is diagnosed as a state difference; --reset-cmd makes the two passes identical', { skip }, async () => {
@@ -403,9 +412,16 @@ test('record --guide: a step that succeeded in the recording but fails on the gu
     assert.equal(saves() - before, 2, 'both passes saved after a reset');
     const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
     assert.equal(ev.reset, true);
-    // meta.reset works the same way, and a failing reset command stops before the browser starts
+    // meta.reset is a shell command out of a config file, so it needs --allow-reset and refuses
+    // rather than silently skipping a reset the timeline depends on (--reset-cmd above needed no flag).
     const dir2 = writeDir('once-meta', { ...once, meta: { ...once.meta, reset: `${JSON.stringify(process.execPath)} -e "process.exit(3)"` } });
-    const bad = await cli(['record', dir2, '-o', path.join(work, 'once3.mp4'), '--width', '1280', '--height', '800']);
+    const out3 = path.join(work, 'once3.mp4');
+    const gated = await cli(['record', dir2, '-o', out3, '--width', '1280', '--height', '800']);
+    assert.equal(gated.status, 1);
+    assert.match(gated.stderr, /sets "meta\.reset".*pass --allow-reset to run it/);
+    assert.equal(fs.existsSync(out3), false, 'refused before recording anything');
+    // With the flag it runs, and a failing reset still stops before the browser starts.
+    const bad = await cli(['record', dir2, '-o', out3, '--allow-reset', '--width', '1280', '--height', '800']);
     assert.equal(bad.status, 1);
     assert.match(bad.stderr, /reset command exited with status 3 before the recording/);
 });
@@ -431,6 +447,19 @@ test('check --live --url probes the live page in seconds: a typo\'d selector is 
     assert.doesNotMatch(s.stdout, /Probing /);
     assert.match(s.stdout, /Pass --url <url> \(meta\.url is http/);
     assert.match(s.stdout, /static, live timeline check/);
+});
+
+test('check --live --json with a refused meta.reset still prints exactly one JSON document', { skip }, async () => {
+    // The gate is local and runs before the network probe, so this costs no browser and no round trip.
+    const flow = controlledFlow(app.url);
+    const marker = path.join(work, 'reset-ran.txt');
+    const reset = `${JSON.stringify(process.execPath)} -e "require('fs').writeFileSync(${JSON.stringify(marker)}, 'ran')"`;
+    const dir = writeDir('probe-json', { ...flow, meta: { ...flow.meta, reset } });
+    const r = await cli(['check', dir, '--live', '--url', `${app.url}/controlled`, '--json']);
+    assert.equal(r.status, 1, r.stderr);
+    const parsed = JSON.parse(r.stdout); // throws if the gate's message or a child's output reached stdout
+    assert.ok(parsed.some((i: any) => i.level === 'error' && /--allow-reset/.test(i.message)), r.stdout);
+    assert.equal(fs.existsSync(marker), false, 'the refused command never ran');
 });
 
 test('check --live probes each target after that step\'s own waitFor, so an async-rendered target is not reported missing', { skip }, async () => {

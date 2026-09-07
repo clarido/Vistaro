@@ -13,7 +13,7 @@ import { cutClip, probeDurationMs } from '../media/ffmpeg';
 import { NarrationClip, narrationOf } from '../media/tts';
 import { hashGuideDir, toolVersion, relPosix, toPosix } from '../catalog';
 import { readManifest, recordEvent } from '../manifest';
-import { runResetCommand } from '../reset';
+import { runResetCommand, resolveResetCommand } from '../reset';
 
 export interface GuideOptions extends ViewportOptions {
     output?: string;
@@ -29,6 +29,8 @@ export interface GuideOptions extends ViewportOptions {
     ignoreHttpsErrors?: boolean;
     /** Live replay: shell command run before the pass (default meta.reset). */
     resetCmd?: string;
+    /** Allow `meta.reset` from anim.config.json to run (a shell command out of a file). */
+    allowReset?: boolean;
 }
 
 /** What the guide knows about the master video (from this export, or the manifest's last driven export). */
@@ -232,7 +234,7 @@ export async function guideCommand(dir: string, options: GuideOptions = {}): Pro
             };
         }
         // A live replay is a fresh pass over the app: reset it first when the timeline asks for it.
-        if (session) runResetCommand(options.resetCmd ?? timeline.meta.reset, 'guide replay');
+        if (session) runResetCommand(resolveResetCommand({ explicit: options.resetCmd, fromTimeline: timeline.meta.reset, allowReset: options.allowReset }), 'guide replay');
         const launched = await launchPage({ ...options, driven: true });
         let result;
         try {

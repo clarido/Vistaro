@@ -289,6 +289,12 @@ test('build-all: a record entry builds against a live page, with and without sto
                 { slug: 'live-auth', dir: 'live-auth', record: { url: `${app.url}/dashboard`, storageState: 'auth.json' } },
             ],
         }));
+        // --allow-reset reaches the record child (the only one that can run a guide's meta.reset);
+        // it is CLI-only, with no catalog field, so a config file cannot grant itself the permission.
+        const plan = await cliAsync(['build-all', 'help.catalog.json', '--dry-run', '--allow-reset'], d);
+        assert.equal(plan.status, 0, plan.stderr);
+        assert.match(plan.stdout, /record .*--allow-reset/);
+        assert.doesNotMatch(plan.stdout, /check .*--allow-reset/, 'the static check never resets');
         const r = await cliAsync(['build-all', 'help.catalog.json'], d);
         assert.equal(r.status, 0, r.stderr + r.stdout);
         assert.match(r.stdout, /→ live-login\/en: check[\s\S]*→ live-login\/en: record/);

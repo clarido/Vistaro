@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { recordEvent } from '../manifest';
 import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS } from '../engine/schema';
-import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions } from '../engine/driver';
+import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions, RunAbortedError, errorMessage } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions, closeWithWatchdog, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
 import { encodeMp4, encodeGif, cutClip, probeDurationMs } from '../media/ffmpeg';
@@ -11,7 +11,7 @@ import { buildGuide, resolveCrop, VideoInfo } from './guide';
 import { hashGuideDir, relPosix, displayPath } from '../catalog';
 import { subtitleCues, buildVtt } from '../media/vtt';
 import { chaptersFor, ffmetadata } from '../media/chapters';
-import { runResetCommand } from '../reset';
+import { runResetCommand, resolveResetCommand } from '../reset';
 
 export interface ExportOptions extends ViewportOptions {
     /** Seconds; overrides the computed timeline length. Required when there is no anim.config.json (default 5). */
@@ -38,6 +38,8 @@ export interface ExportOptions extends ViewportOptions {
     resetCmd?: string;
     /** Live pages: abandon the recording at the first `waitFor` timeout. */
     failFast?: boolean;
+    /** Allow `meta.reset` from anim.config.json to run (a shell command out of a file). */
+    allowReset?: boolean;
 }
 
 /** A live page instead of a local file: the runtime is injected at document start and navigations are survived. */
@@ -182,7 +184,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         if (options.voice) { if (engine === 'openai') voice.openai = options.voice; else voice.say = options.voice; }
     }
 
-    const resetCmd = session ? (options.resetCmd ?? timeline?.meta.reset) : undefined;
+    const resetCmd = session ? resolveResetCommand({ explicit: options.resetCmd, fromTimeline: timeline?.meta.reset, allowReset: options.allowReset }) : undefined;
     if (resetCmd) runResetCommand(resetCmd, 'recording');
     console.log(`Starting video ${session ? 'recording' : 'export'}. Duration: ${formatTime(durationMs)}. Device: ${options.device || 'desktop'}.`);
     // __ANIM_DRIVEN only when the Node driver runs the timeline; a built page without a config self-plays.
@@ -214,6 +216,8 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     let results: StepResult[] = [];
     const runState: RunState = { t0Wall: 0, shiftMs: 0, lastPoint: null, navigations: 0 };
     let t0Wall = 0;
+    // Set once this run's manifest event is written, so an abort after it cannot write a second.
+    let eventRecorded = false;
     let loadWall = 0;
     let closeWall = 0;
     try {
@@ -276,9 +280,50 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         if (process.env.ANIM_DEBUG) console.error(`context close took ${Date.now() - closeWall}ms; load->t0 ${t0Wall - loadWall}ms`);
     }
     return await encodeAndFinish();
+    } catch (e: any) {
+        // Anything that ends the run before its own event is written -- an abandoned recording
+        // (--fail-fast), a page that died mid-recording, a failed encode, a guide replay whose reset
+        // refused -- still records what happened, so a run never disappears from the manifest. The
+        // last case is why this sits outside the recording try: the MP4 is already on disk by then.
+        if (e instanceof RunAbortedError) results = e.results;
+        else if (runState.results?.length) results = runState.results;
+        if (driven) { try { recordAbandoned(abortReason(e)); } catch { /* the original failure matters more */ } }
+        throw e;
     } finally {
         // Whatever failed above (open, runtime, recording, encode, guide), the browser must go, or the CLI never exits.
         await closeWithWatchdog(() => launched.browser.close(), 'browser');
+    }
+
+    /** The whole failure on one bounded line: errorMessage() keeps only the first, and a Playwright error's detail is on the rest. */
+    function abortReason(e: any): string {
+        return String(e?.message ?? e).replace(/\s+/g, ' ').trim().slice(0, 500);
+    }
+
+    /** Fields both manifest events share, so a new one is never added to only half of them. */
+    function baseEvent(): Record<string, any> {
+        const rel = (p: string) => relPosix(path.resolve(outputDir), p);
+        return {
+            command: session ? session.command : 'export',
+            url: session ? sanitizeUrl(session.url) : undefined,
+            storageState: session?.storageState ? rel(path.resolve(session.storageState)) : undefined,
+            navigations: runState.navigations || undefined, shiftMs: runState.shiftMs || undefined,
+            timedOutSteps: runState.timedOutSteps?.length ? runState.timedOutSteps : undefined,
+            device: options.device, theme: options.theme,
+            locale: timeline?.locale ?? options.locale ?? timeline?.meta.locale,
+            driven, reset: resetCmd ? true : undefined,
+            steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, navigated: r.navigated || undefined, waitedMs: r.waitedMs || undefined, error: r.error })),
+        };
+    }
+
+    /** Manifest event for a run that ended early: the shared fields plus `aborted`, and `output` only if a file was actually left behind. */
+    function recordAbandoned(message: string): void {
+        if (eventRecorded) return; // encodeAndFinish already wrote this run's event
+        const out = path.resolve(options.output);
+        recordEvent(outputDir, {
+            ...baseEvent(),
+            aborted: message,
+            output: fs.existsSync(out) ? relPosix(path.resolve(outputDir), out) : undefined,
+        });
     }
 
     async function encodeAndFinish(): Promise<ExportSummary> {
@@ -420,14 +465,13 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     // Paths in the manifest are relative to the output directory (never absolute, never cwd-relative).
     const relToDir = (p: string) => relPosix(path.resolve(outputDir), p);
     recordEvent(outputDir, {
-        command: session ? session.command : 'export', url: session ? sanitizeUrl(session.url) : undefined, storageState: session?.storageState ? relToDir(path.resolve(session.storageState)) : undefined,
-        navigations: runState.navigations || undefined, shiftMs: runState.shiftMs || undefined,
-        duration: durationMs / 1000, output: relToDir(outputFile), device: options.device, theme: options.theme,
+        ...baseEvent(),
+        duration: durationMs / 1000, output: relToDir(outputFile),
         voiceover: options.voiceover ? relToDir(path.resolve(options.voiceover)) : undefined, narration: !!options.narration, subtitles: summary.vtt ? path.basename(summary.vtt) : false,
-        chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), locale: timeline?.locale ?? options.locale ?? timeline?.meta.locale,
-        driven, guide: guideDir ? relToDir(guideDir) : undefined, contentHash: driven ? hashGuideDir(outputDir) : undefined, reset: resetCmd ? true : undefined,
-        steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, navigated: r.navigated || undefined, waitedMs: r.waitedMs || undefined, error: r.error })),
+        chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), guide: guideDir ? relToDir(guideDir) : undefined,
+        contentHash: driven ? hashGuideDir(outputDir) : undefined,
     });
+    eventRecorded = true;
     return summary;
     }
 }

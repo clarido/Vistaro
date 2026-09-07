@@ -78,6 +78,8 @@ export interface RunState {
     timedOutSteps?: number[];
     /** Set when `failFast` abandoned the run (the reason); runTimeline then throws after draining. */
     aborted?: string;
+    /** The results array being filled, so a caller can report partial progress after any throw. */
+    results?: StepResult[];
     /** Last cursor point, restored after a navigation. */
     lastPoint: { x: number; y: number } | null;
     /** Number of navigations survived. */
@@ -132,6 +134,16 @@ export interface RunOptions {
 }
 
 const OWN_ANIM_MESSAGE = 'page defines its own window.__anim (not the anim-cli runtime); it cannot be driven';
+
+/** Thrown when `failFast` abandoned the run, carrying the results gathered before it stopped. */
+export class RunAbortedError extends Error {
+    readonly results: StepResult[];
+    constructor(message: string, results: StepResult[]) {
+        super(message);
+        this.name = 'RunAbortedError';
+        this.results = results;
+    }
+}
 
 /** Make sure the runtime is present and booted (without a timeline, so it never self-plays). */
 export async function ensureRuntime(page: Page, timeline: Timeline, opts: InjectOptions = {}): Promise<void> {
@@ -235,6 +247,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
     if (opts.state) { opts.state.shiftMs = 0; opts.state.navigations = 0; opts.state.needsReboot = false; opts.state.rebooting = undefined; }
     state.timeoutShiftMs = 0; state.timedOutSteps = []; state.aborted = undefined;
     const results: StepResult[] = new Array(steps.length);
+    state.results = results; // partial progress stays readable if anything below throws
 
     // t0 on the page's clock (epoch ms), not Date.now() after the round trip: export trims the video
     // to this instant and an evaluate round trip alone can cost a frame or two.
@@ -530,7 +543,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
             pending.push(fire(i, leadMs, result).catch((e) => { appendError(results[i], errorMessage(e)); }));
         }
         await Promise.all(pending);
-        if (state.aborted) throw new Error(`fail-fast: ${state.aborted}; the recording was abandoned (the steps after it would have run against the wrong page state)`);
+        if (state.aborted) throw new RunAbortedError(`fail-fast: ${state.aborted}; the recording was abandoned (the steps after it would have run against the wrong page state)`, results);
         return results;
     } finally {
         if (live) page.off('framenavigated', onNavigated);

@@ -141,7 +141,8 @@ RECORD OF WHAT WAS DONE:
     .option('--url <url>', 'With --live: probe every target against this page. The timeline is replayed for real (clicks, keystrokes and saves happen), so reset the app first when it writes data')
     .option('--storage-state <file>', 'Live probe: Playwright storage state (cookies/localStorage)')
     .option('--ignore-https-errors', 'Live probe: accept self-signed certificates')
-    .option('--reset-cmd <command>', 'Live probe: shell command run before the pass (default: meta.reset)')
+    .option('--reset-cmd <command>', 'Live probe: shell command run before the pass')
+    .option('--allow-reset', 'Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this)')
     .option('--guide', 'Validate as a guide: a numbered step without a "title" is an error, not a warning')
     .option('--json', 'Print the issues as JSON on stdout')
     .option('--locale <code>', 'Locale code (e.g. en, fr)')
@@ -200,7 +201,8 @@ RECORD OF WHAT WAS DONE:
     .option('--url <url>', 'Page to open (default: meta.url in anim.config.json)')
     .option('--storage-state <file>', 'Playwright storage state (cookies/localStorage), e.g. from `npx playwright codegen --save-storage auth.json`')
     .option('--ignore-https-errors', 'Accept self-signed certificates (mkcert-style local HTTPS)')
-    .option('--reset-cmd <command>', 'Shell command run before each pass over the app (the recording, then the --guide replay); overrides meta.reset')
+    .option('--reset-cmd <command>', 'Shell command run before each pass over the app (the recording, then the --guide replay); used instead of meta.reset, and never needs --allow-reset')
+    .option('--allow-reset', 'Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this)')
     .option('--fail-fast', 'Abandon the recording at the first waitFor timeout instead of recording the rest against the wrong page state')
     .option('-o, --output <file>', 'Output video file path (.mp4 or .gif)', 'output.mp4')
     .option('-d, --duration <seconds>', 'Override the recording length in seconds (default: computed from the timeline)')
@@ -235,7 +237,8 @@ RECORD OF WHAT WAS DONE:
     .option('--url <url>', 'After a `record`: replay against this URL instead of the one in the manifest')
     .option('--storage-state <file>', 'After a `record`: storage state for the live replay (default: the one the record used)')
     .option('--ignore-https-errors', 'Accept self-signed certificates on the live replay')
-    .option('--reset-cmd <command>', 'After a `record`: shell command run before the live replay (default: meta.reset)')
+    .option('--reset-cmd <command>', 'After a `record`: shell command run before the live replay')
+    .option('--allow-reset', 'Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this)')
     .option('--locale <code>', 'Locale code (e.g. en, fr)')
     .option('--force', 'Capture even if the timeline has validation errors; step failures then do not fail the command')
     .option('-w, --width <pixels>', 'Viewport width in pixels')
@@ -256,6 +259,7 @@ RECORD OF WHAT WAS DONE:
     .option('--continue-on-error', 'Keep going after a failed guide (default: stop at the first failure)')
     .option('--dry-run', 'Print the plan per guide x locale and stop: nothing is created, written or recorded')
     .option('--verbose', 'Also stream the child commands\' stdout (their stderr is always streamed, prefixed with slug/locale)')
+    .option('--allow-reset', 'Let each guide\'s "meta.reset" run before its passes (a shell command out of its anim.config.json)')
     .addHelpText('after', `
 CATALOG SCHEMA (help.catalog.json; paths are relative to the catalog file):
   {

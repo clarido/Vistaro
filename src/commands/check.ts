@@ -6,7 +6,7 @@ import { runTimeline, ensureRuntime, LiveOptions } from '../engine/driver';
 import { bootOptions } from '../engine/inject';
 import { launchPage, fileUrl, ViewportOptions, assertReachable, sanitizeUrl } from '../browser';
 import { extractStrings, isAutoStepId } from '../engine/strings';
-import { runResetCommand } from '../reset';
+import { runResetCommand, resolveResetCommand } from '../reset';
 
 export interface CheckOptions extends ViewportOptions {
     static?: boolean;
@@ -18,6 +18,8 @@ export interface CheckOptions extends ViewportOptions {
     ignoreHttpsErrors?: boolean;
     /** Live probe: reset command run before the pass (default meta.reset). */
     resetCmd?: string;
+    /** Allow `meta.reset` from anim.config.json to run (a shell command out of a file). */
+    allowReset?: boolean;
     /** Validate as a guide: a numbered step without a title is an error, not a warning. */
     guide?: boolean;
     json?: boolean;
@@ -156,14 +158,18 @@ export async function browserCheck(dir: string, timeline: Timeline, opts: Viewpo
  */
 export async function liveCheck(timeline: Timeline, url: string, opts: CheckOptions, staticIssues: Issue[] = []): Promise<Issue[]> {
     const issues: Issue[] = [];
+    // Cheapest and most local checks first: a refused `meta.reset` should not cost a network round
+    // trip, and nothing here may reach stdout -- `check --json` must still print one JSON document.
+    let resetCmd: string | undefined;
+    try { resetCmd = resolveResetCommand({ explicit: opts.resetCmd, fromTimeline: timeline.meta.reset, allowReset: opts.allowReset }); }
+    catch (e: any) { issues.push({ level: 'error', message: e.message }); return issues; }
     if (opts.storageState && !fs.existsSync(opts.storageState)) {
         issues.push({ level: 'error', message: `storage state file not found: ${opts.storageState}` });
         return issues;
     }
     try { await assertReachable(url, { ignoreHttpsErrors: opts.ignoreHttpsErrors }); }
     catch (e: any) { issues.push({ level: 'error', message: e.message }); return issues; }
-    // Never on stdout, and never a throw: `check --json` must still print one JSON document.
-    try { runResetCommand(opts.resetCmd ?? timeline.meta.reset, 'live probe', m => console.error(m)); }
+    try { runResetCommand(resetCmd, 'live probe', m => console.error(m)); }
     catch (e: any) { issues.push({ level: 'error', message: e.message }); return issues; }
     const launched = await launchPage({ ...opts, deviceScaleFactor: 1, driven: true, storageState: opts.storageState, runtime: true, ignoreHttpsErrors: opts.ignoreHttpsErrors });
     const { page } = launched;

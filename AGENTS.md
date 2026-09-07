@@ -62,7 +62,7 @@ Object form (a bare array of steps is still accepted):
 | `resetFocusStyles` | Before each step, reset every `.input` and `button` in the page to fixed light colours (border `#E2E8F0`, no shadow, `#FAFAFA` background, `#3B82F6` for `.btn-primary`): a crutch for mockups built with those classes, not a general focus-outline reset. |
 | `drift` | Slight page drift while the cursor glides (default on for mockups; off on live pages, where a transformed `<body>` can break a real app's fixed layout, unless `"drift": true`). |
 | `voice` | `{ "openai": "alloy", "say": "Samantha" }` narration voices per engine. |
-| `reset` | Live pages: a shell command run before each pass over the app (the recording, then the `--guide` replay), e.g. `"npm run db:seed"` or `"curl -X POST http://localhost:3000/api/test/reset"`. It runs in the shell, in the CLI's working directory, so a timeline is executable content: read `meta.reset` before running `record`/`guide`/`check --live` on a directory you did not write. `--reset-cmd` overrides it. See [Live pages](#live-pages). |
+| `reset` | Live pages: a shell command run before each pass over the app (the recording, then the `--guide` replay), e.g. `"npm run db:seed"` or `"curl -X POST http://localhost:3000/api/test/reset"`. It runs in the shell, in the CLI's working directory, so a timeline is executable content: it runs only when you pass `--allow-reset`, and the command refuses rather than silently skipping a reset the timeline depends on. `--reset-cmd` gives your own command instead and never needs the flag. See [Live pages](#live-pages). |
 
 ### Steps
 
@@ -209,9 +209,9 @@ Paths are relative to `outputDir`. `status` is `ok`, `failed` (with `error`) or 
 - `waitFor` on a step waits for a selector (or ms) after a navigation or an async load before the cursor moves; the wait shifts the rest of the timeline and the recording length.
 - `navigate` opens a URL; a click that navigates (form submit, link) is detected and the runtime is re-injected on the new page.
 - Sign in once and reuse the session: `npx playwright codegen --save-storage auth.json https://app.local/login`, then `--storage-state auth.json` (never put credentials in the timeline). `--ignore-https-errors` accepts local self-signed certificates.
-- `npx tsx cli.ts check <dir> --live --url <url> --storage-state auth.json` is the cheap half of the loop: it opens the page like `record` does and replays the timeline in step mode, probing every target right before its step (after that step's `waitFor`), so a typo'd selector costs seconds instead of a recording. **The interactions run for real** -- it is a pass over the app, saves included, so it needs the same reset as any other pass. That is why the probe requires an explicit `--url`: a bare `--live` is the schema-only pass it has always been, even when `meta.url` is set. Unmatched `waitFor` selectors give up after 5 s here rather than the recording's 15 s. `record` does not stop at a missing target: it records the whole timeline, lists the failed steps at the end and exits 1 (`--force` turns that into a warning), so one broken selector costs one recording, not a partial video.
+- `npx tsx cli.ts check <dir> --live --url <url> --storage-state auth.json` is the cheap half of the loop: it opens the page like `record` does and replays the timeline in step mode, probing every target right before its step (after that step's `waitFor`), so a typo'd selector costs seconds instead of a recording. **The interactions run for real** -- it is a pass over the app, saves included, so it needs the same reset as any other pass (`--reset-cmd`, or `meta.reset` with `--allow-reset`). That is why the probe requires an explicit `--url`: a bare `--live` is the schema-only pass it has always been, even when `meta.url` is set. Unmatched `waitFor` selectors give up after 5 s here rather than the recording's 15 s. `record` does not stop at a missing target: it records the whole timeline, lists the failed steps at the end and exits 1 (`--force` turns that into a warning), so one broken selector costs one recording, not a partial video.
 - `record <dir> --url <url> --storage-state auth.json -o demo.mp4 --guide` records, then **re-navigates and replays the whole timeline a second time** in step mode to capture the guide frames. A page that already defines `window.__anim` is refused.
-- **A timeline that writes data is not idempotent.** On the guide replay the data is already saved, so a "Save" button that only enables with unsaved changes stays disabled and every later step fails; the error names the selector (`waitFor …: not found`), but the selector is fine. `record` says so when a step succeeded in the recording and failed on the replay. Put the app back into its starting state before each pass with `meta.reset` or `--reset-cmd "<shell command>"` (a seed script, a test-only reset endpoint); without a reset, run `record` without `--guide`, reset the app, then `guide <dir> --url <url> --storage-state auth.json` separately.
+- **A timeline that writes data is not idempotent.** On the guide replay the data is already saved, so a "Save" button that only enables with unsaved changes stays disabled and every later step fails; the error names the selector (`waitFor …: not found`), but the selector is fine. `record` says so when a step succeeded in the recording and failed on the replay. Put the app back into its starting state before each pass with `--reset-cmd "<shell command>"` (a seed script, a test-only reset endpoint), or with `meta.reset` in the timeline plus `--allow-reset` -- a config file that carries a shell command is content you may not have written, so it never runs on its own. Without a reset, run `record` without `--guide`, reset the app, then `guide <dir> --url <url> --storage-state auth.json` separately.
 - A `waitFor` that never appears waits `waitForTimeoutMs` (default 15 s) and is reported as a **warning naming the step**, separately from the info line about real load shifts; the steps after it probably ran against the wrong page state. Lower the timeout per step, or pass `--fail-fast` to abandon the recording (exit 1, no video) at the first timeout instead of producing a video nobody will use.
 
 ## The manifest: what was done
@@ -233,7 +233,7 @@ Every command appends an event to `<dir>/anim.manifest.json` (paths relative to 
   ] }
 ```
 
-Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `localize` and `build-all` (`check` and `preview` write nothing). `export`/`record` events carry the measured `actualMs`/`completedMs` per step, `navigated`/`waitedMs` on live steps, and `shiftMs` when live waits stretched the recording.
+Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `localize` and `build-all` (`check` and `preview` write nothing). `export`/`record` events carry the measured `actualMs`/`completedMs` per step, `navigated`/`waitedMs` on live steps, `shiftMs` when live waits stretched the recording, and `timedOutSteps` for the steps whose `waitFor` gave up. A driven run that ends early -- a `--fail-fast` abort, or a failure during the recording, the encode or the guide capture -- still appends an event: it carries `aborted` with the reason, the steps it managed to run, and `output` only when a file was actually left behind.
 
 ## Standalone use with an LLM API key
 
@@ -353,7 +353,8 @@ Validate anim.config.json: schema, timing, strings, and (unless --static/--live)
 | `--url <url>` | With --live: probe every target against this page. The timeline is replayed for real (clicks, keystrokes and saves happen), so reset the app first when it writes data |
 | `--storage-state <file>` | Live probe: Playwright storage state (cookies/localStorage) |
 | `--ignore-https-errors` | Live probe: accept self-signed certificates |
-| `--reset-cmd <command>` | Live probe: shell command run before the pass (default: meta.reset) |
+| `--reset-cmd <command>` | Live probe: shell command run before the pass |
+| `--allow-reset` | Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this) |
 | `--guide` | Validate as a guide: a numbered step without a "title" is an error, not a warning |
 | `--json` | Print the issues as JSON on stdout |
 | `--locale <code>` | Locale code (e.g. en, fr) |
@@ -439,7 +440,8 @@ Record the timeline against a live page (URL) instead of a local mockup: real na
 | `--url <url>` | Page to open (default: meta.url in anim.config.json) |
 | `--storage-state <file>` | Playwright storage state (cookies/localStorage), e.g. from `npx playwright codegen --save-storage auth.json` |
 | `--ignore-https-errors` | Accept self-signed certificates (mkcert-style local HTTPS) |
-| `--reset-cmd <command>` | Shell command run before each pass over the app (the recording, then the --guide replay); overrides meta.reset |
+| `--reset-cmd <command>` | Shell command run before each pass over the app (the recording, then the --guide replay); used instead of meta.reset, and never needs --allow-reset |
+| `--allow-reset` | Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this) |
 | `--fail-fast` | Abandon the recording at the first waitFor timeout instead of recording the rest against the wrong page state |
 | `-o, --output <file>` | Output video file path (.mp4 or .gif) (default: `output.mp4`) |
 | `-d, --duration <seconds>` | Override the recording length in seconds (default: computed from the timeline) |
@@ -483,7 +485,8 @@ Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) fro
 | `--url <url>` | After a `record`: replay against this URL instead of the one in the manifest |
 | `--storage-state <file>` | After a `record`: storage state for the live replay (default: the one the record used) |
 | `--ignore-https-errors` | Accept self-signed certificates on the live replay |
-| `--reset-cmd <command>` | After a `record`: shell command run before the live replay (default: meta.reset) |
+| `--reset-cmd <command>` | After a `record`: shell command run before the live replay |
+| `--allow-reset` | Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this) |
 | `--locale <code>` | Locale code (e.g. en, fr) |
 | `--force` | Capture even if the timeline has validation errors; step failures then do not fail the command |
 | `-w, --width <pixels>` | Viewport width in pixels |
@@ -513,6 +516,7 @@ Build every guide x locale of help.catalog.json (check, build, export|record --g
 | `--continue-on-error` | Keep going after a failed guide (default: stop at the first failure) |
 | `--dry-run` | Print the plan per guide x locale and stop: nothing is created, written or recorded |
 | `--verbose` | Also stream the child commands' stdout (their stderr is always streamed, prefixed with slug/locale) |
+| `--allow-reset` | Let each guide's "meta.reset" run before its passes (a shell command out of its anim.config.json) |
 
 ### `localize`
 
