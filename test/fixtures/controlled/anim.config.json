@@ -1,0 +1,7 @@
+{
+  "meta": { "title": "Add a tag", "slug": "controlled", "app": "Controlled", "cursor": "mac", "tailMs": 500 },
+  "steps": [
+    { "id": "type", "time": 0.5, "action": "type", "target": "#tag", "value": "urgent", "title": "Type a tag" },
+    { "id": "add", "time": 1.6, "action": "click", "target": "#add", "title": "Add it" }
+  ]
+}

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Controlled input</title>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+  main { padding: 40px; max-width: 520px; }
+  form { display: flex; gap: 8px; }
+  input { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+  button { padding: 10px 16px; border-radius: 8px; border: 0; background: #2563eb; color: #fff; font: inherit; }
+  button[disabled] { background: #cbd5e1; }
+  ul { padding: 0; list-style: none; } li { padding: 8px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 8px; }
+</style></head>
+<body><main>
+  <h1 data-help="title">Tags</h1>
+  <form data-help="form" onsubmit="return false"><input data-help="tag-input" id="tag" placeholder="New tag"><button data-help="add" id="add" type="button" disabled>Add</button></form>
+  <ul data-help="tags" id="tags"></ul>
+  <p id="keys" hidden>0</p>
+</main>
+<script>
+(function () {
+  // A React-style controlled input. React installs a "value tracker" on the node: an own `value`
+  // accessor that records whatever was last assigned. On `input` it compares the DOM value with the
+  // tracked value and fires onChange only when they differ. `el.value = x` goes through the tracker
+  // (so React sees no change); real keyboard typing and the prototype's native setter do not.
+  var input = document.getElementById('tag'), add = document.getElementById('add'), list = document.getElementById('tags');
+  var proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  var tracked = proto.get.call(input);
+  Object.defineProperty(input, 'value', {
+    configurable: true,
+    get: function () { return proto.get.call(input); },
+    set: function (v) { tracked = String(v); proto.set.call(input, v); }
+  });
+  var state = { draft: '' };
+  function render() { add.disabled = state.draft.trim() === ''; }
+  input.addEventListener('input', function () {
+    var value = proto.get.call(input);
+    if (value === tracked) return; // React: no change detected, onChange never fires
+    tracked = value;
+    state.draft = value;
+    render();
+  });
+  var keys = 0;
+  input.addEventListener('keydown', function () { keys++; document.getElementById('keys').textContent = String(keys); });
+  add.addEventListener('click', function () {
+    if (add.disabled || !state.draft.trim()) return;
+    var li = document.createElement('li');
+    li.setAttribute('data-help', 'tag');
+    li.textContent = state.draft.trim();
+    list.appendChild(li);
+    state.draft = ''; tracked = ''; proto.set.call(input, '');
+    render();
+  });
+  render();
+})();
+</script>
+</body></html>

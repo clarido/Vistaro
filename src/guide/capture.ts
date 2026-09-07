@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
-import { Step, Timeline, captureAtFor } from '../engine/schema';
+import { Step, Timeline, captureAtFor, isGuideStep } from '../engine/schema';
 import { runTimeline, StepResult, errorMessage, LiveOptions, isNavigationError } from '../engine/driver';
 
 /**
@@ -87,11 +87,7 @@ const SETTLE_ACTIONS: ReadonlySet<string> = new Set(['fadeIn', 'transitionScreen
 /** Hang guard for whenSettled: a page transition longer than this is not waited for. */
 const SETTLE_GUARD_MS = 10000;
 
-export function isGuideStep(step: Step): boolean {
-    if (step.guide === false) return false;
-    if (!step.target && (step.action === 'wait' || step.action === 'camera' || step.action === 'scroll')) return false;
-    return true;
-}
+export { isGuideStep };
 
 export function guideSteps(timeline: Timeline): Step[] {
     return timeline.steps.filter(isGuideStep);

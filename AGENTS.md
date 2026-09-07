@@ -18,7 +18,7 @@ Node >= 20. TypeScript runs through `tsx` (no build step). ffmpeg is bundled (`f
 Every command below prints what it wrote; `npx tsx cli.ts --help` and `npx tsx cli.ts <command> --help` are the reference.
 
 1. **Write the screen.** Put a faithful mockup of the UI in `<dir>/index.html` (inline CSS, real element ids/classes; when the user pasted screenshots, reproduce each one; several screens can live in one file as sections you fade between). Media files referenced from `index.html` go next to it.
-2. **Write the timeline.** `npx tsx cli.ts init-config <dir>` scaffolds `<dir>/anim.config.json` in object form; edit it to match your selectors. Give every step an explicit `id` (translations and guide frames attach to it).
+2. **Write the timeline.** `npx tsx cli.ts init-config <dir>` scaffolds `<dir>/anim.config.json` in object form; edit it to match your selectors. Give every step an explicit `id` (translations and guide frames attach to it) and every numbered step a `title` (its heading in the guide); keep a guide to about ten numbered steps and hide choreography with `"guide": false`.
 3. **Check.** `npx tsx cli.ts check <dir>` validates the schema and timing statically, then replays the timeline in a headless browser and probes every target right before its step (missing, hidden, 0x0, clipped, off-screen). Fix errors; read the warnings.
 4. **Build.** `npx tsx cli.ts build <dir>` writes `<dir>/animated.html`, a self-playing page with the cursor, spotlight, ripple, camera and subtitles injected, for humans to open in a browser (run `build` again after editing `index.html`; it is a generated file, not tracked). `export` does not read it: with an `anim.config.json` present it always records `index.html` with the runtime injected, so the video can never disagree with `check`/`preview`.
 5. **Preview and iterate.** `npx tsx cli.ts preview <dir>` writes `<dir>/preview.png`, one labelled frame per step (`--step N` writes a single full-size `preview-step-N.png`). **Read the PNG** with your image tool, fix the timeline (a badly placed camera, a subtitle that overlaps, a step that fires too early), and repeat 3 to 5 until the frames look right.
@@ -62,6 +62,7 @@ Object form (a bare array of steps is still accepted):
 | `resetFocusStyles` | Before each step, reset every `.input` and `button` in the page to fixed light colours (border `#E2E8F0`, no shadow, `#FAFAFA` background, `#3B82F6` for `.btn-primary`): a crutch for mockups built with those classes, not a general focus-outline reset. |
 | `drift` | Slight page drift while the cursor glides (default on for mockups; off on live pages, where a transformed `<body>` can break a real app's fixed layout, unless `"drift": true`). |
 | `voice` | `{ "openai": "alloy", "say": "Samantha" }` narration voices per engine. |
+| `reset` | Live pages: a shell command run before each pass over the app (the recording, then the `--guide` replay), e.g. `"npm run db:seed"` or `"curl -X POST http://localhost:3000/api/test/reset"`. It runs in the shell, in the CLI's working directory, so a timeline is executable content: read `meta.reset` before running `record`/`guide`/`check --live` on a directory you did not write. `--reset-cmd` overrides it. See [Live pages](#live-pages). |
 
 ### Steps
 
@@ -72,15 +73,16 @@ Object form (a bare array of steps is still accepted):
 | `action` | See the table below. |
 | `target` | CSS selector. Required for click, focus, type, highlight, hover, scroll, fadeIn, transitionScreen. A 0x0 target (an empty caret span) is spotlighted through its sized ancestor. |
 | `value` | Text for `type` (typed at `cps` characters per second, default 25) or the key for `press` (`Enter`, `Tab`, `Control+K`). |
-| `title` | Step heading in the guide and the chapter name in the MP4. |
+| `title` | Step heading in the guide and the chapter name in the MP4. Every numbered guide step needs one: `check` warns, and `guide` / `export --guide` / `record --guide` refuse without it (the fallback verbs are English and would leak into a localized guide). Hide choreography steps with `"guide": false` instead. |
 | `subtitle` | Shown in the video's subtitle bar from `time` until the next subtitle (held at most 4 s, at least 1 s) and written to the `.vtt`; also the narration text when `narration` is absent. `null` clears the bar. |
 | `narration` | Text spoken at `time` with `--narration` (mixed into the MP4). |
 | `note` | Extra sentence under the step in the guide. |
 | `translatable` | `true` when `value` is user-visible text that must be translated (it becomes a string key). |
 | `crop` | Guide crop padding in px for this step, or `false` for the full frame only. |
 | `guide` | `false` hides the step from the guide (it still runs in the video). |
-| `captureAt` | Override the guide/preview frame moment: `"interaction"` or `"completion"`. |
+| `captureAt` | Override the guide/preview frame moment: `"interaction"` or `"completion"`. On a `type` step driven from the CLI both show the full text: the driver types through the keyboard and the step's interaction is only over once the last character has landed. |
 | `waitFor` | Live pages: a selector to wait for (visible) or a number of ms before the cursor moves; the delay shifts the rest of the timeline. |
+| `waitForTimeoutMs` | Live pages: how long a `waitFor` selector may wait before giving up (default 15000). A timeout is reported as a warning naming the step, not as a slow load; `record --fail-fast` abandons the recording at the first one. |
 | `url` | `navigate` (live pages): the page to open. |
 | `scale`, `x`, `y`, `xOffset`, `yOffset` | `camera`: zoom factor (default 1, a pan without zoom; 1.3 is a typical push-in) and framing; `x`/`y` centre the camera on a point instead of a target, `xOffset`/`yOffset` nudge the framing. |
 | `duration` | Seconds. `camera`: length of the pan (default 2.5). `fadeIn`/`transitionScreen`: length of the fade (default: the element's own CSS transition, else 0.8 s). |
@@ -91,7 +93,7 @@ Object form (a bare array of steps is still accepted):
 |---|---|---|
 | `click` | Cursor travels, spotlight, press, ripple, real `el.click()` so the page's own handlers run. | At the interaction (+300 ms settle), spotlight held; a click that hides its own target (a screen swap, a navigation) is captured just before the click instead, and records `capturedAt: "arrival"`. |
 | `focus` | Cursor travels, spotlight, `el.focus()`. | Interaction. |
-| `type` | Cursor travels, focuses, types `value` character by character (inputs, textareas, contenteditable, plain elements with a caret). | Completion (full text visible). |
+| `type` | Cursor travels, focuses, types `value` character by character. Under `check`/`preview`/`export`/`record`/`guide` the driver types inputs, textareas and contenteditable through the real keyboard (`page.keyboard`), so the app's own key handlers and framework value trackers (React's controlled inputs) see genuine events; plain elements with a caret, and a self-playing `animated.html`, are typed by the page itself through the native value setter. | Completion (full text visible). |
 | `highlight` | Spotlight pulse without a click ("notice this"). | Interaction. |
 | `hover` | Cursor moves onto the element. | Interaction. |
 | `press` | Keyboard key from `value` (no target). | Interaction. |
@@ -207,8 +209,10 @@ Paths are relative to `outputDir`. `status` is `ok`, `failed` (with `error`) or 
 - `waitFor` on a step waits for a selector (or ms) after a navigation or an async load before the cursor moves; the wait shifts the rest of the timeline and the recording length.
 - `navigate` opens a URL; a click that navigates (form submit, link) is detected and the runtime is re-injected on the new page.
 - Sign in once and reuse the session: `npx playwright codegen --save-storage auth.json https://app.local/login`, then `--storage-state auth.json` (never put credentials in the timeline). `--ignore-https-errors` accepts local self-signed certificates.
-- `npx tsx cli.ts check <dir> --live` validates the timeline without a page (it reports a "static, live timeline" check: there is no browser pass, because the targets live in the app). `record` does not stop at a missing target: it records the whole timeline, lists the failed steps at the end and exits 1 (`--force` turns that into a warning), so one broken selector costs one recording, not a partial video.
-- `record <dir> --url <url> --storage-state auth.json -o demo.mp4 --guide` records, then replays the timeline in step mode on the live page to capture the guide frames. A page that already defines `window.__anim` is refused.
+- `npx tsx cli.ts check <dir> --live --url <url> --storage-state auth.json` is the cheap half of the loop: it opens the page like `record` does and replays the timeline in step mode, probing every target right before its step (after that step's `waitFor`), so a typo'd selector costs seconds instead of a recording. **The interactions run for real** -- it is a pass over the app, saves included, so it needs the same reset as any other pass. That is why the probe requires an explicit `--url`: a bare `--live` is the schema-only pass it has always been, even when `meta.url` is set. Unmatched `waitFor` selectors give up after 5 s here rather than the recording's 15 s. `record` does not stop at a missing target: it records the whole timeline, lists the failed steps at the end and exits 1 (`--force` turns that into a warning), so one broken selector costs one recording, not a partial video.
+- `record <dir> --url <url> --storage-state auth.json -o demo.mp4 --guide` records, then **re-navigates and replays the whole timeline a second time** in step mode to capture the guide frames. A page that already defines `window.__anim` is refused.
+- **A timeline that writes data is not idempotent.** On the guide replay the data is already saved, so a "Save" button that only enables with unsaved changes stays disabled and every later step fails; the error names the selector (`waitFor …: not found`), but the selector is fine. `record` says so when a step succeeded in the recording and failed on the replay. Put the app back into its starting state before each pass with `meta.reset` or `--reset-cmd "<shell command>"` (a seed script, a test-only reset endpoint); without a reset, run `record` without `--guide`, reset the app, then `guide <dir> --url <url> --storage-state auth.json` separately.
+- A `waitFor` that never appears waits `waitForTimeoutMs` (default 15 s) and is reported as a **warning naming the step**, separately from the info line about real load shifts; the steps after it probably ran against the wrong page state. Lower the timeout per step, or pass `--fail-fast` to abandon the recording (exit 1, no video) at the first timeout instead of producing a video nobody will use.
 
 ## The manifest: what was done
 
@@ -223,7 +227,7 @@ Every command appends an event to `<dir>/anim.manifest.json` (paths relative to 
     { "command": "export", "timestamp": "…", "output": "demo-fr.mp4", "duration": 14.2, "device": "desktop", "theme": "light", "locale": "fr",
       "narration": true, "subtitles": "demo-fr.vtt", "chapters": 5, "clips": [], "guide": "guide", "contentHash": "sha256:…", "driven": true,
       "steps": [{ "index": 2, "id": "open", "actualMs": 2004, "completedMs": 2004 }] },
-    { "command": "record", "timestamp": "…", "url": "https://app.local/save", "storageState": "../../auth.json", "navigations": 1, "shiftMs": 1027, "output": "save.mp4", "duration": 15.2,
+    { "command": "record", "timestamp": "…", "url": "https://app.local/save", "storageState": "../../auth.json", "navigations": 1, "shiftMs": 1027, "reset": true, "output": "save.mp4", "duration": 15.2,
       "steps": [{ "index": 4, "id": "items", "actualMs": 4228, "completedMs": 4228, "waitedMs": 1813 }] },
     { "command": "build-all", "timestamp": "…", "catalog": "../../help.catalog.json", "locale": "fr", "output": "../../help-out/draft-proposal-response/fr", "contentHash": "…", "buildKey": "…", "stale": false, "builtAt": "…" }
   ] }
@@ -240,7 +244,7 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 - Layout: `cli.ts` (commander, `buildProgram()`), `src/engine/` (`schema.ts` parsing/validation, `runtime.js` the in-page engine, `inject.ts` builds `animated.html`, `driver.ts` drives a Playwright page), `src/commands/`, `src/guide/` (capture, render, diff), `src/media/` (ffmpeg, tts, vtt, chapters, contact sheet), `src/catalog.ts`, `src/manifest.ts`, `src/browser.ts`.
 - `runtime.js` is plain browser JavaScript injected as text (no imports, must tolerate document-start injection). The timing constants at the top of `schema.ts` are mirrored as literals there and `test/constants.test.ts` asserts they stay equal.
 - **Rule for `page.evaluate` callbacks:** no inner functions inside the callback. `tsx`/esbuild adds a `__name` helper that does not exist in the page, so the callback throws silently. Put helpers in `runtime.js` and call them by name (`__anim.markStep(...)`).
-- Tests: `npm test` (`node:test` through `tsx`, serial: `--test-concurrency=1`, about 10 minutes with the browser tests; `SKIP_BROWSER=1` skips them, `SKIP_TTS=1` skips the macOS `say` narration test). `ANIM_DEBUG=1` makes `check` print every target probe and `export` print page/context close timings and trim details on stderr. Fixtures: `test/fixtures/basic/` (a mockup with every action) and `test/fixtures/live-app/server.ts` (a login/dashboard app for `record`).
+- Tests: `npm test` (`node:test` through `tsx`, serial: `--test-concurrency=1`, about 10 minutes with the browser tests; `SKIP_BROWSER=1` skips them, `SKIP_TTS=1` skips the macOS `say` narration test). `ANIM_DEBUG=1` makes `check` print every target probe and `export` print page/context close timings and trim details on stderr. Fixtures: `test/fixtures/basic/` (a mockup with every action), `test/fixtures/controlled/` (a React-style controlled input with a value tracker; served by the live app at `/controlled`) and `test/fixtures/live-app/server.ts` (a login/dashboard app for `record`, plus `/once`, a Save that works once per process, for the reset-hook checks).
 - Docs: `npm run docs` regenerates the CLI reference block below (and in README.md) from `cli.ts`; `npm run docs:check` and `test/docs.test.ts` fail when it is stale.
 - CI: `.github/workflows/test.yml` runs `npm run docs:check`, `tsc --noEmit` and the suite on Ubuntu with a cached Chromium, about 12 to 15 minutes. It needs no secrets.
 
@@ -345,7 +349,12 @@ Validate anim.config.json: schema, timing, strings, and (unless --static/--live)
 | Option | Description |
 |---|---|
 | `--static` | Schema and timing checks only, no browser |
-| `--live` | Validate a timeline meant for `record` (live page): navigate/waitFor allowed, no index.html needed, no browser probe |
+| `--live` | Validate a timeline meant for `record` (live page): navigate/waitFor allowed, no index.html needed; add --url to also probe every target against the page |
+| `--url <url>` | With --live: probe every target against this page. The timeline is replayed for real (clicks, keystrokes and saves happen), so reset the app first when it writes data |
+| `--storage-state <file>` | Live probe: Playwright storage state (cookies/localStorage) |
+| `--ignore-https-errors` | Live probe: accept self-signed certificates |
+| `--reset-cmd <command>` | Live probe: shell command run before the pass (default: meta.reset) |
+| `--guide` | Validate as a guide: a numbered step without a "title" is an error, not a warning |
 | `--json` | Print the issues as JSON on stdout |
 | `--locale <code>` | Locale code (e.g. en, fr) |
 | `-w, --width <pixels>` | Viewport width for the browser pass |
@@ -430,6 +439,8 @@ Record the timeline against a live page (URL) instead of a local mockup: real na
 | `--url <url>` | Page to open (default: meta.url in anim.config.json) |
 | `--storage-state <file>` | Playwright storage state (cookies/localStorage), e.g. from `npx playwright codegen --save-storage auth.json` |
 | `--ignore-https-errors` | Accept self-signed certificates (mkcert-style local HTTPS) |
+| `--reset-cmd <command>` | Shell command run before each pass over the app (the recording, then the --guide replay); overrides meta.reset |
+| `--fail-fast` | Abandon the recording at the first waitFor timeout instead of recording the rest against the wrong page state |
 | `-o, --output <file>` | Output video file path (.mp4 or .gif) (default: `output.mp4`) |
 | `-d, --duration <seconds>` | Override the recording length in seconds (default: computed from the timeline) |
 | `-w, --width <pixels>` | Width of the recorded video in pixels |
@@ -472,6 +483,7 @@ Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) fro
 | `--url <url>` | After a `record`: replay against this URL instead of the one in the manifest |
 | `--storage-state <file>` | After a `record`: storage state for the live replay (default: the one the record used) |
 | `--ignore-https-errors` | Accept self-signed certificates on the live replay |
+| `--reset-cmd <command>` | After a `record`: shell command run before the live replay (default: meta.reset) |
 | `--locale <code>` | Locale code (e.g. en, fr) |
 | `--force` | Capture even if the timeline has validation errors; step failures then do not fail the command |
 | `-w, --width <pixels>` | Viewport width in pixels |

@@ -1,4 +1,6 @@
 import * as http from 'http';
+import * as fs from 'fs';
+import * as path from 'path';
 import { AddressInfo } from 'net';
 
 /**
@@ -11,6 +13,9 @@ import { AddressInfo } from 'net';
  *   GET  /flash        white page; the button turns the background red (frame alignment checks)
  *   GET  /hang-link    page with a link to /hang, which never responds (navigation timeout checks)
  *   GET  /own-anim     page that defines its own window.__anim (foreign runtime detection)
+ *   GET  /controlled   the React-style controlled input from test/fixtures/controlled (value tracker)
+ *   GET  /once         a Save button that works once per server process (a non-idempotent step);
+ *                      POST /once/save marks it used, GET /once/reset clears it (reset-hook checks)
  * Every response is delayed by `respDelayMs` (server latency simulation). Targets use data-help="...".
  */
 export interface LiveApp { url: string; port: number; close: () => Promise<void>; hits: string[] }
@@ -34,6 +39,8 @@ export function startLiveApp(opts: { listDelayMs?: number; respDelayMs?: number 
     const listDelayMs = opts.listDelayMs ?? 600;
     const respDelayMs = opts.respDelayMs ?? 0;
     const hits: string[] = [];
+    let onceSaved = false;
+    const controlledHtml = fs.readFileSync(path.join(__dirname, '..', 'controlled', 'index.html'), 'utf8');
     const server = http.createServer((req, res) => {
         const url = new URL(req.url || '/', 'http://x');
         hits.push(`${req.method} ${url.pathname}`);
@@ -81,6 +88,22 @@ export function startLiveApp(opts: { listDelayMs?: number; respDelayMs?: number 
         }
         if (url.pathname === '/hang-link') {
             send(200, page('Hang', `<main><h1>Somewhere</h1><a data-help="go-hang" href="/hang">A link that never loads</a></main>`));
+            return;
+        }
+        if (url.pathname === '/controlled') { send(200, controlledHtml); return; }
+        if (url.pathname === '/once/reset') { onceSaved = false; send(200, page('Reset', '<main><p data-help="reset-done">reset</p></main>')); return; }
+        if (req.method === 'POST' && url.pathname === '/once/save') { onceSaved = true; send(200, '<p>saved</p>'); return; }
+        if (url.pathname === '/once') {
+            // Like an app whose "Save" only enables when there are unsaved changes: the first pass
+            // saves, the second (a guide replay) finds nothing to save and the button disabled.
+            send(200, page('Once', `<main><h1>Draft</h1><button data-help="save" class="primary" ${onceSaved ? 'disabled' : ''}>Save</button><p data-help="hint">${onceSaved ? 'Nothing to save.' : 'Unsaved changes.'}</p></main>`, `
+  document.querySelector('[data-help="save"]').addEventListener('click', function () {
+    var b = this; if (b.disabled) return;
+    fetch('/once/save', { method: 'POST' }).then(function () {
+      b.disabled = true;
+      var p = document.createElement('p'); p.setAttribute('data-help', 'saved'); p.textContent = 'Saved.'; document.querySelector('main').appendChild(p);
+    });
+  });`));
             return;
         }
         if (url.pathname === '/own-anim') {

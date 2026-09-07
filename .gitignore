@@ -26,3 +26,6 @@ demo/**/animated.html
 
 # build-all outputs
 /help-out/
+
+# Playwright storage state (session cookies) — never commit
+auth.json

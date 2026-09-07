@@ -13,6 +13,7 @@ import { cutClip, probeDurationMs } from '../media/ffmpeg';
 import { NarrationClip, narrationOf } from '../media/tts';
 import { hashGuideDir, toolVersion, relPosix, toPosix } from '../catalog';
 import { readManifest, recordEvent } from '../manifest';
+import { runResetCommand } from '../reset';
 
 export interface GuideOptions extends ViewportOptions {
     output?: string;
@@ -26,6 +27,8 @@ export interface GuideOptions extends ViewportOptions {
     url?: string;
     storageState?: string;
     ignoreHttpsErrors?: boolean;
+    /** Live replay: shell command run before the pass (default meta.reset). */
+    resetCmd?: string;
 }
 
 /** What the guide knows about the master video (from this export, or the manifest's last driven export). */
@@ -207,7 +210,7 @@ export async function buildGuide(browser: Browser, dir: string, timeline: Timeli
 export async function guideCommand(dir: string, options: GuideOptions = {}): Promise<void> {
     try {
         const timeline = loadTimeline(dir, { locale: options.locale });
-        const issues = validateTimeline(timeline);
+        const issues = validateTimeline(timeline, { guide: true, live: !!videoFromManifest(dir)?.url });
         for (const issue of issues) console.error(formatIssue(issue));
         if (hasErrors(issues) && !options.force) throw new Error('fix the validation errors above or pass --force');
         const crop = resolveCrop(options.crop);
@@ -228,6 +231,8 @@ export async function guideCommand(dir: string, options: GuideOptions = {}): Pro
                 storageState, live: { boot: bootOptions(timeline, { drift: timeline.meta.drift === true }, false) }, ignoreHttpsErrors: options.ignoreHttpsErrors,
             };
         }
+        // A live replay is a fresh pass over the app: reset it first when the timeline asks for it.
+        if (session) runResetCommand(options.resetCmd ?? timeline.meta.reset, 'guide replay');
         const launched = await launchPage({ ...options, driven: true });
         let result;
         try {

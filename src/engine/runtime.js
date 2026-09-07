@@ -68,6 +68,7 @@
     intervals: [],
     completions: {},
     holds: {},
+    driverTyping: {},
     nextToken: 1
   };
 
@@ -420,10 +421,32 @@
   }
 
   function isField(el) { return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'; }
+  // Input types a keyboard can actually fill character by character. A date/time/color/range/file
+  // input ignores typed text (its value has to be assigned), and a disabled or readonly field never
+  // receives the keystrokes at all: those keep the in-page typist, which is correct for frameworks
+  // too now that setTyped goes through the native setter.
+  var KEYBOARD_INPUT_TYPES = { text: 1, search: 1, url: 1, tel: 1, email: 1, password: 1, number: 1 };
+  function isKeyboardTypable(el) {
+    if (el.disabled || el.readOnly) return false;
+    if (el.tagName === 'TEXTAREA') return true;
+    if (el.tagName === 'INPUT') return KEYBOARD_INPUT_TYPES[String(el.type || 'text').toLowerCase()] === 1;
+    // The editable host itself, not a caret span that merely inherits editability from an ancestor.
+    return el.contentEditable === 'true' || el.contentEditable === 'plaintext-only';
+  }
+  function typedTextOf(el) { return isField(el) ? String(el.value) : String(el.textContent); }
   // Always assign the whole prefix: `innerText += ' '` loses the trailing space (innerText reads
   // back collapsed whitespace), so typing "a b" char by char would render as "ab".
+  // React & co. keep a value tracker on the node and ignore an `input` event whose value matches what
+  // the tracker last saw. `el.value = text` runs the tracker's own setter, so it records the new value
+  // and the framework never sees a change (a controlled input stays empty, its submit button disabled).
+  // Assigning through the prototype's native setter leaves the tracker stale, so the event lands.
+  function nativeSetValue(el, text) {
+    var proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement : window.HTMLInputElement;
+    var desc = proto && Object.getOwnPropertyDescriptor(proto.prototype, 'value');
+    if (desc && desc.set) desc.set.call(el, text); else el.value = text;
+  }
   function setTyped(el, text) {
-    if (isField(el)) el.value = text; else el.textContent = text;
+    if (isField(el)) nativeSetValue(el, text); else el.textContent = text;
     el.dispatchEvent(new Event('input', { bubbles: true }));
   }
   // `onProgress` (every 5 chars and at the end) lets the caller re-position the spotlight as the content grows.
@@ -727,11 +750,24 @@
             if (state.opts.resetFocusStyles) resetFocusStyles();
             el.focus();
             focusStyle(el);
-            done = typeInto(el, step.value, step.cps, instant, function () {
-              // A 0x0 caret span gains a line box once text lands; keep it in view and track the spotlight.
-              if (isClipped(el)) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-              positionHighlight(spotEl);
-            });
+            if (o.driverTypes && isKeyboardTypable(el)) {
+              // A Node driver is attached and the target really takes keyboard input: the driver types
+              // through the real keyboard (page.keyboard.type), so the app's own keydown/input handlers
+              // and any framework value tracker see genuine events. The page only clears the field,
+              // keeps the spotlight tracking the text (typingProgress) and completes when the driver
+              // says so, answering with what the field ended up holding.
+              setTyped(el, '');
+              result.typing = 'driver';
+              done = new Promise(function (res) {
+                state.driverTyping[token] = { resolve: res, el: el, spotEl: spotEl };
+              });
+            } else {
+              done = typeInto(el, step.value, step.cps, instant, function () {
+                // A 0x0 caret span gains a line box once text lands; keep it in view and track the spotlight.
+                if (isClipped(el)) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                positionHighlight(spotEl);
+              });
+            }
             break;
           case 'hover':
             el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
@@ -776,6 +812,27 @@
       state.completions[token] = completion;
       resolve(result);
     }
+  }
+
+  /** Driver-side typing (runStep returned typing: 'driver'): re-track the spotlight as the text grows. */
+  function typingProgress(token) {
+    var t = state.driverTyping[token];
+    if (!t) return false;
+    if (isClipped(t.el)) t.el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    positionHighlight(t.spotEl);
+    return true;
+  }
+  /**
+   * Driver-side typing finished: the step completes now (whenDone(token) resolves with this moment).
+   * Returns the text the field ended up holding, so the driver can tell "typed" from "went nowhere".
+   */
+  function typingDone(token) {
+    var t = state.driverTyping[token];
+    if (!t) return null;
+    typingProgress(token); // one last reposition, while the entry still exists
+    delete state.driverTyping[token];
+    t.resolve();
+    return typedTextOf(t.el);
   }
 
   /** Second phase of a runStep(step, {holdBeforeAct: true}): perform the interaction now. */
@@ -882,6 +939,8 @@
     runStep: runStep,
     act: act,
     whenDone: whenDone,
+    typingProgress: typingProgress,
+    typingDone: typingDone,
     whenIdle: whenIdle,
     whenSettled: whenSettled,
     now: now,

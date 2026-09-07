@@ -172,9 +172,12 @@ export async function buildAllCommand(catalogFile: string | undefined, options: 
         if (settings.width) viewport.push('--width', String(settings.width));
         if (settings.height) viewport.push('--height', String(settings.height));
         if (settings.theme) viewport.push('--theme', settings.theme);
-        // Record guides have no local page: check validates the live timeline (no probe), build is skipped.
+        // Record guides have no local page: check validates the live timeline statically (--static is
+        // belt and braces, since --live without --url is already static: the probe would replay the
+        // timeline against the app once more, and `record` does that anyway), build is skipped.
+        // With a guide among the outputs, a numbered step without a title fails here, not after the recording.
         const plan: string[][] = [
-            ['check', srcDir, '--locale', locale, ...(guide.record ? ['--live'] : viewport)],
+            ['check', srcDir, '--locale', locale, ...(guide.record ? ['--live', '--static'] : viewport), ...(outputs.includes('guide') ? ['--guide'] : [])],
             ...(guide.record ? [] : [['build', srcDir, '--locale', locale]]),
         ];
         const produce: string[] = guide.record

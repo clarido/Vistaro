@@ -447,3 +447,80 @@ test('camera carries the spotlight too: the ring frames the element\'s transform
         `the camera moved #btn far enough for this to be a real check: ${JSON.stringify({ target, untransformed })}`);
     await context.close();
 });
+
+// --- React-style controlled inputs (a framework value tracker) -------------------------------
+
+const controlled = path.join(__dirname, 'fixtures', 'controlled');
+
+test('self-playing page types into a React-style controlled input: the framework sees the change (native setter, not el.value)', { skip }, async () => {
+    // The fixture installs React's value tracker: an own `value` accessor on the input whose setter
+    // records the assignment, and an input listener that only fires onChange when the DOM value
+    // differs from the tracked one. `el.value = text` therefore never enables the Add button.
+    fs.cpSync(controlled, path.join(work, 'controlled'), { recursive: true });
+    const r = cli(['build', path.join(work, 'controlled')]);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(work, 'controlled', 'animated.html')));
+    // No driver attached: the page's own typist (setTyped) runs. It must go through the prototype's
+    // native setter so the tracker is left stale and the input event is seen as a change.
+    await page.waitForFunction(() => (document.getElementById('tag') as HTMLInputElement).value === 'urgent', null, { timeout: 5000 });
+    assert.equal(await page.evaluate(() => (document.getElementById('add') as HTMLButtonElement).disabled), false, 'the framework saw the typed value and enabled Add');
+    await page.waitForFunction(() => document.querySelectorAll('#tags li').length === 1, null, { timeout: 5000 });
+    assert.equal(await page.textContent('#tags li'), 'urgent');
+    await context.close();
+});
+
+test('with a driver attached, `type` goes through the real keyboard: keydown events, framework onChange, progress and completion still measured', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(controlled, 'index.html')));
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(controlled, 'anim.config.json'), 'utf8')));
+    await ensureRuntime(page, tl, { drift: false });
+    const enabledAfterTyping: boolean[] = [];
+    const results = await runTimeline(page, tl, {
+        mode: 'step', settleMs: 0, afterStepAt: 'completion',
+        afterStep: async (step) => { if (step.action === 'type') enabledAfterTyping.push(!(await page.evaluate(() => (document.getElementById('add') as HTMLButtonElement).disabled))); },
+    });
+    assert.equal(results[0].error, undefined, results[0].error);
+    assert.equal(results[0].typing, 'driver', 'the driver typed, not the page');
+    assert.equal(await page.textContent('#keys'), '6', 'one keydown per character reached the app');
+    assert.deepEqual(enabledAfterTyping, [true], 'the framework saw the typed value and enabled Add (the click then adds the tag and disables it again)');
+    assert.ok(Number.isFinite(results[0].actualMs) && Number.isFinite(results[0].completedMs!), 'actualMs and completedMs measured');
+    const typedFor = results[0].completedMs! - results[0].actualMs;
+    assert.ok(typedFor >= 6 * 40 - 60 && typedFor < 2000, `typing 6 chars at 25cps took ${typedFor}ms`);
+    // the spotlight was re-tracked and the click step then found an enabled button
+    assert.equal(results[1].error, undefined, results[1].error);
+    assert.equal(await page.textContent('#tags li'), 'urgent');
+    // a plain element (no keyboard input) keeps the in-page typist
+    const tl2 = parseTimeline([{ time: 0, action: 'type', target: '[data-help="title"]', value: 'Labels', title: 'Rename' }]);
+    const r2 = await runTimeline(page, tl2, { mode: 'step', settleMs: 0, instant: true });
+    assert.equal(r2[0].typing, undefined);
+    assert.equal(await page.textContent('[data-help="title"]'), 'Labels');
+    await context.close();
+});
+
+test('driver typing only claims fields the keyboard can fill: a date input and a readonly one keep the in-page path', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.setContent('<body><input id="d" type="date"><input id="ro" readonly><textarea id="t"></textarea></body>');
+    const tl = parseTimeline([
+        { time: 0, action: 'type', target: '#d', value: '2026-03-04', title: 'Date' },
+        { time: 0.2, action: 'type', target: '#ro', value: 'fixed', title: 'Readonly' },
+        { time: 0.4, action: 'type', target: '#t', value: 'free text', title: 'Textarea' },
+    ]);
+    await ensureRuntime(page, tl, { drift: false });
+    const results = await runTimeline(page, tl, { mode: 'step', settleMs: 0, instant: true });
+    for (const r of results) assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
+    // page.keyboard.type() cannot fill a date input and never reaches a readonly one: both would end
+    // up empty, so they keep the in-page typist (correct for frameworks too, via the native setter).
+    assert.equal(results[0].typing, undefined, 'date input filled in the page');
+    assert.equal(results[1].typing, undefined, 'readonly input filled in the page');
+    assert.equal(results[2].typing, 'driver', 'textarea typed on the real keyboard');
+    assert.equal(await page.inputValue('#d'), '2026-03-04');
+    assert.equal(await page.inputValue('#ro'), 'fixed');
+    assert.equal(await page.inputValue('#t'), 'free text');
+    await context.close();
+});

@@ -11,6 +11,7 @@ import { buildGuide, resolveCrop, VideoInfo } from './guide';
 import { hashGuideDir, relPosix, displayPath } from '../catalog';
 import { subtitleCues, buildVtt } from '../media/vtt';
 import { chaptersFor, ffmetadata } from '../media/chapters';
+import { runResetCommand } from '../reset';
 
 export interface ExportOptions extends ViewportOptions {
     /** Seconds; overrides the computed timeline length. Required when there is no anim.config.json (default 5). */
@@ -33,6 +34,10 @@ export interface ExportOptions extends ViewportOptions {
     hideCursor?: boolean;
     /** Accept self-signed certificates on live pages. */
     ignoreHttpsErrors?: boolean;
+    /** Live pages: shell command run before each pass (recording, guide replay); overrides meta.reset. */
+    resetCmd?: string;
+    /** Live pages: abandon the recording at the first `waitFor` timeout. */
+    failFast?: boolean;
 }
 
 /** A live page instead of a local file: the runtime is injected at document start and navigations are survived. */
@@ -129,7 +134,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     if (session && !fs.existsSync(path.resolve(outputDir, 'anim.config.json'))) throw new Error(`anim.config.json not found in ${outputDir} (record needs a timeline)`);
     if (fs.existsSync(path.resolve(outputDir, 'anim.config.json'))) {
         timeline = session?.timeline ?? loadTimeline(outputDir, { locale: options.locale });
-        const issues = validateTimeline(timeline, { live: !!session });
+        const issues = validateTimeline(timeline, { live: !!session, guide: !!options.guide });
         for (const issue of issues) console.error(formatIssue(issue));
         if (hasErrors(issues)) {
             if (!options.force) throw new Error(`${issues.filter(i => i.level === 'error').length} validation error(s) in anim.config.json (use --force to export anyway)`);
@@ -177,6 +182,8 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         if (options.voice) { if (engine === 'openai') voice.openai = options.voice; else voice.say = options.voice; }
     }
 
+    const resetCmd = session ? (options.resetCmd ?? timeline?.meta.reset) : undefined;
+    if (resetCmd) runResetCommand(resetCmd, 'recording');
     console.log(`Starting video ${session ? 'recording' : 'export'}. Duration: ${formatTime(durationMs)}. Device: ${options.device || 'desktop'}.`);
     // __ANIM_DRIVEN only when the Node driver runs the timeline; a built page without a config self-plays.
     // Live pages get the runtime at document start (survives navigations) and the auth storage state.
@@ -225,14 +232,23 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             if (!session) firstPaintWall = await readFirstPaint(page);
             const transformed = await page.evaluate(() => getComputedStyle(document.documentElement).transform !== 'none').catch(() => false);
             if (transformed) console.error('warning  the page transforms <html>; cursor/highlight overlays are positioned on <html> and will be offset (known limitation)');
-            results = await runTimeline(page, timeline!, { mode: 'timed', live, state: runState });
+            results = await runTimeline(page, timeline!, { mode: 'timed', live, state: runState, failFast: !!options.failFast && !!live });
             t0Wall = runState.t0Wall;
             if (runState.navigations) console.log(`Survived ${runState.navigations} navigation${runState.navigations > 1 ? 's' : ''}; runtime re-booted each time.`);
-            // waitFor delays pushed every later step: the recording must be that much longer too.
-            if (runState.shiftMs > 0) {
-                durationMs += runState.shiftMs;
-                console.log(`waitFor delays shifted the timeline by ${runState.shiftMs}ms; recording ${formatTime(durationMs)} instead of ${formatTime(durationMs - runState.shiftMs)}.`);
+            // waitFor delays pushed every later step: the recording must be that much longer too. A
+            // slow load and a timed-out waitFor stretch it the same way but mean different things, and
+            // a timeout the gap to the next step absorbs stretches nothing at all -- which is exactly
+            // when it is easiest to miss, so it is reported on its own.
+            if (runState.shiftMs > 0) durationMs += runState.shiftMs;
+            const timedOutSteps = runState.timedOutSteps ?? [];
+            const timeoutShift = runState.timeoutShiftMs ?? 0;
+            if (timedOutSteps.length) {
+                const which = timedOutSteps.map(i => { const r = results.find(x => x.index === i); return `step ${i}${r ? ` (${r.action}${r.target ? ' ' + r.target : ''}, waited ${r.waitedMs}ms)` : ''}`; }).join(', ');
+                console.error(`warning  waitFor timed out on ${which}: the steps after it probably ran against the wrong page state (fix the selector, lower "waitForTimeoutMs", or use --fail-fast).${timeoutShift > 0 ? ` ${timeoutShift}ms of the recording is that timeout, not a real load.` : ''}`);
             }
+            const genuineShift = runState.shiftMs - timeoutShift;
+            if (genuineShift > 0) console.log(`waitFor delays shifted the timeline by ${genuineShift}ms; recording ${formatTime(durationMs)} instead of ${formatTime(durationMs - runState.shiftMs)}.`);
+            else if (runState.shiftMs > 0) console.log(`Recording ${formatTime(durationMs)} instead of ${formatTime(durationMs - runState.shiftMs)} because of the waitFor timeout(s) above.`);
             if (autoDuration) {
                 // Do not trust the static estimate alone: an element's own CSS transition (e.g. a 3s
                 // fade) is only known once measured, so hold until the last step really completed + tail.
@@ -377,6 +393,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             file: outputFile, durationMs, vtt: summary.vtt, narration: !!narrationClips && narrationClips.length > 0,
             actualMs: actual, narrationClips, clipFiles, navigated,
         };
+        if (resetCmd) runResetCommand(resetCmd, 'guide replay');
         console.log('Capturing guide frames...');
         const g = await buildGuide(launched.browser, outputDir, timeline!, {
             outDir: guideDir, crop: resolveCrop(options.crop), clips: options.clips, video, viewport: options,
@@ -386,6 +403,18 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         });
         summary.guide = g.json;
         summary.failedGuideSteps = g.capture.steps.filter(s => s.error).length;
+        if (session) {
+            // The guide pass is a second run of the same timeline against the same app. A step that
+            // succeeded in the recording and failed here almost always means the page state differs
+            // between the two passes (a step that saved data is not idempotent), not a bad selector.
+            const recorded = new Map(results.map(r => [r.index, r]));
+            for (const s of g.capture.steps) {
+                const first = recorded.get(s.index);
+                if (s.error && first && !first.error) {
+                    console.error(`warning  step ${s.index}${s.title ? ` (${s.title})` : ''} succeeded during the recording but failed on the guide replay (${s.error}): the page state likely differs between the two passes (a step that writes data is not idempotent). Reset the app between passes with meta.reset or --reset-cmd, or run \`record\` without --guide, reset, then \`guide --url … --storage-state …\`.`);
+                }
+            }
+        }
     }
 
     // Paths in the manifest are relative to the output directory (never absolute, never cwd-relative).
@@ -396,7 +425,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         duration: durationMs / 1000, output: relToDir(outputFile), device: options.device, theme: options.theme,
         voiceover: options.voiceover ? relToDir(path.resolve(options.voiceover)) : undefined, narration: !!options.narration, subtitles: summary.vtt ? path.basename(summary.vtt) : false,
         chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), locale: timeline?.locale ?? options.locale ?? timeline?.meta.locale,
-        driven, guide: guideDir ? relToDir(guideDir) : undefined, contentHash: driven ? hashGuideDir(outputDir) : undefined,
+        driven, guide: guideDir ? relToDir(guideDir) : undefined, contentHash: driven ? hashGuideDir(outputDir) : undefined, reset: resetCmd ? true : undefined,
         steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, navigated: r.navigated || undefined, waitedMs: r.waitedMs || undefined, error: r.error })),
     });
     return summary;

@@ -1,5 +1,5 @@
 import type { Page, Frame } from 'playwright';
-import { Step, Timeline, leadMsFor, DEFAULT_LEAD_MS, captureAtFor } from './schema';
+import { Step, Timeline, leadMsFor, DEFAULT_LEAD_MS, DEFAULT_CPS, captureAtFor } from './schema';
 import { runtimeSource, bootOptions, InjectOptions } from './inject';
 
 /**
@@ -58,8 +58,12 @@ export interface StepResult {
     navigated?: boolean;
     /** Live pages: ms spent in `waitFor` beyond the planned moment (shifted later steps). */
     waitedMs?: number;
+    /** Live pages: the step's `waitFor` gave up (timeout), so `waitedMs` is the timeout, not a real load. */
+    waitTimedOut?: boolean;
     /** Set when `afterStep` was called at the arrival (before the interaction). */
     capturedAt?: 'arrival';
+    /** `type`: the text was typed by the driver through the real keyboard (page.keyboard), not by the page. */
+    typing?: 'driver';
     error?: string;
 }
 
@@ -69,6 +73,11 @@ export interface RunState {
     t0Wall: number;
     /** Accumulated `waitFor` overrun: later steps are scheduled `shiftMs` later than written. */
     shiftMs: number;
+    /** The part of `shiftMs` burned by `waitFor` timeouts (not real loads); the steps that timed out. */
+    timeoutShiftMs?: number;
+    timedOutSteps?: number[];
+    /** Set when `failFast` abandoned the run (the reason); runTimeline then throws after draining. */
+    aborted?: string;
     /** Last cursor point, restored after a navigation. */
     lastPoint: { x: number; y: number } | null;
     /** Number of navigations survived. */
@@ -106,6 +115,8 @@ export interface RunOptions {
     afterStepAt?: 'interaction' | 'completion' | 'auto';
     /** Live page handling (record). */
     live?: LiveOptions;
+    /** Live pages: abandon the run at the first `waitFor` timeout instead of recording the rest against the wrong page state. */
+    failFast?: boolean;
     /** Filled by the driver; pass your own object to read t0Wall/shiftMs/lastPoint afterwards. */
     state?: RunState;
     /** Steps for which `afterStep` runs at the arrival (before the interaction), e.g. navigating clicks in a guide. */
@@ -222,6 +233,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
     const live = opts.live;
     const state: RunState = opts.state ?? { t0Wall: 0, shiftMs: 0, lastPoint: null, navigations: 0 };
     if (opts.state) { opts.state.shiftMs = 0; opts.state.navigations = 0; opts.state.needsReboot = false; opts.state.rebooting = undefined; }
+    state.timeoutShiftMs = 0; state.timedOutSteps = []; state.aborted = undefined;
     const results: StepResult[] = new Array(steps.length);
 
     // t0 on the page's clock (epoch ms), not Date.now() after the round trip: export trims the video
@@ -251,17 +263,19 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
                 if (rebooted && i > 0 && results[i - 1]) results[i - 1].navigated = true;
             } catch (e: any) { appendError(result, `re-boot after navigation: ${errorMessage(e)}`); return result; }
         }
-        if (opts.beforeStep) {
-            try { await opts.beforeStep(step); }
-            catch (e: any) { appendError(result, `beforeStep hook: ${errorMessage(e)}`); return result; }
-        }
         if (live && step.waitFor !== undefined && step.waitFor !== null) {
             const started = Date.now();
+            const timeout = typeof step.waitForTimeoutMs === 'number' && step.waitForTimeoutMs > 0 ? step.waitForTimeoutMs : (live.waitForTimeoutMs ?? 15000);
             try {
                 if (typeof step.waitFor === 'number') await page.waitForTimeout(step.waitFor);
-                else await page.waitForSelector(String(step.waitFor), { state: 'visible', timeout: live.waitForTimeoutMs ?? 15000 });
+                else await page.waitForSelector(String(step.waitFor), { state: 'visible', timeout });
             } catch (e: any) {
-                appendError(result, `waitFor ${JSON.stringify(step.waitFor)}: ${errorMessage(e)}`);
+                // A timeout is not a slow load: the target never appeared. Recorded here, where the
+                // fact is known, so it is reported even when the gap to the next step absorbs it and
+                // the recording is not stretched at all.
+                result.waitTimedOut = true;
+                state.timedOutSteps!.push(step.index);
+                appendError(result, `waitFor ${JSON.stringify(step.waitFor)}: not found within ${timeout}ms (${errorMessage(e).replace(/\s+/g, ' ').slice(0, 80)})`);
             }
             result.waitedMs = Date.now() - started;
         }
@@ -273,6 +287,12 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
                 const rebooted = await ensureLive(page, live, state);
                 if (rebooted && i > 0 && results[i - 1]) results[i - 1].navigated = true;
             } catch (e: any) { appendError(result, `re-boot after navigation: ${errorMessage(e)}`); }
+        }
+        // Last, so a hook that inspects the page (check's target probe) sees the state the step will
+        // really run against: after the re-boot and after the `waitFor` that exists to reveal the target.
+        if (opts.beforeStep) {
+            try { await opts.beforeStep(step); }
+            catch (e: any) { appendError(result, `beforeStep hook: ${errorMessage(e)}`); return result; }
         }
         return result;
     };
@@ -305,7 +325,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
         const evaluateStep = () => withTimeout(
             page.evaluate(
                 ([s, o]) => (window as any).__anim.runStep(s, o),
-                [step, { leadMs, instant: !!opts.instant, holdBeforeAct: twoPhase }] as [Step, { leadMs: number; instant: boolean; holdBeforeAct: boolean }],
+                [step, { leadMs, instant: !!opts.instant, holdBeforeAct: twoPhase, driverTypes: true }] as [Step, { leadMs: number; instant: boolean; holdBeforeAct: boolean; driverTypes: boolean }],
             ),
             stepTimeoutMs,
             label(step),
@@ -365,6 +385,40 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
         }
 
         // Driver-side actions at the interaction moment.
+        if (step.action === 'type' && result.typing === 'driver' && token !== undefined) {
+            // The page focused and cleared the field; type through the real keyboard so the app's
+            // keydown/input handlers (and any framework value tracker) see genuine events. The
+            // spotlight is re-tracked every few characters, like the in-page typist does.
+            const text = String(step.value ?? '');
+            const cps = typeof step.cps === 'number' && step.cps > 0 ? step.cps : DEFAULT_CPS;
+            const progress = () => page.evaluate((t) => (window as any).__anim.typingProgress(t), token).catch(() => {});
+            const typeAll = async () => {
+                if (opts.instant) { await page.keyboard.insertText(text); return; }
+                for (let at = 0; at < text.length; at += 5) {
+                    await page.keyboard.type(text.slice(at, at + 5), { delay: 1000 / cps });
+                    await progress();
+                }
+            };
+            let typed = true;
+            try {
+                // A page whose input handler blocks the main thread would hang keyboard.type, and with
+                // it the whole export: budget the keystrokes plus the usual per-step allowance.
+                await withTimeout(typeAll(), Math.round(text.length * (1000 / cps)) + stepTimeoutMs, `${label(step)} typing`);
+            } catch (e: any) {
+                typed = false;
+                if (!navigatedOk(e)) appendError(result, `keyboard.type: ${errorMessage(e)}`);
+            } finally {
+                // Always release the step, or whenDone(token) would wait for the completion timeout.
+                // typingDone answers with what the field actually holds now.
+                const landed: string | null = await page.evaluate((t) => (window as any).__anim.typingDone(t), token).catch(() => null);
+                // An empty field means the keystrokes never reached it (focus stolen by the app, a
+                // target the keyboard cannot fill). Deliberately not an equality check: input masks and
+                // framework formatters legitimately rewrite what was typed.
+                if (typed && !result.error && text !== '' && landed === '') {
+                    appendError(result, `typed ${JSON.stringify(text)} through the keyboard but ${step.target} is still empty (the app stole focus, or this field cannot be filled from the keyboard)`);
+                }
+            }
+        }
         if (step.action === 'press' && typeof step.value === 'string') {
             try { await page.keyboard.press(step.value); }
             catch (e: any) { appendError(result, `keyboard.press(${JSON.stringify(step.value)}): ${errorMessage(e)}`); }
@@ -456,7 +510,19 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
                 if (now + leadMs > plannedInteraction) {
                     leadMs = Math.max(MIN_LIVE_LEAD_MS, Math.round(plannedInteraction - now));
                     const late = Math.round(now + leadMs - plannedInteraction);
-                    if (late > 50) state.shiftMs += late;
+                    if (late > 50) {
+                        state.shiftMs += late;
+                        // How much of the stretch was a timeout rather than a real load (the steps
+                        // themselves are recorded in prepare, whether or not they stretched anything).
+                        if (result.waitTimedOut) state.timeoutShiftMs = (state.timeoutShiftMs ?? 0) + late;
+                    }
+                }
+                if (result.waitTimedOut && opts.failFast) {
+                    // The rest of the timeline would run against the wrong page state: stop scheduling,
+                    // let the steps already in flight finish, then fail the run.
+                    state.aborted = `${label(step)}: ${result.error}`;
+                    pending.push(fire(i, leadMs, result).catch((e) => { appendError(results[i], errorMessage(e)); }));
+                    break;
                 }
             }
             // fire() never rejects (hook and evaluate errors land in result.error), so an
@@ -464,6 +530,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
             pending.push(fire(i, leadMs, result).catch((e) => { appendError(results[i], errorMessage(e)); }));
         }
         await Promise.all(pending);
+        if (state.aborted) throw new Error(`fail-fast: ${state.aborted}; the recording was abandoned (the steps after it would have run against the wrong page state)`);
         return results;
     } finally {
         if (live) page.off('framenavigated', onNavigated);

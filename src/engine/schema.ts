@@ -69,6 +69,12 @@ export interface TimelineMeta {
     resetFocusStyles?: boolean;
     drift?: boolean;
     voice?: { openai?: string; say?: string };
+    /**
+     * Live pages: a shell command run before each pass over the page (the recording, then the guide
+     * replay) to put the app back into its starting state. A timeline that writes data is not
+     * idempotent, and `record --guide` replays it twice. `--reset-cmd` overrides it.
+     */
+    reset?: string;
     [key: string]: any;
 }
 
@@ -95,6 +101,8 @@ export interface Step {
     /** Guide/preview frame moment override: "interaction" or "completion" (default per action, see captureAtFor). */
     captureAt?: 'interaction' | 'completion';
     waitFor?: string | number;
+    /** Live pages: how long `waitFor` (a selector) may wait before giving up, in ms (default 15000). */
+    waitForTimeoutMs?: number;
     url?: string;
     cps?: number;
     /** camera: zoom factor (1 = none). */
@@ -330,8 +338,22 @@ export function issueFor(step: Step, level: Issue['level'], message: string, fie
     return { level, step: step.index, id: step.id, field, message, time: step.time, action: step.action, target: step.target };
 }
 
-/** Static validation. Errors make `build`/`check` fail; warnings are informational. `live`: validating for `record`. */
-export function validateTimeline(timeline: Timeline, opts: { live?: boolean } = {}): Issue[] {
+/** A step that gets a numbered entry in the guide: not hidden with `guide: false`, and not target-less choreography (wait/camera/scroll). */
+export function isGuideStep(step: Step): boolean {
+    if (step.guide === false) return false;
+    if (!step.target && (step.action === 'wait' || step.action === 'camera' || step.action === 'scroll')) return false;
+    return true;
+}
+
+/** Above this many numbered steps a guide is usually two guides (guide.html is one flat scroll of full-width frames). */
+export const GUIDE_STEPS_WARN_ABOVE = 10;
+
+/**
+ * Static validation. Errors make `build`/`check` fail; warnings are informational.
+ * `live`: validating for `record`. `guide`: a guide is being produced, so a numbered step without a
+ * `title` is an error (a heading-less step in a help document), not a warning.
+ */
+export function validateTimeline(timeline: Timeline, opts: { live?: boolean; guide?: boolean } = {}): Issue[] {
     const issues: Issue[] = [];
     const steps = timeline.steps;
     const seenIds = new Map<string, number>();
@@ -388,6 +410,16 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean } = 
         if (s.waitFor !== undefined && typeof s.waitFor !== 'string' && typeof s.waitFor !== 'number') {
             issues.push(issueFor(s, 'error', '"waitFor" must be a selector string or a number of milliseconds', 'waitFor'));
         }
+        if (s.waitForTimeoutMs !== undefined && (typeof s.waitForTimeoutMs !== 'number' || !(s.waitForTimeoutMs > 0))) {
+            issues.push(issueFor(s, 'error', '"waitForTimeoutMs" must be a positive number of milliseconds', 'waitForTimeoutMs'));
+        } else if (s.waitForTimeoutMs !== undefined && typeof s.waitFor !== 'string') {
+            issues.push(issueFor(s, 'warning', '"waitForTimeoutMs" only applies to a "waitFor" selector', 'waitForTimeoutMs'));
+        }
+        // A numbered step in a help document needs a heading; the English fallback verbs ("Click .btn")
+        // would leak into a localized guide.
+        if (isGuideStep(s) && (typeof s.title !== 'string' || !s.title.trim())) {
+            issues.push(issueFor(s, opts.guide ? 'error' : 'warning', `guide step has no "title" (a numbered step in the help guide needs a heading; set "guide": false to hide choreography steps)`, 'title'));
+        }
         if (s.scale !== undefined && (typeof s.scale !== 'number' || s.scale <= 0)) {
             issues.push(issueFor(s, 'error', '"scale" must be a positive number', 'scale'));
         }
@@ -398,6 +430,12 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean } = 
         const dup = seenIds.get(s.id);
         if (dup !== undefined) issues.push(issueFor(s, 'warning', `duplicate id "${s.id}" (also used by step ${dup})`, 'id'));
         else seenIds.set(s.id, s.index);
+    }
+
+    // Guide length: the guide is one flat scroll of full-width frames, one per numbered step.
+    const numbered = steps.filter(isGuideStep).length;
+    if (numbered > GUIDE_STEPS_WARN_ABOVE) {
+        issues.push({ level: 'warning', field: 'guide', message: `${numbered} numbered guide steps: a guide this long is usually two guides; "guide": false hides choreography steps such as camera/wait from the numbering` });
     }
 
     // Typing overrun: a type step whose typing runs past the next interaction.

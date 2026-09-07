@@ -335,3 +335,120 @@ test('record fails fast on an unreachable URL and on a missing storage state', {
     assert.equal(n.status, 1);
     assert.match(n.stderr, /no URL/);
 });
+
+// --- item 0/1: controlled inputs on a live page; item 2: guide replay diagnostics and reset; item 3/4 -----
+
+const controlledFlow = (base: string) => ({
+    meta: { title: 'Add a tag', slug: 'controlled', app: 'Live app', url: `${base}/controlled`, cursor: 'mac', tailMs: 500 },
+    steps: [
+        { id: 'type', time: 0.5, action: 'type', target: '[data-help="tag-input"]', value: 'urgent', title: 'Type a tag' },
+        { id: 'add', time: 1.8, action: 'click', target: '[data-help="add"]', title: 'Add it' },
+        { id: 'tag', time: 2.6, action: 'highlight', target: '[data-help="tag"]', waitFor: '[data-help="tag"]', waitForTimeoutMs: 2000, title: 'The new tag' },
+    ],
+});
+
+test('record: typing into a React-style controlled input goes through the keyboard, so the app enables the button and the next steps run', { skip }, async () => {
+    const dir = writeDir('controlled', controlledFlow(app.url));
+    const r = await cli(['record', dir, '-o', path.join(work, 'controlled.mp4'), '--width', '1280', '--height', '800']);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    for (const s of ev.steps) assert.equal(s.error, undefined, `step ${s.index}: ${s.error}`);
+    assert.ok(ev.steps[0].completedMs - ev.steps[0].actualMs >= 6 * 40 - 60, 'typing time measured on the driver path');
+    assert.equal(ev.steps[2].waitedMs < 1500, true, 'the tag appeared without waiting for the timeout');
+});
+
+test('record: a timed-out waitFor is reported as a warning naming the step, separately from real load shifts; --fail-fast abandons the recording', { skip }, async () => {
+    const flow = controlledFlow(app.url);
+    flow.steps[2] = { ...flow.steps[2], target: '[data-help="never"]', waitFor: '[data-help="never"]', waitForTimeoutMs: 800 } as any;
+    const dir = writeDir('timeout', flow);
+    const r = await cli(['record', dir, '-o', path.join(work, 'timeout.mp4'), '--width', '1280', '--height', '800']);
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stderr, /warning\s+waitFor timed out on step 3 \(highlight \[data-help="never"\], waited \d+ms\): the steps after it probably ran against the wrong page state/);
+    assert.doesNotMatch(r.stdout, /waitFor delays shifted the timeline/, 'a timeout is not reported as a load shift');
+    assert.match(r.stdout, /because of the waitFor timeout/);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    assert.ok(ev.steps[2].waitedMs >= 800 && ev.steps[2].waitedMs < 2500, `per-step waitForTimeoutMs honoured: ${ev.steps[2].waitedMs}`);
+    assert.match(ev.steps[2].error, /not found within 800ms/);
+    // --fail-fast: no video, exit 1, the reason names the step
+    const out = path.join(work, 'failfast.mp4');
+    const f = await cli(['record', dir, '-o', out, '--fail-fast', '--width', '1280', '--height', '800']);
+    assert.equal(f.status, 1);
+    assert.match(f.stderr, /fail-fast: step 3 .*waitFor .*not found within 800ms.*recording was abandoned/);
+    assert.equal(fs.existsSync(out), false, 'no video is written when the recording is abandoned');
+});
+
+test('record --guide: a step that succeeded in the recording but fails on the guide replay is diagnosed as a state difference; --reset-cmd makes the two passes identical', { skip }, async () => {
+    const once = {
+        meta: { title: 'Save once', slug: 'once', app: 'Live app', url: `${app.url}/once`, cursor: 'mac', tailMs: 500 },
+        steps: [
+            { id: 'save', time: 0.5, action: 'click', target: '[data-help="save"]', title: 'Save' },
+            { id: 'saved', time: 1.4, action: 'highlight', target: '[data-help="saved"]', waitFor: '[data-help="saved"]', waitForTimeoutMs: 1500, title: 'Saved confirmation' },
+        ],
+    };
+    await fetch(`${app.url}/once/reset`);
+    const dir = writeDir('once', once);
+    const r = await cli(['record', dir, '-o', path.join(work, 'once.mp4'), '--guide', '--width', '1280', '--height', '800']);
+    assert.equal(r.status, 1, 'the guide replay finds the button disabled');
+    assert.match(r.stderr, /step 2 \(Saved confirmation\) succeeded during the recording but failed on the guide replay .*page state likely differs between the two passes.*not idempotent/);
+    assert.match(r.stderr, /meta\.reset or --reset-cmd/);
+    // With a reset before each pass both passes save: exit 0, no diagnostic, and the server saw two saves.
+    const saves = () => app.hits.filter(h => h === 'POST /once/save').length;
+    const before = saves();
+    const resetCmd = `${JSON.stringify(process.execPath)} -e "fetch(process.argv[1]).then(r => process.exit(r.ok ? 0 : 1))" ${app.url}/once/reset`;
+    const ok = await cli(['record', dir, '-o', path.join(work, 'once2.mp4'), '--guide', '--reset-cmd', resetCmd, '--width', '1280', '--height', '800']);
+    assert.equal(ok.status, 0, ok.stderr + ok.stdout);
+    assert.doesNotMatch(ok.stderr, /failed on the guide replay/);
+    assert.match(ok.stdout, /Resetting the app before the recording/);
+    assert.match(ok.stdout, /Resetting the app before the guide replay/);
+    assert.equal(saves() - before, 2, 'both passes saved after a reset');
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    assert.equal(ev.reset, true);
+    // meta.reset works the same way, and a failing reset command stops before the browser starts
+    const dir2 = writeDir('once-meta', { ...once, meta: { ...once.meta, reset: `${JSON.stringify(process.execPath)} -e "process.exit(3)"` } });
+    const bad = await cli(['record', dir2, '-o', path.join(work, 'once3.mp4'), '--width', '1280', '--height', '800']);
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /reset command exited with status 3 before the recording/);
+});
+
+test('check --live --url probes the live page in seconds: a typo\'d selector is an error, a clean flow is OK, and a bare --live stays static', { skip }, async () => {
+    const good = writeDir('probe-good', controlledFlow(app.url));
+    const started = Date.now();
+    const ok = await cli(['check', good, '--live', '--url', `${app.url}/controlled`]);
+    assert.equal(ok.status, 0, ok.stderr + ok.stdout);
+    assert.match(ok.stdout, /Probing http:\/\/127\.0\.0\.1:\d+\/controlled/);
+    assert.match(ok.stdout, /OK: .*static \+ live probe check/);
+    assert.ok(Date.now() - started < 20000, 'a probe pass is not a recording');
+    const flow = controlledFlow(app.url);
+    flow.steps[1] = { ...flow.steps[1], target: '[data-help="ad"]' } as any;
+    const bad = writeDir('probe-bad', flow);
+    const r = await cli(['check', bad, '--live', '--url', `${app.url}/controlled`]);
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stdout, /error\s+step 2 \(1\.8s click \[data-help="ad"\]\): target "\[data-help=\\"ad\\"\]" matches nothing in the page/);
+    // The probe replays the timeline for real (clicks, keystrokes, saves), so it never turns itself
+    // on: meta.url alone is not consent, only an explicit --url is.
+    const s = await cli(['check', good, '--live']);
+    assert.equal(s.status, 0, s.stderr + s.stdout);
+    assert.doesNotMatch(s.stdout, /Probing /);
+    assert.match(s.stdout, /Pass --url <url> \(meta\.url is http/);
+    assert.match(s.stdout, /static, live timeline check/);
+});
+
+test('check --live probes each target after that step\'s own waitFor, so an async-rendered target is not reported missing', { skip }, async () => {
+    // The dashboard list renders 1.8s after the page loads and the `items` step waits for it.
+    // Probing before that wait reports "matches nothing" on a perfectly good timeline.
+    const dir = writeDir('probe-async', loginFlow(slowApp.url));
+    const r = await cli(['check', dir, '--live', '--url', `${slowApp.url}/login`]);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.doesNotMatch(r.stdout, /matches nothing/);
+    assert.match(r.stdout, /OK: .*static \+ live probe check/);
+});
+
+test('record --guide: a step that fails in both passes is not blamed on the page state', { skip }, async () => {
+    const flow = controlledFlow(app.url);
+    flow.steps[2] = { ...flow.steps[2], target: '[data-help="nope"]', waitFor: '[data-help="nope"]', waitForTimeoutMs: 600 } as any;
+    const dir = writeDir('both-fail', flow);
+    const r = await cli(['record', dir, '-o', path.join(work, 'bothfail.mp4'), '--guide', '--width', '1280', '--height', '800']);
+    assert.equal(r.status, 1);
+    assert.doesNotMatch(r.stderr, /succeeded during the recording but failed on the guide replay/);
+    assert.match(r.stderr, /step\(s\) failed during the recording/);
+});

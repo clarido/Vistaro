@@ -200,7 +200,12 @@ Validate anim.config.json: schema, timing, strings, and (unless --static/--live)
 | Option | Description |
 |---|---|
 | `--static` | Schema and timing checks only, no browser |
-| `--live` | Validate a timeline meant for `record` (live page): navigate/waitFor allowed, no index.html needed, no browser probe |
+| `--live` | Validate a timeline meant for `record` (live page): navigate/waitFor allowed, no index.html needed; add --url to also probe every target against the page |
+| `--url <url>` | With --live: probe every target against this page. The timeline is replayed for real (clicks, keystrokes and saves happen), so reset the app first when it writes data |
+| `--storage-state <file>` | Live probe: Playwright storage state (cookies/localStorage) |
+| `--ignore-https-errors` | Live probe: accept self-signed certificates |
+| `--reset-cmd <command>` | Live probe: shell command run before the pass (default: meta.reset) |
+| `--guide` | Validate as a guide: a numbered step without a "title" is an error, not a warning |
 | `--json` | Print the issues as JSON on stdout |
 | `--locale <code>` | Locale code (e.g. en, fr) |
 | `-w, --width <pixels>` | Viewport width for the browser pass |
@@ -285,6 +290,8 @@ Record the timeline against a live page (URL) instead of a local mockup: real na
 | `--url <url>` | Page to open (default: meta.url in anim.config.json) |
 | `--storage-state <file>` | Playwright storage state (cookies/localStorage), e.g. from `npx playwright codegen --save-storage auth.json` |
 | `--ignore-https-errors` | Accept self-signed certificates (mkcert-style local HTTPS) |
+| `--reset-cmd <command>` | Shell command run before each pass over the app (the recording, then the --guide replay); overrides meta.reset |
+| `--fail-fast` | Abandon the recording at the first waitFor timeout instead of recording the rest against the wrong page state |
 | `-o, --output <file>` | Output video file path (.mp4 or .gif) (default: `output.mp4`) |
 | `-d, --duration <seconds>` | Override the recording length in seconds (default: computed from the timeline) |
 | `-w, --width <pixels>` | Width of the recorded video in pixels |
@@ -327,6 +334,7 @@ Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) fro
 | `--url <url>` | After a `record`: replay against this URL instead of the one in the manifest |
 | `--storage-state <file>` | After a `record`: storage state for the live replay (default: the one the record used) |
 | `--ignore-https-errors` | Accept self-signed certificates on the live replay |
+| `--reset-cmd <command>` | After a `record`: shell command run before the live replay (default: meta.reset) |
 | `--locale <code>` | Locale code (e.g. en, fr) |
 | `--force` | Capture even if the timeline has validation errors; step failures then do not fail the command |
 | `-w, --width <pixels>` | Viewport width in pixels |

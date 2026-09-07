@@ -133,3 +133,24 @@ test('leadMsFor = min(950, gap since previous, timeMs)', () => {
     assert.equal(leadMsFor(s2, s1), 950);
     assert.equal(leadMsFor(s3, s2), 200);
 });
+
+test('guide steps need a title: warning by default, error when a guide is produced; waitForTimeoutMs validated; long guides warn', () => {
+    const tl = parseTimeline([
+        { time: 0, action: 'click', target: '#a' },
+        { time: 1, action: 'camera', scale: 1.2 },
+        { time: 2, action: 'wait', title: 'Beat' },
+        { time: 3, action: 'highlight', target: '#b', title: 'Notice', waitFor: '#b', waitForTimeoutMs: 500 },
+        { time: 4, action: 'highlight', target: '#c', title: 'Bad', waitFor: '#c', waitForTimeoutMs: -1 },
+        { time: 5, action: 'highlight', target: '#d', title: 'Odd', waitFor: 200, waitForTimeoutMs: 500 },
+    ]);
+    const plain = validateTimeline(tl, { live: true });
+    const titles = plain.filter(i => i.field === 'title');
+    assert.deepEqual(titles.map(i => [i.step, i.level]), [[1, 'warning']], 'only the numbered step without a title; camera without target is not numbered');
+    assert.equal(validateTimeline(tl, { live: true, guide: true }).find(i => i.field === 'title')!.level, 'error');
+    const wf = plain.filter(i => i.field === 'waitForTimeoutMs');
+    assert.deepEqual(wf.map(i => [i.step, i.level]), [[5, 'error'], [6, 'warning']]);
+    const long = parseTimeline(Array.from({ length: 11 }, (_, i) => ({ time: i, action: 'click', target: `#s${i}`, title: `Step ${i}` })));
+    assert.match(validateTimeline(long).find(i => i.field === 'guide')!.message, /11 numbered guide steps: a guide this long is usually two guides/);
+    const hidden = parseTimeline(Array.from({ length: 11 }, (_, i) => ({ time: i, action: 'click', target: `#s${i}`, title: `Step ${i}`, guide: i > 8 ? false : undefined })));
+    assert.equal(validateTimeline(hidden).find(i => i.field === 'guide'), undefined, '"guide": false steps are not numbered');
+});
