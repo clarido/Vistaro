@@ -277,6 +277,8 @@
   function positionHighlight(el, snap) {
     var rect = el.getBoundingClientRect();
     var h = getHighlightBox();
+    // The ring is position:fixed like the cursor, so a camera move has to carry it too.
+    state.spotAnchor = el;
     if (snap) h.style.transition = 'none';
     h.style.left = (rect.left - 6) + 'px';
     h.style.top = (rect.top - 6) + 'px';
@@ -302,6 +304,39 @@
     h.classList.remove('anim-cli-pulse');
     h.classList.add('anim-cli-hold');
   }
+  /**
+   * Carry the spotlight (and the badge, when a guide capture is holding one) to `rect` over `ms`,
+   * on the camera's curve. The default 0.5s position transition is restored once it lands, so an
+   * ordinary step-to-step move keeps its own timing.
+   */
+  function glideHighlight(rect, ms) {
+    var h = document.getElementById('anim-cli-highlight');
+    if (!h) return;
+    var ease = function (p) { return p + ' ' + ms + 'ms ' + CAMERA_EASING; };
+    h.style.transition = ms > 0 ? [ease('left'), ease('top'), ease('width'), ease('height')].join(', ') : 'none';
+    h.style.left = (rect.left - 6) + 'px';
+    h.style.top = (rect.top - 6) + 'px';
+    h.style.width = (rect.width + 12) + 'px';
+    h.style.height = (rect.height + 12) + 'px';
+    var c = document.getElementById('anim-cli-callout');
+    var badgeShowing = c && c.style.display === 'block';
+    if (badgeShowing) {
+      var pos = calloutPosition(rect);
+      c.style.transition = ms > 0 ? [ease('left'), ease('top')].join(', ') : 'none';
+      c.style.left = pos.x + 'px';
+      c.style.top = pos.y + 'px';
+    }
+    if (ms > 0) {
+      state.timers.push(setTimeout(function () {
+        h.style.transition = '';
+        if (c) c.style.transition = '';
+      }, ms + 50));
+    } else {
+      h.style.transition = '';
+      if (c) c.style.transition = '';
+    }
+  }
+
   function releaseHighlight() {
     var h = document.getElementById('anim-cli-highlight');
     if (h) { h.classList.remove('anim-cli-hold'); h.classList.remove('anim-cli-pulse'); }
@@ -451,18 +486,26 @@
     var finalTransform = 'scale(' + scale + ') translate(' + x + ', ' + y + ')';
     stage.style.transformOrigin = 'center center';
 
-    // Where the cursor's anchor element ends up under the final transform: measured by applying it
+    // Where the overlays' anchor elements end up under the final transform: measured by applying it
     // with transitions off, not computed, so transform-origin, a body box that is not the viewport
-    // and compounding camera moves are all handled by the browser.
+    // and compounding camera moves are all handled by the browser. Cursor, spotlight and badge are
+    // all fixed-position overlays outside the transformed stage, so all three have to be carried.
     var cursorTo = null;
+    var spotTo = null;
     var anchor = state.cursorAnchor;
-    if (state.cursor && anchor && anchor.el && anchor.el.isConnected) {
+    var spot = state.spotAnchor;
+    var moveCursorToo = !!(state.cursor && anchor && anchor.el && anchor.el.isConnected);
+    var moveSpotToo = !!(spot && spot.isConnected && document.getElementById('anim-cli-highlight'));
+    if (moveCursorToo || moveSpotToo) {
       var beforeTransform = stage.style.transform;
       var beforeTransition = stage.style.transition;
       stage.style.transition = 'none';
       stage.style.transform = finalTransform;
-      var ar = anchor.el.getBoundingClientRect();
-      cursorTo = { x: ar.left + anchor.fx * ar.width, y: ar.top + anchor.fy * ar.height };
+      if (moveCursorToo) {
+        var ar = anchor.el.getBoundingClientRect();
+        cursorTo = { x: ar.left + anchor.fx * ar.width, y: ar.top + anchor.fy * ar.height };
+      }
+      if (moveSpotToo) spotTo = spot.getBoundingClientRect();
       stage.style.transform = beforeTransform;
       void stage.offsetWidth;
       stage.style.transition = beforeTransition;
@@ -471,8 +514,10 @@
     stage.style.transition = dur > 0 ? 'transform ' + dur + 's ' + CAMERA_EASING : 'none';
     stage.style.transform = finalTransform;
     if (dur === 0) void stage.offsetWidth;
-    // The cursor rides the same curve for the same time, so it stays on its element throughout.
+    // Cursor and spotlight ride the same curve for the same time, so both stay on their element
+    // throughout the move instead of being left behind over empty background.
     if (cursorTo) moveCursor(cursorTo.x, cursorTo.y, dur * 1000, CAMERA_EASING);
+    if (spotTo) glideHighlight(spotTo, dur * 1000);
     return wait(dur * 1000);
   }
 
@@ -846,6 +891,7 @@
         t0: state.t0, timeOrigin: performance.timeOrigin, inFlight: Object.keys(state.completions).length };
     },
     moveCursor: moveCursor,
+    highlightBox: function () { var h = document.getElementById('anim-cli-highlight'); return h ? rectOf(h) : null; },
     cursorAnchor: function () { var a = state.cursorAnchor; return a && a.el && a.el.isConnected ? { fx: a.fx, fy: a.fy, rect: rectOf(a.el) } : null; },
     placeCursor: placeCursor,
     anchorOf: anchorOf,

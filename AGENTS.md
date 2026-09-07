@@ -95,7 +95,7 @@ Object form (a bare array of steps is still accepted):
 | `highlight` | Spotlight pulse without a click ("notice this"). | Interaction. |
 | `hover` | Cursor moves onto the element. | Interaction. |
 | `press` | Keyboard key from `value` (no target). | Interaction. |
-| `camera` | Pan/zoom the page toward the target (or `x`/`y`); `scale: 1` pulls back. The cursor rides along, staying on the element it last landed on. | Completion (zoomed framing). |
+| `camera` | Pan/zoom the page toward the target (or `x`/`y`); `scale: 1` pulls back. The cursor and the spotlight ride along, staying on the element they were on. | Completion (zoomed framing). |
 | `scroll` | Smooth-scroll the target into view. | Completion. |
 | `fadeIn` | Reveal the target (display/opacity) with a fade. | Completion. |
 | `transitionScreen` | Fade the current screen out and the target screen in. | Completion. |

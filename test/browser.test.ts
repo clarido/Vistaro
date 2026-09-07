@@ -406,3 +406,44 @@ test('camera carries the cursor: it lands on the anchor element\'s transformed c
         `the camera moved #btn far enough for this to be a real check: ${JSON.stringify({ centre, untransformed })}`);
     await context.close();
 });
+
+test('camera carries the spotlight too: the ring frames the element\'s transformed box, not its old one', { skip }, async () => {
+    // Same defect as the cursor: #anim-cli-highlight is position:fixed outside the transformed
+    // stage, so a camera push left the ring behind over empty background (measured ~1090px adrift).
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(fixture, 'index.html')));
+    const timeline = parseTimeline({ meta: { cursor: 'mac', drift: false }, steps: [
+        { id: 'notice', time: 0.4, action: 'highlight', target: '#btn' },
+        { id: 'zoom', time: 1.2, action: 'camera', target: '#btn', scale: 1.4, duration: 0.4 },
+    ] });
+    await ensureRuntime(page, timeline, { drift: false });
+    const results = await runTimeline(page, timeline, { mode: 'step', settleMs: 0 });
+    assert.deepEqual(results.map(r => r.error), [undefined, undefined]);
+    // The ring glides on the camera's curve; wait for it to land before measuring.
+    await page.evaluate(() => (window as any).__anim.whenSettled({ timeoutMs: 5000 }));
+
+    const measured = await page.evaluate(() => {
+        const r = document.querySelector('#btn')!.getBoundingClientRect();
+        const stage = document.body, keep = stage.style.transform, keepT = stage.style.transition;
+        stage.style.transition = 'none'; stage.style.transform = 'none';
+        const plain = document.querySelector('#btn')!.getBoundingClientRect();
+        stage.style.transform = keep; stage.style.transition = keepT;
+        return {
+            target: { x: r.left, y: r.top, width: r.width, height: r.height },
+            untransformed: { x: plain.left, y: plain.top },
+            ring: (window as any).__anim.highlightBox(),
+        };
+    });
+    // The ring is drawn 6px outside the box, and its own 2px border falls outside that again.
+    const { target, ring, untransformed } = measured;
+    assert.ok(ring, 'the spotlight exists');
+    assert.ok(Math.abs(ring.x - (target.x - 8)) <= 2 && Math.abs(ring.y - (target.y - 8)) <= 2,
+        `ring at ${JSON.stringify(ring)} vs #btn transformed box ${JSON.stringify(target)}`);
+    assert.ok(Math.abs(ring.width - (target.width + 16)) <= 2 && Math.abs(ring.height - (target.height + 16)) <= 2,
+        `ring size ${JSON.stringify(ring)} vs #btn ${JSON.stringify(target)}`);
+    assert.ok(Math.hypot(target.x - untransformed.x, target.y - untransformed.y) > 20,
+        `the camera moved #btn far enough for this to be a real check: ${JSON.stringify({ target, untransformed })}`);
+    await context.close();
+});
