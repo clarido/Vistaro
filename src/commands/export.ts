@@ -5,7 +5,7 @@ import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors,
 import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions, RunAbortedError, errorMessage } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions, resolveViewport, closeWithWatchdog, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
-import { encodeMp4, encodeGif, encodeWebm, extractPoster, cutClip, probeDurationMs } from '../media/ffmpeg';
+import { encodeMp4, encodeGif, encodeWebm, extractPoster, cutClip, probeDurationMs, describeAsset } from '../media/ffmpeg';
 import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions, NarrationClip } from '../media/tts';
 import { buildGuide, resolveCrop, VideoInfo } from './guide';
 import { hashGuideDir, relPosix, displayPath } from '../catalog';
@@ -44,8 +44,13 @@ export interface ExportOptions extends ViewportOptions {
 
 /** Output containers `export`/`record` can write; anything else is refused before the browser starts. */
 const VIDEO_FORMATS = ['mp4', 'webm', 'gif'];
-/** A reel's GIF is a web asset: 720px wide at 15fps, not a full-width 20fps archive. */
-const REEL_GIF_WIDTH = 720;
+/**
+ * A reel's GIF is a web asset, not an archive: the LONG edge is capped at 720 and the rate at 15fps.
+ * The cap is on the long edge rather than the width because a phone reel is portrait: 720 wide is
+ * 292k pixels at 16:9 but 1.12M at 9:19.5, so pinning the width shipped a mobile GIF ~3.7x heavier
+ * than the desktop one it was meant to undercut.
+ */
+const REEL_GIF_LONG_EDGE = 720;
 const REEL_GIF_FPS = 15;
 
 /** A live page instead of a local file: the runtime is injected at document start and navigations are survived. */
@@ -393,8 +398,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         return r && Number.isFinite(r.actualMs) ? r.actualMs : step.timeMs;
     };
 
-    // A reel's GIF is a web asset, not an archive: full width at 20fps is unshippable.
-    const gifOptions = reel ? { width: REEL_GIF_WIDTH, fps: REEL_GIF_FPS } : {};
+    const gifOptions = reel ? { longEdge: REEL_GIF_LONG_EDGE, fps: REEL_GIF_FPS } : {};
     if (isGif) {
         console.log('Optimizing frames for high-quality GIF export...');
         encodeGif(webmFile, outputFile, { startMs: startOffsetMs, durationMs, ...gifOptions });
@@ -468,8 +472,9 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             console.log(`Extracting poster at ${(posterAtMs / 1000).toFixed(2)}s: ${summary.poster}...`);
             extractPoster(outputFile, summary.poster, posterAtMs);
             summary.gif = base + '.gif';
-            console.log(`Encoding GIF (${REEL_GIF_WIDTH}px, ${REEL_GIF_FPS}fps): ${summary.gif}...`);
+            console.log(`Encoding GIF (long edge ${REEL_GIF_LONG_EDGE}px, ${REEL_GIF_FPS}fps): ${summary.gif}...`);
             encodeGif(webmFile, summary.gif, { startMs: startOffsetMs, durationMs, ...gifOptions });
+            console.log(`  ${path.basename(summary.gif)}: ${describeAsset(summary.gif)}`);
         }
 
         // Per-step clips cut from the master.

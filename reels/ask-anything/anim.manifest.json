@@ -969,6 +969,118 @@
       "clips": [],
       "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
       "timestamp": "2026-09-07T22:25:40.485Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 508,
+          "completedMs": 1294
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1909,
+          "completedMs": 2747
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3905,
+          "completedMs": 4460
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4605,
+          "completedMs": 5293
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7413,
+          "completedMs": 7943
+        }
+      ],
+      "duration": 8.643,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-test-anim-html-video/81d247dd-f50e-42e8-af5e-1ac3ac5b15c5/scratchpad/m2.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-07T22:28:52.549Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 208,
+          "completedMs": 962
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 510,
+          "completedMs": 1363
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1907,
+          "completedMs": 2745
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3908,
+          "completedMs": 4570
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4611,
+          "completedMs": 5572
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5808,
+          "completedMs": 7212
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7409,
+          "completedMs": 7976
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8407,
+          "completedMs": 9609
+        }
+      ],
+      "duration": 10.309,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-test-anim-html-video/81d247dd-f50e-42e8-af5e-1ac3ac5b15c5/scratchpad/d2.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-07T22:29:33.559Z"
     }
   ],
   "contentHash": {

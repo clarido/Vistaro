@@ -4,6 +4,10 @@ import { parseTimeline } from '../src/engine/schema';
 import { subtitleCues, buildVtt, vttTime } from '../src/media/vtt';
 import { chaptersFor, ffmetadata } from '../src/media/chapters';
 import { cacheKey, narrationOf, narrationOverruns } from '../src/media/tts';
+import { encodeGif, describeAsset, run } from '../src/media/ffmpeg';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 const tl = parseTimeline({
     meta: { title: 'Demo; with=meta', tailMs: 1000 },
@@ -66,4 +70,37 @@ test('narrationOverruns reports exact milliseconds', () => {
     assert.equal(w.length, 2);
     assert.match(w[0], /step 1 \(2500ms\) overruns step 2 at 2000ms by 500ms/);
     assert.match(w[1], /step 4 \(3000ms\) runs 700ms past the end/);
+});
+
+
+// A GIF budget pinned to the WIDTH quadruples for a portrait clip: 720 wide is 292k pixels at 16:9
+// but 1.12M at 9:19.5, which shipped mobile reel GIFs ~3.7x heavier than the desktop ones they were
+// meant to undercut. The cap belongs on the long edge, whichever edge that is.
+test('encodeGif caps the long edge in either orientation', { skip: process.env.SKIP_BROWSER === '1' }, () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-gif-'));
+    try {
+        const dims = (file: string) => {
+            const m = /,\s(\d{2,5}x\d{2,5})[\s,]/.exec(run(['-i', file], { allowFailure: true }).stderr);
+            return m ? m[1] : 'none';
+        };
+        // Two solid-colour sources, one landscape and one portrait, one second each.
+        const land = path.join(dir, 'land.mp4');
+        const port = path.join(dir, 'port.mp4');
+        run(['-y', '-f', 'lavfi', '-i', 'color=c=red:s=1920x1080:d=1', '-pix_fmt', 'yuv420p', land]);
+        run(['-y', '-f', 'lavfi', '-i', 'color=c=blue:s=390x844:d=1', '-pix_fmt', 'yuv420p', port]);
+
+        const a = path.join(dir, 'a.gif'), b = path.join(dir, 'b.gif'), c = path.join(dir, 'c.gif');
+        encodeGif(land, a, { longEdge: 720 });
+        encodeGif(port, b, { longEdge: 720 });
+        assert.equal(dims(a), '720x406', 'landscape caps its width');
+        assert.equal(dims(b), '332x720', 'portrait caps its HEIGHT, not its width');
+
+        // width: is still honoured for callers that want it, and full size stays the default.
+        encodeGif(port, c, { width: 720 });
+        assert.equal(dims(c), '720x1558', 'width: still pins the width');
+
+        assert.match(describeAsset(a), /720x406, \d+/);
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
 });

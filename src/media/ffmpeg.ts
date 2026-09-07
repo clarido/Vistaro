@@ -162,6 +162,20 @@ export function cutClip(input: string, output: string, startMs: number, endMs: n
         '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', output]);
 }
 
+/**
+ * "332x720, 2.4 MB" for a finished asset. Nothing in the pipeline surfaced output weight, so a
+ * portrait GIF shipping at 10MB could only be found by running `du` — the commands now say it.
+ */
+export function describeAsset(file: string): string {
+    let bytes = 0;
+    try { bytes = fs.statSync(file).size; } catch { return 'unknown size'; }
+    const mb = bytes / (1024 * 1024);
+    const size = mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+    const stderr = run(['-i', file], { allowFailure: true }).stderr;
+    const dims = /,\s(\d{2,5}x\d{2,5})[\s,]/.exec(stderr);
+    return dims ? `${dims[1]}, ${size}` : size;
+}
+
 /** Chapters as ffmpeg lists them (`Chapter #0:N: start S, end E` + title), for verification. */
 export function listChapters(file: string): { startMs: number; endMs: number; title: string }[] {
     const stderr = run(['-i', file], { allowFailure: true }).stderr;
