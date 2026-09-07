@@ -1,0 +1,106 @@
+{
+  "meta": {
+    "kind": "reel",
+    "title": "Vos mots, pas les siens",
+    "slug": "vos-mots",
+    "app": "Clarido",
+    "locale": "fr",
+    "cursor": "none",
+    "tailMs": 1000,
+    "reel": {
+      "loop": true,
+      "autoplay": "inview"
+    }
+  },
+  "steps": [
+    {
+      "id": "termes",
+      "time": "0.2s",
+      "action": "animate",
+      "target": ".term",
+      "all": true,
+      "count": 5,
+      "stagger": 0.07,
+      "from": {
+        "opacity": 0,
+        "y": 8,
+        "scale": 0.96
+      },
+      "to": {
+        "opacity": 1,
+        "y": 0,
+        "scale": 1
+      },
+      "duration": 0.42,
+      "ease": "easeOutBack"
+    },
+    {
+      "id": "redaction",
+      "time": "1.5s",
+      "action": "type",
+      "target": "#typed",
+      "value": "Notre approche s'appuie sur trois mandats comparables.",
+      "cps": 34,
+      "translatable": true
+    },
+    {
+      "id": "suite",
+      "time": "3.4s",
+      "action": "animate",
+      "target": "#doc .line",
+      "all": true,
+      "count": 2,
+      "stagger": 0.12,
+      "from": {
+        "opacity": 0,
+        "y": 10
+      },
+      "to": {
+        "opacity": 1,
+        "y": 0
+      },
+      "duration": 0.5,
+      "ease": "easeOutCubic",
+      "mobile": {
+        "stagger": 0.09,
+        "duration": 0.42
+      }
+    },
+    {
+      "id": "verdict",
+      "time": "4.5s",
+      "action": "animate",
+      "target": "#verdict",
+      "from": {
+        "opacity": 0,
+        "scale": 0.94
+      },
+      "to": {
+        "opacity": 1,
+        "scale": 1
+      },
+      "duration": 0.5,
+      "ease": "easeOutBack"
+    },
+    {
+      "id": "push",
+      "time": "5.3s",
+      "action": "camera",
+      "target": "#verdict",
+      "scale": 1.06,
+      "duration": 1.4,
+      "ease": "easeInOutCubic",
+      "only": "desktop"
+    },
+    {
+      "id": "pullback",
+      "time": "7.8s",
+      "action": "camera",
+      "target": "#app",
+      "scale": 1,
+      "duration": 1.2,
+      "ease": "easeInOutCubic",
+      "only": "desktop"
+    }
+  ]
+}

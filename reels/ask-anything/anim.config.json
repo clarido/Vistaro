@@ -1,0 +1,138 @@
+{
+  "meta": {
+    "kind": "reel",
+    "title": "Ask anything",
+    "slug": "ask-anything",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "none",
+    "tailMs": 700,
+    "reel": {
+      "loop": true,
+      "autoplay": "inview"
+    }
+  },
+  "steps": [
+    {
+      "id": "nav",
+      "time": "0.2s",
+      "action": "animate",
+      "target": ".nav-item",
+      "all": true,
+      "count": 5,
+      "stagger": 0.05,
+      "from": {
+        "opacity": 0,
+        "x": -10
+      },
+      "to": {
+        "opacity": 1,
+        "x": 0
+      },
+      "duration": 0.45,
+      "ease": "easeOutCubic",
+      "only": "desktop"
+    },
+    {
+      "id": "cards",
+      "time": "0.5s",
+      "action": "animate",
+      "target": ".card",
+      "all": true,
+      "count": 3,
+      "stagger": 0.09,
+      "from": {
+        "opacity": 0,
+        "y": 22
+      },
+      "to": {
+        "opacity": 1,
+        "y": 0
+      },
+      "duration": 0.6,
+      "ease": "easeOutBack"
+    },
+    {
+      "id": "ask",
+      "time": "1.9s",
+      "action": "type",
+      "target": "#prompt",
+      "value": "Where is churn risk hiding?",
+      "cps": 32,
+      "translatable": true
+    },
+    {
+      "id": "answer",
+      "time": "3.9s",
+      "action": "animate",
+      "target": "#answer",
+      "from": {
+        "opacity": 0,
+        "y": 14
+      },
+      "to": {
+        "opacity": 1,
+        "y": 0
+      },
+      "duration": 0.55,
+      "ease": "easeOutCubic"
+    },
+    {
+      "id": "bars",
+      "time": "4.6s",
+      "action": "animate",
+      "target": "#bars .bar > i",
+      "all": true,
+      "count": 6,
+      "stagger": 0.06,
+      "from": {
+        "scaleY": 0
+      },
+      "to": {
+        "scaleY": 1
+      },
+      "duration": 0.55,
+      "ease": "easeOutExpo",
+      "mobile": {
+        "stagger": 0.045,
+        "duration": 0.45
+      }
+    },
+    {
+      "id": "push",
+      "time": "5.8s",
+      "action": "camera",
+      "target": "#answer",
+      "scale": 1.15,
+      "duration": 1.4,
+      "ease": "easeInOutCubic",
+      "only": "desktop"
+    },
+    {
+      "id": "recover",
+      "time": "7.4s",
+      "action": "animate",
+      "target": "#highlight-metric",
+      "from": {
+        "opacity": 0,
+        "scale": 0.92
+      },
+      "to": {
+        "opacity": 1,
+        "scale": 1
+      },
+      "duration": 0.5,
+      "ease": "easeOutBack"
+    },
+    {
+      "id": "pullback",
+      "time": "8.4s",
+      "action": "camera",
+      "target": "#app",
+      "scale": 1,
+      "duration": 1.2,
+      "ease": "easeInOutCubic",
+      "only": "desktop"
+    }
+  ]
+}

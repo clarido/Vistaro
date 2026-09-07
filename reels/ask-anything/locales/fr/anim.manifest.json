@@ -1,0 +1,69 @@
+{
+  "history": [
+    {
+      "command": "localize",
+      "sourceDir": "../..",
+      "locale": "fr",
+      "baseLocale": "en",
+      "timestamp": "2026-09-07T20:22:11.683Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 507,
+          "completedMs": 1301
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1907,
+          "completedMs": 3056
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3906,
+          "completedMs": 4468
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4606,
+          "completedMs": 5301
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7408,
+          "completedMs": 7918
+        }
+      ],
+      "duration": 8.618,
+      "output": "../../../../../../../../private/tmp/claude-501/-Users-jf-Projects-test-anim-html-video/5082d8e5-218b-4ded-9a64-311380068ee8/scratchpad/fr-clip.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:c3205f9e000a5ea2861faa2c4455aa609f96b5b8893a7e22f3140cbe34b4b4d5",
+      "timestamp": "2026-09-07T20:23:21.514Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T20:23:49.639Z"
+    }
+  ],
+  "locale": "fr",
+  "baseLocale": "en"
+}

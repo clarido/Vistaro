@@ -1,0 +1,737 @@
+{
+  "history": [
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 203,
+          "completedMs": 1053
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1506,
+          "completedMs": 3073
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3406,
+          "completedMs": 4078
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4505,
+          "completedMs": 5069
+        },
+        {
+          "index": 5,
+          "id": "push",
+          "actualMs": 5304,
+          "completedMs": 6707
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7208,
+          "completedMs": 8410
+        }
+      ],
+      "duration": 9.31,
+      "output": "vos-mots-fr.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:351fb4b35385c5a90e3cf8d40488f9b28538c2c85acc7906e99ce04776d49b0e",
+      "timestamp": "2026-09-07T20:59:25.631Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 207,
+          "completedMs": 928
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1506,
+          "completedMs": 3074
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3408,
+          "completedMs": 4045
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4506,
+          "completedMs": 5012
+        },
+        {
+          "index": 5,
+          "id": "push",
+          "actualMs": 5306,
+          "completedMs": 6708
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7204,
+          "completedMs": 8407
+        }
+      ],
+      "duration": 9.307,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-optio-ods/978dba6f-6ef0-4b6b-bef3-51ab5b7e3a15/scratchpad/s1.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:351fb4b35385c5a90e3cf8d40488f9b28538c2c85acc7906e99ce04776d49b0e",
+      "timestamp": "2026-09-07T21:00:13.145Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 207,
+          "completedMs": 1011
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1508,
+          "completedMs": 3076
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3405,
+          "completedMs": 4114
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4510,
+          "completedMs": 5091
+        }
+      ],
+      "duration": 6.891,
+      "output": "vos-mots-fr.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:fd6bf4a57112435053a35dc46e49966eb6926c433927a26518eb7062189c62f3",
+      "timestamp": "2026-09-07T21:02:10.069Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 204,
+          "completedMs": 913
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1505,
+          "completedMs": 3072
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3405,
+          "completedMs": 3930
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4503,
+          "completedMs": 5030
+        }
+      ],
+      "duration": 6.83,
+      "output": "vos-mots-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:fd6bf4a57112435053a35dc46e49966eb6926c433927a26518eb7062189c62f3",
+      "timestamp": "2026-09-07T21:02:31.065Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 206,
+          "completedMs": 937
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1506,
+          "completedMs": 3073
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3404,
+          "completedMs": 3921
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4505,
+          "completedMs": 5038
+        }
+      ],
+      "duration": 6.838,
+      "output": "vos-mots-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:940ef9701fe1fd049412170ffc51b649debb14db4f78c5fe92fc4b18fe7ab52c",
+      "timestamp": "2026-09-07T21:04:33.442Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T21:04:47.604Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T21:04:48.207Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T21:05:14.586Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 205,
+          "completedMs": 1104
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1511,
+          "completedMs": 3079
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3415,
+          "completedMs": 4172
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4514,
+          "completedMs": 5184
+        }
+      ],
+      "duration": 6.984,
+      "output": "../../reels-out/vos-mots/fr/vos-mots-fr-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:940ef9701fe1fd049412170ffc51b649debb14db4f78c5fe92fc4b18fe7ab52c",
+      "timestamp": "2026-09-07T21:05:42.022Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../reels-out/vos-mots/fr",
+      "contentHash": "sha256:940ef9701fe1fd049412170ffc51b649debb14db4f78c5fe92fc4b18fe7ab52c",
+      "buildKey": "sha256:13860c6dbeb3d5658433eb5f7300380f79fe65597534cc795033f9325c08d99d",
+      "builtAt": "2026-09-07T21:05:42.064Z",
+      "timestamp": "2026-09-07T21:05:42.070Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T21:05:43.712Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 205,
+          "completedMs": 933
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1505,
+          "completedMs": 3073
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3405,
+          "completedMs": 3934
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4504,
+          "completedMs": 5018
+        }
+      ],
+      "duration": 6.818,
+      "output": "../../reels-out/vos-mots/fr/vos-mots-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:940ef9701fe1fd049412170ffc51b649debb14db4f78c5fe92fc4b18fe7ab52c",
+      "timestamp": "2026-09-07T21:06:04.637Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../reels-out/vos-mots/fr",
+      "contentHash": "sha256:940ef9701fe1fd049412170ffc51b649debb14db4f78c5fe92fc4b18fe7ab52c",
+      "buildKey": "sha256:976437a45e14f5130f774a01fe65f158673a1d78e2be7edd1e3db83adabb15a6",
+      "builtAt": "2026-09-07T21:06:04.669Z",
+      "timestamp": "2026-09-07T21:06:04.671Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 206,
+          "completedMs": 908
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1508,
+          "completedMs": 3074
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3406,
+          "completedMs": 4041
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4504,
+          "completedMs": 5008
+        },
+        {
+          "index": 5,
+          "id": "push",
+          "actualMs": 5306,
+          "completedMs": 6708
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7803,
+          "completedMs": 9005
+        }
+      ],
+      "duration": 10.805,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-optio-ods/978dba6f-6ef0-4b6b-bef3-51ab5b7e3a15/scratchpad/v1.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:c034561af47a2ffa3d097b4f0cb456beb0b89b7976d288e50b2cae88dc307900",
+      "timestamp": "2026-09-07T21:41:42.154Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 210,
+          "completedMs": 961
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1507,
+          "completedMs": 3074
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3408,
+          "completedMs": 4080
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4519,
+          "completedMs": 5177
+        },
+        {
+          "index": 5,
+          "id": "push",
+          "actualMs": 5322,
+          "completedMs": 6724
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7807,
+          "completedMs": 9010
+        }
+      ],
+      "duration": 10.81,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-optio-ods/978dba6f-6ef0-4b6b-bef3-51ab5b7e3a15/scratchpad/v2.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:c034561af47a2ffa3d097b4f0cb456beb0b89b7976d288e50b2cae88dc307900",
+      "timestamp": "2026-09-07T21:42:28.067Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 219,
+          "completedMs": 1061
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1521,
+          "completedMs": 3088
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3407,
+          "completedMs": 4196
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4507,
+          "completedMs": 5151
+        },
+        {
+          "index": 5,
+          "id": "push",
+          "actualMs": 5306,
+          "completedMs": 6708
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7807,
+          "completedMs": 9009
+        }
+      ],
+      "duration": 10.009,
+      "output": "vos-mots-fr.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "timestamp": "2026-09-07T21:48:13.178Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 210,
+          "completedMs": 933
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1506,
+          "completedMs": 3074
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3405,
+          "completedMs": 3933
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4505,
+          "completedMs": 5032
+        }
+      ],
+      "duration": 6.032,
+      "output": "vos-mots-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "timestamp": "2026-09-07T21:48:31.036Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T21:48:31.792Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T21:48:32.362Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T21:48:34.201Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 209,
+          "completedMs": 1014
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1506,
+          "completedMs": 3074
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3406,
+          "completedMs": 4117
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4510,
+          "completedMs": 5107
+        },
+        {
+          "index": 5,
+          "id": "push",
+          "actualMs": 5312,
+          "completedMs": 6715
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7819,
+          "completedMs": 9021
+        }
+      ],
+      "duration": 10.021,
+      "output": "../../reels-out/vos-mots/fr/vos-mots-fr-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "timestamp": "2026-09-07T21:49:16.590Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../reels-out/vos-mots/fr",
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "buildKey": "sha256:c2699e7690d7e2fcf86c72ba4e6951bb662a5076ed3887f9d8a80cebcdf49cdf",
+      "builtAt": "2026-09-07T21:49:16.626Z",
+      "timestamp": "2026-09-07T21:49:16.630Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T21:49:18.105Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 204,
+          "completedMs": 937
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1505,
+          "completedMs": 3071
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3404,
+          "completedMs": 3937
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4503,
+          "completedMs": 5020
+        }
+      ],
+      "duration": 6.02,
+      "output": "../../reels-out/vos-mots/fr/vos-mots-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "timestamp": "2026-09-07T21:49:43.570Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../reels-out/vos-mots/fr",
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "buildKey": "sha256:772e6d2aa5531098cf4f89477b66e8f4ea51c24f4a70eac222f7e64826870d57",
+      "builtAt": "2026-09-07T21:49:43.618Z",
+      "timestamp": "2026-09-07T21:49:43.621Z"
+    }
+  ],
+  "contentHash": {
+    "fr:desktop": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+    "fr:mobile": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf"
+  },
+  "buildKey": {
+    "fr:desktop": "sha256:c2699e7690d7e2fcf86c72ba4e6951bb662a5076ed3887f9d8a80cebcdf49cdf",
+    "fr:mobile": "sha256:772e6d2aa5531098cf4f89477b66e8f4ea51c24f4a70eac222f7e64826870d57"
+  }
+}

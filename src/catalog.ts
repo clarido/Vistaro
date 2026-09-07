@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { createHash } from 'crypto';
 import { isLocaleCode } from './engine/strings';
+import { TimelineKind, TIMELINE_KINDS, DeviceKind, DEVICE_KINDS } from './engine/schema';
 
 /**
  * Files that define a guide's content: index.html, anim.config.json, strings.*.json, and only
@@ -98,9 +99,11 @@ export function localeDirFor(dir: string, code: string, opts: { sibling?: boolea
  * Extras beyond the video, which is always produced and always listed: `guide` (guide.json/md/html
  * + step frames, on by default), `gif` (an animated GIF next to the MP4), `clips` (one MP4 per step).
  */
-export type CatalogOutput = 'guide' | 'gif' | 'clips';
-export const CATALOG_OUTPUTS: readonly CatalogOutput[] = ['guide', 'gif', 'clips'];
+export type CatalogOutput = 'guide' | 'gif' | 'clips' | 'webm' | 'poster' | 'embed';
+export const CATALOG_OUTPUTS: readonly CatalogOutput[] = ['guide', 'gif', 'clips', 'webm', 'poster', 'embed'];
 export const DEFAULT_OUTPUTS: readonly CatalogOutput[] = ['guide'];
+/** A reel has no guide; it ships the formats a page embeds. The MP4 is always produced either way. */
+export const DEFAULT_REEL_OUTPUTS: readonly CatalogOutput[] = ['webm', 'poster', 'gif'];
 
 /** Render settings, valid in `defaults` and per guide (the guide wins). */
 export interface RenderSettings {
@@ -112,6 +115,10 @@ export interface RenderSettings {
     crop?: number | false;
     hideCursor?: boolean;
     outputs?: CatalogOutput[];
+    /** Render device: resolves `only`/`mobile`/`desktop` steps and picks the viewport. */
+    device?: DeviceKind;
+    /** Pixel density: multiplies the viewport and zooms the page back (see ViewportOptions.scale). */
+    scale?: number;
 }
 
 export interface CatalogDefaults extends RenderSettings {
@@ -120,6 +127,10 @@ export interface CatalogDefaults extends RenderSettings {
 
 export interface CatalogGuide extends RenderSettings {
     slug: string;
+    /** Output profile; a reel skips the guide and ships embeddable formats. Default `guide`. */
+    kind?: TimelineKind;
+    /** Reels only: build one row per device, e.g. ["desktop", "mobile"]. */
+    devices?: DeviceKind[];
     /** Source directory (index.html + anim.config.json); relative to the catalog file, absolute after readCatalog. */
     dir: string;
     /** Shown in the index; defaults to the timeline's meta.title. */
@@ -140,24 +151,29 @@ export interface Catalog {
 }
 
 const CATALOG_KEYS = new Set(['outputDir', 'defaults', 'guides', '$schema', 'title', 'version']);
-const SETTING_KEYS = ['outputs', 'width', 'height', 'theme', 'narration', 'crop', 'hideCursor'];
+const SETTING_KEYS = ['outputs', 'width', 'height', 'theme', 'narration', 'crop', 'hideCursor', 'device', 'scale'];
 const DEFAULT_KEYS = new Set(['locales', ...SETTING_KEYS]);
-const GUIDE_KEYS = new Set(['slug', 'dir', 'locales', 'record', 'title', ...SETTING_KEYS]);
+const GUIDE_KEYS = new Set(['slug', 'dir', 'locales', 'record', 'title', 'kind', 'devices', ...SETTING_KEYS]);
 const OUTPUTS = new Set<string>(CATALOG_OUTPUTS);
 
 export interface EffectiveSettings {
     width?: number; height?: number; theme?: 'light' | 'dark'; crop?: number | false;
     narration: boolean; hideCursor: boolean; outputs: CatalogOutput[];
+    device?: DeviceKind; scale?: number;
+    /** The profile this entry builds under; drives the default outputs and the guide/no-guide split. */
+    kind: TimelineKind;
 }
 
 /** Effective settings for a guide: its own values over the catalog defaults. */
 export function effectiveSettings(guide: CatalogGuide, defaults: CatalogDefaults = {}): EffectiveSettings {
     const pick = <K extends keyof RenderSettings>(k: K): RenderSettings[K] => (guide[k] !== undefined ? guide[k] : defaults[k]);
+    const kind: TimelineKind = guide.kind === 'reel' ? 'reel' : 'guide';
     return {
         width: pick('width'), height: pick('height'), theme: pick('theme'), crop: pick('crop'),
         narration: pick('narration') ?? false, hideCursor: pick('hideCursor') ?? false,
+        device: pick('device'), scale: pick('scale'), kind,
         // The legacy "video" entry is implied (readCatalog warns about it) and never an extra.
-        outputs: [...new Set(pick('outputs') ?? DEFAULT_OUTPUTS)].filter(o => (o as string) !== 'video'),
+        outputs: [...new Set(pick('outputs') ?? (kind === 'reel' ? DEFAULT_REEL_OUTPUTS : DEFAULT_OUTPUTS))].filter(o => (o as string) !== 'video'),
     };
 }
 
@@ -170,6 +186,8 @@ function validateSettings(o: any, where: string, errors: string[], warn: (m: str
     if (o.narration !== undefined && typeof o.narration !== 'boolean') errors.push(`${where}: "narration" must be true or false`);
     if (o.hideCursor !== undefined && typeof o.hideCursor !== 'boolean') errors.push(`${where}: "hideCursor" must be true or false`);
     if (o.crop !== undefined && o.crop !== false && !(typeof o.crop === 'number' && Number.isFinite(o.crop) && o.crop >= 0)) errors.push(`${where}: "crop" must be a padding in px (>= 0) or false`);
+    if (o.device !== undefined && !DEVICE_KINDS.includes(o.device)) errors.push(`${where}: "device" must be ${DEVICE_KINDS.map(d => `"${d}"`).join(' or ')}`);
+    if (o.scale !== undefined && !(typeof o.scale === 'number' && Number.isFinite(o.scale) && o.scale > 0)) errors.push(`${where}: "scale" must be a positive number (e.g. 2)`);
     if (o.outputs !== undefined) {
         if (!Array.isArray(o.outputs)) errors.push(`${where}: "outputs" must be an array (e.g. ["guide", "gif"])`);
         else for (const x of o.outputs) {
@@ -205,6 +223,10 @@ export function readCatalog(file: string, warn: (m: string) => void = () => {}):
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`${abs}: expected an object with "outputDir" and "guides"`);
     for (const k of Object.keys(raw)) if (!CATALOG_KEYS.has(k)) warn(`${name}: unknown key "${k}" ignored`);
     if (typeof raw.outputDir !== 'string' || !raw.outputDir.trim()) errors.push('"outputDir" must be a non-empty string');
+    else if (/^~($|[/\\])/.test(raw.outputDir.trim())) {
+        // A shell expands this; JSON does not, so it would quietly create a directory named "~".
+        errors.push(`"outputDir" ${JSON.stringify(raw.outputDir)} starts with a literal "~": JSON has no shell expansion, so this would create a directory called "~" in the catalog directory. Write the path out.`);
+    }
     if (raw.defaults !== undefined) {
         if (!raw.defaults || typeof raw.defaults !== 'object' || Array.isArray(raw.defaults)) errors.push('"defaults" must be an object');
         else {
@@ -226,6 +248,11 @@ export function readCatalog(file: string, warn: (m: string) => void = () => {}):
         else if (slugs.has(g.slug)) errors.push(`${where}: duplicate slug "${g.slug}"`);
         else slugs.add(g.slug);
         if (g.title !== undefined && typeof g.title !== 'string') errors.push(`${where}: "title" must be a string`);
+        if (g.kind !== undefined && !TIMELINE_KINDS.includes(g.kind)) errors.push(`${where}: "kind" must be ${TIMELINE_KINDS.map(k => `"${k}"`).join(' or ')}`);
+        if (g.devices !== undefined) {
+            if (!Array.isArray(g.devices) || !g.devices.length) errors.push(`${where}: "devices" must be a non-empty array of ${DEVICE_KINDS.join('/')}`);
+            else for (const d of g.devices) if (!DEVICE_KINDS.includes(d)) errors.push(`${where}: unknown device ${JSON.stringify(d)} (${DEVICE_KINDS.join(', ')})`);
+        }
         if (typeof g.dir !== 'string' || !g.dir) errors.push(`${where}: "dir" is required`);
         else {
             const dir = path.resolve(base, g.dir);
@@ -294,6 +321,19 @@ export function locateLocaleDir(guide: CatalogGuide, locale: string, baseLocale:
 export interface IndexEntry {
     slug: string;
     locale: string;
+    /** Output profile of this entry; absent means the historical guide. */
+    kind?: TimelineKind;
+    /** Render device, on entries built per device (reels). */
+    device?: DeviceKind;
+    /**
+     * How the clip was rendered, so a reader can reproduce it: the encoded frame size, the pixel
+     * density it was recorded at, and the colour scheme. `width`/`height` are the resolved frame,
+     * which for a scaled reel is the layout box times `scale` (390x844 at scale 2 encodes 780x1688).
+     */
+    width?: number;
+    height?: number;
+    scale?: number;
+    theme?: 'light' | 'dark';
     title?: string;
     /** Source directory relative to the catalog. */
     dir: string;
@@ -313,7 +353,10 @@ export interface IndexEntry {
     video?: string;
     vtt?: string;
     gif?: string;
+    webm?: string;
     poster?: string;
+    /** embed.html, when the entry asked for the `embed` output. */
+    embed?: string;
     guide?: string;
     guideMd?: string;
     guideHtml?: string;
@@ -323,6 +366,12 @@ export interface IndexEntry {
     ms?: number;
 }
 
+/**
+ * NOTE ON THE ARRAY NAME: reels live in `guides` alongside help guides. That reads slightly wrong,
+ * and it is deliberate -- `guides` is the published contract of index.json v1, and renaming it would
+ * break every consumer, while adding fields does not. `kind` distinguishes the two, and the version
+ * stays 1 for the same reason.
+ */
 export interface IndexJson {
     version: 1;
     generatedAt: string;
@@ -346,8 +395,9 @@ export function readIndex(outputDir: string): IndexJson | undefined {
  * Merge this run's entries into the previous index by (slug, locale): entries this run did not
  * touch stay as they were; entries no longer in the catalog (`keep`) are dropped; order follows the catalog.
  */
-export function mergeIndexEntries(previous: IndexEntry[] | undefined, current: IndexEntry[], keep: { slug: string; locale: string }[]): IndexEntry[] {
-    const key = (e: { slug: string; locale: string }) => `${e.slug} ${e.locale}`;
+export function mergeIndexEntries(previous: IndexEntry[] | undefined, current: IndexEntry[], keep: { slug: string; locale: string; device?: DeviceKind }[]): IndexEntry[] {
+    // The device is part of the identity: a reel built for desktop and mobile is two rows, not one.
+    const key = (e: { slug: string; locale: string; device?: DeviceKind }) => `${e.slug} ${e.locale} ${e.device || ''}`;
     const byKey = new Map<string, IndexEntry>();
     for (const e of previous || []) byKey.set(key(e), e);
     for (const e of current) byKey.set(key(e), e);
@@ -360,12 +410,16 @@ export function writeIndex(outputDir: string, index: IndexJson): { json: string;
     const json = path.join(outputDir, 'index.json');
     const md = path.join(outputDir, 'index.md');
     fs.writeFileSync(json, JSON.stringify(index, null, 2) + '\n');
-    const rows = index.guides.map(g => `| ${g.slug} | ${g.locale} | ${g.status}${g.stale ? ' (stale)' : ''} | ${g.guide ? `[guide](${g.guide})` : ''} | ${g.video ? `[video](${g.video})` : ''} | ${g.durationMs ? (g.durationMs / 1000).toFixed(1) + 's' : ''} | ${g.error ? g.error.replace(/\|/g, '\\|') : ''} |`);
+    // Device column: blank for a guide rather than "desktop", because a guide has no device
+    // dimension at all -- writing one would assert a fact the entry does not record, and the table
+    // already leaves guide/video/notes blank when they do not apply. Without it a reel's two rows
+    // render identically and read as an accidental duplicate.
+    const rows = index.guides.map(g => `| ${g.slug} | ${g.locale} | ${g.device || ''} | ${g.status}${g.stale ? ' (stale)' : ''} | ${g.guide ? `[guide](${g.guide})` : ''} | ${g.video ? `[video](${g.video})` : ''} | ${g.durationMs ? (g.durationMs / 1000).toFixed(1) + 's' : ''} | ${g.error ? g.error.replace(/\|/g, '\\|') : ''} |`);
     fs.writeFileSync(md, [
         `# Help guides`, '',
         `Generated ${index.generatedAt} by ${index.tool} from \`${index.catalog}\`.`, '',
-        `| Guide | Locale | Status | Guide | Video | Length | Notes |`,
-        `|---|---|---|---|---|---|---|`,
+        `| Guide | Locale | Device | Status | Guide | Video | Length | Notes |`,
+        `|---|---|---|---|---|---|---|---|`,
         ...rows, '',
     ].join('\n'));
     return { json, md };

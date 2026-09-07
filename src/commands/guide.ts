@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Browser, Page } from 'playwright';
-import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, leadMsFor } from '../engine/schema';
+import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, leadMsFor, emulateMobileFor } from '../engine/schema';
 import { ensureRuntime, StepResult, LiveOptions } from '../engine/driver';
 import { launchPage, fileUrl, resolveViewport, ViewportOptions, newDrivenPage, assertReachable, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
@@ -116,7 +116,9 @@ export async function buildGuide(browser: Browser, dir: string, timeline: Timeli
     const assetsDir = path.join(opts.outDir, 'assets');
     const rel = (p: string) => relPosix(opts.outDir, p);
 
-    const driven = await newDrivenPage(browser, { ...opts.viewport, deviceScaleFactor: opts.viewport.deviceScaleFactor ?? 2, storageState: opts.session?.storageState, runtime: !!opts.session, ignoreHttpsErrors: opts.session?.ignoreHttpsErrors });
+    // Derived like every other path. In practice this is always false: a reel produces no guide
+    // (`--guide` on one is refused), so the capture pass only ever runs for guide timelines.
+    const driven = await newDrivenPage(browser, { ...opts.viewport, deviceScaleFactor: opts.viewport.deviceScaleFactor ?? 2, emulateMobile: emulateMobileFor(timeline), storageState: opts.session?.storageState, runtime: !!opts.session, ignoreHttpsErrors: opts.session?.ignoreHttpsErrors });
     let capture: GuideCapture;
     try {
         if (opts.session) await opts.session.open(driven.page);

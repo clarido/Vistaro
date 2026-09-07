@@ -63,16 +63,16 @@ export async function animateCommand(outputDir: string, prompt: string, options:
             try {
                 const timeline = loadTimeline(outputDir, { locale: options.locale });
                 for (const issue of validateTimeline(timeline)) console.error(formatIssue(issue));
-                animatedHtml = buildAnimatedHtml(animatedHtml, timeline, { cursor: options.cursor, loop: !!options.loop });
+                animatedHtml = buildAnimatedHtml(animatedHtml, timeline, { cursor: options.cursor, loop: options.loop });
             } catch (e: any) { console.error('Error parsing timeline config', e.message); }
         } else if (options.cursor !== 'none') {
             // No timeline: still provide #anim-cli-cursor so the LLM's keyframes have something to animate.
-            animatedHtml = buildAnimatedHtml(animatedHtml, parseTimeline([]), { cursor: options.cursor, loop: !!options.loop });
+            animatedHtml = buildAnimatedHtml(animatedHtml, parseTimeline([]), { cursor: options.cursor, loop: options.loop });
         }
 
         const outPath = path.join(outputDir, 'animated.html');
         fs.writeFileSync(outPath, animatedHtml, 'utf-8');
-        recordEvent(outputDir, { command: 'animate', prompt, provider: options.provider, model: options.model, cursor: options.cursor, loop: !!options.loop, locale: options.locale });
+        recordEvent(outputDir, { command: 'animate', prompt, provider: options.provider, model: options.model, cursor: options.cursor, loop: options.loop, locale: options.locale });
         console.log(`\nSuccess! Animated HTML saved to ${outPath}`);
     } catch (error: any) {
         console.error('Failed to animate UI:', error.message);

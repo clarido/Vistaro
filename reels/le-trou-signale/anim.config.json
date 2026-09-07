@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "kind": "reel",
+    "title": "Le trou signalé",
+    "slug": "le-trou-signale",
+    "app": "Clarido",
+    "locale": "fr",
+    "cursor": "none",
+    "tailMs": 1200,
+    "reel": {
+      "loop": true,
+      "autoplay": "inview"
+    }
+  },
+  "steps": [
+    {
+      "id": "criteres",
+      "time": "0.2s",
+      "action": "animate",
+      "target": ".crit",
+      "all": true,
+      "count": 4,
+      "stagger": 0.09,
+      "from": { "opacity": 0, "y": 10 },
+      "to": { "opacity": 1, "y": 0 },
+      "duration": 0.45,
+      "ease": "easeOutCubic"
+    },
+    {
+      "id": "preuves",
+      "time": "1.7s",
+      "action": "animate",
+      "target": ".proof",
+      "all": true,
+      "count": 3,
+      "stagger": 0.17,
+      "from": { "opacity": 0, "x": -18 },
+      "to": { "opacity": 1, "x": 0 },
+      "duration": 0.5,
+      "ease": "easeOutBack",
+      "mobile": { "from": { "opacity": 0, "y": -10 }, "stagger": 0.14 }
+    },
+    {
+      "id": "trou",
+      "time": "3.4s",
+      "action": "animate",
+      "target": "#gap",
+      "from": { "opacity": 0, "scale": 0.93 },
+      "to": { "opacity": 1, "scale": 1 },
+      "duration": 0.55,
+      "ease": "easeOutBack"
+    },
+    {
+      "id": "bilan",
+      "time": "4.5s",
+      "action": "animate",
+      "target": "#tally",
+      "from": { "opacity": 0, "y": 12 },
+      "to": { "opacity": 1, "y": 0 },
+      "duration": 0.5,
+      "ease": "easeOutCubic"
+    },
+    {
+      "id": "lean",
+      "time": "5.4s",
+      "action": "camera",
+      "target": "#app",
+      "scale": 1.14,
+      "duration": 1.5,
+      "ease": "easeInOutCubic",
+      "only": "desktop"
+    },
+    {
+      "id": "pullback",
+      "time": "7.6s",
+      "action": "camera",
+      "target": "#app",
+      "scale": 1,
+      "duration": 1.2,
+      "ease": "easeInOutCubic",
+      "only": "desktop"
+    }
+  ]
+}

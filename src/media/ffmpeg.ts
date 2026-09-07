@@ -58,13 +58,24 @@ export interface EncodeMp4Options {
     startMs?: number;
     /** Output length (ms). */
     durationMs?: number;
+    /** Emit `-an`: no audio stream at all (a reel is silent by definition). */
+    muted?: boolean;
+    /** x264 quality knobs; the defaults are the project's long-standing values. */
+    crf?: number;
+    preset?: string;
+}
+
+/** Trim flags shared by every encoder, so a format never drifts from the frame-accurate cut. */
+function trimArgs(o: { startMs?: number; durationMs?: number }): string[] {
+    const args: string[] = [];
+    if (o.startMs && o.startMs > 0) args.push('-ss', (o.startMs / 1000).toFixed(3));
+    if (o.durationMs && o.durationMs > 0) args.push('-t', (o.durationMs / 1000).toFixed(3));
+    return args;
 }
 
 /** MP4 encode with the project's quality settings (libx264, crf 18, preset slow, faststart). */
 export function encodeMp4(o: EncodeMp4Options): void {
-    const args: string[] = ['-y'];
-    if (o.startMs && o.startMs > 0) args.push('-ss', (o.startMs / 1000).toFixed(3));
-    if (o.durationMs && o.durationMs > 0) args.push('-t', (o.durationMs / 1000).toFixed(3));
+    const args: string[] = ['-y', ...trimArgs(o)];
     args.push('-i', o.input);
     let inputs = 1;
     let audioIndex = -1;
@@ -74,7 +85,8 @@ export function encodeMp4(o: EncodeMp4Options): void {
     args.push('-map', '0:v:0');
     if (audioIndex >= 0) args.push('-map', `${audioIndex}:a:0`);
     if (metaIndex >= 0) args.push('-map_metadata', String(metaIndex), '-map_chapters', String(metaIndex));
-    args.push('-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p');
+    args.push('-c:v', 'libx264', '-preset', o.preset ?? 'slow', '-crf', String(o.crf ?? 18), '-pix_fmt', 'yuv420p');
+    if (o.muted) args.push('-an');
     if (audioIndex >= 0) {
         // Keep the full video length even if the narration is shorter; a longer narration
         // extends the file (the last frame holds), which export warns about beforehand.
@@ -84,12 +96,56 @@ export function encodeMp4(o: EncodeMp4Options): void {
     run(args);
 }
 
-/** High-quality GIF via palettegen/paletteuse at 20fps (verbatim from the original export). */
-export function encodeGif(input: string, output: string, o: { startMs?: number; durationMs?: number } = {}): void {
+export interface EncodeGifOptions {
+    startMs?: number;
+    durationMs?: number;
+    /** Scale to this width, height auto (kept even). Omit to keep the source size. */
+    width?: number;
+    /**
+     * Cap the LONGER edge at this many pixels, whichever edge that is, height/width auto (kept even).
+     * A budget expressed as a width silently quadruples for a portrait clip: 720 wide is 292k pixels
+     * at 16:9 but 1.12M at 9:19.5, so a phone GIF came out ~3.7x heavier than the desktop one it was
+     * meant to undercut. Takes precedence over `width`.
+     */
+    longEdge?: number;
+    /** Frames per second; the default is the original 20. */
+    fps?: number;
+}
+
+/** High-quality GIF via palettegen/paletteuse (20fps and full size unless told otherwise). */
+export function encodeGif(input: string, output: string, o: EncodeGifOptions = {}): void {
+    const args: string[] = ['-y', ...trimArgs(o)];
+    // `if(gt(iw,ih),...)` picks the orientation inside ffmpeg, so no dimension probe is needed.
+    const scale = o.longEdge && o.longEdge > 0
+        ? `scale='if(gt(iw,ih),${Math.round(o.longEdge)},-2)':'if(gt(iw,ih),-2,${Math.round(o.longEdge)})':flags=lanczos,`
+        : o.width && o.width > 0 ? `scale=${Math.round(o.width)}:-2:flags=lanczos,` : '';
+    const filter = `${scale}fps=${o.fps && o.fps > 0 ? o.fps : 20},split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse=dither=sierra2_4a`;
+    args.push('-i', input, '-vf', filter, '-loop', '0', output);
+    run(args);
+}
+
+/**
+ * VP9 WebM, silent: the second delivery format for a reel, so a page can serve whichever the
+ * browser prefers. `-b:v 0` puts libvpx in constant-quality mode, where `-crf` alone sets the rate.
+ */
+export function encodeWebm(input: string, output: string, o: { startMs?: number; durationMs?: number; crf?: number } = {}): void {
+    const args: string[] = ['-y', ...trimArgs(o)];
+    args.push('-i', input,
+        '-c:v', 'libvpx-vp9', '-crf', String(o.crf ?? 32), '-b:v', '0',
+        '-row-mt', '1', '-deadline', 'good', '-cpu-used', '2',
+        '-pix_fmt', 'yuv420p', '-an', output);
+    run(args);
+}
+
+/**
+ * One PNG frame, for a poster shown before the clip plays. `atMs` is relative to the already-trimmed
+ * video, so the caller passes the first step's time: a reel's very first frame is the mockup before
+ * anything has animated in, which makes a poor cover image.
+ */
+export function extractPoster(input: string, output: string, atMs = 0): void {
     const args: string[] = ['-y'];
-    if (o.startMs && o.startMs > 0) args.push('-ss', (o.startMs / 1000).toFixed(3));
-    if (o.durationMs && o.durationMs > 0) args.push('-t', (o.durationMs / 1000).toFixed(3));
-    args.push('-i', input, '-vf', 'fps=20,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse=dither=sierra2_4a', '-loop', '0', output);
+    if (atMs > 0) args.push('-ss', (atMs / 1000).toFixed(3));
+    args.push('-i', input, '-frames:v', '1', output);
     run(args);
 }
 

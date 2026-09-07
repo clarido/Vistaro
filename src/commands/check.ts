@@ -1,10 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
-import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue } from '../engine/schema';
+import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue, deviceKind, emulateMobileFor } from '../engine/schema';
 import { runTimeline, ensureRuntime, LiveOptions } from '../engine/driver';
 import { bootOptions } from '../engine/inject';
-import { launchPage, fileUrl, ViewportOptions, assertReachable, sanitizeUrl } from '../browser';
+import { launchPage, fileUrl, ViewportOptions, assertReachable, sanitizeUrl, resolveViewport } from '../browser';
 import { extractStrings, isAutoStepId } from '../engine/strings';
 import { runResetCommand, resolveResetCommand } from '../reset';
 
@@ -26,10 +26,22 @@ export interface CheckOptions extends ViewportOptions {
     locale?: string;
 }
 
+/** Sub-pixel layout rounding routinely puts an element a pixel over an edge; below this it is noise. */
+const CROP_TOLERANCE_PX = 2;
+
 interface TargetProbe {
     error?: string;
     count: number;
     rendered?: boolean;
+    /** Rect-level cropping (px): outside the viewport, and outside the worst clipping ancestor.
+     *  Absent on the early-return paths (bad selector, no match), which never reach the measurement. */
+    outsideViewport?: number;
+    clipOverflow?: number;
+    /** True when a previous `camera` step still holds the page under a transform. */
+    cameraActive?: boolean;
+    /** How much of the target's box survives its clipping ancestors, 0 (nothing) to 1 (all of it). */
+    visibleFraction?: number;
+    clippedBy?: string;
     clipped?: boolean;
     anchored?: boolean;
     anchorSelector?: string;
@@ -50,7 +62,7 @@ const issueFor = (step: Step, level: Issue['level'], message: string, field = 't
  * right before the step runs (missing, hidden, 0x0, clipped, off-screen), then let the step run so
  * targets revealed by earlier steps are checked in the state they will really be in.
  */
-function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Issue[]) {
+function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Issue[], reelTimeline = false) {
     // Steps whose target is already statically wrong would only produce a duplicate browser error.
     const staticTargetErrors = new Set(staticIssues.filter(i => i.level === 'error' && i.field === 'target').map(i => i.step));
     const reportedMissing = new Set<number>();
@@ -77,8 +89,48 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 // so the warning only fires when scrolling cannot reveal it.
                 let clipped = anim.isClipped(el);
                 if (clipped) { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); clipped = anim.isClipped(el); }
+                // How much of the rect falls outside the viewport, and outside any ancestor that
+                // clips. isClipped above only tests the centre point, so an element cropped along one
+                // edge passes it while half of it is missing from the frame.
+                var rr = el.getBoundingClientRect();
+                // A camera push deliberately shows a subset of the page, so under one "outside the
+                // viewport" is the intended framing rather than a fault. Ask the runtime rather than
+                // reading the <body> transform: drift puts one there at boot (`check --live` keeps
+                // drift when meta.drift is true), which would disable this check for the whole run.
+                var cameraActive = !!(anim.cameraActive && anim.cameraActive());
+                var outsideViewport = Math.max(0, -rr.left) + Math.max(0, rr.right - window.innerWidth)
+                    + Math.max(0, -rr.top) + Math.max(0, rr.bottom - window.innerHeight);
+                var clippedBy = '';
+                var clipOverflow = 0;
+                // The part of the rect that survives every clipping ancestor. isClipped above only
+                // asks whether the CENTRE point is hit-testable, which is wrong in both directions:
+                // an element taller than its container has its centre outside it while most of it is
+                // on screen, and an element cropped along one edge keeps its centre and looks fine.
+                var vl = rr.left, vt = rr.top, vr2 = rr.right, vb = rr.bottom;
+                var anc = el.parentElement;
+                while (anc && anc !== document.documentElement) {
+                    // Only overflow that cannot be reached counts, and only on the axis that hides it.
+                    // `auto`/`scroll` content below the fold of a scrollable panel is the normal state
+                    // of every long document (it fired on demo/, where the editor simply holds more
+                    // text than its panel shows at once), and the common `overflow-x: hidden;
+                    // overflow-y: auto` pane would otherwise report its scrollable height as a crop.
+                    var acs = getComputedStyle(anc);
+                    var hidesX = acs.overflowX === 'hidden' || acs.overflowX === 'clip';
+                    var hidesY = acs.overflowY === 'hidden' || acs.overflowY === 'clip';
+                    if (hidesX || hidesY) {
+                        var abox = anc.getBoundingClientRect();
+                        var over = 0;
+                        if (hidesX) { over += Math.max(0, abox.left - rr.left) + Math.max(0, rr.right - abox.right); vl = Math.max(vl, abox.left); vr2 = Math.min(vr2, abox.right); }
+                        if (hidesY) { over += Math.max(0, abox.top - rr.top) + Math.max(0, rr.bottom - abox.bottom); vt = Math.max(vt, abox.top); vb = Math.min(vb, abox.bottom); }
+                        if (over > clipOverflow) { clipOverflow = over; clippedBy = anim.selectorOf(anc); }
+                    }
+                    anc = anc.parentElement;
+                }
                 return {
                     count: all.length, width: r.width, height: r.height, rendered, clipped,
+                    outsideViewport: Math.round(outsideViewport), clipOverflow: Math.round(clipOverflow), clippedBy, cameraActive,
+                    visibleFraction: rr.width && rr.height
+                        ? (Math.max(0, vr2 - vl) * Math.max(0, vb - vt)) / (rr.width * rr.height) : 0,
                     anchored: anchor !== el && ar.width > 0 && ar.height > 0,
                     anchorSelector: anchor !== el ? anim.selectorOf(anchor) : undefined,
                     display: cs.display, visibility: cs.visibility, opacity: parseFloat(cs.opacity),
@@ -95,10 +147,37 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 reportedMissing.add(step.index);
                 return;
             }
-            if (probe.count > 1) {
+            const animatesAll = step.action === 'animate' && !!step.all;
+            if (probe.count > 1 && !animatesAll) {
                 issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} matches ${probe.count} elements; the first one is used`));
             }
-            const revealsTarget = step.action === 'fadeIn' || step.action === 'transitionScreen';
+            // `animate` with `all` runs once per match, so the real count sets the step's length; the
+            // authored `count` only feeds the static estimate that `export` records against.
+            if (animatesAll) {
+                if (probe.count === 1) {
+                    issues.push(issueFor(step, 'warning', `"all": true but ${JSON.stringify(step.target)} matches a single element (nothing to stagger against; drop "all" or widen the selector)`, 'all'));
+                } else if (typeof step.count === 'number' && probe.count > step.count) {
+                    const stagger = typeof step.stagger === 'number' && step.stagger > 0 ? step.stagger : 0;
+                    const overrunMs = Math.round(stagger * 1000 * (probe.count - step.count));
+                    issues.push(issueFor(step, 'warning', `${probe.count} elements match ${JSON.stringify(step.target)} but "count" says ${step.count}: the step runs ${overrunMs}ms longer than the timeline estimates (set "count" to ${probe.count})`, 'count'));
+                } else if (typeof step.count === 'number' && probe.count < step.count) {
+                    issues.push(issueFor(step, 'info', `${probe.count} elements match ${JSON.stringify(step.target)} but "count" says ${step.count}: the estimate is longer than the step needs`, 'count'));
+                }
+            }
+            // A reel has no cursor, so none of the cursor-action checks below fire for it and its
+            // steps were previously probed for existence only. The most expensive reel mistake is a
+            // payoff that is not in frame: it does not error, and it survives a contact sheet because
+            // the clip is cropped rather than broken.
+            if (reelTimeline) {
+                if (!probe.cameraActive && (probe.outsideViewport ?? 0) > CROP_TOLERANCE_PX) {
+                    issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} extends ${probe.outsideViewport}px outside the ${where} viewport when this step runs: that part is not in the recorded frame`));
+                } else if ((probe.clipOverflow ?? 0) > CROP_TOLERANCE_PX) {
+                    issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} is cropped by ${probe.clipOverflow}px by ${probe.clippedBy || 'an ancestor'} (overflow is not visible): the hidden part never reaches the video`));
+                }
+            }
+            // An `animate` step is usually what reveals its target, so a hidden or transparent
+            // starting state is the intent rather than a fault, exactly as for fadeIn.
+            const revealsTarget = step.action === 'fadeIn' || step.action === 'transitionScreen' || step.action === 'animate';
             if (!revealsTarget && probe.rendered === false) {
                 issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} is hidden when this step runs (display: ${probe.display}, visibility: ${probe.visibility}, or an ancestor is hidden)`));
             } else if (!revealsTarget && (!probe.width || !probe.height) && !(step.action === 'type' && probe.anchored)) {
@@ -106,11 +185,18 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 // any other 0x0 target renders nothing in the frame.
                 issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} has zero size when this step runs (${Math.round(probe.width || 0)}x${Math.round(probe.height || 0)}px)${step.action === 'type' ? ' and no sized ancestor to spotlight' : ''}`));
             } else if (step.action === 'type' && probe.anchored && (!probe.width || !probe.height)) {
-                const info = issueFor(step, 'info', `target ${JSON.stringify(step.target)} is 0x0 (empty caret); the spotlight uses its sized ancestor ${probe.anchorSelector}`);
+                const info = issueFor(step, 'info', reelTimeline
+                    ? `target ${JSON.stringify(step.target)} is 0x0 (empty caret); typing is anchored to its sized ancestor ${probe.anchorSelector}`
+                    : `target ${JSON.stringify(step.target)} is 0x0 (empty caret); the spotlight uses its sized ancestor ${probe.anchorSelector}`);
                 info.highlightFallback = probe.anchorSelector;
                 issues.push(info);
-            } else if (!revealsTarget && CURSOR_ACTIONS.has(step.action) && probe.clipped) {
+            } else if (!revealsTarget && CURSOR_ACTIONS.has(step.action) && probe.clipped && (probe.visibleFraction ?? 1) === 0) {
                 issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} is clipped by an overflow container and cannot be scrolled into view; the cursor and typed text will be off-frame`));
+            } else if (!revealsTarget && CURSOR_ACTIONS.has(step.action) && (probe.clipOverflow ?? 0) > CROP_TOLERANCE_PX) {
+                // isClipped only tests the centre point, so a target hidden along one edge reaches
+                // here having passed every check above. For a guide the consequence is worse than for
+                // a reel: the step frame IS the documentation, and it documents the visible sliver.
+                issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} is cropped by ${probe.clipOverflow}px by ${probe.clippedBy || 'an ancestor'} (overflow is not visible): the guide frame for this step shows only the part that is inside it`));
             } else if (!revealsTarget && probe.opacity === 0) {
                 issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} has opacity 0 when this step runs`));
             } else if (!revealsTarget && step.action !== 'scroll' && CURSOR_ACTIONS.has(step.action) && probe.inViewport === false) {
@@ -134,14 +220,47 @@ export async function browserCheck(dir: string, timeline: Timeline, opts: Viewpo
         issues.push({ level: 'error', message: `${htmlPath} not found` });
         return issues;
     }
-    const launched = await launchPage({ ...opts, deviceScaleFactor: 1 });
+    const launched = await launchPage({ ...opts, deviceScaleFactor: 1, emulateMobile: emulateMobileFor(timeline) });
     const { page } = launched;
     const pageErrors: string[] = [];
     page.on('pageerror', e => pageErrors.push(e.message));
     try {
         await page.goto(fileUrl(htmlPath), { waitUntil: 'load' });
-        await ensureRuntime(page, timeline, { drift: false });
-        await runTimeline(page, timeline, { mode: 'step', instant: true, settleMs: 0, ...probeHooks(page, 'index.html', issues, staticIssues) });
+        await ensureRuntime(page, timeline, { drift: false, zoom: resolveViewport(opts).scale });
+
+        // Two authoring traps that fail silently and are very hard to see once they have happened:
+        // both produce a plausible-looking video at the wrong scale rather than an error.
+        if (isReel(timeline) && resolveViewport(opts).isMobile) {
+            const page_ = await page.evaluate(() => {
+                const meta = document.querySelector('meta[name="viewport"]');
+                const widths: number[] = [];
+                for (const sheet of Array.from(document.styleSheets)) {
+                    let rules: CSSRuleList | undefined;
+                    try { rules = (sheet as CSSStyleSheet).cssRules; } catch { continue; }
+                    for (const rule of Array.from(rules || [])) {
+                        const cond = (rule as CSSMediaRule).conditionText;
+                        if (!cond) continue;
+                        const m = /max-width:\s*(\d+(?:\.\d+)?)px/.exec(cond);
+                        if (m) widths.push(parseFloat(m[1]));
+                    }
+                }
+                return { hasViewportMeta: !!meta, maxWidths: widths, innerWidth: window.innerWidth };
+            });
+            // The frame width the reel is recorded at, which is what the page must fit; `innerWidth`
+            // is 980 here precisely because the emulation being warned about is already in effect.
+            const frameWidth = resolveViewport(opts).width;
+            if (!page_.hasViewportMeta) {
+                issues.push({ level: 'warning', field: 'viewport', message: `index.html declares no <meta name="viewport">: mobile emulation lays this page out at ${page_.innerWidth}px and it is rendered at about ${(frameWidth / page_.innerWidth).toFixed(2)}x on a ${frameWidth}px frame, so text comes out unreadably small. Add <meta name="viewport" content="width=device-width, initial-scale=1">` });
+            }
+            // The mobile styles have to still match at the width the reel is recorded at, which is the
+            // viewport times --scale. A breakpoint below it silently yields the desktop layout.
+            const layoutWidth = page_.hasViewportMeta ? frameWidth : page_.innerWidth;
+            const tooNarrow = page_.maxWidths.filter(w => w < layoutWidth);
+            if (tooNarrow.length && tooNarrow.length === page_.maxWidths.length) {
+                issues.push({ level: 'warning', field: 'viewport', message: `every max-width media query (${[...new Set(tooNarrow)].sort((a, b) => a - b).map(w => w + 'px').join(', ')}) is below the ${layoutWidth}px width this reel lays out at, so the mobile layout will not apply: raise the breakpoint above the widest viewport it is recorded at (viewport x --scale)` });
+            }
+        }
+        await runTimeline(page, timeline, { mode: 'step', instant: true, settleMs: 0, ...probeHooks(page, 'index.html', issues, staticIssues, isReel(timeline)) });
     } finally {
         await launched.close();
     }
@@ -171,7 +290,7 @@ export async function liveCheck(timeline: Timeline, url: string, opts: CheckOpti
     catch (e: any) { issues.push({ level: 'error', message: e.message }); return issues; }
     try { runResetCommand(resetCmd, 'live probe', m => console.error(m)); }
     catch (e: any) { issues.push({ level: 'error', message: e.message }); return issues; }
-    const launched = await launchPage({ ...opts, deviceScaleFactor: 1, driven: true, storageState: opts.storageState, runtime: true, ignoreHttpsErrors: opts.ignoreHttpsErrors });
+    const launched = await launchPage({ ...opts, deviceScaleFactor: 1, driven: true, emulateMobile: emulateMobileFor(timeline), storageState: opts.storageState, runtime: true, ignoreHttpsErrors: opts.ignoreHttpsErrors });
     const { page } = launched;
     const pageErrors: string[] = [];
     page.on('pageerror', e => pageErrors.push(e.message));
@@ -182,7 +301,7 @@ export async function liveCheck(timeline: Timeline, url: string, opts: CheckOpti
         await page.goto(url, { waitUntil: 'load', timeout: 30000 });
         await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
         await ensureRuntime(page, timeline, { drift: timeline.meta.drift === true });
-        await runTimeline(page, timeline, { mode: 'step', instant: true, settleMs: 0, live, ...probeHooks(page, 'the page', issues, staticIssues) });
+        await runTimeline(page, timeline, { mode: 'step', instant: true, settleMs: 0, live, ...probeHooks(page, 'the page', issues, staticIssues, isReel(timeline)) });
     } finally {
         await launched.close();
     }
@@ -197,12 +316,16 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
     let note = '';
     let kind = options.static ? 'static' : 'static + browser';
     try {
-        timeline = loadTimeline(dir, { locale: options.locale });
+        timeline = loadTimeline(dir, { locale: options.locale, device: deviceKind(options.device) });
     } catch (e: any) {
         issues.push({ level: 'error', message: e.message });
     }
     if (timeline) {
-        issues.push(...validateTimeline(timeline, { live: !!options.live, guide: !!options.guide }));
+        // --guide asks whether this timeline makes a good help document; a reel is not one.
+        if (options.guide && isReel(timeline)) {
+            issues.push({ level: 'error', field: 'guide', message: 'timeline is kind: "reel": guides are not produced for reels (a reel is a silent marketing clip with no numbered steps); drop --guide, or set meta.kind to "guide"' });
+        }
+        issues.push(...validateTimeline(timeline, { live: !!options.live, guide: !!options.guide && !isReel(timeline) }));
         if (timeline.strings) {
             const st = timeline.strings;
             const file = path.basename(st.file);

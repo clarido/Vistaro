@@ -30,6 +30,22 @@
   var SCROLL_MS = 600;
   var DEFAULT_TAIL_MS = 2500;
   var CAMERA_EASING = 'cubic-bezier(0.65, 0, 0.35, 1)';
+  var DEFAULT_ANIMATE_S = 0.6;
+  // Named curves for `animate` and `camera`. schema.ts duplicates the NAMES to validate a step
+  // before the browser sees it (it cannot import this file); test/constants.test.ts keeps them equal.
+  var EASINGS = {
+    linear: 'linear',
+    easeInCubic: 'cubic-bezier(0.32, 0, 0.67, 0)',
+    easeOutCubic: 'cubic-bezier(0.33, 1, 0.68, 1)',
+    easeInOutCubic: 'cubic-bezier(0.65, 0, 0.35, 1)',
+    easeOutBack: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+    easeOutExpo: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    spring: 'cubic-bezier(0.22, 1.61, 0.36, 1)'
+  };
+  /** A step's named easing, or `fallback` when it names none (or names one we do not have). */
+  function easingOf(step, fallback) {
+    return (step && typeof step.ease === 'string' && EASINGS[step.ease]) || fallback;
+  }
   var SUBTITLE_HOLD_MS = 4000;
 
   var ALIASES = { showText: 'fadeIn' };
@@ -49,14 +65,16 @@
 #anim-cli-highlight.anim-cli-hold { opacity: 1; animation: none; }
 @keyframes anim-cli-highlightPulse { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
 .anim-cli-ripple { position: fixed; width: 14px; height: 14px; margin-left: -7px; margin-top: -7px; border-radius: 50%; background: rgba(59,130,246,0.35); border: 2px solid rgba(59,130,246,0.65); pointer-events: none; z-index: 99997; animation: anim-cli-rippleAnim 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
-@keyframes anim-cli-rippleAnim { 0% { width: 14px; height: 14px; margin-left: -7px; margin-top: -7px; opacity: 0.9; } 100% { width: 80px; height: 80px; margin-left: -40px; margin-top: -40px; opacity: 0; } }
-#anim-cli-callout { position: fixed; width: 32px; height: 32px; border-radius: 50%; background: #3B82F6; color: #fff; font: 600 15px/32px -apple-system, sans-serif; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; z-index: 99998; display: none; }`;
+@keyframes anim-cli-rippleAnim { 0% { width: 14px; height: 14px; margin-left: -7px; margin-top: -7px; opacity: 0.9; } 100% { width: 80px; height: 80px; margin-left: -40px; margin-top: -40px; opacity: 0; } }`;
+  // The numbered badge is guide-capture furniture, not chrome the viewer sees during playback, so it
+  // is installed even when the spotlight and ripple are off.
+  var CALLOUT_CSS = `#anim-cli-callout { position: fixed; width: 32px; height: 32px; border-radius: 50%; background: #3B82F6; color: #fff; font: 600 15px/32px -apple-system, sans-serif; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; z-index: 99998; display: none; }`;
 
   // --- state ----------------------------------------------------------------------
   var state = {
     booted: false,
     ready: false,
-    opts: { cursor: 'mac', resetFocusStyles: false, drift: true, loop: false, timeline: null, durationMs: null, cursorPoint: null },
+    opts: { cursor: 'mac', resetFocusStyles: false, drift: true, loop: false, spotlight: true, ripple: true, subtitles: true, autoplay: 'immediate', zoom: 1, timeline: null, durationMs: null, cursorPoint: null },
     cursor: null,
     subtitleLayer: null,
     subtitleEl: null,
@@ -64,6 +82,10 @@
     t0: null,
     currentScreen: null,
     lastSpot: null,
+    snapshot: null,
+    snapshotStyle: '',
+    cameraOn: false,
+    playback: null,
     timers: [],
     intervals: [],
     completions: {},
@@ -76,6 +98,34 @@
     if (document.body) fn();
     else document.addEventListener('DOMContentLoaded', fn, { once: true });
   }
+  /**
+   * The overlays live under <html>, which carries `:root { zoom: N }` on a scaled recording, while
+   * getBoundingClientRect reports PAINTED pixels. A coordinate read from the page is therefore in a
+   * different space from the one it is written into, and applying it unconverted places every
+   * overlay at N times its intended position. These two helpers are the only place that conversion
+   * happens; everything else keeps working in painted space.
+   *
+   * Measured rects are divided, position and size alike, so the ring still frames its target. The
+   * overlays' own constants (the 6px spotlight pad, the 32px badge, the ripple) are NOT divided:
+   * they are authored in CSS px and should paint N times larger in an N-times denser recording,
+   * exactly as the page content does.
+   */
+  function rootZoom() {
+    var z = state.opts.zoom;
+    return typeof z === 'number' && z > 0 ? z : 1;
+  }
+  /** Painted point -> overlay space. Returns the input untouched at zoom 1, so the common path is exact. */
+  function toOverlayPoint(x, y) {
+    var z = rootZoom();
+    return z === 1 ? { x: x, y: y } : { x: x / z, y: y / z };
+  }
+  /** Painted rect -> overlay space (position and size both). Untouched at zoom 1. */
+  function toOverlayRect(r) {
+    var z = rootZoom();
+    if (z === 1) return r;
+    return { left: r.left / z, top: r.top / z, width: r.width / z, height: r.height / z };
+  }
+
   function overlayRoot() {
     // A transformed <body> becomes the containing block for its position:fixed descendants,
     // which would double-apply the camera/zoom transform to the cursor/highlight/ripple overlays.
@@ -102,6 +152,47 @@
   function rectOf(el) {
     if (!el) return null;
     var r = el.getBoundingClientRect();
+    return { x: r.left, y: r.top, width: r.width, height: r.height };
+  }
+  /**
+   * The part of `el` a viewer can actually see: its box intersected with every ancestor that hides
+   * overflow, on the axis that hides it. The ring's job is to frame what the frame shows, and an
+   * element taller than its clipping container would otherwise be ringed well outside the app.
+   * `auto`/`scroll` is deliberately left alone: the runtime scrolls a clipped target into view
+   * before interacting, so content below the fold of a scrollable pane is reachable and belongs
+   * inside the ring.
+   */
+  function visibleRect(el) {
+    var r = el.getBoundingClientRect();
+    // Overflow only clips a descendant that sits inside its own containing block. A fixed element's
+    // containing block is the viewport, so an overflow:hidden ancestor does not clip it at all:
+    // measured, a fixed 300x200 inside a 200x100 hidden pane paints in full, and clamping it would
+    // ring a third of the box. An absolutely positioned one is clipped up to its nearest positioned
+    // ancestor and no further.
+    var pos = getComputedStyle(el).position;
+    if (pos === 'fixed') return r;
+    var stopAtPositioned = pos === 'absolute';
+    var l = r.left, t = r.top, rt = r.right, b = r.bottom;
+    var a = el.parentElement;
+    while (a && a !== document.documentElement) {
+      var cs = getComputedStyle(a);
+      var box = null;
+      if (cs.overflowX === 'hidden' || cs.overflowX === 'clip') { box = a.getBoundingClientRect(); l = Math.max(l, box.left); rt = Math.min(rt, box.right); }
+      if (cs.overflowY === 'hidden' || cs.overflowY === 'clip') { box = box || a.getBoundingClientRect(); t = Math.max(t, box.top); b = Math.min(b, box.bottom); }
+      // The containing block itself clips (handled just above); nothing above it does.
+      if (stopAtPositioned && cs.position !== 'static') break;
+      a = a.parentElement;
+    }
+    // Nothing survives (a target clipped away entirely): keep the unclamped box rather than
+    // collapsing to an invisible or negative-sized ring. `check` reports that case as a warning of
+    // its own, and a ring in the wrong place is more debuggable than no ring at all.
+    if (rt - l <= 0 || b - t <= 0) return r;
+    return { left: l, top: t, right: rt, bottom: b, width: rt - l, height: b - t };
+  }
+  /** The box the spotlight actually framed, in painted px (what guide.json reports and crops to). */
+  function spotRectOf(el) {
+    if (!el) return null;
+    var r = visibleRect(el);
     return { x: r.left, y: r.top, width: r.width, height: r.height };
   }
   /** Nearest self-or-ancestor with a non-zero box (an empty <span> has none). */
@@ -153,8 +244,13 @@
   // Idempotent: a second boot with a different cursor swaps the cursor CSS.
   function installStyles() {
     var css = '';
+    // A scaled recording: the viewport is N times larger and the page is zoomed back down, so the
+    // layout box keeps its authored size while every CSS pixel is painted N video pixels wide.
+    if (state.opts.zoom && state.opts.zoom !== 1) css += ':root { zoom: ' + state.opts.zoom + '; }\n';
     if (state.opts.cursor && state.opts.cursor !== 'none') css += (CURSOR_CSS[state.opts.cursor] || CURSOR_CSS.mac) + '\n';
-    css += SUBTITLE_CSS + '\n' + EFFECTS_CSS + '\n';
+    if (state.opts.subtitles) css += SUBTITLE_CSS + '\n';
+    if (state.opts.spotlight || state.opts.ripple) css += EFFECTS_CSS + '\n';
+    css += CALLOUT_CSS + '\n';
     var style = document.getElementById('anim-cli-runtime-style');
     if (!style) {
       style = document.createElement('style');
@@ -206,9 +302,11 @@
       dispatch('anim:ready', { driven: !!window.__ANIM_DRIVEN });
       var tl = state.opts.timeline;
       var steps = tl && (Array.isArray(tl) ? tl : tl.steps);
-      // No steps (e.g. `animate --loop` without a config): nothing to play, and no reload loop.
+      // No steps (e.g. `animate --loop` without a config): nothing to play, and no loop.
       if (steps && steps.length && !window.__ANIM_DRIVEN) {
-        play(tl, { loop: !!state.opts.loop, durationMs: state.opts.durationMs });
+        // Taken before the first step runs, so the clone is the authored page.
+        snapshot();
+        startPlayback(tl);
       }
     });
     return api;
@@ -217,16 +315,20 @@
   // --- primitives -----------------------------------------------------------------
   function placeCursor(x, y) {
     if (!state.cursor) return;
+    var p = toOverlayPoint(x, y);
     state.cursor.style.transition = 'none';
-    state.cursor.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+    state.cursor.style.transform = 'translate(' + p.x + 'px, ' + p.y + 'px)';
     void state.cursor.offsetWidth;
+    // state.point stays in painted space: it is the canonical coordinate the driver reports and the
+    // next step measures against.
     state.point = { x: x, y: y };
   }
   function moveCursor(x, y, ms, easing) {
     if (!state.cursor) return;
     if (!ms || ms <= 0) { placeCursor(x, y); return; }
+    var p = toOverlayPoint(x, y);
     state.cursor.style.transition = 'transform ' + ms + 'ms ' + (easing || 'cubic-bezier(0.16, 1, 0.3, 1)');
-    state.cursor.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+    state.cursor.style.transform = 'translate(' + p.x + 'px, ' + p.y + 'px)';
     state.point = { x: x, y: y };
   }
   /**
@@ -246,20 +348,24 @@
   }
   function pressCursor(x, y, ms) {
     if (!state.cursor) return;
+    var p = toOverlayPoint(x, y);
     state.cursor.style.transition = 'transform ' + Math.max(0, ms) + 'ms ease';
-    state.cursor.style.transform = 'translate(' + x + 'px, ' + y + 'px) scale(0.85)';
+    state.cursor.style.transform = 'translate(' + p.x + 'px, ' + p.y + 'px) scale(0.85)';
   }
   function releaseCursor(x, y) {
     if (!state.cursor) return;
+    var p = toOverlayPoint(x, y);
     state.cursor.style.transition = 'transform 150ms ease';
-    state.cursor.style.transform = 'translate(' + x + 'px, ' + y + 'px) scale(1)';
+    state.cursor.style.transform = 'translate(' + p.x + 'px, ' + p.y + 'px) scale(1)';
   }
 
   function ripple(x, y) {
+    if (!state.opts.ripple) return;
+    var p = toOverlayPoint(x, y);
     var r = document.createElement('div');
     r.className = 'anim-cli-ripple';
-    r.style.left = x + 'px';
-    r.style.top = y + 'px';
+    r.style.left = p.x + 'px';
+    r.style.top = p.y + 'px';
     overlayRoot().appendChild(r);
     setTimeout(function () { r.remove(); }, 700);
   }
@@ -276,7 +382,7 @@
 
   /** Move the spotlight box onto `el`; `snap` skips the 0.5s position transition (guide marks). */
   function positionHighlight(el, snap) {
-    var rect = el.getBoundingClientRect();
+    var rect = toOverlayRect(visibleRect(el));
     var h = getHighlightBox();
     // The ring is position:fixed like the cursor, so a camera move has to carry it too.
     state.spotAnchor = el;
@@ -290,6 +396,7 @@
   }
 
   function highlight(el) {
+    if (!state.opts.spotlight) return;
     if (!el) return;
     var h = positionHighlight(el);
     h.classList.remove('anim-cli-hold');
@@ -310,19 +417,21 @@
    * on the camera's curve. The default 0.5s position transition is restored once it lands, so an
    * ordinary step-to-step move keeps its own timing.
    */
-  function glideHighlight(rect, ms) {
+  function glideHighlight(rect, ms, easing) {
     var h = document.getElementById('anim-cli-highlight');
     if (!h) return;
-    var ease = function (p) { return p + ' ' + ms + 'ms ' + CAMERA_EASING; };
+    var curve = easing || CAMERA_EASING;
+    var ease = function (p) { return p + ' ' + ms + 'ms ' + curve; };
+    var box = toOverlayRect(rect);
     h.style.transition = ms > 0 ? [ease('left'), ease('top'), ease('width'), ease('height')].join(', ') : 'none';
-    h.style.left = (rect.left - 6) + 'px';
-    h.style.top = (rect.top - 6) + 'px';
-    h.style.width = (rect.width + 12) + 'px';
-    h.style.height = (rect.height + 12) + 'px';
+    h.style.left = (box.left - 6) + 'px';
+    h.style.top = (box.top - 6) + 'px';
+    h.style.width = (box.width + 12) + 'px';
+    h.style.height = (box.height + 12) + 'px';
     var c = document.getElementById('anim-cli-callout');
     var badgeShowing = c && c.style.display === 'block';
     if (badgeShowing) {
-      var pos = calloutPosition(rect);
+      var pos = toOverlayPoint(calloutPosition(rect).x, calloutPosition(rect).y);
       c.style.transition = ms > 0 ? [ease('left'), ease('top')].join(', ') : 'none';
       c.style.left = pos.x + 'px';
       c.style.top = pos.y + 'px';
@@ -358,10 +467,13 @@
   function showCallout(n, el) {
     var c = document.getElementById('anim-cli-callout');
     if (!c) { c = document.createElement('div'); c.id = 'anim-cli-callout'; overlayRoot().appendChild(c); }
-    var pos = calloutPosition(el.getBoundingClientRect());
+    // Clamped against the viewport in painted space, then converted once for the style. The value
+    // returned stays painted: guide.json and the screenshot crop both work in that space.
+    var pos = calloutPosition(visibleRect(el));
+    var placed = toOverlayPoint(pos.x, pos.y);
     c.textContent = String(n);
-    c.style.left = pos.x + 'px';
-    c.style.top = pos.y + 'px';
+    c.style.left = placed.x + 'px';
+    c.style.top = placed.y + 'px';
     c.style.display = 'block';
     return { number: n, x: pos.x, y: pos.y };
   }
@@ -382,6 +494,12 @@
     if (state.subtitleLayer) state.subtitleLayer.style.visibility = 'hidden';
     if (o.hideCursor && state.cursor) state.cursor.style.visibility = 'hidden';
   }
+  /**
+   * Guide capture furniture, deliberately independent of playback chrome: a numbered step shows what
+   * it points at even when the step opted out of the spotlight during playback (`spotlight: false`)
+   * or the whole profile turned it off. The two are different concerns -- one is what a viewer sees
+   * moving, the other is what a reader sees in a still.
+   */
   function markStep(o) {
     o = o || {};
     var el = o.target === 'body' ? document.body : (o.target ? document.querySelector(o.target) : null);
@@ -389,7 +507,7 @@
     var spot = (state.lastSpot && state.lastSpot.target === o.target && state.lastSpot.el.isConnected) ? state.lastSpot.el : anchorOf(el);
     holdHighlight(spot);
     var callout = o.number != null ? showCallout(o.number, spot) : null;
-    return { rect: rectOf(spot), targetRect: spot !== el ? rectOf(el) : undefined, callout: callout };
+    return { rect: spotRectOf(spot), targetRect: spot !== el ? rectOf(el) : undefined, callout: callout };
   }
   function endCapture() {
     releaseHighlight();
@@ -499,8 +617,15 @@
         stage.style.transform = current === 'none' ? '' : current;
         void stage.offsetWidth;
         stage.style.transition = prevTransition;
-        var cx = r.left + r.width / 2 - window.innerWidth / 2;
-        var cy = r.top + r.height / 2 - window.innerHeight / 2;
+        // getBoundingClientRect and innerWidth are PAINTED pixels, but this translate is applied to
+        // <body>, inside `:root { zoom: N }`, where one local px paints N. Without the division the
+        // pan is multiplied by the zoom a second time: at N=2 the page overshoots by exactly the pan
+        // distance, so a centred target still lands correctly (zero pan) while an off-centre one is
+        // thrown across the frame. Only the translate converts; the scale factor is dimensionless,
+        // and an authored step.x/step.y is already in the page's own units.
+        var z = rootZoom();
+        var cx = (r.left + r.width / 2 - window.innerWidth / 2) / z;
+        var cy = (r.top + r.height / 2 - window.innerHeight / 2) / z;
         x = (-cx) + 'px';
         y = (-cy) + 'px';
       }
@@ -528,20 +653,81 @@
         var ar = anchor.el.getBoundingClientRect();
         cursorTo = { x: ar.left + anchor.fx * ar.width, y: ar.top + anchor.fy * ar.height };
       }
-      if (moveSpotToo) spotTo = spot.getBoundingClientRect();
+      if (moveSpotToo) spotTo = visibleRect(spot);
       stage.style.transform = beforeTransform;
       void stage.offsetWidth;
       stage.style.transition = beforeTransition;
     }
 
-    stage.style.transition = dur > 0 ? 'transform ' + dur + 's ' + CAMERA_EASING : 'none';
+    var cameraEase = easingOf(step, CAMERA_EASING);
+    state.cameraOn = true;
+    stage.style.transition = dur > 0 ? 'transform ' + dur + 's ' + cameraEase : 'none';
     stage.style.transform = finalTransform;
     if (dur === 0) void stage.offsetWidth;
     // Cursor and spotlight ride the same curve for the same time, so both stay on their element
     // throughout the move instead of being left behind over empty background.
-    if (cursorTo) moveCursor(cursorTo.x, cursorTo.y, dur * 1000, CAMERA_EASING);
-    if (spotTo) glideHighlight(spotTo, dur * 1000);
+    if (cursorTo) moveCursor(cursorTo.x, cursorTo.y, dur * 1000, cameraEase);
+    if (spotTo) glideHighlight(spotTo, dur * 1000, cameraEase);
     return wait(dur * 1000);
+  }
+
+  var TRANSFORM_KEYS = ['x', 'y', 'scale', 'scaleX', 'scaleY', 'rotate'];
+
+  /** A CSS length from a number (px) or a string that already carries its unit. */
+  function lengthOf(v) {
+    return typeof v === 'number' ? v + 'px' : String(v);
+  }
+
+  /**
+   * One keyframe from an authored {opacity, x, y, scale, rotate, ...} block. The transform keys
+   * compose into a single transform in a fixed order -- translate, scale, rotate -- so a step that
+   * mixes them is well defined; every other key is passed through as a raw CSS property.
+   */
+  function keyframeOf(spec) {
+    var kf = {};
+    if (!spec) return kf;
+    var parts = [];
+    if (spec.x != null || spec.y != null) parts.push('translate(' + lengthOf(spec.x == null ? 0 : spec.x) + ', ' + lengthOf(spec.y == null ? 0 : spec.y) + ')');
+    if (spec.scale != null) parts.push('scale(' + spec.scale + ')');
+    else if (spec.scaleX != null || spec.scaleY != null) parts.push('scale(' + (spec.scaleX == null ? 1 : spec.scaleX) + ', ' + (spec.scaleY == null ? 1 : spec.scaleY) + ')');
+    if (spec.rotate != null) parts.push('rotate(' + (typeof spec.rotate === 'number' ? spec.rotate + 'deg' : spec.rotate) + ')');
+    if (parts.length) kf.transform = parts.join(' ');
+    for (var k in spec) {
+      if (!Object.prototype.hasOwnProperty.call(spec, k)) continue;
+      if (TRANSFORM_KEYS.indexOf(k) >= 0) continue;
+      kf[k] = spec[k];
+    }
+    return kf;
+  }
+
+  /**
+   * `animate`: the Web Animations API rather than CSS transitions, so `whenSettled()` (which awaits
+   * document.getAnimations()) settles guide and preview frames without any extra bookkeeping.
+   * `fill: 'both'` holds the end state after the clip has played.
+   */
+  function animateStep(step, instant) {
+    var nodes = [];
+    if (step.all) {
+      var all = document.querySelectorAll(step.target);
+      for (var i = 0; i < all.length; i++) nodes.push(all[i]);
+    } else {
+      var one = document.querySelector(step.target);
+      if (one) nodes.push(one);
+    }
+    if (!nodes.length) return Promise.resolve();
+    var durationMs = instant ? 0 : Math.round((typeof step.duration === 'number' ? step.duration : DEFAULT_ANIMATE_S) * 1000);
+    var staggerMs = instant || typeof step.stagger !== 'number' || step.stagger <= 0 ? 0 : Math.round(step.stagger * 1000);
+    var easing = easingOf(step, EASINGS.easeOutCubic);
+    var frames = [keyframeOf(step.from), keyframeOf(step.to)];
+    var running = [];
+    for (var n = 0; n < nodes.length; n++) {
+      var anim = nodes[n].animate(frames, { duration: durationMs, easing: easing, delay: n * staggerMs, fill: 'both' });
+      // Under check/preview every element lands on its end state at once, so a frame shows the result.
+      if (instant) anim.finish();
+      else running.push(anim.finished.catch(function () {}));
+    }
+    if (!running.length) return Promise.resolve();
+    return Promise.all(running).then(function () {});
   }
 
   function scrollTo(el, instant) {
@@ -611,6 +797,7 @@
   }
 
   function showSubtitle(text, ms) {
+    if (!state.opts.subtitles) return;
     if (!state.subtitleLayer) return;
     var el = state.subtitleEl;
     if (!el) {
@@ -695,7 +882,10 @@
         var fresh = measurePoint();
         if (fresh.x !== point.x || fresh.y !== point.y) { point = fresh; placeCursor(point.x, point.y); }
         setCursorAnchor(el, spotEl, point);
-        highlight(spotEl);
+        // Opting a step out means no spotlight is visible for it: without the release, the previous
+        // step's ring simply stays put and frames the wrong element for the whole step.
+        if (step.spotlight === false) releaseHighlight();
+        else highlight(spotEl);
         pressCursor(point.x, point.y, pressMs);
       }
       setTimeout(function () {
@@ -705,7 +895,7 @@
           var holdToken = state.nextToken++;
           state.holds[holdToken] = function (res, rej) { if (point) releaseCursor(point.x, point.y); interact(res, rej); };
           resolve({ phase: 'arrival', token: holdToken, index: step.index, id: step.id, action: action, target: step.target,
-            scheduledMs: timeMsOf(step), actualMs: NaN, rect: rectOf(spotEl), targetRect: spotEl !== el ? rectOf(el) : undefined, point: point });
+            scheduledMs: timeMsOf(step), actualMs: NaN, rect: spotRectOf(spotEl), targetRect: spotEl !== el ? rectOf(el) : undefined, point: point });
           return;
         }
         if (point) releaseCursor(point.x, point.y);
@@ -723,7 +913,7 @@
         target: step.target,
         scheduledMs: timeMsOf(step),
         actualMs: actualMs,
-        rect: rectOf(spotEl),          // what the spotlight/callout framed
+        rect: spotRectOf(spotEl),      // what the spotlight/callout framed (clamped to what is visible)
         targetRect: spotEl !== el ? rectOf(el) : undefined,
         point: point,
         token: token
@@ -734,7 +924,7 @@
         switch (action) {
           case 'click':
             if (state.opts.resetFocusStyles) resetFocusStyles();
-            if (point) ripple(point.x, point.y);
+            if (point && step.ripple !== false) ripple(point.x, point.y);
             el.focus();
             // el.click() (not el.onclick()) so checkbox toggling, addEventListener
             // listeners, and default actions all fire like a real user click.
@@ -783,6 +973,9 @@
             break;
           case 'scroll':
             done = scrollTo(el, instant);
+            break;
+          case 'animate':
+            done = animateStep(step, instant);
             break;
           case 'fadeIn':
             done = fadeIn(el, instant, stepDurationMs(step));
@@ -920,9 +1113,121 @@
       prev = step;
     });
     var durationMs = o.durationMs || (maxMs + DEFAULT_TAIL_MS);
-    if (o.loop) state.timers.push(setTimeout(function () { location.reload(); }, durationMs));
+    if (o.loop) {
+      state.timers.push(setTimeout(function () {
+        // A cloned snapshot restores a static mockup exactly; a live app's handlers and state cannot
+        // be rebuilt from markup, so those keep the reload path.
+        if (state.snapshot) { restart(); play(timeline, o); }
+        else location.reload();
+      }, durationMs));
+    }
     dispatch('anim:play', { steps: steps.length, durationMs: durationMs, loop: !!o.loop });
   }
+  /**
+   * Clone <body>'s children while the page is still in its authored state. The overlays live under
+   * <html> (see overlayRoot), so a body snapshot never captures the cursor, spotlight or badge.
+   */
+  function snapshot() {
+    var kids = [];
+    for (var i = 0; i < document.body.children.length; i++) kids.push(document.body.children[i].cloneNode(true));
+    state.snapshot = kids;
+    state.snapshotStyle = document.body.getAttribute('style') || '';
+  }
+
+  /** Cancel every running animation, so a fill:'both' handle cannot outlive the node it holds. */
+  function cancelAnimations() {
+    if (typeof document.getAnimations !== 'function') return;
+    var list = document.getAnimations();
+    for (var i = 0; i < list.length; i++) { try { list[i].cancel(); } catch (e) { /* already gone */ } }
+  }
+
+  /**
+   * Put the page back to its authored state so the timeline can run again. Replaying is not enough:
+   * typing writes into fields, fadeIn sets inline opacity, transitionScreen hides siblings, camera
+   * leaves a transform on <body>, and an `animate` step leaves its WAAPI end state behind.
+   */
+  function restart() {
+    if (!state.snapshot) return false;
+    stop();
+    cancelAnimations();
+    while (document.body.firstChild) document.body.removeChild(document.body.firstChild);
+    for (var i = 0; i < state.snapshot.length; i++) document.body.appendChild(state.snapshot[i].cloneNode(true));
+    if (state.snapshotStyle) document.body.setAttribute('style', state.snapshotStyle);
+    else document.body.removeAttribute('style');
+    document.body.style.transformOrigin = 'center center';
+    applyDrift();
+    state.currentScreen = null;
+    state.lastSpot = null;
+    state.spotAnchor = null;
+    state.cameraOn = false;
+    state.cursorAnchor = null;
+    state.completions = {};
+    state.holds = {};
+    state.driverTyping = {};
+    hideSubtitle();
+    releaseHighlight();
+    hideCallout();
+    if (state.opts.cursorPoint && state.cursor) placeCursor(state.opts.cursorPoint.x, state.opts.cursorPoint.y);
+    start();
+    return true;
+  }
+
+  function prefersReducedMotion() {
+    try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+    catch (e) { return false; }
+  }
+
+  /**
+   * Decide when playback starts, per the `autoplay` boot option:
+   *   immediate - as soon as the page is ready (the historical behaviour).
+   *   inview    - when an IntersectionObserver first sees the clip, pausing when it scrolls away so
+   *               several clips on one page do not all burn CPU.
+   *   message   - only when the embedding page posts {source:'anim-cli', type:'play'}.
+   * postMessage is honoured in every mode: inside an iframe the observer measures against the
+   * iframe's own viewport and would report itself visible while off-screen, so the parent has the
+   * only trustworthy view and must be able to override.
+   * A reduced-motion visitor gets the mockup in its authored state and no playback at all.
+   */
+  function startPlayback(tl) {
+    if (prefersReducedMotion()) {
+      dispatch('anim:skipped', { reason: 'prefers-reduced-motion' });
+      return;
+    }
+    var playing = false;
+    var started = false;
+    function begin() {
+      if (playing) return;
+      if (started) restart();
+      playing = true;
+      started = true;
+      play(tl, { loop: !!state.opts.loop, durationMs: state.opts.durationMs });
+    }
+    function halt() {
+      if (!playing) return;
+      playing = false;
+      stop();
+    }
+    state.playback = { begin: begin, halt: halt, isPlaying: function () { return playing; } };
+    window.addEventListener('message', function (e) {
+      var d = e && e.data;
+      if (!d || d.source !== 'anim-cli') return;
+      if (d.type === 'play') begin();
+      else if (d.type === 'pause') halt();
+    });
+    if (state.opts.autoplay === 'message') return;
+    if (state.opts.autoplay === 'inview' && typeof IntersectionObserver === 'function') {
+      var io = new IntersectionObserver(function (entries) {
+        for (var i = 0; i < entries.length; i++) {
+          if (entries[i].isIntersecting) begin();
+          else halt();
+        }
+      }, { threshold: 0.2 });
+      io.observe(document.body);
+      return;
+    }
+    begin();
+  }
+
   function stop() {
     state.timers.forEach(clearTimeout);
     state.timers = [];
@@ -943,6 +1248,9 @@
     typingDone: typingDone,
     whenIdle: whenIdle,
     whenSettled: whenSettled,
+    snapshot: snapshot,
+    restart: restart,
+    playback: function () { return state.playback; },
     now: now,
     isReady: function () { return state.ready; },
     getState: function () {
@@ -955,6 +1263,8 @@
     placeCursor: placeCursor,
     anchorOf: anchorOf,
     isClipped: isClipped,
+    /** Whether a `camera` step has reframed the page: under one, "outside the viewport" is by design. */
+    cameraActive: function () { return !!state.cameraOn; },
     selectorOf: selectorOf,
     highlight: highlight,
     holdHighlight: holdHighlight,

@@ -54,6 +54,24 @@ WORKFLOW (an AI agent or a person writes the screen and the timeline; no API key
   7. Many guides x languages at once, from help.catalog.json:
        npx tsx cli.ts build-all [--changed-only] [--diff]   # see build-all --help
 
+MARKETING REELS (a silent product clip instead of a help guide):
+  Set "kind": "reel" in meta. The spotlight, click ripple and subtitle bar switch off, the
+  guide-shaped validation stops applying, and \`--guide\` on a reel is refused.
+    npx tsx cli.ts check   reels/ask-anything --device mobile --scale 2
+    npx tsx cli.ts preview reels/ask-anything --device mobile
+    npx tsx cli.ts export  reels/ask-anything -o clip.mp4 --device mobile --scale 2
+    npx tsx cli.ts build   reels/ask-anything --embed --device mobile
+  \`export\` writes clip.mp4 (silent), clip.webm, clip.poster.png and clip.gif, with no .vtt and no
+  chapters. \`build --embed\` adds embed-<device>.html, a self-contained page that plays when scrolled
+  into view and loops, plus embed-<device>.snippet.html for the hosting page.
+  \`--scale N\` records N times denser by multiplying the viewport and zooming the page back; media
+  queries evaluate at the scaled width, so a reel's breakpoint must sit above it. One responsive
+  index.html covers both form factors: "only": "desktop" drops a step on mobile, and a
+  "mobile": {...} block overrides fields for that device.
+  New step action: "animate", with "from"/"to" (opacity, x, y, scale, rotate or any CSS property),
+  "all" + "stagger" for a sequence, and "ease" (linear, easeInCubic, easeOutCubic, easeInOutCubic,
+  easeOutBack, easeOutExpo, spring). "ease" also applies to "camera".
+
 LIVE PAGES (a real app instead of a mockup):
   anim.config.json targets are selectors in the app (prefer data-help="..." attributes);
   steps may carry "waitFor" and "navigate". Sign in once with
@@ -93,6 +111,7 @@ RECORD OF WHAT WAS DONE:
     .command('init-config')
     .description('Scaffold an anim.config.json timeline file in the target directory')
     .argument('<output_dir>', 'Directory to initialize the config in')
+    .option('--kind <profile>', 'Which profile to scaffold: guide (default) or reel (silent looping product clip)', 'guide')
     .option('--force', 'Overwrite an existing anim.config.json')
     .action((dir, opts) => initConfigCommand(dir, opts));
 
@@ -126,6 +145,8 @@ RECORD OF WHAT WAS DONE:
     .description('Build animated.html from index.html + anim.config.json (no LLM, no API key)')
     .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
     .option('-c, --cursor <style>', 'Cursor style: mac, windows, none (default: meta.cursor or mac)')
+    .option('--device <type>', 'Which device\'s timeline to bake in (resolves "only"/"mobile"/"desktop" steps): desktop or mobile', 'desktop')
+    .option('--embed', 'Also write embed.html (a framable, self-contained clip) and embed.snippet.html (the parent-side iframe snippet)')
     .option('-l, --loop', 'Loop the animation endlessly when opened in a browser')
     .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
     .option('--force', 'Build even if the timeline has validation errors')
@@ -137,6 +158,7 @@ RECORD OF WHAT WAS DONE:
     .description('Validate anim.config.json: schema, timing, strings, and (unless --static/--live) every target selector in a headless browser')
     .argument('<output_dir>', 'Directory containing anim.config.json (and index.html unless --live)')
     .option('--static', 'Schema and timing checks only, no browser')
+    .option('--scale <n>', 'Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width')
     .option('--live', 'Validate a timeline meant for `record` (live page): navigate/waitFor allowed, no index.html needed; add --url to also probe every target against the page')
     .option('--url <url>', 'With --live: probe every target against this page. The timeline is replayed for real (clicks, keystrokes and saves happen), so reset the app first when it writes data')
     .option('--storage-state <file>', 'Live probe: Playwright storage state (cookies/localStorage)')
@@ -157,6 +179,7 @@ RECORD OF WHAT WAS DONE:
     .description('Render one labelled frame per step to <output_dir>/preview.png (or a single full-size frame with --step N)')
     .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
     .option('-s, --step <n>', 'Write only step N (1-based) at full resolution to preview-step-N.png')
+    .option('--scale <n>', 'Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width')
     .option('--at <when>', 'Capture point per step: "auto" (like the guide: clicks at the interaction, typing/camera/fades at completion), "interaction", or "end"', 'auto')
     .option('-o, --output <file>', 'Output PNG path')
     .option('-c, --cursor <style>', 'Cursor style: mac, windows, none (default: meta.cursor or mac)')
@@ -177,6 +200,7 @@ RECORD OF WHAT WAS DONE:
     .option('-w, --width <pixels>', 'Width of the exported video in pixels')
     .option('-H, --height <pixels>', 'Height of the exported video in pixels')
     .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
+    .option('--scale <n>', 'Pixel density: multiply the viewport by N and zoom the page back, so the frame is N times denser (media queries then see the scaled width)')
     .option('-t, --theme <mode>', 'Color scheme mode for Playwright: light or dark', 'light')
     .option('--narration', 'Synthesize each step\'s "narration" (or "subtitle") and mix it in at the step\'s time (OPENAI_API_KEY or macOS say)')
     .option('--voice <name>', 'TTS voice (OpenAI voice name, or a macOS `say` voice)')
@@ -263,20 +287,24 @@ RECORD OF WHAT WAS DONE:
     .addHelpText('after', `
 CATALOG SCHEMA (help.catalog.json; paths are relative to the catalog file):
   {
-    "outputDir": "help-out",                 // required; must not be /, ~, the catalog dir, or overlap a guide dir
+    "outputDir": "help-out",                 // required; not the root, your home dir, a literal "~", the catalog dir, or overlapping a guide dir
     "defaults": {                            // optional; every key is also valid per guide (the guide wins)
       "locales": ["en", "fr"],               // locale codes to produce (default: the base locale only)
-      "outputs": ["guide"],                  // extras: guide (default), gif, clips; the video is always produced
+      "outputs": ["guide"],                  // extras: guide, gif, clips, webm, poster, embed; the video is always produced
       "width": 1920, "height": 1080,         // viewport in px
       "theme": "light",                      // light | dark
       "narration": false,                    // synthesize step narration (OPENAI_API_KEY or macOS say)
       "crop": 120,                           // guide crop padding in px, or false for full frames only
-      "hideCursor": false                    // hide the fake cursor in guide frames
+      "hideCursor": false,                   // hide the fake cursor in guide frames
+      "device": "desktop",                   // render device: desktop | mobile
+      "scale": 1                             // pixel density, as --scale on export
     },
     "guides": [
       { "slug": "draft-proposal", "dir": "demo", "title": "Draft a proposal" },
       { "slug": "settings", "dir": "guides/settings", "locales": { "fr": "guides/settings-fr" } },
-      { "slug": "live-save", "dir": "live/save", "record": { "url": "https://app.local/save", "storageState": "auth.json", "ignoreHttpsErrors": true } }
+      { "slug": "live-save", "dir": "live/save", "record": { "url": "https://app.local/save", "storageState": "auth.json", "ignoreHttpsErrors": true } },
+      { "slug": "ask-anything", "dir": "reels/ask-anything", "kind": "reel",
+        "devices": ["desktop", "mobile"], "scale": 2, "outputs": ["webm", "poster", "gif", "embed"] }
     ]
   }
   slug: lowercase-kebab, unique; it names <outputDir>/<slug>/<locale>/ and <slug>-<locale>.mp4.
@@ -284,13 +312,21 @@ CATALOG SCHEMA (help.catalog.json; paths are relative to the catalog file):
   locales: a list of codes (found at <dir>/locales/<code>/, or the legacy sibling <dir>/../<code>/)
            or a { code: path } map; the base locale is the guide directory itself.
   record: build against a live page (check --live, then record); no build step.
+  kind: guide (default) or reel. A reel produces no guide and defaults its outputs to
+        ["webm", "poster", "gif"].
+  devices: reels only; one row per device into the same <slug>/<locale>/, with the device in every
+        filename (ask-anything-en-mobile.mp4, embed-mobile.html). Such a row's manifest key is
+        <locale>:<device>, while a guide keeps the plain locale key.
 
 WHAT IT WRITES:
   <outputDir>/<slug>/<locale>/<slug>-<locale>.mp4 (+ .vtt, + .gif with "gif"), guide/guide.json|md|html,
   guide/assets/ (poster.png, step-NN.png, step-NN.crop.png, clips), and <outputDir>/index.json + index.md.
-  index.json entries: slug, locale, title, dir, output, status (ok|failed|skipped), contentHash, buildKey,
-  builtAt, video, vtt, gif, poster, guide, guideMd, guideHtml, durationMs, steps, stale/diff (--diff), error.
-  The index is merged by (slug, locale) with the previous run: --only/--locale never drop other entries.
+  A reel writes <slug>-<locale>-<device>.mp4 plus .webm, .poster.png, .gif and the embed pair, and no guide.
+  index.json entries: slug, locale, kind, device, title, dir, output, status (ok|failed|skipped), contentHash,
+  buildKey, builtAt, video, vtt, gif, webm, poster, embed, guide, guideMd, guideHtml, durationMs, steps,
+  stale/diff (--diff), error.
+  The index is merged by (slug, locale, device) with the previous run, so --only/--locale never drop
+  other entries and a reel's two device rows stay separate.
 
 INCREMENTAL RUNS:
   --changed-only skips a guide x locale whose manifest buildKey[locale] (sources + settings + tool) is

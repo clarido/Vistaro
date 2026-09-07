@@ -89,6 +89,16 @@
       "locale": "fr",
       "targetDir": "locales/fr",
       "timestamp": "2026-09-07T01:01:10.936Z"
+    },
+    {
+      "command": "guide",
+      "output": "../../../../../private/tmp/claude-501/-Users-jf-Projects-test-anim-html-video/5082d8e5-218b-4ded-9a64-311380068ee8/scratchpad/guide-after",
+      "crop": 120,
+      "locale": "en",
+      "steps": 5,
+      "video": "demo.mp4",
+      "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
+      "timestamp": "2026-09-07T21:55:54.560Z"
     }
   ],
   "locale": "en",

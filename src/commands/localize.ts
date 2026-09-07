@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { recordEvent, setManifestFields, readManifest } from '../manifest';
-import { loadTimeline, parseTimeline } from '../engine/schema';
+import { loadTimeline, parseTimeline, isReel } from '../engine/schema';
 import { extractStrings, stringsPath, writeStrings, readStrings, StringMap, isLocaleCode, isAutoStepId, diffStrings } from '../engine/strings';
 import { referencedLocalFiles, localeDirFor, htmlLocalRefs, relPosix, displayPath } from '../catalog';
 
@@ -63,6 +63,9 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
     // A source that is itself a locale (fr -> fr-CA): its strings are seeded from its localized view and
     // no strings.<base>.json is written into it.
     const sourceIsLocale = isLocaleCode(srcManifest.locale) && isLocaleCode(srcManifest.baseLocale) && srcManifest.locale !== srcManifest.baseLocale;
+    // The profile decides which follow-up commands are valid: a reel refuses --guide outright and
+    // ignores --narration, so printing the guide form would send the author debugging correct work.
+    let reel = false;
     let baseStrings: StringMap | undefined;
     let seedStrings: StringMap | undefined;
     let baseLocale = 'en';
@@ -71,6 +74,7 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
         copyUnlessPresent(srcConfig, 'anim.config.json');
         // Keys always come from the inline text (the authored source).
         const inline = parseTimeline(JSON.parse(fs.readFileSync(srcConfig, 'utf8')));
+        reel = isReel(inline);
         baseLocale = (isLocaleCode(srcManifest.baseLocale) ? srcManifest.baseLocale : undefined)
             || inline.meta.locale
             || (isLocaleCode(srcManifest.locale) ? srcManifest.locale : undefined)
@@ -139,8 +143,13 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
     console.log(`  ${targetStringsFile ? 2 : 1}. Edit ${rel(path.join(targetDir, 'index.html'))} -- translate the visible text, keep element IDs/classes unchanged.`);
     console.log(`  ${targetStringsFile ? 3 : 2}. Check, build and export the locale (strings apply automatically through the manifest's locale):`);
     console.log(`     npx tsx cli.ts check ${rel(targetDir)}`);
-    console.log(`     npx tsx cli.ts build ${rel(targetDir)}`);
-    console.log(`     npx tsx cli.ts export ${rel(targetDir)} --output demo-${locale}.mp4 --narration --guide`);
+    if (reel) {
+        console.log(`     npx tsx cli.ts export ${rel(targetDir)} -o clip-${locale}.mp4 --device mobile --scale 2   # mp4 + webm + poster + gif`);
+        console.log(`     npx tsx cli.ts build ${rel(targetDir)} --embed --device mobile                  # embed-mobile.html + snippet`);
+    } else {
+        console.log(`     npx tsx cli.ts build ${rel(targetDir)}`);
+        console.log(`     npx tsx cli.ts export ${rel(targetDir)} --output demo-${locale}.mp4 --narration --guide`);
+    }
     console.log(`  Re-run \`localize\` after adding steps: new keys are added, your edits are kept.`);
     // Sanity: the target loads with the strings applied.
     try { loadTimeline(targetDir); } catch (e: any) { console.error(`warning  ${e.message}`); }

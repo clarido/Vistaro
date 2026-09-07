@@ -524,3 +524,180 @@ test('driver typing only claims fields the keyboard can fill: a date input and a
     assert.equal(await page.inputValue('#t'), 'free text');
     await context.close();
 });
+
+test('check warns a reel about the two silent mobile authoring traps', { skip }, () => {
+    // Both produce a plausible-looking video at the wrong scale rather than an error, so they are
+    // only ever caught by reading the output. See AGENTS.md "Authoring a reel".
+    const dir = path.join(work, 'trap');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'index.html'), `<!doctype html><html><head><meta charset="utf-8"><style>
+      body { margin: 0; font: 16px sans-serif; } #a { padding: 40px; }
+      @media (max-width: 768px) { #a { padding: 10px; } }
+    </style></head><body><div id="a">No viewport meta here</div></body></html>`);
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({
+        meta: { kind: 'reel', title: 'Trap', cursor: 'none' },
+        steps: [{ id: 'a', time: '0.2s', action: 'animate', target: '#a', from: { opacity: 0 }, to: { opacity: 1 } }],
+    }));
+    const r = cli(['check', dir, '--device', 'mobile', '--scale', '2']);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    assert.match(r.stdout, /declares no <meta name="viewport">/);
+    assert.match(r.stdout, /mobile emulation lays this page out at 980px/);
+    assert.match(r.stdout, /rendered at about 0\.\d+x on a 780px frame/);
+    assert.match(r.stdout, /every max-width media query \(768px\) is below the 980px width/);
+
+    // A reel that declares the meta and keeps its breakpoint above the recorded width is clean, and
+    // so is the same page checked as a guide rather than a reel.
+    fs.writeFileSync(path.join(dir, 'index.html'), `<!doctype html><html><head><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1"><style>
+      body { margin: 0; font: 16px sans-serif; } #a { padding: 40px; }
+      @media (max-width: 900px) { #a { padding: 10px; } }
+    </style></head><body><div id="a">Declared</div></body></html>`);
+    const ok = cli(['check', dir, '--device', 'mobile', '--scale', '2']);
+    assert.equal(ok.status, 0, ok.stderr + ok.stdout);
+    assert.doesNotMatch(ok.stdout, /viewport/i);
+});
+
+// A page whose targets are cropped three different ways: unreachable (overflow: hidden), reachable
+// by scrolling (overflow: auto), and not cropped at all.
+const CROP_PAGE = `<!doctype html><meta charset="utf-8"><style>
+ body { margin: 0; font: 14px sans-serif; }
+ .clip { position: absolute; left: 20px; top: 20px; width: 300px; height: 100px; overflow: hidden; }
+ .scroll { position: absolute; left: 400px; top: 20px; width: 300px; height: 100px; overflow: auto; }
+ .tall { height: 250px; background: #ddd; }
+ #fine { position: absolute; left: 800px; top: 20px; width: 200px; height: 60px; background: #eee; }
+ #wide { position: absolute; left: 20px; top: 300px; width: 1600px; height: 60px; background: #eee; }
+ .hard { position: absolute; left: 20px; top: 420px; width: 200px; height: 60px; overflow: clip; }
+ #gone { position: absolute; left: 0; top: 120px; width: 200px; height: 40px; background: #ccc; }
+ #floating { position: fixed; left: 20px; top: 560px; width: 300px; height: 200px; background: #cfc; }
+</style>
+<div class="clip"><div id="cut" class="tall">cut</div></div>
+<div class="hard"><div id="gone">gone</div></div>
+<div class="scroll"><div id="scrollable" class="tall">scrollable</div></div>
+<div id="fine">fine</div><div id="wide">wide</div>
+<div class="clip" style="top: 560px"><div id="floating">floating</div></div>`;
+
+const writeCase = (name: string, config: any) => {
+    const dir = path.join(work, name);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'index.html'), CROP_PAGE);
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(config));
+    return dir;
+};
+
+test('check reports a target hidden by a clipping ancestor, and stays quiet on scrollable content', { skip }, () => {
+    // isClipped only tests the centre point, so every one of these targets passes it; the rect-level
+    // measure is what separates "never rendered" from "further down a scrollable panel".
+    const dir = writeCase('crop-guide', {
+        meta: { title: 'Crop' },
+        steps: [
+            { id: 'cut', time: 0.2, action: 'click', target: '#cut', title: 'Cut off' },
+            { id: 'scrollable', time: 0.8, action: 'click', target: '#scrollable', title: 'Below the fold' },
+            { id: 'fine', time: 1.4, action: 'click', target: '#fine', title: 'Fully visible' },
+            { id: 'gone', time: 2.0, action: 'click', target: '#gone', title: 'Not there at all' },
+        ],
+    });
+    const out = cli(['check', dir, '-w', '1280', '-H', '800']);
+    const text = out.stdout + out.stderr;
+    const cropLines = text.split('\n').filter(l => l.includes('is cropped by'));
+    assert.equal(cropLines.length, 1, `exactly one crop warning, got:\n${text}`);
+    assert.match(cropLines[0], /step 1 .*#cut/);
+    assert.match(cropLines[0], /cropped by 150px by [^:]*clip/);
+    assert.match(cropLines[0], /the guide frame for this step shows only the part that is inside it/);
+    assert.ok(!text.includes('#scrollable'), `content below the fold of a scrollable panel is not a crop:\n${text}`);
+    // Nothing of #gone survives its clipper, which is the stronger claim and keeps its own message.
+    assert.match(text, /step 4 .*#gone.*cannot be scrolled into view/);
+    assert.ok(!text.includes('#fine'), `a fully visible target is quiet:\n${text}`);
+});
+
+test('a reel says the crop never reaches the video, and a camera push is not reported as one', { skip }, () => {
+    const reelSteps = (extra: any[]) => ({
+        meta: { title: 'Crop reel', kind: 'reel', cursor: 'none' },
+        steps: [...extra, { id: 'cut', time: 2.0, action: 'highlight', target: '#cut' }],
+    });
+    const plain = cli(['check', writeCase('crop-reel', reelSteps([])), '-w', '1280', '-H', '800']);
+    const plainText = plain.stdout + plain.stderr;
+    assert.match(plainText, /#cut.*cropped by 150px.*the hidden part never reaches the video/);
+
+    // #wide is 1600px in a 1280px viewport, so it genuinely leaves the frame...
+    const wide = cli(['check', writeCase('crop-reel-wide', {
+        meta: { title: 'Wide', kind: 'reel', cursor: 'none' },
+        steps: [{ id: 'wide', time: 0.5, action: 'highlight', target: '#wide' }],
+    }), '-w', '1280', '-H', '800']);
+    assert.match(wide.stdout + wide.stderr, /#wide.*extends 340px outside the .* viewport/);
+
+    // ...but once a camera has pushed in, everything is outside the frame by design and reporting it
+    // buries the real warnings under one per step. The stronger existing check (the target does not
+    // intersect the frame at all) still fires: that one means the step acts on nothing visible.
+    const pushed = cli(['check', writeCase('crop-reel-camera', {
+        meta: { title: 'Pushed', kind: 'reel', cursor: 'none' },
+        steps: [
+            { id: 'push', time: 0.2, action: 'camera', target: '#fine', scale: 1.4, duration: 0.3 },
+            { id: 'wide', time: 1.0, action: 'highlight', target: '#wide' },
+        ],
+    }), '-w', '1280', '-H', '800']);
+    assert.ok(!(pushed.stdout + pushed.stderr).includes('extends'), `no partial-overflow warning under a camera:\n${pushed.stdout}${pushed.stderr}`);
+});
+
+test('the spotlight is clamped to what a clipping ancestor lets through, and never collapses', { skip }, async () => {
+    // The ring frames what the reader can see. An element taller than its clipping container was
+    // ringed well outside the app window, pointing at pixels the frame does not contain.
+    const dir = writeCase('spot-clamp', { meta: { title: 'Clamp' }, steps: [] });
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(dir, 'index.html')));
+    const tl = parseTimeline([
+        { time: 0, action: 'highlight', target: '#cut' },
+        { time: 0.3, action: 'highlight', target: '#scrollable' },
+        { time: 0.6, action: 'highlight', target: '#gone' },
+        { time: 0.9, action: 'highlight', target: '#floating' },
+    ]);
+    await ensureRuntime(page, tl, { drift: false });
+    const boxes: Record<string, any> = {};
+    await runTimeline(page, tl, {
+        mode: 'step',
+        afterStep: async (step) => {
+            boxes[String(step.target)] = await page.evaluate(() => {
+                // The ring's inline style, not its rect: the pulse animation scales the box, so a
+                // measured rect is a few px off whatever it was positioned at.
+                const h = document.getElementById('anim-cli-highlight') as HTMLElement;
+                const top = parseFloat(h.style.top), height = parseFloat(h.style.height);
+                const r = (document.querySelector((window as any).__lastSel) as HTMLElement).getBoundingClientRect();
+                return { spot: { top: Math.round(top + 6), bottom: Math.round(top + height - 6) }, own: { top: Math.round(r.top), bottom: Math.round(r.bottom) } };
+            });
+        },
+        beforeStep: async (step) => { await page.evaluate((sel) => { (window as any).__lastSel = sel; }, String(step.target)); },
+    });
+    // #cut is 250px tall inside a 100px overflow:hidden box: the ring stops at the container.
+    assert.equal(boxes['#cut'].own.bottom - boxes['#cut'].spot.bottom, 150, `clamped to the visible 100px: ${JSON.stringify(boxes['#cut'])}`);
+    // A scrollable pane clips nothing permanently, so its content keeps its own box.
+    assert.deepEqual(boxes['#scrollable'].spot, boxes['#scrollable'].own, 'scrollable content is not clamped');
+    // #gone survives nowhere (overflow: clip). Falling back to its own box keeps the ring findable;
+    // clamping it would leave a zero-sized or inverted rectangle, and check already warns about it.
+    assert.deepEqual(boxes['#gone'].spot, boxes['#gone'].own, 'a fully clipped target falls back to its own box');
+    // Overflow only clips inside the element's own containing block: a fixed child of a hidden pane
+    // paints in full, so clamping it would ring a fraction of what the viewer sees.
+    assert.deepEqual(boxes['#floating'].spot, boxes['#floating'].own, 'a fixed child of a clipping pane is not clamped');
+    await context.close();
+});
+
+test('a camera push is distinguishable from the drift transform', { skip }, async () => {
+    // The crop checks ask the runtime whether a camera has reframed the page. Reading the <body>
+    // transform instead would answer "yes" from boot whenever drift is on, silently disabling them.
+    const dir = writeCase('camera-flag', { meta: { title: 'Flag' }, steps: [] });
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(dir, 'index.html')));
+    const tl = parseTimeline([{ time: 0, action: 'camera', target: '#fine', scale: 1.3, duration: 0 }]);
+    await ensureRuntime(page, tl, { drift: true });
+    const drifted = await page.evaluate(() => ({
+        bodyTransform: getComputedStyle(document.body).transform,
+        camera: (window as any).__anim.cameraActive(),
+    }));
+    assert.notEqual(drifted.bodyTransform, 'none', 'drift does put a transform on the body');
+    assert.equal(drifted.camera, false, 'but that is not a camera');
+    await runTimeline(page, tl, { mode: 'step' });
+    assert.equal(await page.evaluate(() => (window as any).__anim.cameraActive()), true, 'a camera step sets it');
+    await context.close();
+});

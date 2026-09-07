@@ -1,11 +1,11 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { recordEvent } from '../manifest';
-import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS } from '../engine/schema';
+import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS, deviceKind, reelOptions, intrinsicDurationMs, parseTime, emulateMobileFor } from '../engine/schema';
 import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions, RunAbortedError, errorMessage } from '../engine/driver';
-import { launchPage, fileUrl, ViewportOptions, closeWithWatchdog, sanitizeUrl } from '../browser';
+import { launchPage, fileUrl, ViewportOptions, resolveViewport, closeWithWatchdog, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
-import { encodeMp4, encodeGif, cutClip, probeDurationMs } from '../media/ffmpeg';
+import { encodeMp4, encodeGif, encodeWebm, extractPoster, cutClip, probeDurationMs } from '../media/ffmpeg';
 import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions, NarrationClip } from '../media/tts';
 import { buildGuide, resolveCrop, VideoInfo } from './guide';
 import { hashGuideDir, relPosix, displayPath } from '../catalog';
@@ -42,6 +42,12 @@ export interface ExportOptions extends ViewportOptions {
     allowReset?: boolean;
 }
 
+/** Output containers `export`/`record` can write; anything else is refused before the browser starts. */
+const VIDEO_FORMATS = ['mp4', 'webm', 'gif'];
+/** A reel's GIF is a web asset: 720px wide at 15fps, not a full-width 20fps archive. */
+const REEL_GIF_WIDTH = 720;
+const REEL_GIF_FPS = 15;
+
 /** A live page instead of a local file: the runtime is injected at document start and navigations are survived. */
 export interface LiveSession {
     url: string;
@@ -55,6 +61,10 @@ export interface LiveSession {
 export interface ExportSummary {
     output: string;
     durationMs: number;
+    /** Reel deliverables written beside the video. */
+    webm?: string;
+    poster?: string;
+    gif?: string;
     vtt?: string;
     chapters: number;
     narration?: string;
@@ -135,7 +145,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     let timeline: Timeline | undefined;
     if (session && !fs.existsSync(path.resolve(outputDir, 'anim.config.json'))) throw new Error(`anim.config.json not found in ${outputDir} (record needs a timeline)`);
     if (fs.existsSync(path.resolve(outputDir, 'anim.config.json'))) {
-        timeline = session?.timeline ?? loadTimeline(outputDir, { locale: options.locale });
+        timeline = session?.timeline ?? loadTimeline(outputDir, { locale: options.locale, device: deviceKind(options.device) });
         const issues = validateTimeline(timeline, { live: !!session, guide: !!options.guide });
         for (const issue of issues) console.error(formatIssue(issue));
         if (hasErrors(issues)) {
@@ -164,13 +174,28 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     }
 
     const driven = !!timeline;
-    const isGif = options.output.toLowerCase().endsWith('.gif');
+    const reel = !!timeline && isReel(timeline);
+    // Route on the extension up front: `-o clip.webm` used to reach ffmpeg as an MP4 encode and fail there.
+    const ext = (options.output.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1]) || '';
+    if (!VIDEO_FORMATS.includes(ext)) {
+        throw new Error(`unsupported output format ${JSON.stringify('.' + ext)}: use ${VIDEO_FORMATS.map(e => '.' + e).join(', ')}`);
+    }
+    const isGif = ext === 'gif';
     if (!session && !driven && hasRuntime) console.log('Note: no anim.config.json next to animated.html; recording with a blind wait (the page self-plays).');
     if (!session && !driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} has no timeline runtime; recording a blind ${formatTime(durationMs)} wait. Run \`build\` for driven exports (auto duration, subtitles, chapters).`);
     if (isGif && (options.narration || options.voiceover || options.clips || options.guide || options.subtitles !== false || options.chapters !== false)) {
         console.error('warning  .gif output has no audio, chapters or subtitle track: --narration/--voiceover/subtitles/chapters are ignored, and there is no video link/clips for .gif output in the guide.');
     }
+    // A reel is a silent marketing clip: no narration, no captions, no per-step clips. Ignored with a
+    // warning rather than refused, exactly as .gif output already behaves.
+    if (reel && (options.narration || options.voiceover || options.clips)) {
+        console.error('warning  kind: "reel" is always silent and has no per-step clips: --narration/--voiceover/--clips are ignored.');
+    }
+    if (reel && session) {
+        console.error('warning  recording a reel against a live page: the reel profile only changes the chrome; delivery extras (webm/poster/gif) are written for local exports.');
+    }
     if (options.guide && !driven) throw new Error('--guide needs anim.config.json (guide steps come from the timeline)');
+    if (options.guide && timeline && isReel(timeline)) throw new Error('--guide: the timeline is kind: "reel" and guides are not produced for reels (a reel is a silent marketing clip with no numbered steps); drop --guide, or set meta.kind to "guide"');
 
     // Fail fast (before a long recording) on things we can check now.
     const voice: VoiceOptions = {};
@@ -189,7 +214,14 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     console.log(`Starting video ${session ? 'recording' : 'export'}. Duration: ${formatTime(durationMs)}. Device: ${options.device || 'desktop'}.`);
     // __ANIM_DRIVEN only when the Node driver runs the timeline; a built page without a config self-plays.
     // Live pages get the runtime at document start (survives navigations) and the auth storage state.
-    const launched = await launchPage({ ...options, recordVideoDir: tempVideoDir, driven, storageState: session?.storageState, runtime: !!session, ignoreHttpsErrors: options.ignoreHttpsErrors });
+    // The zoom that pairs with a scaled viewport. A live page keeps its own breakpoints, so `record`
+    // stays at 1x: zooming a real app would reflow it into a layout its CSS was never written for.
+    let recordScale = resolveViewport(options).scale;
+    if (session && recordScale !== 1) {
+        console.error(`warning  --scale ${recordScale} is ignored for a live recording: the page's own breakpoints decide its layout.`);
+        recordScale = 1;
+    }
+    const launched = await launchPage({ ...options, emulateMobile: emulateMobileFor(timeline), scale: session ? 1 : options.scale, recordVideoDir: tempVideoDir, driven, storageState: session?.storageState, runtime: !!session, ignoreHttpsErrors: options.ignoreHttpsErrors });
     const { page } = launched;
     const pageUrl = session ? session.url : fileUrl(htmlPath);
     const shownUrl = session ? sanitizeUrl(session.url) : pageUrl;
@@ -227,7 +259,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         loadWall = Date.now();
         if (driven) {
             if (live) await ensureRuntime(page, timeline!, { drift: timeline!.meta.drift === true });
-            else await ensureRuntime(page, timeline!, {});
+            else await ensureRuntime(page, timeline!, { zoom: recordScale });
             // Make sure a few frames of the settled page are in the recording before the clock starts,
             // so t0 is always at a positive offset that can be trimmed exactly.
             await page.waitForTimeout(START_SETTLE_MS);
@@ -361,21 +393,26 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         return r && Number.isFinite(r.actualMs) ? r.actualMs : step.timeMs;
     };
 
-    if (outputFile.toLowerCase().endsWith('.gif')) {
+    // A reel's GIF is a web asset, not an archive: full width at 20fps is unshippable.
+    const gifOptions = reel ? { width: REEL_GIF_WIDTH, fps: REEL_GIF_FPS } : {};
+    if (isGif) {
         console.log('Optimizing frames for high-quality GIF export...');
-        encodeGif(webmFile, outputFile, { startMs: startOffsetMs, durationMs });
+        encodeGif(webmFile, outputFile, { startMs: startOffsetMs, durationMs, ...gifOptions });
+    } else if (ext === 'webm') {
+        console.log(`Encoding WebM: ${outputFile}...`);
+        encodeWebm(webmFile, outputFile, { startMs: startOffsetMs, durationMs });
     } else {
-        // Subtitles (.vtt next to the video).
-        if (driven && options.subtitles !== false) {
+        // Subtitles (.vtt next to the video). A reel carries its words in the page around it.
+        if (driven && !reel && options.subtitles !== false) {
             const cues = subtitleCues(timeline!, actualMs, durationMs);
             if (cues.length) {
                 summary.vtt = base + '.vtt';
                 fs.writeFileSync(summary.vtt, buildVtt(cues));
             }
         }
-        // Chapters (ffmetadata muxed into the MP4).
+        // Chapters (ffmetadata muxed into the MP4); a reel has no numbered steps to chapter.
         let chaptersFile: string | undefined;
-        if (driven && options.chapters !== false) {
+        if (driven && !reel && options.chapters !== false) {
             const chapters = chaptersFor(timeline!, durationMs, actualMs);
             if (chapters.length) {
                 chaptersFile = path.join(tempVideoDir, 'chapters.ffmeta');
@@ -385,7 +422,9 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         }
         // Audio: per-step narration, or the legacy whole-script voiceover.
         let audio: string | undefined;
-        if (options.narration) {
+        if (reel) {
+            // Silent by definition: skip synthesis entirely rather than mixing and then muting.
+        } else if (options.narration) {
             console.log('Synthesizing narration per step...');
             const clips = await synthesizeSteps(timeline!, actualMs, { dir: outputDir, voice, log: m => console.log(m) });
             if (!clips.length) {
@@ -402,10 +441,39 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             summary.narration = audio;
         }
         console.log(`Converting to MP4: ${outputFile}...`);
-        encodeMp4({ input: webmFile, output: outputFile, audio, chaptersFile, startMs: startOffsetMs, durationMs });
+        encodeMp4({ input: webmFile, output: outputFile, audio, chaptersFile, startMs: startOffsetMs, durationMs, muted: reel });
+
+        // A reel ships in every form a homepage needs: WebM beside the MP4, a poster to show before
+        // playback, and a GIF for the places that take neither.
+        if (reel) {
+            summary.webm = base + '.webm';
+            console.log(`Encoding WebM: ${summary.webm}...`);
+            encodeWebm(webmFile, summary.webm, { startMs: startOffsetMs, durationMs });
+            summary.poster = base + '.poster.png';
+            // The poster is the payoff frame, not the opening one: a reel's first step is usually a
+            // reveal, so its own time shows a half-faded element over an empty panel. Default to the
+            // last step's COMPLETION, overridable per timeline with meta.reel.poster.
+            const completionMs = (st: Step) => {
+                const r = results.find(x => x.index === st.index);
+                return r && Number.isFinite(r.completedMs) ? r.completedMs! : actualMs(st) + intrinsicDurationMs(st);
+            };
+            const spec = reelOptions(timeline!).poster;
+            const steps = timeline!.steps.filter(st => Number.isFinite(actualMs(st)));
+            let posterAtMs = 0;
+            if (spec === 'first') posterAtMs = steps.length ? completionMs(steps[0]) : 0;
+            else if (spec === 'last') posterAtMs = steps.reduce((max, st) => Math.max(max, completionMs(st)), 0);
+            else posterAtMs = parseTime(spec as string | number);
+            if (!Number.isFinite(posterAtMs)) posterAtMs = 0;
+            posterAtMs = Math.min(Math.max(0, posterAtMs), Math.max(0, durationMs - 100));
+            console.log(`Extracting poster at ${(posterAtMs / 1000).toFixed(2)}s: ${summary.poster}...`);
+            extractPoster(outputFile, summary.poster, posterAtMs);
+            summary.gif = base + '.gif';
+            console.log(`Encoding GIF (${REEL_GIF_WIDTH}px, ${REEL_GIF_FPS}fps): ${summary.gif}...`);
+            encodeGif(webmFile, summary.gif, { startMs: startOffsetMs, durationMs, ...gifOptions });
+        }
 
         // Per-step clips cut from the master.
-        if (options.clips && driven) {
+        if (options.clips && driven && !reel) {
             const ext = options.clips === 'gif' ? 'gif' : 'mp4';
             const steps = timeline!.steps;
             for (let i = 0; i < steps.length; i++) {

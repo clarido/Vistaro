@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     parseTimeline, parseTime, validateTimeline, computeDurationMs, subtitleWindows, leadMsFor,
-    formatIssue, hasErrors, DEFAULT_CPS, typingDurationMs,
+    formatIssue, hasErrors, DEFAULT_CPS, typingDurationMs, applyDevice, isReel, reelOptions,
 } from '../src/engine/schema';
 
 test('parseTime accepts seconds strings, ms strings and numbers', () => {
@@ -153,4 +153,102 @@ test('guide steps need a title: warning by default, error when a guide is produc
     assert.match(validateTimeline(long).find(i => i.field === 'guide')!.message, /11 numbered guide steps: a guide this long is usually two guides/);
     const hidden = parseTimeline(Array.from({ length: 11 }, (_, i) => ({ time: i, action: 'click', target: `#s${i}`, title: `Step ${i}`, guide: i > 8 ? false : undefined })));
     assert.equal(validateTimeline(hidden).find(i => i.field === 'guide'), undefined, '"guide": false steps are not numbered');
+});
+
+test('applyDevice drops "only" steps for the other device, merges the matching override, and keeps ids stable', () => {
+    const raw = {
+        meta: { title: 'Devices' },
+        steps: [
+            { id: 'first', time: '0s', action: 'highlight', target: '#a' },
+            { time: '1s', action: 'highlight', target: '#b', only: 'desktop' },
+            { time: '2s', action: 'camera', target: '#c', scale: 1.2, ease: 'easeOutCubic', mobile: { scale: 1.6, yOffset: -30 } },
+        ],
+    };
+    const desktop = applyDevice(parseTimeline(raw), 'desktop');
+    assert.deepEqual(desktop.steps.map(s => s.id), ['first', 'step-02', 'step-03']);
+    assert.equal(desktop.steps[2].scale, 1.2, 'the mobile override is not applied on desktop');
+
+    const mobile = applyDevice(parseTimeline(raw), 'mobile');
+    assert.deepEqual(mobile.steps.map(s => s.id), ['first', 'step-03'], 'the desktop-only step is dropped');
+    // The auto id keeps the number it was authored with: it is what a strings file is keyed on, so a
+    // dropped step must not renumber the survivors.
+    assert.deepEqual(mobile.steps.map(s => s.index), [1, 3], 'index stays authored, not renumbered');
+    const camera = mobile.steps[1];
+    assert.equal(camera.scale, 1.6, 'the mobile override wins');
+    assert.equal(camera.yOffset, -30, 'and adds its own fields');
+    assert.equal(camera.ease, 'easeOutCubic', 'fields the override does not mention are inherited');
+    for (const key of ['mobile', 'desktop', 'only']) {
+        assert.ok(!(key in camera), `${key} is stripped once resolved`);
+    }
+});
+
+test('a dropped "only" step re-derives the subtitle windows, so the bar does not blank (device regression)', () => {
+    // A subtitle runs until the NEXT subtitle starts. Dropping the step that a preceding window was
+    // measured against leaves that window short, and the burned-in bar blanks while the .vtt (built
+    // from the final step list) still says the cue is showing.
+    const raw = {
+        meta: { title: 'Holes' },
+        steps: [
+            { id: 'a', time: '0s', action: 'highlight', target: '#a', subtitle: 'first' },
+            { id: 'b', time: '1s', action: 'highlight', target: '#a', subtitle: 'second' },
+            { id: 'c', time: '2s', action: 'highlight', target: '#a', subtitle: 'third', only: 'desktop' },
+            { id: 'd', time: '3s', action: 'highlight', target: '#a', subtitle: 'fourth' },
+        ],
+    };
+    const desktop = applyDevice(parseTimeline(raw), 'desktop');
+    assert.deepEqual(desktop.steps.map(s => s.subtitleMs), [1000, 1000, 1000, 4000]);
+
+    const mobile = applyDevice(parseTimeline(raw), 'mobile');
+    assert.deepEqual(mobile.steps.map(s => s.id), ['a', 'b', 'd']);
+    // b now holds until d at 3000ms, not until the dropped c at 2000ms.
+    assert.deepEqual(mobile.steps.map(s => s.subtitleMs), [1000, 2000, 4000]);
+});
+
+test('kind: "reel" resolves the silent profile and drops the guide-shaped validation', () => {
+    const guide = parseTimeline({ meta: { title: 'G' }, steps: [{ time: 0, action: 'highlight', target: '#a' }] });
+    const reel = parseTimeline({ meta: { title: 'R', kind: 'reel' }, steps: [{ time: 0, action: 'highlight', target: '#a' }] });
+    assert.equal(isReel(guide), false);
+    assert.equal(isReel(reel), true);
+    assert.deepEqual(reelOptions(guide), { spotlight: true, ripple: true, subtitles: true, loop: false, autoplay: 'immediate', poster: 'last' });
+    assert.deepEqual(reelOptions(reel), { spotlight: false, ripple: false, subtitles: false, loop: true, autoplay: 'inview', poster: 'last' });
+    // An explicit value always beats the profile default, in both directions.
+    const mixed = parseTimeline({ meta: { kind: 'reel', reel: { spotlight: true, loop: false, autoplay: 'message' } }, steps: [] });
+    const m = reelOptions(mixed);
+    assert.equal(m.spotlight, true);
+    assert.equal(m.loop, false);
+    assert.equal(m.autoplay, 'message');
+
+    // A step with no title is a guide defect and a non-event for a reel.
+    assert.ok(validateTimeline(guide).some(i => i.field === 'title'), 'the guide warns about the missing title');
+    assert.ok(!validateTimeline(reel).some(i => i.field === 'title'), 'the reel does not');
+    assert.ok(!validateTimeline(reel, { guide: true }).some(i => i.field === 'title'));
+});
+
+test('reel meta and animate steps are validated', () => {
+    const errs = (raw: any) => validateTimeline(parseTimeline(raw)).filter(i => i.level === 'error').map(i => i.message);
+    assert.ok(errs({ meta: { kind: 'video' }, steps: [] }).some(m => /meta.kind must be/.test(m)));
+    assert.ok(errs({ meta: { kind: 'reel', reel: { loop: 'yes' } }, steps: [] }).some(m => /meta.reel.loop must be true or false/.test(m)));
+    assert.ok(errs({ meta: { kind: 'reel', reel: { autoplay: 'soon' } }, steps: [] }).some(m => /meta.reel.autoplay must be/.test(m)));
+    assert.ok(errs({ meta: { kind: 'reel', reel: { poster: 'middle' } }, steps: [] }).some(m => /meta.reel.poster must be/.test(m)));
+    // A poster past the end of the clip is refused rather than silently clamped.
+    assert.ok(errs({ meta: { kind: 'reel', tailMs: 0, reel: { poster: '90s' } }, steps: [{ time: 0, action: 'wait' }] }).some(m => /past the end of the clip/.test(m)));
+    assert.ok(errs({ steps: [{ time: 0, action: 'animate', target: '#a', ease: 'easeOutWobble' }] }).some(m => /unknown easing/.test(m)));
+    assert.ok(errs({ steps: [{ time: 0, action: 'animate', target: '#a', from: [1, 2] }] }).some(m => /"from" must be an object/.test(m)));
+    assert.ok(errs({ steps: [{ time: 0, action: 'animate', target: '#a', count: 2.5, from: { opacity: 0 } }] }).some(m => /"count" must be a whole number/.test(m)));
+    assert.ok(errs({ steps: [{ time: 0, action: 'highlight', target: '#a', only: 'tablet' }] }).some(m => /"only" must be/.test(m)));
+    // A well-formed reel timeline is clean.
+    assert.deepEqual(errs({ meta: { kind: 'reel', reel: { loop: true, autoplay: 'inview', poster: 'first' } },
+        steps: [{ id: 'a', time: 0, action: 'animate', target: '.card', all: true, stagger: 0.1, count: 3, from: { opacity: 0, y: 20 }, to: { opacity: 1, y: 0 }, ease: 'easeOutBack' }] }), []);
+});
+
+test('an animate step accounts for its stagger in the clip length', () => {
+    const one = parseTimeline({ meta: { tailMs: 0 }, steps: [{ time: 0, action: 'animate', target: '.c', from: { opacity: 0 } }] });
+    assert.equal(computeDurationMs(one), 600, 'the default duration is 0.6s');
+    const staggered = parseTimeline({ meta: { tailMs: 0 }, steps: [
+        { time: 0, action: 'animate', target: '.c', all: true, stagger: 0.1, count: 4, duration: 0.5, from: { opacity: 0 } },
+    ] });
+    // 500ms for the element itself, plus 0.1s x (4 - 1) before the last one starts.
+    assert.equal(computeDurationMs(staggered), 800);
+    const noCount = parseTimeline({ meta: { tailMs: 0 }, steps: [{ time: 0, action: 'animate', target: '.c', all: true, stagger: 0.1, duration: 0.5, from: { opacity: 0 } }] });
+    assert.equal(computeDurationMs(noCount), 500, 'count defaults to 1, so the estimate is just the duration');
 });

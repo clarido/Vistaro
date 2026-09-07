@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Timeline, computeDurationMs, DEFAULT_CPS } from './schema';
+import { Timeline, computeDurationMs, reelOptions, AutoplayMode, DEFAULT_CPS } from './schema';
 
 /** Absolute path of the plain-JS browser runtime, read from disk and injected as text. */
 export const RUNTIME_PATH = path.join(__dirname, 'runtime.js');
@@ -21,6 +21,13 @@ export interface InjectOptions {
     loop?: boolean;
     drift?: boolean;
     resetFocusStyles?: boolean;
+    /** Root zoom for a scaled recording (see ViewportOptions.scale); 1 leaves the page alone. */
+    zoom?: number;
+    /** Profile chrome overrides; each falls back to what meta.kind / meta.reel resolve to. */
+    spotlight?: boolean;
+    ripple?: boolean;
+    subtitles?: boolean;
+    autoplay?: AutoplayMode;
     /** Override the computed playback length (used for the loop reload). */
     durationMs?: number;
 }
@@ -30,6 +37,17 @@ export interface BootOptions {
     loop: boolean;
     drift: boolean;
     resetFocusStyles: boolean;
+    /** Chrome: the runtime's own primitives early-return when these are off. */
+    spotlight: boolean;
+    ripple: boolean;
+    subtitles: boolean;
+    /** Carried for a later phase; the runtime stores it without acting on it yet. */
+    autoplay: AutoplayMode;
+    /**
+     * `:root { zoom: N }`, emitted with the rest of the runtime CSS so it is in place before first
+     * paint. Pairs with an N-times-larger viewport to record at N pixels per CSS pixel.
+     */
+    zoom: number;
     durationMs: number;
     /** Typing speed used when a `type` step has no `cps` (schema DEFAULT_CPS). */
     defaultCps: number;
@@ -44,11 +62,18 @@ function normalizeCursor(c: unknown): CursorStyle {
 /** Resolve the options handed to `__anim.boot` from timeline meta + CLI overrides. */
 export function bootOptions(timeline: Timeline, opts: InjectOptions = {}, withTimeline = true): BootOptions {
     const meta = timeline.meta || {};
+    // The profile resolves the chrome; a CLI override still wins over it.
+    const reel = reelOptions(timeline);
     const boot: BootOptions = {
         cursor: normalizeCursor(opts.cursor ?? meta.cursor ?? 'mac'),
-        loop: !!opts.loop,
+        loop: opts.loop ?? reel.loop,
         drift: opts.drift ?? (meta.drift !== undefined ? !!meta.drift : true),
         resetFocusStyles: opts.resetFocusStyles ?? !!meta.resetFocusStyles,
+        spotlight: opts.spotlight ?? reel.spotlight,
+        ripple: opts.ripple ?? reel.ripple,
+        subtitles: opts.subtitles ?? reel.subtitles,
+        autoplay: opts.autoplay ?? reel.autoplay,
+        zoom: opts.zoom && opts.zoom > 0 ? opts.zoom : 1,
         durationMs: opts.durationMs ?? computeDurationMs(timeline),
         defaultCps: DEFAULT_CPS,
     };

@@ -1,0 +1,69 @@
+{
+  "title": "Marketing reels",
+  "outputDir": "reels-out",
+  "defaults": {
+    "locales": [
+      "en"
+    ],
+    "theme": "light"
+  },
+  "guides": [
+    {
+      "slug": "ask-anything",
+      "dir": "reels/ask-anything",
+      "title": "Ask anything",
+      "kind": "reel",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "outputs": [
+        "webm",
+        "poster",
+        "gif",
+        "embed"
+      ],
+      "scale": 2
+    },
+    {
+      "slug": "vos-mots",
+      "dir": "reels/vos-mots",
+      "title": "Vos mots, pas les siens",
+      "kind": "reel",
+      "locales": [
+        "fr"
+      ],
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "outputs": [
+        "webm",
+        "poster",
+        "gif",
+        "embed"
+      ],
+      "scale": 2
+    },
+    {
+      "slug": "le-trou-signale",
+      "dir": "reels/le-trou-signale",
+      "title": "Le trou signalé",
+      "kind": "reel",
+      "locales": [
+        "fr"
+      ],
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "outputs": [
+        "webm",
+        "poster",
+        "gif",
+        "embed"
+      ],
+      "scale": 2
+    }
+  ]
+}

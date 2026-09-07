@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clarido — Le trou signalé</title>
+<style>
+  :root {
+    --bg: #F5F3EF;
+    --surface: #FFFFFF;
+    --ink: #17181B;
+    --muted: #6B6F76;
+    --line: #E6E3DD;
+    --brand: #2563EB;
+    --brand-soft: #EFF4FF;
+    --good: #047857;
+    --good-soft: #ECFDF5;
+    --good-line: #A7E7CE;
+    --warn: #B45309;
+    --warn-soft: #FFFBEB;
+    --warn-line: #FCD9A5;
+    --shadow: 0 1px 2px rgba(23,24,27,.04), 0 14px 36px rgba(23,24,27,.09);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--ink);
+    font: 400 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #stage {
+    height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 48px;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 1320px;
+    max-height: 100%;
+    min-height: 610px;
+    background: var(--surface);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 40px 46px;
+    display: flex; flex-direction: column; gap: 24px;
+  }
+
+  /* ---------- header ---------- */
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: linear-gradient(135deg, #3B82F6, #2563EB);
+    display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 15px;
+  }
+  .brand-name { font-weight: 650; letter-spacing: -.015em; font-size: 16px; }
+
+  .eyebrow {
+    font-size: 13px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: 31px; font-weight: 600; letter-spacing: -.02em;
+    margin: 0;
+  }
+
+  /* ---------- the grid: criterion on the left, proof on the right ---------- */
+  #grid { display: flex; flex-direction: column; gap: 10px; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 34px 1fr;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .crit {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 14px 18px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: #FCFBF9;
+    opacity: 0;                 /* pre-hidden: revealed by its step */
+  }
+  .crit-text { font-size: 16px; }
+  .pts {
+    margin-left: auto; flex: none;
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .arrow { text-align: center; color: #C7C2B8; font-size: 17px; }
+
+  .proof, .gap {
+    display: flex; align-items: center; gap: 11px;
+    padding: 14px 18px;
+    border-radius: 11px;
+    font-size: 16px;
+    opacity: 0;                 /* pre-hidden */
+  }
+  .proof { background: var(--good-soft); border: 1px solid var(--good-line); color: #04563F; }
+  .gap   { background: var(--warn-soft); border: 1px solid var(--warn-line); color: var(--warn); }
+
+  .dot {
+    width: 22px; height: 22px; border-radius: 999px; flex: none;
+    display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #fff;
+  }
+  .proof .dot { background: var(--good); }
+  .gap .dot   { background: var(--warn); }
+  .proof-kind { font-weight: 600; }
+
+  /* ---------- tally ---------- */
+  #tally {
+    margin-top: auto;
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    background: var(--brand-soft);
+    border: 1px solid #CFE0FF;
+    opacity: 0;                 /* pre-hidden */
+  }
+  .tally-main { font-weight: 600; color: #1D4ED8; font-size: 17px; }
+  .tally-sub { color: #4B6FB5; font-size: 14px; }
+
+  /* ----------------------------------------------------------------------
+     Breakpoint sits above the widest viewport this reel is recorded at:
+     mobile 390 x scale 2 = 780, so 820 clears it. Raise it before --scale 3.
+     ---------------------------------------------------------------------- */
+  @media (max-width: 820px) {
+    #stage { padding: 18px; align-items: flex-start; padding-top: 24px; }
+    #app { min-height: 0; padding: 22px 20px; gap: 16px; border-radius: 16px; }
+    h1 { font-size: 23px; }
+    #grid { gap: 12px; }
+    .row { grid-template-columns: 1fr; gap: 6px; }   /* proof stacks under its criterion */
+    .arrow { display: none; }
+    .crit, .proof, .gap { padding: 11px 13px; font-size: 14px; }
+    .crit-text { font-size: 14px; }
+    .proof, .gap { font-size: 14px; }
+    .pts { font-size: 12px; }
+    #tally { padding: 13px 15px; gap: 11px; }
+    .tally-main { font-size: 15px; }
+    .tally-sub { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="app">
+
+    <div class="brand">
+      <div class="brand-mark">C</div>
+      <div class="brand-name">Clarido</div>
+    </div>
+
+    <div>
+      <div class="eyebrow">Appel d'offres · MAMH 2026-04</div>
+      <h1>Chaque critère, la preuve qui y répond</h1>
+    </div>
+
+    <div id="grid">
+
+      <div class="row">
+        <div class="crit"><span class="crit-text">Expérience en assainissement des sols</span><span class="pts">30 pts</span></div>
+        <div class="arrow">→</div>
+        <div class="proof"><span class="dot">✓</span><span><span class="proof-kind">Mandat</span> · CPEQ, 2019-2023</span></div>
+      </div>
+
+      <div class="row">
+        <div class="crit"><span class="crit-text">Équipe proposée et disponibilité</span><span class="pts">25 pts</span></div>
+        <div class="arrow">→</div>
+        <div class="proof"><span class="dot">✓</span><span><span class="proof-kind">CV</span> · Marie Tremblay, ing.</span></div>
+      </div>
+
+      <div class="row">
+        <div class="crit"><span class="crit-text">Méthodologie d'intervention</span><span class="pts">25 pts</span></div>
+        <div class="arrow">→</div>
+        <div class="proof"><span class="dot">✓</span><span><span class="proof-kind">Approche</span> · Diagnostic terrain</span></div>
+      </div>
+
+      <div class="row">
+        <div class="crit"><span class="crit-text">Plan de gestion des risques</span><span class="pts">20 pts</span></div>
+        <div class="arrow">→</div>
+        <div class="gap" id="gap"><span class="dot">!</span><span>Aucune preuve dans votre bibliothèque</span></div>
+      </div>
+
+    </div>
+
+    <div id="tally">
+      <div>
+        <div class="tally-main">3 critères sur 4 sont couverts</div>
+        <div class="tally-sub">Le quatrième est signalé, jamais inventé.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

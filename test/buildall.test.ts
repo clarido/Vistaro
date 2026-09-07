@@ -49,7 +49,7 @@ test('readCatalog validates shape, dirs, slugs, locales, outputs, settings types
     assert.ok(!warnings.some(w => /unknown key "version"/.test(w)), 'version is a known catalog key');
     assert.deepEqual(effectiveSettings(c.guides[0], c.defaults).outputs, ['guide'], 'video is not an extra');
     assert.deepEqual(effectiveSettings({ slug: 'x', dir: 'x' }, {}).outputs, ['guide'], 'guide is the default extra');
-    assert.deepEqual(effectiveSettings({ slug: 'x', dir: 'x', crop: false, width: 800 }, { crop: 60, width: 640, height: 400 }), { width: 800, height: 400, theme: undefined, crop: false, narration: false, hideCursor: false, outputs: ['guide'] }, 'guide values win over defaults, crop/hideCursor per guide');
+    assert.deepEqual(effectiveSettings({ slug: 'x', dir: 'x', crop: false, width: 800 }, { crop: 60, width: 640, height: 400 }), { width: 800, height: 400, theme: undefined, crop: false, narration: false, hideCursor: false, outputs: ['guide'], device: undefined, scale: undefined, kind: 'guide' }, 'guide values win over defaults, crop/hideCursor per guide');
     fs.writeFileSync(path.join(d, 'bad.json'), JSON.stringify({ outputDir: '', defaults: { width: '1280', theme: 'sepia', outputs: 'guide', crop: -1 }, guides: [{ slug: 'Bad Slug', dir: 'missing' }, { slug: 'g1', dir: 'g1', locales: ['nope-dir-name'], outputs: ['pdf'], narration: 'yes', hideCursor: 1, height: 0 }, { slug: 'g1', dir: 'g1', record: {} }, { slug: 'g2', dir: 'g1', record: { url: 'http://x', storageState: 'nope.json' } }] }));
     assert.throws(() => readCatalog(path.join(d, 'bad.json')), (e: any) => {
         for (const needle of ['"outputDir" must be', 'lowercase-kebab', 'has no anim.config.json', 'not a locale code', 'unknown output "pdf"', 'duplicate slug "g1"', '"record" needs a "url"',
@@ -113,8 +113,10 @@ test('writeIndex writes the contract and a markdown table; diffPng measures chan
     const w = writeIndex(out, index);
     assert.deepEqual(JSON.parse(fs.readFileSync(w.json, 'utf8')).guides.map((g: any) => g.status), ['ok', 'failed']);
     const md = fs.readFileSync(w.md, 'utf8');
-    assert.match(md, /\| a \| en \| ok \| \[guide\]\(a\/en\/guide\/guide\.json\) \| \[video\]\(a\/en\/a-en\.mp4\) \| 5\.0s \|  \|/);
-    assert.match(md, /\| a \| fr \| failed \|  \|  \|  \| check exited 1: x \\\| y \|/);
+    assert.match(md, /\| Guide \| Locale \| Device \| Status \|/, 'the table distinguishes a reel\'s device rows');
+    // The device column is blank for a guide (it has no device dimension) and carries the device for a reel.
+    assert.match(md, /\| a \| en \|  \| ok \| \[guide\]\(a\/en\/guide\/guide\.json\) \| \[video\]\(a\/en\/a-en\.mp4\) \| 5\.0s \|  \|/);
+    assert.match(md, /\| a \| fr \|  \| failed \|  \|  \|  \| check exited 1: x \\\| y \|/);
     png(path.join(work, 'w1.png'), 20, 10, [255, 255, 255]);
     png(path.join(work, 'w2.png'), 20, 10, [255, 255, 255]);
     png(path.join(work, 'r.png'), 20, 10, [255, 0, 0]);
@@ -315,4 +317,60 @@ test('build-all: a record entry builds against a live page, with and without sto
     } finally {
         await app.close();
     }
+});
+
+test('a reel catalog entry resolves its own defaults, and the build key tracks kind, device and scale', () => {
+    const d = path.join(work, 'reelcat'); fs.mkdirSync(d, { recursive: true });
+    fs.cpSync(fixture, path.join(d, 'clip'), { recursive: true });
+    fs.writeFileSync(path.join(d, 'clip', 'anim.config.json'), JSON.stringify({
+        meta: { kind: 'reel', title: 'Clip' },
+        steps: [{ id: 'a', time: 0.2, action: 'animate', target: '#btn', from: { opacity: 0 }, to: { opacity: 1 } }],
+    }));
+    fs.writeFileSync(path.join(d, 'reels.catalog.json'), JSON.stringify({
+        outputDir: 'out',
+        guides: [{ slug: 'clip', dir: 'clip', kind: 'reel', devices: ['desktop', 'mobile'], scale: 2, outputs: ['webm', 'poster', 'embed'] }],
+    }));
+    const cat = readCatalog(path.join(d, 'reels.catalog.json'));
+    const guide = cat.guides[0];
+    assert.equal(guide.kind, 'reel');
+    assert.deepEqual(guide.devices, ['desktop', 'mobile']);
+    const settings = effectiveSettings(guide, cat.defaults);
+    assert.equal(settings.kind, 'reel');
+    assert.equal(settings.scale, 2);
+    assert.deepEqual(settings.outputs, ['webm', 'poster', 'embed']);
+    // A reel with no explicit outputs ships the embeddable set rather than a guide.
+    assert.deepEqual(effectiveSettings({ slug: 'x', dir: 'x', kind: 'reel' }, {}).outputs, ['webm', 'poster', 'gif']);
+    assert.deepEqual(effectiveSettings({ slug: 'x', dir: 'x' }, {}).outputs, ['guide'], 'a guide is unchanged');
+
+    // Every fact that changes the output must change the key, or --changed-only skips a row that
+    // should rebuild and reports success while doing it.
+    const base = effectiveSettings(guide, cat.defaults);
+    const key = (over: Partial<typeof base>) => buildKeyFor('sha256:same', { ...base, ...over }, undefined, 'tool@1');
+    const desktop = key({ device: 'desktop' });
+    assert.notEqual(desktop, key({ device: 'mobile' }), 'device changes the key');
+    assert.notEqual(desktop, key({ device: 'desktop', scale: 1 }), 'scale changes the key');
+    assert.notEqual(desktop, key({ device: 'desktop', kind: 'guide' }), 'kind changes the key');
+    assert.equal(desktop, key({ device: 'desktop' }), 'and it is stable for the same facts');
+
+    // Invalid values are refused with a message naming the field.
+    fs.writeFileSync(path.join(d, 'bad.json'), JSON.stringify({
+        outputDir: 'out',
+        guides: [{ slug: 'clip', dir: 'clip', kind: 'movie', devices: ['watch'], scale: 0, outputs: ['pdf'] }],
+    }));
+    assert.throws(() => readCatalog(path.join(d, 'bad.json')), (e: any) => {
+        for (const needle of ['"kind" must be', 'unknown device', '"scale" must be a positive number', 'unknown output "pdf"']) {
+            assert.ok(e.message.includes(needle), `${needle} in: ${e.message}`);
+        }
+        return true;
+    });
+});
+
+test('mergeIndexEntries keys reel rows by device, so two devices are two rows', () => {
+    const row = (slug: string, locale: string, device: string | undefined, status: IndexEntry['status']): IndexEntry =>
+        ({ slug, locale, device: device as any, dir: slug, output: `${slug}/${locale}`, status });
+    const previous = [row('clip', 'en', 'desktop', 'ok'), row('clip', 'en', 'mobile', 'ok')];
+    const merged = mergeIndexEntries(previous, [row('clip', 'en', 'mobile', 'failed')],
+        [{ slug: 'clip', locale: 'en', device: 'desktop' as any }, { slug: 'clip', locale: 'en', device: 'mobile' as any }]);
+    assert.deepEqual(merged.map(m => [m.device, m.status]), [['desktop', 'ok'], ['mobile', 'failed']],
+        'rebuilding one device leaves the other row untouched');
 });

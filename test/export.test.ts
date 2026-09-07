@@ -188,3 +188,103 @@ test('export --narration mixes per-step TTS (macOS say) and caches clips', { ski
     assert.equal(again.status, 0);
     assert.ok(!/tts step/.test(again.stdout), 'second run hits the cache');
 });
+
+test('a reel export ships mp4 + webm + poster + gif, silent, with no subtitles or chapters', { skip }, () => {
+    // Video-level on purpose: guide capture hides the subtitle bar, so nothing that compares frames
+    // can see a subtitle or audio regression. These assertions read the container itself.
+    const dir = path.join(work, 'reel');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'index.html'), `<!doctype html><html><head><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1"><style>
+      body { margin: 0; background: #fff; height: 100vh; }
+      #card { margin: 40px; height: 120px; background: #4F46E5; opacity: 0; }
+    </style></head><body><div id="card"></div></body></html>`);
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({
+        meta: { kind: 'reel', title: 'Clip', cursor: 'none', tailMs: 300, reel: { loop: true } },
+        steps: [
+            { id: 'in', time: '0.3s', action: 'animate', target: '#card', from: { opacity: 0, y: 20 }, to: { opacity: 1, y: 0 }, duration: 0.4 },
+            { id: 'sub', time: '1.0s', action: 'wait', subtitle: 'this must not become a .vtt' },
+        ],
+    }));
+    const out = path.join(work, 'clip.mp4');
+    const r = cli(['export', dir, '-o', out, '--width', '320', '--height', '200']);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+
+    const base = out.replace(/\.mp4$/, '');
+    for (const f of [out, base + '.webm', base + '.poster.png', base + '.gif']) {
+        assert.ok(fs.existsSync(f), `${path.basename(f)} written`);
+        assert.ok(fs.statSync(f).size > 0, `${path.basename(f)} is not empty`);
+    }
+    assert.ok(!fs.existsSync(base + '.vtt'), 'a reel writes no .vtt even when a step has a subtitle');
+    assert.equal(listChapters(out).length, 0, 'and no chapters');
+
+    // The MP4 must carry no audio stream at all, not merely a silent one.
+    const probe = spawnSync(require('ffmpeg-static'), ['-i', out], { encoding: 'utf8' });
+    const info = probe.stderr || '';
+    assert.ok(/Stream .*Video/.test(info), 'the video stream is there');
+    assert.ok(!/Stream .*Audio/.test(info), `no audio stream: ${info.split('\n').filter(l => /Stream/.test(l)).join(' | ')}`);
+    assert.match(info, /1[68]0x200|320x200/, 'encoded at the requested viewport');
+
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    assert.equal(ev.command, 'export');
+    assert.equal(ev.subtitles, false, 'the manifest records that no subtitle file was written');
+});
+
+test('preview and export render a reel under the same emulation, and a guide under none', { skip }, () => {
+    // The authoring loop is "preview, read the PNG, fix the timeline, repeat". If preview renders a
+    // reel under different conditions than export, that loop disagrees with the shipped artifact --
+    // and a test that checked export alone would not notice. This pins the two paths together.
+    const page = `<!doctype html><html><head><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1"><style>
+      body { margin: 0; background: #fff; height: 100vh; }
+      #flag { position: absolute; left: 0; top: 0; width: 200px; height: 200px; background: #00a000; }
+      @media (pointer: coarse) { #flag { background: #c00000; } }
+    </style></head><body><div id="flag"></div></body></html>`;
+    const steps = [{ id: 'a', time: '0.3s', action: 'animate', target: '#flag', from: { opacity: 0.99 }, to: { opacity: 1 }, duration: 0.2 }];
+    const mk = (name: string, meta: Record<string, unknown>) => {
+        const dir = path.join(work, name);
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, 'index.html'), page);
+        fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta, steps }));
+        return dir;
+    };
+    const reelDir = mk('emu-reel', { kind: 'reel', title: 'Reel', cursor: 'none', tailMs: 300 });
+    const guideDir = mk('emu-guide', { title: 'Guide', cursor: 'none', tailMs: 300 });
+
+    // Sample the flag well inside its 200px box, in both a preview PNG and a frame of the video.
+    const flagOf = (file: string) => {
+        const b = fs.readFileSync(file);
+        const png = require('pngjs').PNG.sync.read(b);
+        const i = (png.width * 40 + 40) * 4;
+        return [png.data[i], png.data[i + 1], png.data[i + 2]];
+    };
+    // Lossy video shifts the exact bytes (192,0,0 becomes 189,0,1), so classify rather than compare.
+    const coarse = (c: number[]) => c[0] > 150 && c[1] < 80;
+    const fine = (c: number[]) => c[1] > 120 && c[0] < 80;
+
+    const previewFlag = (dir: string, name: string) => {
+        const out = path.join(work, name + '.png');
+        const r = cli(['preview', dir, '--device', 'mobile', '--step', '1', '-o', out]);
+        assert.equal(r.status, 0, r.stderr + r.stdout);
+        return flagOf(out);
+    };
+    const exportFlag = (dir: string, name: string) => {
+        const out = path.join(work, name + '.mp4');
+        const r = cli(['export', dir, '-o', out, '--device', 'mobile']);
+        assert.equal(r.status, 0, r.stderr + r.stdout);
+        const frame = path.join(work, name + '-frame.png');
+        spawnSync(require('ffmpeg-static'), ['-y', '-ss', '0.6', '-i', out, '-frames:v', '1', frame], { encoding: 'utf8' });
+        assert.ok(fs.existsSync(frame), 'a frame was extracted');
+        return flagOf(frame);
+    };
+
+    const reelPreview = previewFlag(reelDir, 'reel-preview');
+    const reelExport = exportFlag(reelDir, 'reel-export');
+    assert.ok(coarse(reelPreview), `reel previews with pointer: coarse (got ${reelPreview})`);
+    assert.ok(coarse(reelExport), `reel exports with pointer: coarse (got ${reelExport})`);
+
+    // The control: the same page as a guide must emulate on neither path, or a mockup with no
+    // viewport meta would be laid out at 980px and shrunk.
+    const guidePreview = previewFlag(guideDir, 'guide-preview');
+    assert.ok(fine(guidePreview), `guide previews with pointer: fine (got ${guidePreview})`);
+});

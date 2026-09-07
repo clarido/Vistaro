@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadTimeline, validateTimeline, formatIssue, hasErrors, formatTime, Step, captureAtFor } from '../engine/schema';
+import { loadTimeline, validateTimeline, formatIssue, hasErrors, formatTime, Step, captureAtFor, deviceKind, emulateMobileFor, isReel, reelOptions } from '../engine/schema';
 import { runTimeline, ensureRuntime } from '../engine/driver';
-import { launchPage, fileUrl, ViewportOptions } from '../browser';
+import { launchPage, fileUrl, ViewportOptions, resolveViewport } from '../browser';
 import { renderContactSheet, SheetFrame } from '../media/contactSheet';
 
 export interface PreviewOptions extends ViewportOptions {
@@ -35,7 +35,7 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
     }
     let timeline;
     try {
-        timeline = loadTimeline(dir, { locale: options.locale });
+        timeline = loadTimeline(dir, { locale: options.locale, device: deviceKind(options.device) });
     } catch (e: any) {
         console.error(`Error: ${e.message}`);
         process.exit(1);
@@ -58,12 +58,15 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
         process.exit(1);
     }
 
-    const launched = await launchPage(options);
+    // A reel must preview under exactly the conditions it exports under, or the read-the-PNG loop
+    // an author iterates against disagrees with the artifact they ship.
+    const launched = await launchPage({ ...options, emulateMobile: emulateMobileFor(timeline) });
     const { page, browser } = launched;
     const frames: SheetFrame[] = [];
+    let posterTile = false;
     try {
         await page.goto(fileUrl(htmlPath), { waitUntil: 'load' });
-        await ensureRuntime(page, timeline, { cursor: options.cursor, drift: false });
+        await ensureRuntime(page, timeline, { cursor: options.cursor, drift: false, zoom: resolveViewport(options).scale });
         const steps = only !== undefined ? { ...timeline, steps: timeline.steps.slice(0, only) } : timeline;
         await runTimeline(page, steps, {
             mode: 'step',
@@ -79,12 +82,30 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
             },
         });
 
+        // The poster is the frame a visitor sees before playback, whenever the clip has not scrolled
+        // into view, and permanently under prefers-reduced-motion. It is the highest-stakes frame a
+        // reel ships and it was the only one an author never saw while iterating.
+        if (only === undefined && isReel(timeline)) {
+            const spec = reelOptions(timeline).poster;
+            // 'last' is the default and lands exactly here, with every step complete and settled.
+            // Any other setting names a different moment, so the tile says which one it approximates.
+            await page.evaluate((o) => (window as any).__anim.whenSettled(o), { timeoutMs: 10000 });
+            const label = spec === 'last' ? 'poster (last step, as exported)'
+                : `poster — approximated: meta.reel.poster is ${JSON.stringify(spec)}, shown at the end of the timeline`;
+            frames.push({ label, png: await page.screenshot({ type: 'png' }) });
+            posterTile = true;
+            console.log(`  ${label}`);
+        }
+
         if (only !== undefined) {
             const out = options.output ? path.resolve(options.output) : path.join(dir, `preview-step-${only}.png`);
             fs.writeFileSync(out, frames[0].png);
             console.log(`Wrote ${out} (${launched.width}x${launched.height} @2x).`);
         } else {
-            const title = timeline.meta.title ? `${timeline.meta.title} — ${timeline.steps.length} steps` : `${path.basename(path.resolve(dir))} — ${timeline.steps.length} steps`;
+            // The poster is a tile but not a step, so the count alone reads as an off-by-one
+            // against the sheet the reader is looking at.
+            const count = `${timeline.steps.length} steps${posterTile ? ' + poster' : ''}`;
+            const title = `${timeline.meta.title || path.basename(path.resolve(dir))} — ${count}`;
             const sheet = await renderContactSheet(browser, frames, { title });
             const out = options.output ? path.resolve(options.output) : path.join(dir, 'preview.png');
             fs.writeFileSync(out, sheet);

@@ -1,6 +1,6 @@
 # Agent manual: Screenshot Animator CLI
 
-This is the manual for an AI agent (Claude Code, Codex, Antigravity) or a person driving the CLI. It turns a **screen** (`index.html`) plus a **timeline** (`anim.config.json`) into a demo **video** (MP4 + subtitles + chapters, optional narration), a **step-by-step help guide** (`guide.json` / `guide.md` / `guide.html` + frames), and the same for **every language**, and it can do that against a **live web page** instead of a mockup. `help.catalog.json` + `build-all` produce a whole help site's worth of guides in one command.
+This is the manual for an AI agent (Claude Code, Codex, Antigravity) or a person driving the CLI. It turns a **screen** (`index.html`) plus a **timeline** (`anim.config.json`) into a demo **video** (MP4 + subtitles + chapters, optional narration), a **step-by-step help guide** (`guide.json` / `guide.md` / `guide.html` + frames), and the same for **every language**, and it can do that against a **live web page** instead of a mockup. The same engine also produces **marketing reels**: short, silent, looping product clips for a homepage, shipped as video or as an embeddable page. `help.catalog.json` + `build-all` produce a whole help site's worth of guides in one command.
 
 You are the LLM. You write the screen and the timeline yourself; the CLI needs **no API key** for anything below except the optional `extract`/`animate` commands.
 
@@ -11,7 +11,7 @@ npm install
 npx playwright install chromium
 ```
 
-Node >= 20. TypeScript runs through `tsx` (no build step). ffmpeg is bundled (`ffmpeg-static`). Narration uses `OPENAI_API_KEY` when set, else macOS `say`.
+Node >= 20.6. TypeScript runs through `tsx` (no build step). ffmpeg is bundled (`ffmpeg-static`). Narration uses `OPENAI_API_KEY` when set, else macOS `say`.
 
 ## Workflow
 
@@ -28,7 +28,9 @@ Every command below prints what it wrote; `npx tsx cli.ts --help` and `npx tsx c
 
 For a **live app** replace steps 1 and 4 with selectors in the real page and use `record` instead of `export`. See [Live pages](#live-pages).
 
-Cinematic polish is built in: click/focus/type/highlight/hover steps get a glowing spotlight on the target and a click ripple, `camera` pushes in on an element, `scroll` brings it into view, the cursor glides with a slight drift, and subtitles are drawn as an overlay. There is nothing to paste into `index.html`.
+For a **marketing reel** set `"kind": "reel"` in `meta`. The guide chrome and the guide validations switch off, so steps need no `title` and the ten-step guideline does not apply; write the motion instead, mostly `animate` and `camera`. Step 6 loses `--guide` and `--narration` and ships an MP4, a WebM, a poster and a GIF in one command; step 4 gains `--embed` for the looping page. Steps 7 and 8 are unchanged, and one responsive mockup covers both form factors through `--device` plus per-step `mobile`/`desktop` overrides and `only`. **Read [Authoring a reel](#authoring-a-reel-four-constraints-that-are-not-guessable) before you write the screen**: all four constraints there fail silently, producing a plausible-looking clip that is wrong.
+
+Cinematic polish is built in: click/focus/type/highlight/hover steps get a glowing spotlight on the target and a click ripple, `camera` pushes in on an element, `scroll` brings it into view, the cursor glides with a slight drift, and subtitles are drawn as an overlay. There is nothing to paste into `index.html`. A reel turns the spotlight, ripple and subtitle bar off and carries its motion with `animate` and `camera` instead; set `"cursor": "none"` too unless the clip is demonstrating a click.
 
 ## Timeline: `anim.config.json`
 
@@ -62,6 +64,8 @@ Object form (a bare array of steps is still accepted):
 | `resetFocusStyles` | Before each step, reset every `.input` and `button` in the page to fixed light colours (border `#E2E8F0`, no shadow, `#FAFAFA` background, `#3B82F6` for `.btn-primary`): a crutch for mockups built with those classes, not a general focus-outline reset. |
 | `drift` | Slight page drift while the cursor glides (default on for mockups; off on live pages, where a transformed `<body>` can break a real app's fixed layout, unless `"drift": true`). |
 | `voice` | `{ "openai": "alloy", "say": "Samantha" }` narration voices per engine. |
+| `kind` | `guide` (default) or `reel`. A reel is a silent marketing clip: no spotlight, ripple or subtitle bar, no guide-shaped validation, and `--guide` on it is an error. |
+| `reel` | Overrides of whatever `kind` implies: `spotlight`, `ripple`, `subtitles`, `loop` (booleans), `autoplay` (`immediate`, `inview`, `message`), `poster` (`last` (default), `first`, or a time such as `"3.2s"`). An explicit value always beats the profile default. |
 | `reset` | Live pages: a shell command run before each pass over the app (the recording, then the `--guide` replay), e.g. `"npm run db:seed"` or `"curl -X POST http://localhost:3000/api/test/reset"`. It runs in the shell, in the CLI's working directory, so a timeline is executable content: it runs only when you pass `--allow-reset`, and the command refuses rather than silently skipping a reset the timeline depends on. `--reset-cmd` gives your own command instead and never needs the flag. See [Live pages](#live-pages). |
 
 ### Steps
@@ -79,6 +83,14 @@ Object form (a bare array of steps is still accepted):
 | `note` | Extra sentence under the step in the guide. |
 | `translatable` | `true` when `value` is user-visible text that must be translated (it becomes a string key). |
 | `crop` | Guide crop padding in px for this step, or `false` for the full frame only. |
+| `from` / `to` | `animate`: the start and end state. `x`, `y` (px), `scale`, `scaleX`, `scaleY`, `rotate` (deg) compose into one transform, applied in the order translate, scale, rotate; every other key (`opacity`, any CSS property) is passed through as-is. |
+| `all` | `animate`: animate every match of `target`, not just the first. |
+| `stagger` | `animate`: seconds between successive elements when `all` is set. |
+| `count` | `animate`: how many elements `target` is expected to match, so the length estimate is right. `check` warns when the real count differs. |
+| `ease` | Named easing for `animate` and `camera`: `linear`, `easeInCubic`, `easeOutCubic`, `easeInOutCubic`, `easeOutBack`, `easeOutExpo`, `spring`. |
+| `spotlight` / `ripple` | `false` suppresses that chrome for this step alone (no ring is shown at all, not merely left where it was). |
+| `only` | `"desktop"` or `"mobile"`: the step is dropped entirely for the other device. |
+| `mobile` / `desktop` | An object shallow-merged into the step when rendering for that device; the key itself is then stripped. Fields the override omits are inherited. |
 | `guide` | `false` hides the step from the guide (it still runs in the video). |
 | `captureAt` | Override the guide/preview frame moment: `"interaction"` or `"completion"`. On a `type` step driven from the CLI both show the full text: the driver types through the keyboard and the step's interaction is only over once the last character has landed. |
 | `waitFor` | Live pages: a selector to wait for (visible) or a number of ms before the cursor moves; the delay shifts the rest of the timeline. |
@@ -102,6 +114,7 @@ Object form (a bare array of steps is still accepted):
 | `fadeIn` | Reveal the target (display/opacity) with a fade. | Completion. |
 | `transitionScreen` | Fade the current screen out and the target screen in. | Completion. |
 | `navigate` | Live pages only: open `url`. | Arrival on the new page. |
+| `animate` | Animate `target` from `from` to `to` with the Web Animations API (`fill: both`, so the end state persists). With `all` it runs on every match, `stagger` seconds apart. | Completion (all elements settled). |
 | `wait` | Nothing visible; a beat, or a subtitle change. | Interaction (the moment of the step). |
 
 Frames of completion-type steps are taken once the CSS animations on the target and the page have finished, so an unedited re-run reproduces the same pixels.
@@ -124,6 +137,14 @@ guide/
 ```
 
 Publishing a guide means copying `guide.*` and the whole `assets/` directory: the audio files are referenced from `guide.json` and can be a third of its size.
+
+### Reel outputs
+
+`export <reel> -o clip.mp4` on a `kind: "reel"` timeline writes, beside the video, `clip.webm` (VP9, silent), `clip.poster.png` and `clip.gif` (720px at 15fps). The MP4 carries no audio stream, and no `.vtt` or chapters are written. `--narration`, `--voiceover` and `--clips` are warned about and ignored. The poster is the last step's completion by default, the composed payoff frame rather than the empty opening one; `meta.reel.poster` overrides it.
+
+`build <reel> --embed --device <desktop|mobile>` additionally writes `embed-<device>.html`, a self-contained page with no margin or scrollbars, and `embed-<device>.snippet.html`, the parent-side snippet. **The names always carry the device** because a reel is genuinely two deliverables, and an unsuffixed pair would have the second build silently overwrite the first, leaving a desktop page inside a phone-shaped frame.
+
+The embed plays when scrolled into view and loops by restarting in place (the runtime snapshots `<body>` at boot and restores it, rather than reloading). `prefers-reduced-motion: reduce` leaves the mockup in its authored static state and never plays.
 
 ### `guide.json` (version 1)
 
@@ -148,7 +169,7 @@ Publishing a guide means copying `guide.*` and the whole `assets/` directory: th
 }
 ```
 
-`index` is the position in the timeline, `number` the guide numbering (steps with `guide: false` are skipped). `actualMs` is measured in the page; `scheduledMs` is what the timeline said. `rect` is the box the spotlight framed (the sized ancestor of a 0x0 target); `rect` and `callout` are `null` only for target-less or failed steps. `clip` appears when clips were cut: `export --clips` writes `<video>-step-NN.mp4|gif` next to the video and the guide points at them (`../demo-step-02.mp4`); `guide --clips` cuts them into `assets/`. `audio`/`audioDurationMs` appear when the video was narrated: the step's synthesized narration is copied to `assets/step-NN.mp3` (OpenAI) or `.aiff` (macOS `say`). Paths are relative to the guide directory; `source.dir` is a basename, never an absolute path.
+`index` is the position in the timeline, `number` the guide numbering (steps with `guide: false` are skipped). `actualMs` is measured in the page; `scheduledMs` is what the timeline said. `rect` is the box the spotlight framed (the sized ancestor of a 0x0 target), clamped to the part of it that survives any ancestor hiding overflow, so it matches the ring in the frame; `rect` and `callout` are `null` only for target-less or failed steps. `clip` appears when clips were cut: `export --clips` writes `<video>-step-NN.mp4|gif` next to the video and the guide points at them (`../demo-step-02.mp4`); `guide --clips` cuts them into `assets/`. `audio`/`audioDurationMs` appear when the video was narrated: the step's synthesized narration is copied to `assets/step-NN.mp3` (OpenAI) or `.aiff` (macOS `say`). Paths are relative to the guide directory; `source.dir` is a basename, never an absolute path.
 
 ## Localization
 
@@ -167,6 +188,8 @@ Then translate `strings.fr.json` and the visible text in `locales/fr/index.html`
 
 `--sibling` scaffolds the legacy `<dir>/../fr/` layout instead; `build-all` finds both, and an explicit `{ "fr": "path" }` map in the catalog wins over both.
 
+**Reels localize the same way**, and steps 7 and 8 of the workflow are unchanged for them. A reel has less to translate, because it carries no `title`, `subtitle`, `narration` or `note`: its strings file is usually just `meta.title` plus any `translatable` typed `value`, and the rest of the copy lives in the locale's `index.html`. Two things to watch when you translate the screen. Localize the number and currency formats too, not only the words (`$2.4M` becomes `2,4 M$`, `31%` becomes `31 %`), since a marketing clip that shows American formatting to a French visitor reads as a translated American product. And leave room for text expansion: French runs roughly 15 to 20% longer than English, so a paragraph that fits on three lines in the base locale may take four, which changes the height of anything a `camera` step frames. `reels/ask-anything/locales/fr` is a worked example.
+
 ## Catalog and build-all
 
 `help.catalog.json` lists the guides; `npx tsx cli.ts build-all` runs `check` → `build` → `export --guide` (or `check --live` → `record --guide`) for every guide × locale into `<outputDir>/<slug>/<locale>/` and merges `index.json` + `index.md` at the root of `outputDir`. `npx tsx cli.ts build-all --help` prints the full schema.
@@ -182,7 +205,9 @@ Then translate `strings.fr.json` and the visible text in `locales/fr/index.html`
 }
 ```
 
-- Paths are relative to the catalog file. `outputDir` may not be `/`, the home directory, the catalog directory, or overlap a guide directory. Every default is also valid per guide (the guide wins). `outputs` are the extras: `guide` (default), `gif`, `clips`; the video is always produced.
+- Paths are relative to the catalog file. `outputDir` may not be `/`, the home directory, the catalog directory, or overlap a guide directory. Every default is also valid per guide (the guide wins). `outputs` are the extras: `guide` (default for a guide), `gif`, `clips`, `webm`, `poster`, `embed`; the video is always produced and never listed as an output.
+- A guide entry may set `kind: "reel"`, whose default outputs are `["webm", "poster", "gif"]` and which produces no guide. `devices: ["desktop", "mobile"]` expands it to one row per device, sharing `<slug>/<locale>/` with the device in every filename (`ask-anything-en-mobile.mp4`, `embed-mobile.html`). Render settings gain `device` and `scale`, both valid in `defaults` and per guide.
+- The manifest key is the plain locale for a guide and `<locale>:<device>` for a device-expanded row, so manifests written before reels existed stay valid.
 - `--changed-only` skips a guide × locale whose **build key** (content hash of `index.html`, `anim.config.json`, `strings.*.json` and referenced media + the effective render settings + the tool version) matches `buildKey[locale]` in its manifest and whose video still exists on disk. Changing a width in the catalog rebuilds; editing `locales/fr` rebuilds only `fr`.
 - `--diff` keeps the previous step frames in `guide/.previous/`, compares them pixel by pixel with the new ones and marks the entry `stale` above `--diff-threshold` (default 2%), with `step-NN.diff.png` next to the previous frames.
 - `--only <slug>` / `--locale <code>` build a subset; the other entries keep their previous index rows. `--dry-run` prints the plan and writes nothing. Failures mark the entry `failed`, exit 1, and stop unless `--continue-on-error`.
@@ -201,12 +226,30 @@ Then translate `strings.fr.json` and the visible text in `locales/fr/index.html`
 
 Paths are relative to `outputDir`. `status` is `ok`, `failed` (with `error`) or `skipped` (unchanged; links, `builtAt` and `stale` carried from the last build).
 
+## Authoring a reel: four constraints that are not guessable
+
+1. **The media query breakpoint must sit above the widest viewport the reel is ever recorded at.** `--scale N` multiplies the CSS viewport and shrinks the layout box back with `:root { zoom: N }`, so a media query evaluates at the *scaled* width while the layout keeps its authored proportions. The law is `breakpoint >= device width x scale`, verified with no exceptions at mobile 1x/2x/3x (390/780/1170) and desktop 1x/2x (1920/3840). So a `max-width: 768px` breakpoint does not match a phone reel recorded at `--device mobile --scale 2`, which is a 780px viewport. `ask-anything` uses `max-width: 820px`, which covers mobile at 390 and 780 but would itself break at `--scale 3`: pick the breakpoint from the largest scale you intend to record, not from a number that happens to work today.
+2. **An element animated from a `from` state must already be hidden in CSS.** The first keyframe is applied when the step runs, not at boot, so the element stays visible from page load right up to the step's `time`. A reveal at `0s` costs one frame; a reveal at `1s` shows the element for a full second, and a reveal at `2s` for two. Measured on a clip whose reveal fires at 1s, a card with no pre-hidden state was still fully painted in the exported MP4 at 0.2s, 0.5s and 0.8s. The reel mockup starts its cards at `opacity: 0` and its bars at `scaleY(0)` for exactly this reason.
+3. **A `camera` push crops, and how far you can push is a property of your composition, not a fixed number.** The camera centres the viewport on the target's centre, so at scale `S` the visible window is `W/S` by `H/S` around that point. Nothing is sliced while
+
+   ```
+   S_max = min( W / (2 * max(cx - x0, x1 - cx)),
+                H / (2 * max(cy - y0, y1 - cy)) )
+   ```
+
+   where `[x0,x1]` and `[y0,y1]` are the span of the content you want kept and `cx,cy` is the target's centre. The `max` is the distance to the *further* edge, which is why an off-centre target is penalised twice: the window shrinks and it is aimed away from the far side. For a centred target this collapses to `viewport / content width`, the gutter case.
+
+   Validated against measurement, including the boundary: a fixture bound at 1.079 was clean at 1.06 and sliced at 1.12 and 1.18. For `ask-anything` on a phone the bound is **1.077** horizontally and 1.090 vertically, which is why both of its camera steps are `only: "desktop"` — not because phones cannot take a push, but because that particular composition runs to the frame edges and leaves no room for one. A design with real gutters can push hard on a phone.
+
+   Compute this for your own screen rather than copying the number. It is the ceiling for "nothing is cropped"; deliberately cropping into a detail is a legitimate choice that ignores it.
+4. **`--scale` does not apply to `record`, and is rejected as an unknown option rather than accepted and dropped.** A live app owns its own breakpoints, and zooming it would reflow it into a layout its CSS was never written for. Live captures therefore stay at 1x, which has a consequence worth planning around: a mockup reel recorded at `--scale 2` and a live capture of the same product will not match in pixel density, so two clips placed side by side on one marketing page will look different. Pick one source per page, or accept the mismatch deliberately.
+
 ## Live pages
 
 `record` drives a real page instead of `index.html`: the same timeline, targets as selectors in the app, real navigations.
 
 - Prefer stable `data-help="..."` attributes in the app (`[data-help="save"]`) over generated class names.
-- `waitFor` on a step waits for a selector (or ms) after a navigation or an async load before the cursor moves; the wait shifts the rest of the timeline and the recording length.
+- `waitFor` on a step waits for a selector (or ms) after a navigation or an async load before the cursor moves; the wait shifts the rest of the timeline and the recording length. **It gates the start of its own step, not the aftermath of that step.** A click that navigates therefore takes its `waitFor` on the FOLLOWING step, naming something on the page being navigated to; putting the destination's selector on the navigating click itself waits for an element the current page will never have, and times out correctly.
 - `navigate` opens a URL; a click that navigates (form submit, link) is detected and the runtime is re-injected on the new page.
 - Sign in once and reuse the session: `npx playwright codegen --save-storage auth.json https://app.local/login`, then `--storage-state auth.json` (never put credentials in the timeline). `--ignore-https-errors` accepts local self-signed certificates.
 - `npx tsx cli.ts check <dir> --live --url <url> --storage-state auth.json` is the cheap half of the loop: it opens the page like `record` does and replays the timeline in step mode, probing every target right before its step (after that step's `waitFor`), so a typo'd selector costs seconds instead of a recording. **The interactions run for real** -- it is a pass over the app, saves included, so it needs the same reset as any other pass (`--reset-cmd`, or `meta.reset` with `--allow-reset`). That is why the probe requires an explicit `--url`: a bare `--live` is the schema-only pass it has always been, even when `meta.url` is set. Unmatched `waitFor` selectors give up after 5 s here rather than the recording's 15 s. `record` does not stop at a missing target: it records the whole timeline, lists the failed steps at the end and exits 1 (`--force` turns that into a warning), so one broken selector costs one recording, not a partial video.
@@ -243,6 +286,8 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 
 - Layout: `cli.ts` (commander, `buildProgram()`), `src/engine/` (`schema.ts` parsing/validation, `runtime.js` the in-page engine, `inject.ts` builds `animated.html`, `driver.ts` drives a Playwright page), `src/commands/`, `src/guide/` (capture, render, diff), `src/media/` (ffmpeg, tts, vtt, chapters, contact sheet), `src/catalog.ts`, `src/manifest.ts`, `src/browser.ts`.
 - `runtime.js` is plain browser JavaScript injected as text (no imports, must tolerate document-start injection). The timing constants at the top of `schema.ts` are mirrored as literals there and `test/constants.test.ts` asserts they stay equal.
+- The spotlight ring pulses by scaling itself, so its measured rect is a few px off wherever it was positioned. A test that asserts where the ring landed must read its inline style, not `getBoundingClientRect()`.
+- `overflow: hidden` is still programmatically scrollable, and the runtime scrolls a clipped target into view before interacting, so content below such a container's fold is reachable and is not a crop. Only `overflow: clip` hides something for good. `check`'s crop warning and the spotlight clamp both draw the line there; a fixture meant to be unreachable must use `clip`.
 - **Rule for `page.evaluate` callbacks:** no inner functions inside the callback. `tsx`/esbuild adds a `__name` helper that does not exist in the page, so the callback throws silently. Put helpers in `runtime.js` and call them by name (`__anim.markStep(...)`).
 - Tests: `npm test` (`node:test` through `tsx`, serial: `--test-concurrency=1`, about 10 minutes with the browser tests; `SKIP_BROWSER=1` skips them, `SKIP_TTS=1` skips the macOS `say` narration test). `ANIM_DEBUG=1` makes `check` print every target probe and `export` print page/context close timings and trim details on stderr. Fixtures: `test/fixtures/basic/` (a mockup with every action), `test/fixtures/controlled/` (a React-style controlled input with a value tracker; served by the live app at `/controlled`) and `test/fixtures/live-app/server.ts` (a login/dashboard app for `record`, plus `/once`, a Save that works once per process, for the reset-hook checks).
 - Docs: `npm run docs` regenerates the CLI reference block below (and in README.md) from `cli.ts`; `npm run docs:check` and `test/docs.test.ts` fail when it is stale.
@@ -269,6 +314,7 @@ Scaffold an anim.config.json timeline file in the target directory
 
 | Option | Description |
 |---|---|
+| `--kind <profile>` | Which profile to scaffold: guide (default) or reel (silent looping product clip) |
 | `--force` | Overwrite an existing anim.config.json |
 
 ### `extract`
@@ -329,6 +375,8 @@ Build animated.html from index.html + anim.config.json (no LLM, no API key)
 | Option | Description |
 |---|---|
 | `-c, --cursor <style>` | Cursor style: mac, windows, none (default: meta.cursor or mac) |
+| `--device <type>` | Which device's timeline to bake in (resolves "only"/"mobile"/"desktop" steps): desktop or mobile (default: `desktop`) |
+| `--embed` | Also write embed.html (a framable, self-contained clip) and embed.snippet.html (the parent-side iframe snippet) |
 | `-l, --loop` | Loop the animation endlessly when opened in a browser |
 | `--locale <code>` | Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json |
 | `--force` | Build even if the timeline has validation errors |
@@ -349,6 +397,7 @@ Validate anim.config.json: schema, timing, strings, and (unless --static/--live)
 | Option | Description |
 |---|---|
 | `--static` | Schema and timing checks only, no browser |
+| `--scale <n>` | Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width |
 | `--live` | Validate a timeline meant for `record` (live page): navigate/waitFor allowed, no index.html needed; add --url to also probe every target against the page |
 | `--url <url>` | With --live: probe every target against this page. The timeline is replayed for real (clicks, keystrokes and saves happen), so reset the app first when it writes data |
 | `--storage-state <file>` | Live probe: Playwright storage state (cookies/localStorage) |
@@ -378,6 +427,7 @@ Render one labelled frame per step to <output_dir>/preview.png (or a single full
 | Option | Description |
 |---|---|
 | `-s, --step <n>` | Write only step N (1-based) at full resolution to preview-step-N.png |
+| `--scale <n>` | Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width |
 | `--at <when>` | Capture point per step: "auto" (like the guide: clicks at the interaction, typing/camera/fades at completion), "interaction", or "end" (default: `auto`) |
 | `-o, --output <file>` | Output PNG path |
 | `-c, --cursor <style>` | Cursor style: mac, windows, none (default: meta.cursor or mac) |
@@ -407,6 +457,7 @@ Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narra
 | `-w, --width <pixels>` | Width of the exported video in pixels |
 | `-H, --height <pixels>` | Height of the exported video in pixels |
 | `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
+| `--scale <n>` | Pixel density: multiply the viewport by N and zoom the page back, so the frame is N times denser (media queries then see the scaled width) |
 | `-t, --theme <mode>` | Color scheme mode for Playwright: light or dark (default: `light`) |
 | `--narration` | Synthesize each step's "narration" (or "subtitle") and mix it in at the step's time (OPENAI_API_KEY or macOS say) |
 | `--voice <name>` | TTS voice (OpenAI voice name, or a macOS `say` voice) |

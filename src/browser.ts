@@ -11,7 +11,17 @@ export interface ViewportOptions {
     width?: string | number;
     height?: string | number;
     theme?: string;
+    /**
+     * Pixel density for the recording. Playwright paints one CSS pixel per video pixel and pads the
+     * rest with grey, so more pixels means a bigger CSS viewport, not a bigger `recordVideo.size`:
+     * `--scale 2` doubles the viewport and shrinks the layout box back with `:root { zoom: 2 }`.
+     * Media queries then evaluate at the scaled width, which is an authoring constraint.
+     */
+    scale?: string | number;
 }
+
+/** A recent Android Chrome UA, so a page that sniffs the agent renders its mobile form. */
+const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36';
 
 export interface ContextOptions extends ViewportOptions {
     deviceScaleFactor?: number;
@@ -23,6 +33,15 @@ export interface ContextOptions extends ViewportOptions {
     driven?: boolean;
     /** Accept self-signed / mkcert certificates (local HTTPS). */
     ignoreHttpsErrors?: boolean;
+    /**
+     * Turn on Chromium's mobile emulation (isMobile/hasTouch/mobile UA) alongside the mobile
+     * viewport. Off by default on purpose: emulation also enables viewport-meta handling, and a
+     * mockup without a `<meta name="viewport">` then lays out at 980px instead of the viewport
+     * width. Existing guide mockups (demo/, test/fixtures/basic/) have no such meta, so switching
+     * this on for every `--device mobile` would silently reflow them. Reels declare the meta and
+     * want the emulation, so `export` enables it for a `kind: "reel"` timeline.
+     */
+    emulateMobile?: boolean;
 }
 
 export interface LaunchOptions extends ContextOptions {
@@ -38,24 +57,31 @@ export interface LaunchedPage {
     close: () => Promise<void>;
 }
 
-export function resolveViewport(opts: ViewportOptions): { width: number; height: number; isMobile: boolean } {
+export function resolveViewport(opts: ViewportOptions): { width: number; height: number; isMobile: boolean; scale: number } {
     const isMobile = opts.device === 'mobile';
-    const width = opts.width ? parseInt(String(opts.width), 10) : (isMobile ? 390 : 1920);
-    const height = opts.height ? parseInt(String(opts.height), 10) : (isMobile ? 844 : 1080);
-    if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) {
+    const scale = opts.scale === undefined ? 1 : parseFloat(String(opts.scale));
+    if (!Number.isFinite(scale) || scale <= 0) throw new Error(`invalid scale ${JSON.stringify(opts.scale)} (a positive multiplier, e.g. 2)`);
+    const baseWidth = opts.width ? parseInt(String(opts.width), 10) : (isMobile ? 390 : 1920);
+    const baseHeight = opts.height ? parseInt(String(opts.height), 10) : (isMobile ? 844 : 1080);
+    if (!Number.isFinite(baseWidth) || baseWidth <= 0 || !Number.isFinite(baseHeight) || baseHeight <= 0) {
         throw new Error(`invalid viewport ${opts.width}x${opts.height}`);
     }
-    return { width, height, isMobile };
+    // The viewport is also the encode size, and libx264 with yuv420p rejects an odd dimension.
+    const even = (n: number) => (n % 2 === 0 ? n : n + 1);
+    return { width: even(Math.round(baseWidth * scale)), height: even(Math.round(baseHeight * scale)), isMobile, scale };
 }
 
 async function newContext(browser: Browser, opts: LaunchOptions): Promise<{ context: BrowserContext; width: number; height: number }> {
-    const { width, height } = resolveViewport(opts);
+    const { width, height, isMobile } = resolveViewport(opts);
     if (opts.storageState && !fs.existsSync(opts.storageState)) throw new Error(`storage state file not found: ${opts.storageState}`);
     const context = await browser.newContext({
         viewport: { width, height },
         deviceScaleFactor: opts.deviceScaleFactor ?? 2,
         colorScheme: opts.theme === 'dark' ? 'dark' : 'light',
         ignoreHTTPSErrors: !!opts.ignoreHttpsErrors,
+        // `--device mobile` was only a viewport size before: isMobile was computed and thrown away, so
+        // `@media (pointer: coarse)` never matched and a UA-sniffing page served its desktop form.
+        ...(isMobile && opts.emulateMobile ? { isMobile: true, hasTouch: true, userAgent: MOBILE_USER_AGENT } : {}),
         ...(opts.storageState ? { storageState: path.resolve(opts.storageState) } : {}),
         ...(opts.recordVideoDir ? { recordVideo: { dir: opts.recordVideoDir, size: { width, height } } } : {}),
     });

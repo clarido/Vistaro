@@ -19,18 +19,18 @@ import { applyStrings, readStrings, resolveLocale, stringsPath, isLocaleCode } f
 
 export const ACTIONS = [
     'wait', 'click', 'focus', 'type', 'highlight', 'hover', 'camera', 'scroll',
-    'fadeIn', 'transitionScreen', 'navigate', 'press',
+    'fadeIn', 'transitionScreen', 'navigate', 'press', 'animate',
 ] as const;
 export type Action = typeof ACTIONS[number];
 
 /** Actions that must have a `target` selector. */
 export const TARGET_REQUIRED: ReadonlySet<string> = new Set([
-    'click', 'focus', 'type', 'highlight', 'hover', 'scroll', 'fadeIn', 'transitionScreen',
+    'click', 'focus', 'type', 'highlight', 'hover', 'scroll', 'fadeIn', 'transitionScreen', 'animate',
 ]);
 /** Actions where the cursor travels to the target and a spotlight highlight is shown. */
 export const CURSOR_ACTIONS: ReadonlySet<string> = new Set(['click', 'focus', 'type', 'highlight', 'hover']);
 /** Actions whose result is only visible once they finish (typing, camera, fades, scroll). */
-export const STATE_ACTIONS: ReadonlySet<string> = new Set(['type', 'camera', 'fadeIn', 'transitionScreen', 'scroll', 'navigate']);
+export const STATE_ACTIONS: ReadonlySet<string> = new Set(['type', 'camera', 'fadeIn', 'transitionScreen', 'scroll', 'navigate', 'animate']);
 
 export type CaptureAt = 'interaction' | 'completion';
 
@@ -44,6 +44,56 @@ export function captureAtFor(step: Step): CaptureAt {
     return STATE_ACTIONS.has(step.action) ? 'completion' : 'interaction';
 }
 
+/** A marketing clip rather than a help document: no guide chrome, no guide validation. */
+export function isReel(timeline: Timeline): boolean {
+    return timeline.meta?.kind === 'reel';
+}
+
+/**
+ * Whether Chromium's mobile emulation (isMobile/hasTouch/mobile UA) is used for this timeline when
+ * the device is mobile. Reels only: they declare a viewport meta and are authored for a phone, while
+ * a guide mockup usually declares none and would be laid out at 980px and shrunk to fit.
+ *
+ * Every command that opens a browser context for a timeline derives it from here, so preview, check
+ * and export cannot disagree about the conditions a reel renders under.
+ */
+export function emulateMobileFor(timeline: Timeline | undefined): boolean {
+    return !!timeline && isReel(timeline);
+}
+
+/**
+ * The effective chrome and playback flags. `kind` picks the defaults (a reel is silent and loops,
+ * a guide shows its chrome once) and an explicit `meta.reel` value always wins over that default.
+ */
+export function reelOptions(timeline: Timeline): ResolvedReelOptions {
+    const reel = isReel(timeline);
+    const o: ReelOptions = timeline.meta?.reel || {};
+    const flag = (v: boolean | undefined, fallback: boolean) => (typeof v === 'boolean' ? v : fallback);
+    return {
+        spotlight: flag(o.spotlight, !reel),
+        ripple: flag(o.ripple, !reel),
+        subtitles: flag(o.subtitles, !reel),
+        loop: flag(o.loop, reel),
+        autoplay: o.autoplay ?? (reel ? 'inview' : 'immediate'),
+        poster: o.poster ?? 'last',
+    };
+}
+
+/**
+ * Named easings an `animate` or `camera` step may use. The curves themselves live in runtime.js
+ * (EASINGS); this list exists only to validate the name before the browser sees it, so the two must
+ * be kept in step -- test/constants.test.ts asserts they hold the same names.
+ */
+export const EASING_NAMES = ['linear', 'easeInCubic', 'easeOutCubic', 'easeInOutCubic', 'easeOutBack', 'easeOutExpo', 'spring'] as const;
+export type EasingName = typeof EASING_NAMES[number];
+
+/** Render targets a timeline can be resolved for; `mobile`/`desktop`/`only` in a step key off this. */
+export type DeviceKind = 'desktop' | 'mobile';
+export const DEVICE_KINDS: readonly DeviceKind[] = ['desktop', 'mobile'];
+
+/** Transform-composing keys of an `animate` step's `from`/`to`; anything else is a raw CSS property. */
+export const TRANSFORM_KEYS = ['x', 'y', 'scale', 'scaleX', 'scaleY', 'rotate'] as const;
+
 /** Deprecated aliases, rewritten at parse time. */
 export const ACTION_ALIASES: Record<string, Action> = { showText: 'fadeIn' };
 
@@ -54,9 +104,44 @@ export const DEFAULT_CPS = 25;
 export const DEFAULT_CAMERA_DURATION_S = 2.5;
 export const DEFAULT_FADE_MS = 800;
 export const DEFAULT_SCROLL_MS = 600;
+export const DEFAULT_ANIMATE_DURATION_S = 0.6;
 export const DEFAULT_TAIL_MS = 2500;
 export const SUBTITLE_HOLD_MS = 4000;
 export const SUBTITLE_MIN_MS = 1000;
+
+/**
+ * Output profile. `guide` (the default) is documentation: spotlight, ripple, subtitle bar and the
+ * guide-oriented validations. `reel` is a silent marketing clip: that chrome is off and the guide
+ * validations do not apply. Every flag stays individually overridable through `meta.reel`.
+ */
+export type TimelineKind = 'guide' | 'reel';
+export const TIMELINE_KINDS: readonly TimelineKind[] = ['guide', 'reel'];
+export type AutoplayMode = 'immediate' | 'inview' | 'message';
+export const AUTOPLAY_MODES: readonly AutoplayMode[] = ['immediate', 'inview', 'message'];
+
+/** Per-timeline overrides of the profile defaults; see reelOptions() for how they resolve. */
+export interface ReelOptions {
+    spotlight?: boolean;
+    ripple?: boolean;
+    subtitles?: boolean;
+    loop?: boolean;
+    autoplay?: AutoplayMode;
+    /**
+     * Which frame becomes the poster: `"last"` (default) the final step's completion, which is the
+     * composed payoff a `<video poster>` should show; `"first"` the opening step's completion; or an
+     * explicit time ("3.2s", or seconds as a number) for a specific beat.
+     */
+    poster?: 'last' | 'first' | string | number;
+}
+
+export interface ResolvedReelOptions {
+    spotlight: boolean;
+    ripple: boolean;
+    subtitles: boolean;
+    loop: boolean;
+    autoplay: AutoplayMode;
+    poster: 'last' | 'first' | string | number;
+}
 
 export interface TimelineMeta {
     title?: string;
@@ -69,6 +154,10 @@ export interface TimelineMeta {
     resetFocusStyles?: boolean;
     drift?: boolean;
     voice?: { openai?: string; say?: string };
+    /** Output profile: `reel` switches the guide chrome and the guide validations off. Default `guide`. */
+    kind?: TimelineKind;
+    /** Individual overrides of whatever `kind` implies. */
+    reel?: ReelOptions;
     /**
      * Live pages: a shell command run before each pass over the page (the recording, then the guide
      * replay) to put the app back into its starting state. A timeline that writes data is not
@@ -96,6 +185,26 @@ export interface Step {
     narration?: string;
     note?: string;
     translatable?: boolean;
+    /** Suppress the spotlight / click ripple for this step alone (the profile default otherwise applies). */
+    spotlight?: boolean;
+    ripple?: boolean;
+    /** `animate`: start and end state. `x`/`y` (px), `scale`/`scaleX`/`scaleY`, `rotate` (deg) compose
+     *  into one transform (translate, then scale, then rotate); every other key is a raw CSS property. */
+    from?: Record<string, string | number>;
+    to?: Record<string, string | number>;
+    /** `animate`: animate every match of `target` rather than the first. */
+    all?: boolean;
+    /** `animate`: seconds between successive elements when `all` is set. */
+    stagger?: number;
+    /** `animate`: how many elements `target` is expected to match, so the length estimate is right. */
+    count?: number;
+    /** Named easing for `animate` and `camera` (see EASING_NAMES). */
+    ease?: EasingName | string;
+    /** Per-device overrides, shallow-merged into the step when the render device matches. */
+    mobile?: Record<string, any>;
+    desktop?: Record<string, any>;
+    /** Render this step for one device only; it is dropped entirely for the other. */
+    only?: DeviceKind;
     crop?: number | false;
     guide?: boolean;
     /** Guide/preview frame moment override: "interaction" or "completion" (default per action, see captureAtFor). */
@@ -223,9 +332,7 @@ export function parseTimeline(raw: unknown): Timeline {
     });
 
     const timeline: Timeline = { meta, steps, legacy };
-    for (const w of subtitleWindows(timeline)) {
-        steps[w.index - 1].subtitleMs = w.endMs - w.startMs;
-    }
+    assignSubtitleWindows(timeline);
     return timeline;
 }
 
@@ -236,7 +343,7 @@ export function parseTimeline(raw: unknown): Timeline {
  * narration, notes and translatable typed values without touching the choreography.
  * Throws with a readable message when missing or invalid.
  */
-export function loadTimeline(dir: string, opts: { locale?: string } = {}): Timeline {
+export function loadTimeline(dir: string, opts: { locale?: string; device?: DeviceKind } = {}): Timeline {
     const p = path.resolve(dir, 'anim.config.json');
     if (!fs.existsSync(p)) {
         throw new Error(`anim.config.json not found in ${path.resolve(dir)} (run \`init-config ${dir}\` to scaffold one)`);
@@ -267,7 +374,56 @@ export function loadTimeline(dir: string, opts: { locale?: string } = {}): Timel
             timeline.strings = { file, locale, ...report };
         }
     }
+    // After the strings are applied (so a translated override still lands) and before any validation,
+    // so every caller downstream sees one already-resolved timeline.
+    if (opts.device) applyDevice(timeline, opts.device);
     return timeline;
+}
+
+/**
+ * Store each subtitle's display window on its step. Looked up by `index` rather than by position,
+ * because a device-resolved timeline can have gaps in its numbering.
+ */
+export function assignSubtitleWindows(timeline: Timeline): void {
+    const byIndex = new Map(timeline.steps.map(s => [s.index, s]));
+    for (const s of timeline.steps) delete s.subtitleMs;
+    for (const w of subtitleWindows(timeline)) {
+        const step = byIndex.get(w.index);
+        if (step) step.subtitleMs = w.endMs - w.startMs;
+    }
+}
+
+/**
+ * Resolve the per-device fields in place: drop `only` steps meant for the other device, shallow-merge
+ * a matching `mobile`/`desktop` block into the step, then strip all three keys so nothing downstream
+ * needs to know which device this is.
+ *
+ * Runs after ids are assigned, so dropping a step never renumbers the auto ids (`step-03`) that a
+ * strings file is keyed on; `index` therefore keeps the authored numbering and can be non-contiguous.
+ */
+export function applyDevice(timeline: Timeline, device: DeviceKind): Timeline {
+    const other: DeviceKind = device === 'mobile' ? 'desktop' : 'mobile';
+    timeline.steps = timeline.steps.filter(s => typeof s.only !== 'string' || s.only === device);
+    for (const s of timeline.steps) {
+        const override = s[device];
+        if (override && typeof override === 'object' && !Array.isArray(override)) {
+            Object.assign(s, override);
+            if ('time' in override) s.timeMs = parseTime(s.time);
+        }
+        delete s[device];
+        delete s[other];
+        delete s.only;
+    }
+    // Unconditionally, because a subtitle's window runs until the NEXT subtitle: dropping an `only`
+    // step invalidates the window of the step before it just as surely as retiming one does, and
+    // re-deriving when nothing moved is a no-op.
+    assignSubtitleWindows(timeline);
+    return timeline;
+}
+
+/** The render device a `--device` flag selects; anything unrecognised renders as desktop. */
+export function deviceKind(device: unknown): DeviceKind {
+    return device === 'mobile' ? 'mobile' : 'desktop';
 }
 
 /** Milliseconds a `type` step spends typing. */
@@ -285,6 +441,14 @@ export function intrinsicDurationMs(step: Step): number {
         case 'fadeIn':
         case 'transitionScreen': return typeof step.duration === 'number' && step.duration >= 0 ? Math.round(step.duration * 1000) : DEFAULT_FADE_MS;
         case 'scroll': return DEFAULT_SCROLL_MS;
+        case 'animate': {
+            // An estimate: the last element starts `stagger` x (count - 1) after the first. `count` is
+            // an authored hint, so export still extends the recording when the real match count is higher.
+            const durationMs = Math.round((typeof step.duration === 'number' ? step.duration : DEFAULT_ANIMATE_DURATION_S) * 1000);
+            const stagger = typeof step.stagger === 'number' && step.stagger > 0 ? step.stagger : 0;
+            const count = typeof step.count === 'number' && step.count > 0 ? Math.floor(step.count) : 1;
+            return durationMs + Math.round(stagger * 1000 * Math.max(0, count - 1));
+        }
         default: return 0;
     }
 }
@@ -356,6 +520,42 @@ export const GUIDE_STEPS_WARN_ABOVE = 10;
 export function validateTimeline(timeline: Timeline, opts: { live?: boolean; guide?: boolean } = {}): Issue[] {
     const issues: Issue[] = [];
     const steps = timeline.steps;
+    const meta = timeline.meta || {};
+    // Profile: an unknown kind or a malformed `reel` block would silently fall back to guide
+    // behaviour, so both are errors rather than warnings.
+    if (meta.kind !== undefined && !TIMELINE_KINDS.includes(meta.kind)) {
+        issues.push({ level: 'error', field: 'kind', message: `meta.kind must be ${TIMELINE_KINDS.map(k => `"${k}"`).join(' or ')} (got ${JSON.stringify(meta.kind)})` });
+    }
+    if (meta.reel !== undefined) {
+        if (!meta.reel || typeof meta.reel !== 'object' || Array.isArray(meta.reel)) {
+            issues.push({ level: 'error', field: 'reel', message: 'meta.reel must be an object of profile overrides (spotlight, ripple, subtitles, loop, autoplay)' });
+        } else {
+            for (const key of ['spotlight', 'ripple', 'subtitles', 'loop'] as const) {
+                const v = (meta.reel as ReelOptions)[key];
+                if (v !== undefined && typeof v !== 'boolean') issues.push({ level: 'error', field: 'reel', message: `meta.reel.${key} must be true or false (got ${JSON.stringify(v)})` });
+            }
+            const autoplay = (meta.reel as ReelOptions).autoplay;
+            if (autoplay !== undefined && !AUTOPLAY_MODES.includes(autoplay)) {
+                issues.push({ level: 'error', field: 'reel', message: `meta.reel.autoplay must be ${AUTOPLAY_MODES.map(a => `"${a}"`).join(', ')} (got ${JSON.stringify(autoplay)})` });
+            }
+            const poster = (meta.reel as ReelOptions).poster;
+            if (poster !== undefined && poster !== 'last' && poster !== 'first') {
+                const at = parseTime(poster as string | number);
+                if (!Number.isFinite(at) || at < 0) {
+                    issues.push({ level: 'error', field: 'reel', message: `meta.reel.poster must be "last", "first", or a time such as "3.2s" (got ${JSON.stringify(poster)})` });
+                } else {
+                    // Clamping silently would hand back the last frame while the config claims otherwise.
+                    const clipMs = computeDurationMs(timeline);
+                    if (at > clipMs) issues.push({ level: 'error', field: 'reel', message: `meta.reel.poster ${JSON.stringify(poster)} is past the end of the clip (${(clipMs / 1000).toFixed(2)}s)` });
+                }
+            }
+            for (const key of Object.keys(meta.reel)) {
+                if (!['spotlight', 'ripple', 'subtitles', 'loop', 'autoplay', 'poster'].includes(key)) issues.push({ level: 'warning', field: 'reel', message: `meta.reel: unknown key "${key}" ignored` });
+            }
+        }
+    }
+    // A reel is not a help document: the guide-shaped checks below do not apply to it.
+    const reel = isReel(timeline);
     const seenIds = new Map<string, number>();
     let prevMs: number | undefined;
 
@@ -417,8 +617,45 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
         }
         // A numbered step in a help document needs a heading; the English fallback verbs ("Click .btn")
         // would leak into a localized guide.
-        if (isGuideStep(s) && (typeof s.title !== 'string' || !s.title.trim())) {
+        if (!reel && isGuideStep(s) && (typeof s.title !== 'string' || !s.title.trim())) {
             issues.push(issueFor(s, opts.guide ? 'error' : 'warning', `guide step has no "title" (a numbered step in the help guide needs a heading; set "guide": false to hide choreography steps)`, 'title'));
+        }
+        // `animate`: the shape of the motion. A malformed from/to would silently animate nothing.
+        if (s.action === 'animate') {
+            for (const field of ['from', 'to'] as const) {
+                const v = s[field];
+                if (v !== undefined && (typeof v !== 'object' || v === null || Array.isArray(v))) {
+                    issues.push(issueFor(s, 'error', `"${field}" must be an object of properties (opacity, x, y, scale, scaleX, scaleY, rotate, or any CSS property)`, field));
+                }
+            }
+            if (s.from === undefined && s.to === undefined) {
+                issues.push(issueFor(s, 'warning', '"animate" has neither "from" nor "to": the step will do nothing', 'action'));
+            }
+            if (s.all !== undefined && typeof s.all !== 'boolean') issues.push(issueFor(s, 'error', '"all" must be true or false', 'all'));
+            if (s.stagger !== undefined && (typeof s.stagger !== 'number' || s.stagger < 0)) issues.push(issueFor(s, 'error', '"stagger" must be a number of seconds (>= 0)', 'stagger'));
+            if (s.stagger !== undefined && !s.all) issues.push(issueFor(s, 'warning', '"stagger" only applies with "all": true (one element has nothing to stagger against)', 'stagger'));
+            if (s.count !== undefined && (typeof s.count !== 'number' || !Number.isInteger(s.count) || s.count < 1)) {
+                issues.push(issueFor(s, 'error', '"count" must be a whole number of elements (>= 1)', 'count'));
+            }
+        } else if (s.from !== undefined || s.to !== undefined || s.all !== undefined || s.stagger !== undefined) {
+            issues.push(issueFor(s, 'warning', `"from"/"to"/"all"/"stagger" only apply to an "animate" step (this one is "${s.action}")`, 'action'));
+        }
+        if (s.ease !== undefined) {
+            if (typeof s.ease !== 'string' || !EASING_NAMES.includes(s.ease as EasingName)) {
+                issues.push(issueFor(s, 'error', `unknown easing ${JSON.stringify(s.ease)}; use one of ${EASING_NAMES.join(', ')}`, 'ease'));
+            } else if (s.action !== 'animate' && s.action !== 'camera') {
+                issues.push(issueFor(s, 'warning', `"ease" only applies to "animate" and "camera" steps (this one is "${s.action}")`, 'ease'));
+            }
+        }
+        // Per-device fields are resolved in loadTimeline; a bad value would silently keep or drop a step.
+        if (s.only !== undefined && !DEVICE_KINDS.includes(s.only as DeviceKind)) {
+            issues.push(issueFor(s, 'error', `"only" must be ${DEVICE_KINDS.map(d => `"${d}"`).join(' or ')} (got ${JSON.stringify(s.only)})`, 'only'));
+        }
+        for (const device of DEVICE_KINDS) {
+            const v = s[device];
+            if (v !== undefined && (typeof v !== 'object' || v === null || Array.isArray(v))) {
+                issues.push(issueFor(s, 'error', `"${device}" must be an object of per-device overrides`, device));
+            }
         }
         if (s.scale !== undefined && (typeof s.scale !== 'number' || s.scale <= 0)) {
             issues.push(issueFor(s, 'error', '"scale" must be a positive number', 'scale'));
@@ -434,7 +671,7 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
 
     // Guide length: the guide is one flat scroll of full-width frames, one per numbered step.
     const numbered = steps.filter(isGuideStep).length;
-    if (numbered > GUIDE_STEPS_WARN_ABOVE) {
+    if (!reel && numbered > GUIDE_STEPS_WARN_ABOVE) {
         issues.push({ level: 'warning', field: 'guide', message: `${numbered} numbered guide steps: a guide this long is usually two guides; "guide": false hides choreography steps such as camera/wait from the numbering` });
     }
 

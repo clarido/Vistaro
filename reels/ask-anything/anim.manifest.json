@@ -1,0 +1,984 @@
+{
+  "history": [
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 211,
+          "completedMs": 865
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 512,
+          "completedMs": 1299
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1906,
+          "completedMs": 2745
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3907,
+          "completedMs": 4482
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4609,
+          "completedMs": 5465
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5810,
+          "completedMs": 7213
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7409,
+          "completedMs": 7932
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8408,
+          "completedMs": 9609
+        }
+      ],
+      "duration": 10.309,
+      "output": "../../../../../../tmp/reel-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "timestamp": "2026-09-07T18:50:52.740Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 506,
+          "completedMs": 1306
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1907,
+          "completedMs": 2747
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3907,
+          "completedMs": 4489
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4607,
+          "completedMs": 5306
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7407,
+          "completedMs": 7922
+        }
+      ],
+      "duration": 8.622,
+      "output": "../../../../../../tmp/reel-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "timestamp": "2026-09-07T18:51:41.487Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T19:00:28.057Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-test-anim-html-video/5082d8e5-218b-4ded-9a64-311380068ee8/scratchpad/mobile-animated.html",
+      "timestamp": "2026-09-07T19:00:44.420Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 507,
+          "completedMs": 1299
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1908,
+          "completedMs": 2747
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3907,
+          "completedMs": 4481
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4609,
+          "completedMs": 5299
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7408,
+          "completedMs": 7932
+        }
+      ],
+      "duration": 8.632,
+      "output": "../../../../../../tmp/reel-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "timestamp": "2026-09-07T19:03:28.005Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T19:08:36.180Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T19:08:36.785Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T19:10:12.226Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 207,
+          "completedMs": 1021
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 509,
+          "completedMs": 1342
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1911,
+          "completedMs": 2750
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3914,
+          "completedMs": 4610
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4611,
+          "completedMs": 5527
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5810,
+          "completedMs": 7213
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7407,
+          "completedMs": 7955
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8408,
+          "completedMs": 9611
+        }
+      ],
+      "duration": 10.311,
+      "output": "../../reels-out/ask-anything/en/ask-anything-en-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "timestamp": "2026-09-07T19:10:55.560Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "en",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../reels-out/ask-anything/en",
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "buildKey": "sha256:c83cafb2aed0210335b5b4f573318d875c4f03241556b9a845b2708d879e0900",
+      "builtAt": "2026-09-07T19:10:55.595Z",
+      "timestamp": "2026-09-07T19:10:55.598Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T19:10:57.271Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 509,
+          "completedMs": 1295
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1907,
+          "completedMs": 2745
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3907,
+          "completedMs": 4478
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4607,
+          "completedMs": 5294
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7410,
+          "completedMs": 7927
+        }
+      ],
+      "duration": 8.627,
+      "output": "../../reels-out/ask-anything/en/ask-anything-en-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "timestamp": "2026-09-07T19:11:18.295Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "en",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../reels-out/ask-anything/en",
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "buildKey": "sha256:c83cafb2aed0210335b5b4f573318d875c4f03241556b9a845b2708d879e0900",
+      "builtAt": "2026-09-07T19:11:18.327Z",
+      "timestamp": "2026-09-07T19:11:18.330Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T19:12:02.635Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 208,
+          "completedMs": 971
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 509,
+          "completedMs": 1392
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1911,
+          "completedMs": 2750
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3907,
+          "completedMs": 4562
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4610,
+          "completedMs": 5612
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5809,
+          "completedMs": 7211
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7406,
+          "completedMs": 7953
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8408,
+          "completedMs": 9611
+        }
+      ],
+      "duration": 10.311,
+      "output": "../../reels-out/ask-anything/en/ask-anything-en-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "timestamp": "2026-09-07T19:12:43.807Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "en",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../reels-out/ask-anything/en",
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "buildKey": "sha256:3f1838e1ef14feb27b3b23d6ea1a128719a5274a70cdc6ab45590856630347bc",
+      "builtAt": "2026-09-07T19:12:43.842Z",
+      "timestamp": "2026-09-07T19:12:43.845Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T19:12:45.569Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 507,
+          "completedMs": 1292
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1909,
+          "completedMs": 2747
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3907,
+          "completedMs": 4476
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4606,
+          "completedMs": 5291
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7408,
+          "completedMs": 7926
+        }
+      ],
+      "duration": 8.626,
+      "output": "../../reels-out/ask-anything/en/ask-anything-en-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "timestamp": "2026-09-07T19:13:06.496Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "en",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../reels-out/ask-anything/en",
+      "contentHash": "sha256:623af5f50b926511af79b8e0377897f027bcc2d659249febc021fcb74861458c",
+      "buildKey": "sha256:002f80ec614f94a60531d038d066ebe41d28512f938448596b9528b47c6cc9ca",
+      "builtAt": "2026-09-07T19:13:06.522Z",
+      "timestamp": "2026-09-07T19:13:06.524Z"
+    },
+    {
+      "command": "localize",
+      "locale": "fr",
+      "targetDir": "locales/fr",
+      "timestamp": "2026-09-07T20:22:11.682Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T20:40:00.842Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 207,
+          "completedMs": 1010
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 510,
+          "completedMs": 1416
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1909,
+          "completedMs": 2749
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3912,
+          "completedMs": 4738
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4609,
+          "completedMs": 5674
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5809,
+          "completedMs": 7214
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7411,
+          "completedMs": 8143
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8411,
+          "completedMs": 9614
+        }
+      ],
+      "duration": 10.314,
+      "output": "../../reels-out/ask-anything/en/ask-anything-en-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-07T20:41:08.868Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "en",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../reels-out/ask-anything/en",
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "buildKey": "sha256:4ccad1800c619283a0b89330d6818087a720c9a3b044ff17585c6dc8bae16f82",
+      "builtAt": "2026-09-07T20:41:08.908Z",
+      "timestamp": "2026-09-07T20:41:08.912Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T20:41:11.290Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 507,
+          "completedMs": 1303
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1908,
+          "completedMs": 2747
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3906,
+          "completedMs": 4469
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4605,
+          "completedMs": 5303
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7407,
+          "completedMs": 7936
+        }
+      ],
+      "duration": 8.636,
+      "output": "../../reels-out/ask-anything/en/ask-anything-en-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-07T20:41:40.994Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "en",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../reels-out/ask-anything/en",
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "buildKey": "sha256:93f423a9138fee7d45fe83c7c6babadebc36e30b676d42d99642f2524380ad44",
+      "builtAt": "2026-09-07T20:41:41.033Z",
+      "timestamp": "2026-09-07T20:41:41.036Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 204,
+          "completedMs": 909
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 506,
+          "completedMs": 1318
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1906,
+          "completedMs": 2744
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3903,
+          "completedMs": 4531
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4605,
+          "completedMs": 5612
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5806,
+          "completedMs": 7208
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7405,
+          "completedMs": 7973
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8404,
+          "completedMs": 9605
+        }
+      ],
+      "duration": 10.305,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-test-anim-html-video/81d247dd-f50e-42e8-af5e-1ac3ac5b15c5/scratchpad/fixed-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-07T21:37:11.420Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 205,
+          "completedMs": 882
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 505,
+          "completedMs": 1298
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1906,
+          "completedMs": 2745
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3905,
+          "completedMs": 4482
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4604,
+          "completedMs": 5465
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5806,
+          "completedMs": 7207
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7406,
+          "completedMs": 7915
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8406,
+          "completedMs": 9607
+        }
+      ],
+      "duration": 10.307,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-test-anim-html-video/81d247dd-f50e-42e8-af5e-1ac3ac5b15c5/scratchpad/fixed-s1.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-07T21:38:14.406Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 206,
+          "completedMs": 877
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 507,
+          "completedMs": 1294
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1909,
+          "completedMs": 2747
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3906,
+          "completedMs": 4460
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4605,
+          "completedMs": 5460
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5815,
+          "completedMs": 7216
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7404,
+          "completedMs": 7910
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8412,
+          "completedMs": 9613
+        }
+      ],
+      "duration": 10.313,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-optio-ods/978dba6f-6ef0-4b6b-bef3-51ab5b7e3a15/scratchpad/ask/v1.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-07T21:45:54.694Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 205,
+          "completedMs": 945
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 510,
+          "completedMs": 1371
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1909,
+          "completedMs": 2747
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 4000,
+          "completedMs": 4714
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4608,
+          "completedMs": 5606
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5806,
+          "completedMs": 7208
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7408,
+          "completedMs": 8041
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8409,
+          "completedMs": 9611
+        }
+      ],
+      "duration": 10.311,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-optio-ods/978dba6f-6ef0-4b6b-bef3-51ab5b7e3a15/scratchpad/ask/v2.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-07T21:46:37.551Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 506,
+          "completedMs": 1292
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1908,
+          "completedMs": 2746
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3905,
+          "completedMs": 4458
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4604,
+          "completedMs": 5292
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7406,
+          "completedMs": 7908
+        }
+      ],
+      "duration": 8.608,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-test-anim-html-video/81d247dd-f50e-42e8-af5e-1ac3ac5b15c5/scratchpad/m.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-07T22:25:40.485Z"
+    }
+  ],
+  "contentHash": {
+    "en:desktop": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+    "en:mobile": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce"
+  },
+  "buildKey": {
+    "en:desktop": "sha256:4ccad1800c619283a0b89330d6818087a720c9a3b044ff17585c6dc8bae16f82",
+    "en:mobile": "sha256:93f423a9138fee7d45fe83c7c6babadebc36e30b676d42d99642f2524380ad44"
+  },
+  "locale": "en",
+  "baseLocale": "en"
+}

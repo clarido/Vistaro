@@ -1,0 +1,260 @@
+{
+  "history": [
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "criteres",
+          "actualMs": 208,
+          "completedMs": 1143
+        },
+        {
+          "index": 2,
+          "id": "preuves",
+          "actualMs": 1709,
+          "completedMs": 2575
+        },
+        {
+          "index": 3,
+          "id": "trou",
+          "actualMs": 3407,
+          "completedMs": 4096
+        },
+        {
+          "index": 4,
+          "id": "bilan",
+          "actualMs": 4507,
+          "completedMs": 5178
+        },
+        {
+          "index": 5,
+          "id": "lean",
+          "actualMs": 5410,
+          "completedMs": 6913
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7618,
+          "completedMs": 8820
+        }
+      ],
+      "duration": 10.02,
+      "output": "le-trou-signale-fr.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "timestamp": "2026-09-07T22:16:43.098Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "criteres",
+          "actualMs": 204,
+          "completedMs": 951
+        },
+        {
+          "index": 2,
+          "id": "preuves",
+          "actualMs": 1706,
+          "completedMs": 2501
+        },
+        {
+          "index": 3,
+          "id": "trou",
+          "actualMs": 3405,
+          "completedMs": 3968
+        },
+        {
+          "index": 4,
+          "id": "bilan",
+          "actualMs": 4504,
+          "completedMs": 5035
+        }
+      ],
+      "duration": 6.235,
+      "output": "le-trou-signale-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "timestamp": "2026-09-07T22:17:01.483Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T22:17:22.828Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T22:17:23.568Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T22:17:25.794Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "criteres",
+          "actualMs": 205,
+          "completedMs": 998
+        },
+        {
+          "index": 2,
+          "id": "preuves",
+          "actualMs": 1707,
+          "completedMs": 2612
+        },
+        {
+          "index": 3,
+          "id": "trou",
+          "actualMs": 3409,
+          "completedMs": 4076
+        },
+        {
+          "index": 4,
+          "id": "bilan",
+          "actualMs": 4665,
+          "completedMs": 5365
+        },
+        {
+          "index": 5,
+          "id": "lean",
+          "actualMs": 5430,
+          "completedMs": 6931
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7615,
+          "completedMs": 8818
+        }
+      ],
+      "duration": 10.018,
+      "output": "../../reels-out/le-trou-signale/fr/le-trou-signale-fr-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "timestamp": "2026-09-07T22:18:14.126Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../reels-out/le-trou-signale/fr",
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "buildKey": "sha256:1f670087b7a3955523b79976f73d6d4930c4c21c745538a66b09ed602f2978b5",
+      "builtAt": "2026-09-07T22:18:14.160Z",
+      "timestamp": "2026-09-07T22:18:14.163Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T22:18:15.597Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "criteres",
+          "actualMs": 205,
+          "completedMs": 954
+        },
+        {
+          "index": 2,
+          "id": "preuves",
+          "actualMs": 1704,
+          "completedMs": 2502
+        },
+        {
+          "index": 3,
+          "id": "trou",
+          "actualMs": 3405,
+          "completedMs": 3987
+        },
+        {
+          "index": 4,
+          "id": "bilan",
+          "actualMs": 4504,
+          "completedMs": 5039
+        }
+      ],
+      "duration": 6.239,
+      "output": "../../reels-out/le-trou-signale/fr/le-trou-signale-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "timestamp": "2026-09-07T22:18:33.488Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../reels-out/le-trou-signale/fr",
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "buildKey": "sha256:d40dde22de66eca26e1b625d57aad94556c8747e47b5fa53143a4ef341b93aa6",
+      "builtAt": "2026-09-07T22:18:33.521Z",
+      "timestamp": "2026-09-07T22:18:33.523Z"
+    }
+  ],
+  "contentHash": {
+    "fr:desktop": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+    "fr:mobile": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5"
+  },
+  "buildKey": {
+    "fr:desktop": "sha256:1f670087b7a3955523b79976f73d6d4930c4c21c745538a66b09ed602f2978b5",
+    "fr:mobile": "sha256:d40dde22de66eca26e1b625d57aad94556c8747e47b5fa53143a4ef341b93aa6"
+  }
+}
