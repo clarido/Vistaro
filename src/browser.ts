@@ -1,5 +1,7 @@
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import * as fs from 'fs';
+import * as http from 'http';
+import * as https from 'https';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { runtimeSource } from './engine/inject';
@@ -19,6 +21,8 @@ export interface ContextOptions extends ViewportOptions {
     runtime?: boolean;
     /** Set `window.__ANIM_DRIVEN = true` before every document loads so built pages never self-play. Default true. */
     driven?: boolean;
+    /** Accept self-signed / mkcert certificates (local HTTPS). */
+    ignoreHttpsErrors?: boolean;
 }
 
 export interface LaunchOptions extends ContextOptions {
@@ -51,6 +55,7 @@ async function newContext(browser: Browser, opts: LaunchOptions): Promise<{ cont
         viewport: { width, height },
         deviceScaleFactor: opts.deviceScaleFactor ?? 2,
         colorScheme: opts.theme === 'dark' ? 'dark' : 'light',
+        ignoreHTTPSErrors: !!opts.ignoreHttpsErrors,
         ...(opts.storageState ? { storageState: path.resolve(opts.storageState) } : {}),
         ...(opts.recordVideoDir ? { recordVideo: { dir: opts.recordVideoDir, size: { width, height } } } : {}),
     });
@@ -77,9 +82,9 @@ export async function launchPage(opts: LaunchOptions = {}): Promise<LaunchedPage
         throw e;
     }
     const close = async () => {
-        await page.close().catch(() => {});
-        await context.close().catch(() => {});
-        await browser.close().catch(() => {});
+        await closeWithWatchdog(() => page.close(), 'page');
+        await closeWithWatchdog(() => context.close(), 'context');
+        await closeWithWatchdog(() => browser.close(), 'browser');
     };
     return { browser, context, page, width, height, close };
 }
@@ -88,7 +93,15 @@ export async function launchPage(opts: LaunchOptions = {}): Promise<LaunchedPage
 export async function newDrivenPage(browser: Browser, opts: ContextOptions = {}): Promise<{ context: BrowserContext; page: Page; close: () => Promise<void> }> {
     const { context } = await newContext(browser, opts);
     const page = await context.newPage();
-    return { context, page, close: async () => { await page.close().catch(() => {}); await context.close().catch(() => {}); } };
+    return { context, page, close: async () => { await closeWithWatchdog(() => page.close(), 'page'); await closeWithWatchdog(() => context.close(), 'context'); } };
+}
+
+/** Close calls can hang on a page stuck mid-navigation; never let that keep the CLI alive. */
+export async function closeWithWatchdog(fn: () => Promise<void>, what: string, timeoutMs = 10000): Promise<void> {
+    let timer: NodeJS.Timeout | undefined;
+    const watchdog = new Promise<void>((resolve) => { timer = setTimeout(() => { console.error(`warning  ${what} did not close within ${timeoutMs}ms; continuing`); resolve(); }, timeoutMs); });
+    try { await Promise.race([fn().catch(() => {}), watchdog]); }
+    finally { if (timer) clearTimeout(timer); }
 }
 
 /** file:// URL for a local path (properly percent-encoded). */
@@ -96,22 +109,46 @@ export function fileUrl(p: string): string {
     return pathToFileURL(path.resolve(p)).href;
 }
 
-/** Fail fast: any HTTP response (even 4xx/5xx) means the server is there; a connection error does not. */
-export async function assertReachable(url: string, timeoutMs = 5000): Promise<void> {
+const SECRET_PARAM = /token|key|secret|password|passwd|auth|session|sig|signature|credential|apikey|api_key|access|bearer/i;
+
+/** URL safe to print and record: userinfo stripped, token-like query values redacted. */
+export function sanitizeUrl(url: string): string {
     let u: URL;
-    try { u = new URL(url); } catch { throw new Error(`invalid URL: ${url}`); }
+    try { u = new URL(url); } catch { return url.replace(/\/\/[^@/]+@/, '//'); }
+    u.username = '';
+    u.password = '';
+    for (const [k, v] of [...u.searchParams.entries()]) {
+        if (SECRET_PARAM.test(k) && v) u.searchParams.set(k, '***');
+    }
+    return u.toString();
+}
+
+/**
+ * Fail fast: any HTTP response (even 4xx/5xx) means the server is there; a connection error does
+ * not. Uses http/https directly so `ignoreHttpsErrors` can accept a local certificate.
+ */
+export function assertReachable(url: string, opts: { timeoutMs?: number; ignoreHttpsErrors?: boolean } = {}): Promise<void> {
+    const timeoutMs = opts.timeoutMs ?? 5000;
+    let u: URL;
+    try { u = new URL(url); } catch { return Promise.reject(new Error(`invalid URL: ${sanitizeUrl(url)}`)); }
+    if (u.username || u.password) return Promise.reject(new Error(`URLs with embedded credentials are not supported (${sanitizeUrl(url)}); log in once and pass --storage-state auth.json`));
     if (u.protocol === 'file:') {
-        if (!fs.existsSync(decodeURIComponent(u.pathname))) throw new Error(`file not found: ${u.pathname}`);
-        return;
+        if (!fs.existsSync(decodeURIComponent(u.pathname))) return Promise.reject(new Error(`file not found: ${u.pathname}`));
+        return Promise.resolve();
     }
-    if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error(`unsupported URL scheme: ${u.protocol}`);
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    try {
-        await fetch(url, { method: 'GET', redirect: 'manual', signal: ctrl.signal });
-    } catch (e: any) {
-        throw new Error(`URL unreachable: ${url} (${e && e.cause && e.cause.code ? e.cause.code : e && e.name === 'AbortError' ? `no response within ${timeoutMs}ms` : e.message})`);
-    } finally {
-        clearTimeout(t);
-    }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return Promise.reject(new Error(`unsupported URL scheme: ${u.protocol}`));
+    const mod = u.protocol === 'https:' ? https : http;
+    return new Promise<void>((resolve, reject) => {
+        const req = mod.request(u, { method: 'GET', timeout: timeoutMs, ...(u.protocol === 'https:' ? { rejectUnauthorized: !opts.ignoreHttpsErrors } : {}) }, (res) => {
+            res.resume();
+            resolve();
+        });
+        req.on('timeout', () => { req.destroy(new Error(`no response within ${timeoutMs}ms`)); });
+        req.on('error', (e: any) => {
+            const detail = e && e.code ? e.code : (e && e.message ? e.message : String(e));
+            const hint = /CERT|certificate|self.signed|unable to verify/i.test(detail) ? ' (self-signed certificate? pass --ignore-https-errors)' : '';
+            reject(new Error(`URL unreachable: ${sanitizeUrl(url)} (${detail})${hint}`));
+        });
+        req.end();
+    });
 }

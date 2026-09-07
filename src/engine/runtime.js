@@ -64,6 +64,7 @@
     timers: [],
     intervals: [],
     completions: {},
+    holds: {},
     nextToken: 1
   };
 
@@ -580,12 +581,21 @@
         pressCursor(point.x, point.y, pressMs);
       }
       setTimeout(function () {
+        if (o.holdBeforeAct) {
+          // Two-phase step: report the arrival (cursor pressed, spotlight on, nothing clicked yet) and
+          // wait for act(token). Guides capture navigating clicks here, before the page goes away.
+          var holdToken = state.nextToken++;
+          state.holds[holdToken] = function (res, rej) { if (point) releaseCursor(point.x, point.y); interact(res, rej); };
+          resolve({ phase: 'arrival', token: holdToken, index: step.index, id: step.id, action: action, target: step.target,
+            scheduledMs: timeMsOf(step), actualMs: NaN, rect: rectOf(spotEl), targetRect: spotEl !== el ? rectOf(el) : undefined, point: point });
+          return;
+        }
         if (point) releaseCursor(point.x, point.y);
-        interact();
+        interact(resolve, reject);
       }, pressMs);
     }, travelMs);
 
-    function interact() {
+    function interact(resolve, reject) {
       var actualMs = now();
       var token = state.nextToken++;
       var result = {
@@ -673,6 +683,13 @@
     }
   }
 
+  /** Second phase of a runStep(step, {holdBeforeAct: true}): perform the interaction now. */
+  function act(token) {
+    var fn = state.holds[token];
+    delete state.holds[token];
+    if (!fn) return Promise.reject(new Error('no held step for token ' + token));
+    return new Promise(function (res, rej) { try { fn(res, rej); } catch (e) { rej(e); } });
+  }
   /** Resolves with the completion time (ms) of the step that returned `token`. */
   function whenDone(token) {
     var c = state.completions[token];
@@ -733,6 +750,7 @@
     play: play,
     stop: stop,
     runStep: runStep,
+    act: act,
     whenDone: whenDone,
     whenIdle: whenIdle,
     now: now,

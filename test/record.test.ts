@@ -12,6 +12,7 @@ import { newDrivenPage } from '../src/browser';
 import { bootOptions } from '../src/engine/inject';
 import { probeDurationMs } from '../src/media/ffmpeg';
 import { GuideJson } from '../src/guide/render';
+import { sanitizeUrl } from '../src/browser';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
@@ -101,7 +102,7 @@ test('record: waitFor absorbs an async delay and later steps keep their relative
     const out = path.join(work, 'slow.mp4');
     const r = await cli(['record', dir, '-o', out, '--width', '1280', '--height', '800']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
-    assert.match(r.stdout, /waitFor delays shifted the timeline by \d+ms/);
+    assert.match(r.stdout, /waitFor delays shifted the timeline by \d+ms; recording \d+(\.\d+)?s instead of/);
     const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
     const items = ev.steps[3], settings = ev.steps[4], submit = ev.steps[2];
     assert.equal(items.error, undefined, items.error);
@@ -150,7 +151,79 @@ test('record --guide: badges on the post-navigation pages, video linked, actual 
     assert.ok(note.callout && note.rect && note.rect.width > 100, JSON.stringify(note));
     assert.ok(Math.abs(items.actualMs - 3200) < 300, `actualMs from the recording: ${items.actualMs}`);
     assert.ok(g.video!.chapters.length >= 6);
+    // clicks that navigated in the video pass are captured at the arrival (cursor pressed, spotlight on, before the click)
+    for (const id of ['submit', 'details']) {
+        const s = g.steps.find(x => x.id === id)!;
+        assert.equal(s.capturedAt, 'arrival', `${id}: ${JSON.stringify(s)}`);
+        assert.ok(s.callout && s.rect && s.rect.width > 20, `${id} has a badge on the pre-navigation page`);
+        assert.ok(s.image && fs.existsSync(path.join(dir, 'guide', s.image)));
+    }
+    assert.equal(g.steps.find(x => x.id === 'items')!.capturedAt, 'interaction');
+    // `guide <dir>` afterwards links the recorded video and replays against the live page
+    const again = await cli(['guide', dir, '--width', '1280', '--height', '800']);
+    assert.equal(again.status, 0, again.stderr + again.stdout);
+    assert.match(again.stdout, /Using video .*guided\.mp4/);
+    assert.match(again.stdout, /Replaying against http:\/\/127\.0\.0\.1/);
+    const g2: GuideJson = JSON.parse(fs.readFileSync(path.join(dir, 'guide', 'guide.json'), 'utf8'));
+    assert.equal(g2.video!.file, '../../guided.mp4');
+    assert.equal(g2.steps.filter(s => s.error).length, 0, JSON.stringify(g2.steps.filter(s => s.error)));
+    assert.equal(g2.steps.find(x => x.id === 'note')!.callout !== null, true);
 });
+
+/** Per-frame colour of one pixel plus its timestamp (see export.test.ts). */
+function samplePixels(file: string, x: number, y: number): { ptsMs: number; r: number; g: number; b: number }[] {
+    const res = require('child_process').spawnSync(require('ffmpeg-static'), ['-i', file, '-vf', `format=rgb24,crop=2:2:${x}:${y},showinfo`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 64 * 1024 * 1024 });
+    const pts = [...res.stderr.toString().matchAll(/pts_time:\s*([\d.]+)/g)].map((m: any) => Math.round(parseFloat(m[1]) * 1000));
+    const px = res.stdout;
+    return pts.map((ptsMs: number, i: number) => ({ ptsMs, r: px[i * 12], g: px[i * 12 + 1], b: px[i * 12 + 2] }));
+}
+
+test('record: with a slow server (400ms latency) the first changed frame still lands within 1.5 frames of actualMs', { skip }, async () => {
+    const slow = await startLiveApp({ respDelayMs: 400 });
+    try {
+        const dir = writeDir('latency', { meta: { url: `${slow.url}/flash`, cursor: 'none', drift: false, tailMs: 600 }, steps: [{ time: 1, action: 'click', target: '[data-help="flash"]' }] });
+        const out = path.join(work, 'latency.mp4');
+        const r = await cli(['record', dir, '-o', out, '--width', '320', '--height', '200', '--no-chapters', '--no-subtitles']);
+        assert.equal(r.status, 0, r.stderr + r.stdout);
+        const actualMs: number = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1).steps[0].actualMs;
+        const frames = samplePixels(out, 300, 190);
+        const first = frames.findIndex(f => f.r > 200 && f.g < 80);
+        assert.ok(first > 0, `a red frame exists after a white one (${frames.length} frames)`);
+        const frameMs = frames[1].ptsMs - frames[0].ptsMs;
+        const delta = frames[first].ptsMs - actualMs;
+        assert.ok(Math.abs(delta) <= frameMs * 1.5 + 5, `first red frame at ${frames[first].ptsMs}ms vs actualMs ${actualMs}ms (delta ${delta}ms) with 400ms server latency`);
+    } finally {
+        await slow.close();
+    }
+});
+
+test('record: a navigation that never completes is stopped, reported, exits 1, and the process ends', { skip }, async () => {
+    const dir = writeDir('hang', { meta: { url: `${app.url}/hang-link`, cursor: 'mac', tailMs: 300 }, steps: [
+        { time: 0.5, action: 'click', target: '[data-help="go-hang"]', title: 'Go' },
+        { time: 1.5, action: 'highlight', target: 'h1', title: 'Never' },
+    ] });
+    const started = Date.now();
+    const r = await cli(['record', dir, '-o', path.join(work, 'hang.mp4'), '--width', '320', '--height', '200']);
+    const took = Date.now() - started;
+    assert.equal(r.status, 1, r.stderr + r.stdout);
+    assert.match(r.stderr, /navigation did not load within \d+ms|did not finish within/);
+    assert.ok(took < 60000, `finished in ${took}ms`);
+});
+
+test('record: a page that defines its own window.__anim is refused and the CLI exits', { skip }, async () => {
+    const dir = writeDir('own', { meta: { url: `${app.url}/own-anim`, cursor: 'mac' }, steps: [{ time: 0.5, action: 'highlight', target: '[data-help="title"]' }] });
+    const started = Date.now();
+    const r = await cli(['record', dir, '-o', path.join(work, 'own.mp4'), '--width', '320', '--height', '200']);
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /page defines its own window\.__anim/);
+    assert.ok(Date.now() - started < 30000, 'browser closed, process exited');
+});
+
+test('sanitizeUrl strips credentials and redacts token-like query params', () => {
+    assert.equal(sanitizeUrl('https://user:pw@app.example.com/x?token=abc&page=2&api_key=k'), 'https://app.example.com/x?token=***&page=2&api_key=***');
+    assert.equal(sanitizeUrl('http://127.0.0.1:3000/login'), 'http://127.0.0.1:3000/login');
+});
+
 
 test('runTimeline(live): cursor re-appears at its last point after a navigation; no step lost to a destroyed context', { skip }, async () => {
     const tl = parseTimeline(loginFlow(app.url));

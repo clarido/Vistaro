@@ -3,7 +3,8 @@ import * as path from 'path';
 import type { Browser, Page } from 'playwright';
 import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, leadMsFor } from '../engine/schema';
 import { ensureRuntime, StepResult, LiveOptions } from '../engine/driver';
-import { launchPage, fileUrl, resolveViewport, ViewportOptions, newDrivenPage } from '../browser';
+import { launchPage, fileUrl, resolveViewport, ViewportOptions, newDrivenPage, assertReachable, sanitizeUrl } from '../browser';
+import { bootOptions } from '../engine/inject';
 import { captureGuide, CapturedStep, GuideCapture } from '../guide/capture';
 import { writeGuide, GuideJson, GuideStepJson, GuideVideoJson } from '../guide/render';
 import { chaptersFor } from '../media/chapters';
@@ -21,6 +22,10 @@ export interface GuideOptions extends ViewportOptions {
     locale?: string;
     force?: boolean;
     hideCursor?: boolean;
+    /** Live replay (after a record): override the URL / storage state recorded in the manifest. */
+    url?: string;
+    storageState?: string;
+    ignoreHttpsErrors?: boolean;
 }
 
 /** What the guide knows about the master video (from this export, or the manifest's last driven export). */
@@ -37,6 +42,11 @@ export interface VideoInfo {
     clipFiles?: Map<number, string>;
     /** hashGuideDir at the time of the export (to spot a stale video). */
     contentHash?: string;
+    /** Steps whose interaction navigated during the video pass (captured at arrival in the guide). */
+    navigated?: Set<number>;
+    /** A `record` event: the live URL (sanitized) and the storage state it used. */
+    url?: string;
+    storageState?: string;
 }
 
 const DEFAULT_CROP_PX = 120;
@@ -60,13 +70,18 @@ export function videoFromManifest(dir: string): VideoInfo | undefined {
     const manifest = readManifest(dir);
     for (let i = manifest.history.length - 1; i >= 0; i--) {
         const ev = manifest.history[i];
-        if (ev.command !== 'export' || !ev.driven || !ev.output) continue;
+        if ((ev.command !== 'export' && ev.command !== 'record') || !ev.driven || !ev.output) continue;
         // `output` is recorded relative to the guide directory; older entries were relative to the cwd.
         let file = path.resolve(dir, ev.output);
         if (!fs.existsSync(file)) file = path.resolve(ev.output);
         if (!fs.existsSync(file) || !/\.mp4$/i.test(file)) continue;
         const actualMs = new Map<number, number>();
-        for (const s of ev.steps || []) if (Number.isFinite(s.actualMs)) actualMs.set(s.index, s.actualMs);
+        const navigated = new Set<number>();
+        for (const s of ev.steps || []) {
+            if (Number.isFinite(s.actualMs)) actualMs.set(s.index, s.actualMs);
+            if (s.navigated) navigated.add(s.index);
+        }
+        const storageState = ev.storageState ? path.resolve(dir, ev.storageState) : undefined;
         const vttFile = ev.subtitles ? path.join(path.dirname(file), ev.subtitles) : undefined;
         const clipFiles = new Map<number, string>();
         for (const c of ev.clips || []) {
@@ -76,7 +91,8 @@ export function videoFromManifest(dir: string): VideoInfo | undefined {
         }
         return {
             file, durationMs: Math.round((ev.duration || 0) * 1000), vtt: vttFile && fs.existsSync(vttFile) ? vttFile : undefined,
-            narration: !!ev.narration, actualMs, clipFiles, contentHash: ev.contentHash,
+            narration: !!ev.narration, actualMs, clipFiles, contentHash: ev.contentHash, navigated,
+            url: ev.command === 'record' ? ev.url : undefined, storageState: storageState && fs.existsSync(storageState) ? storageState : undefined,
         };
     }
     return undefined;
@@ -87,19 +103,21 @@ export async function buildGuide(browser: Browser, dir: string, timeline: Timeli
     outDir: string; crop: number | false; clips?: string; video?: VideoInfo; viewport: ViewportOptions & { deviceScaleFactor?: number };
     hideCursor?: boolean; locale?: string; log?: (m: string) => void; warn?: (m: string) => void;
     /** Live page (record): how to open it, the auth state, and the driver's live options. */
-    session?: { open: (page: Page) => Promise<void>; storageState?: string; live: LiveOptions };
+    session?: { open: (page: Page) => Promise<void>; storageState?: string; live: LiveOptions; ignoreHttpsErrors?: boolean };
+    /** Steps that navigated in the video pass: captured at the arrival, before the click. */
+    navigated?: Set<number>;
 }): Promise<{ json: string; md: string; html: string; capture: GuideCapture }> {
     const { width, height } = resolveViewport(opts.viewport);
     const assetsDir = path.join(opts.outDir, 'assets');
     const rel = (p: string) => path.relative(opts.outDir, p).split(path.sep).join('/');
 
-    const driven = await newDrivenPage(browser, { ...opts.viewport, deviceScaleFactor: opts.viewport.deviceScaleFactor ?? 2, storageState: opts.session?.storageState, runtime: !!opts.session });
+    const driven = await newDrivenPage(browser, { ...opts.viewport, deviceScaleFactor: opts.viewport.deviceScaleFactor ?? 2, storageState: opts.session?.storageState, runtime: !!opts.session, ignoreHttpsErrors: opts.session?.ignoreHttpsErrors });
     let capture: GuideCapture;
     try {
         if (opts.session) await opts.session.open(driven.page);
         else await driven.page.goto(fileUrl(path.join(dir, 'index.html')), { waitUntil: 'load' });
         await ensureRuntime(driven.page, timeline, { drift: false });
-        capture = await captureGuide(driven.page, timeline, { assetsDir, crop: opts.crop, viewport: { width, height }, hideCursor: opts.hideCursor, poster: !!opts.video, live: opts.session?.live, log: opts.log });
+        capture = await captureGuide(driven.page, timeline, { assetsDir, crop: opts.crop, viewport: { width, height }, hideCursor: opts.hideCursor, poster: !!opts.video, live: opts.session?.live, navigated: opts.navigated ?? opts.video?.navigated, log: opts.log });
     } finally {
         await driven.close();
     }
@@ -198,21 +216,33 @@ export async function guideCommand(dir: string, options: GuideOptions = {}): Pro
         if (video) console.log(`Using video ${displayPath(video.file)} from the last export (${(video.durationMs / 1000).toFixed(1)}s).`);
         else console.log('No exported video found in the manifest; the guide will have screenshots only (run `export` first for video, chapters and clips).');
 
+        // After a `record`, the guide replays against the live page (same URL and storage state).
+        let session: { open: (page: Page) => Promise<void>; storageState?: string; live: LiveOptions; ignoreHttpsErrors?: boolean } | undefined;
+        if (video?.url) {
+            const url = options.url || video.url;
+            await assertReachable(url, { ignoreHttpsErrors: options.ignoreHttpsErrors });
+            const storageState = options.storageState || video.storageState;
+            console.log(`Replaying against ${sanitizeUrl(url)}${storageState ? ` with storage state ${displayPath(storageState)}` : ''}.`);
+            session = {
+                open: async (p) => { await p.goto(url, { waitUntil: 'load', timeout: 30000 }); await p.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {}); },
+                storageState, live: { boot: bootOptions(timeline, { drift: timeline.meta.drift === true }, false) }, ignoreHttpsErrors: options.ignoreHttpsErrors,
+            };
+        }
         const launched = await launchPage({ ...options, driven: true });
         let result;
         try {
             await launched.page.close();
-            result = await buildGuide(launched.browser, dir, timeline, { outDir, crop, clips: options.clips, video, viewport: options, hideCursor: options.hideCursor, locale: options.locale, log: m => console.log(m), warn: m => console.error(m) });
+            result = await buildGuide(launched.browser, dir, timeline, { outDir, crop, clips: options.clips, video, viewport: options, hideCursor: options.hideCursor, locale: options.locale, log: m => console.log(m), warn: m => console.error(m), session });
         } finally {
             await launched.close();
         }
         const failed = result.capture.steps.filter(s => s.error);
         const relToDir = (p: string) => path.relative(path.resolve(dir), p).split(path.sep).join('/');
-        recordEvent(dir, { command: 'guide', output: relToDir(outDir), crop, clips: options.clips, locale: options.locale ?? timeline.meta.locale, steps: result.capture.steps.length, video: video ? relToDir(video.file) : null, contentHash: hashGuideDir(dir) });
+        recordEvent(dir, { command: 'guide', output: relToDir(outDir), crop, clips: options.clips, locale: options.locale ?? timeline.meta.locale, steps: result.capture.steps.length, video: video ? relToDir(video.file) : null, url: session ? sanitizeUrl(options.url || video!.url!) : undefined, contentHash: hashGuideDir(dir) });
         console.log(`\nWrote ${displayPath(result.json)}, guide.md, guide.html (${result.capture.steps.length} steps${video ? ', video linked' : ''}).`);
         if (failed.length) {
-            console.error(`${failed.length} step(s) failed during capture; see guide.json "error" fields.`);
-            process.exitCode = 1;
+            console.error(`${options.force ? 'warning  (--force)' : 'FAILED:'} ${failed.length} step(s) failed during capture; see guide.json "error" fields.`);
+            if (!options.force) process.exitCode = 1;
         }
     } catch (e: any) {
         console.error(`Guide failed: ${e && e.message ? e.message : e}`);

@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
 import { Step, Timeline, captureAtFor } from '../engine/schema';
-import { runTimeline, StepResult, errorMessage, LiveOptions } from '../engine/driver';
+import { runTimeline, StepResult, errorMessage, LiveOptions, isNavigationError } from '../engine/driver';
 
 /**
  * Guide capture (Scribe/Tango style): replay the timeline in driver step mode on a page that
@@ -25,8 +25,8 @@ export interface CapturedStep {
     scheduledMs: number;
     actualMs: number;
     completedMs?: number;
-    /** Moment the frame was taken: 'interaction' or 'completion'. */
-    capturedAt: 'interaction' | 'completion';
+    /** Moment the frame was taken: 'interaction', 'completion', or 'arrival' (navigating clicks: before the click). */
+    capturedAt: 'interaction' | 'completion' | 'arrival';
     title?: string;
     subtitle?: string;
     narration?: string;
@@ -55,6 +55,8 @@ export interface CaptureOptions {
     poster?: boolean;
     /** Live page handling (record): navigations survived, waitFor honoured. */
     live?: LiveOptions;
+    /** Steps whose click navigates (from the video pass): captured at the arrival, before the click. */
+    navigated?: Set<number>;
     log?: (m: string) => void;
 }
 
@@ -123,13 +125,16 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
         settleMs: opts.settleMs ?? 300,
         afterStepAt: 'auto',
         live: opts.live,
+        // A click that navigates cannot be captured 300ms after the click (the page is gone by then):
+        // capture it at the arrival, cursor pressed and spotlight on, then let it click.
+        captureBeforeAct: (step) => !!opts.live && ((opts.navigated?.has(step.index) ?? false) || step.action === 'navigate'),
         afterStep: async (step, result) => {
             if (!isGuideStep(step)) return;
             number++;
             const base = path.join(opts.assetsDir, stepFileBase(step.index));
             const entry: CapturedStep = {
                 index: step.index, id: step.id, number, action: step.action, target: step.target,
-                scheduledMs: step.timeMs, actualMs: result.actualMs, completedMs: result.completedMs, capturedAt: captureAtFor(step),
+                scheduledMs: step.timeMs, actualMs: result.actualMs, completedMs: result.completedMs, capturedAt: result.capturedAt === 'arrival' ? 'arrival' : captureAtFor(step),
                 title: step.title, subtitle: step.subtitle ?? undefined, narration: step.narration, note: step.note,
                 rect: result.rect ?? null, targetRect: result.targetRect, callout: null, error: result.error,
             };
@@ -168,8 +173,24 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
                     }
                 }
             } catch (e: any) {
-                entry.error = entry.error ? `${entry.error}; ${errorMessage(e)}` : `capture: ${errorMessage(e)}`;
-                if (entry.image && !fs.existsSync(entry.image)) entry.image = undefined;
+                let recovered = false;
+                if (isNavigationError(e) && opts.live) {
+                    // The page navigated under the capture (a click we did not know navigates): retry once
+                    // on the new document, plain frame, no marks.
+                    try {
+                        await page.waitForLoadState('load', { timeout: opts.live.navigationTimeoutMs ?? 15000 });
+                        entry.image = base + '.png';
+                        await page.screenshot({ path: entry.image, type: 'png' });
+                        entry.callout = null;
+                        entry.crop = undefined;
+                        recovered = true;
+                        opts.log?.(`  (step ${step.index} navigated during capture; frame retaken on the new page without marks)`);
+                    } catch { /* fall through to the error */ }
+                }
+                if (!recovered) {
+                    entry.error = entry.error ? `${entry.error}; ${errorMessage(e)}` : `capture: ${errorMessage(e)}`;
+                    if (entry.image && !fs.existsSync(entry.image)) entry.image = undefined;
+                }
             } finally {
                 await page.evaluate(() => (window as any).__anim.endCapture()).catch(() => {});
             }

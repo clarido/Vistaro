@@ -183,7 +183,7 @@ program
   .option('--crop <px>', 'Guide crops: padding around each step\'s box in px (default 120)')
   .option('--no-crop', 'Guide: full frames only, no crops')
   .option('--hide-cursor', 'Guide: hide the fake cursor in the step screenshots')
-  .option('--force', 'Export even if the timeline has validation errors')
+  .option('--force', 'Export even if the timeline has validation errors; step failures then do not fail the command')
   .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
   .action((dir, opts) => exportCommand(dir, opts));
 
@@ -193,6 +193,7 @@ program
   .argument('<output_dir>', 'Directory containing anim.config.json (targets are selectors in the live app, e.g. [data-help="save"])')
   .option('--url <url>', 'Page to open (default: meta.url in anim.config.json)')
   .option('--storage-state <file>', 'Playwright storage state (cookies/localStorage), e.g. from `npx playwright codegen --save-storage auth.json`')
+  .option('--ignore-https-errors', 'Accept self-signed certificates (mkcert-style local HTTPS)')
   .option('-o, --output <file>', 'Output video file path (.mp4 or .gif)', 'output.mp4')
   .option('-d, --duration <seconds>', 'Override the recording length in seconds (default: computed from the timeline)')
   .option('-w, --width <pixels>', 'Width of the recorded video in pixels')
@@ -210,7 +211,7 @@ program
   .option('--crop <px>', 'Guide crops: padding around each step\'s box in px (default 120)')
   .option('--no-crop', 'Guide: full frames only')
   .option('--hide-cursor', 'Guide: hide the fake cursor in step screenshots')
-  .option('--force', 'Record even if the timeline has validation errors')
+  .option('--force', 'Record even if the timeline has validation errors; step failures then do not fail the command')
   .option('--locale <code>', 'Locale code for this output (e.g. en, fr)')
   .action((dir, opts) => recordCommand(dir, opts));
 
@@ -223,8 +224,11 @@ program
   .option('--no-crop', 'Full frames only, no crops')
   .option('--clips <format>', 'Cut one clip per step from the last exported video: mp4 or gif')
   .option('--hide-cursor', 'Hide the fake cursor in the step screenshots')
+  .option('--url <url>', 'After a `record`: replay against this URL instead of the one in the manifest')
+  .option('--storage-state <file>', 'After a `record`: storage state for the live replay (default: the one the record used)')
+  .option('--ignore-https-errors', 'Accept self-signed certificates on the live replay')
   .option('--locale <code>', 'Locale code (e.g. en, fr)')
-  .option('--force', 'Capture even if the timeline has validation errors')
+  .option('--force', 'Capture even if the timeline has validation errors; step failures then do not fail the command')
   .option('-w, --width <pixels>', 'Viewport width in pixels')
   .option('-H, --height <pixels>', 'Viewport height in pixels')
   .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')

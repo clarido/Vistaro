@@ -184,10 +184,15 @@ test('a target that vanished keeps its guide entry with error, plain frame, no m
         { time: 1, action: 'highlight', target: '#gone', title: 'Vanished' },
         { time: 2, action: 'highlight', target: '#note', title: 'Notice' },
     ] }));
-    const r = cli(['guide', dir, '--force', '--width', '1280', '--height', '800']);
+    const r = cli(['guide', dir, '--width', '1280', '--height', '800']);
     assert.equal(r.status, 1, r.stderr + r.stdout);
+    assert.match(r.stderr, /FAILED: 1 step\(s\) failed during capture/);
     const g: GuideJson = JSON.parse(fs.readFileSync(path.join(dir, 'guide', 'guide.json'), 'utf8'));
     assert.deepEqual(g.steps.map(s => [s.number, s.id]), [[1, 'step-01'], [2, 'step-02'], [3, 'step-03']], 'numbering does not shift');
+    // --force: same guide, the failure is a warning and the command exits 0
+    const forced = cli(['guide', dir, '--force', '--width', '1280', '--height', '800']);
+    assert.equal(forced.status, 0, forced.stderr + forced.stdout);
+    assert.match(forced.stderr, /warning  \(--force\) 1 step\(s\) failed/);
     const gone = g.steps[1];
     assert.match(gone.error!, /target not found: #gone/);
     assert.equal(gone.callout, null);

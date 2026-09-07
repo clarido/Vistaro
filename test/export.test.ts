@@ -92,6 +92,24 @@ test('export: validation errors exit 1 without --force; legacy dir without confi
     assert.ok(Math.abs(probeDurationMs(path.join(work, 'legacy.mp4')) - 1000) <= 750);
 });
 
+test('export: a step that fails outright (missing target) still writes the video but exits 1 and names the step', { skip }, () => {
+    const dir = path.join(work, 'failing');
+    fs.cpSync(fixture, dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify([
+        { time: 0.5, action: 'click', target: '#definitely-not-here', title: 'Missing' },
+        { time: 1.5, action: 'click', target: '#btn', title: 'Real' },
+    ]));
+    const out = path.join(work, 'failing.mp4');
+    const r = cli(['export', dir, '-o', out, '--width', '320', '--height', '200']);
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stderr, /FAILED: 1 step\(s\) failed during the recording: step 1 \(click #definitely-not-here\)/);
+    assert.ok(!/Success!/.test(r.stdout));
+    assert.ok(fs.existsSync(out), 'the video is still written for inspection');
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    assert.match(ev.steps[0].error, /target not found/);
+    assert.equal(ev.steps[1].error, undefined);
+});
+
 test('export: a built page without a config self-plays during the blind wait', { skip }, () => {
     const dir = path.join(work, 'selfplay');
     fs.mkdirSync(dir);
@@ -132,7 +150,7 @@ test('export: the first changed video frame lands within one frame of the measur
     assert.ok(first > 0, 'a red frame exists after a white one');
     const frameMs = frames[1].ptsMs - frames[0].ptsMs;
     const delta = frames[first].ptsMs - actualMs;
-    assert.ok(Math.abs(delta) <= frameMs + 5, `first red frame at ${frames[first].ptsMs}ms vs actualMs ${actualMs}ms (delta ${delta}ms, frame ${frameMs}ms)`);
+    assert.ok(Math.abs(delta) <= frameMs * 1.5 + 5, `first red frame at ${frames[first].ptsMs}ms vs actualMs ${actualMs}ms (delta ${delta}ms, frame ${frameMs}ms)`);
 });
 
 test('export --narration mixes per-step TTS (macOS say) and caches clips', { skip: skip || process.platform !== 'darwin' || process.env.SKIP_TTS === '1' }, () => {

@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadTimeline, formatTime } from '../engine/schema';
-import { assertReachable } from '../browser';
-import { ExportOptions, runExport, LiveSession } from './export';
+import { loadTimeline } from '../engine/schema';
+import { assertReachable, sanitizeUrl } from '../browser';
+import { ExportOptions, runExport, LiveSession, reportOutcome } from './export';
 
 export interface RecordOptions extends Omit<ExportOptions, 'output'> {
     url?: string;
@@ -23,17 +23,11 @@ export async function recordCommand(dir: string, options: RecordOptions): Promis
         const url = options.url || timeline.meta.url;
         if (!url) throw new Error('no URL: pass --url <url> or set meta.url in anim.config.json');
         if (options.storageState && !fs.existsSync(options.storageState)) throw new Error(`storage state file not found: ${options.storageState}`);
-        await assertReachable(url);
-        const session: LiveSession = { url, storageState: options.storageState, command: 'record' };
+        await assertReachable(url, { ignoreHttpsErrors: options.ignoreHttpsErrors });
+        const session: LiveSession = { url, storageState: options.storageState, command: 'record', timeline };
         const summary = await runExport(dir, { ...options, output: options.output || 'output.mp4' }, tempVideoDir, session);
-        const rel = (p: string) => { const r = path.relative(process.cwd(), p); return r && !r.startsWith('..') ? r : p; };
         const navs = summary.results.filter(r => r.navigated).length;
-        console.log(`\nSuccess! Recorded ${url} to ${rel(summary.output)} (${formatTime(summary.durationMs)}${navs ? `, ${navs} navigation${navs > 1 ? 's' : ''}` : ''})` +
-            (summary.vtt ? `, subtitles ${rel(summary.vtt)}` : '') +
-            (summary.chapters ? `, ${summary.chapters} chapters` : '') +
-            (summary.narration ? `, narration mixed in` : '') +
-            (summary.clips.length ? `, ${summary.clips.length} clips` : '') +
-            (summary.guide ? `, guide ${rel(path.dirname(summary.guide))}/` : '') + '.');
+        reportOutcome(`Recorded ${sanitizeUrl(url)} to`, summary, navs ? `, ${navs} navigation${navs > 1 ? 's' : ''}` : '');
     } catch (error: any) {
         console.error(`Record failed: ${error && error.message ? error.message : error}`);
         process.exitCode = 1;

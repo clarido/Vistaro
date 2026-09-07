@@ -10,8 +10,8 @@ export interface GuideStepJson {
     target?: string;
     scheduledMs: number;
     actualMs: number;
-    /** Moment the frame was taken: cursor actions at the interaction, state actions at completion. */
-    capturedAt: 'interaction' | 'completion';
+    /** Moment the frame was taken: cursor actions at the interaction, state actions at completion, navigating clicks at the arrival (before the click). */
+    capturedAt: 'interaction' | 'completion' | 'arrival';
     title?: string;
     subtitle?: string;
     narration?: string;
