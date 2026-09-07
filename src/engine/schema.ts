@@ -1,5 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { readManifest } from '../manifest';
+import { applyStrings, readStrings, resolveLocale, stringsPath } from './strings';
 
 /**
  * Timeline schema: parsing, normalization and validation of anim.config.json.
@@ -117,6 +119,10 @@ export interface Timeline {
     steps: Step[];
     /** true when the file was a bare array (legacy form). */
     legacy: boolean;
+    /** Locale the timeline was loaded for (--locale > manifest > meta.locale), when any. */
+    locale?: string;
+    /** Strings file applied by loadTimeline, with its key report. */
+    strings?: { file: string; locale: string; applied: string[]; unknown: string[]; missing: string[]; untranslated: string[] };
 }
 
 export interface Issue {
@@ -213,8 +219,14 @@ export function parseTimeline(raw: unknown): Timeline {
     return timeline;
 }
 
-/** Read and parse `<dir>/anim.config.json`. Throws with a readable message when missing or invalid. */
-export function loadTimeline(dir: string, _opts: { locale?: string } = {}): Timeline {
+/**
+ * Read and parse `<dir>/anim.config.json`, then overlay `strings.<locale>.json` when one exists for
+ * the resolved locale (--locale > anim.manifest.json locale > meta.locale). Every command loads
+ * its timeline through here, so a localized directory renders translated titles, subtitles,
+ * narration, notes and translatable typed values without touching the choreography.
+ * Throws with a readable message when missing or invalid.
+ */
+export function loadTimeline(dir: string, opts: { locale?: string } = {}): Timeline {
     const p = path.resolve(dir, 'anim.config.json');
     if (!fs.existsSync(p)) {
         throw new Error(`anim.config.json not found in ${path.resolve(dir)} (run \`init-config ${dir}\` to scaffold one)`);
@@ -225,11 +237,25 @@ export function loadTimeline(dir: string, _opts: { locale?: string } = {}): Time
     } catch (e: any) {
         throw new Error(`${p}: invalid JSON (${e.message})`);
     }
+    let timeline: Timeline;
     try {
-        return parseTimeline(raw);
+        timeline = parseTimeline(raw);
     } catch (e: any) {
         throw new Error(`${p}: ${e.message}`);
     }
+    const manifest = readManifest(dir);
+    const locale = resolveLocale(opts.locale, manifest.locale, timeline.meta.locale);
+    if (locale) {
+        timeline.locale = locale;
+        const file = stringsPath(dir, locale);
+        if (fs.existsSync(file)) {
+            let strings;
+            try { strings = readStrings(file); } catch (e: any) { throw new Error(e.message); }
+            const report = applyStrings(timeline, strings);
+            timeline.strings = { file, locale, ...report };
+        }
+    }
+    return timeline;
 }
 
 /** Milliseconds a `type` step spends typing. */

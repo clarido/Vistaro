@@ -67,9 +67,12 @@ RECORDING & MULTI-LANGUAGE EXPORTS:
 
   To reuse a timeline for another language instead of rebuilding it:
     => npx tsx cli.ts localize <output_dir> <locale>
-  This scaffolds <locale>/ with index.html + anim.config.json copied over. Translate
-  the visible text and "subtitle" strings only -- targets are CSS selectors, not
-  text, so the same choreography (clicks, camera pans, highlights) replays correctly.
+  This scaffolds <output_dir>/locales/<locale>/ with index.html + anim.config.json + media
+  copied over and a pre-filled strings.<locale>.json (titles, subtitles, narration, notes,
+  translatable typed text). Translate the strings file and the visible text of index.html
+  only -- targets are CSS selectors, not text, so the same choreography (clicks, camera
+  pans, highlights) replays correctly. Every command applies strings.<locale>.json for the
+  directory's locale (--locale > anim.manifest.json > meta.locale).
 
 CONFIG TIMELINES (anim.config.json):
   Run \`npx tsx cli.ts init-config <dir>\` to scaffold the JSON timeline schema:
@@ -237,10 +240,12 @@ program
 
 program
   .command('localize')
-  .description('Scaffold a translated locale directory from an existing output dir, reusing the same timeline/choreography')
+  .description('Scaffold <source_dir>/locales/<locale>/ with index.html, anim.config.json, media and a pre-filled strings.<locale>.json; the choreography is reused as is')
   .argument('<source_dir>', 'Existing output directory to localize from (contains index.html, optionally anim.config.json)')
-  .argument('<locale>', 'Target locale code, e.g. fr, es, ja')
-  .option('-o, --output-dir <dir>', 'Directory to scaffold into (default: a sibling directory named after the locale)')
+  .argument('<locale>', 'Target locale code, e.g. fr, es, pt-BR')
+  .option('-o, --output-dir <dir>', 'Directory to scaffold into (default: <source_dir>/locales/<locale>)')
+  .option('--sibling', 'Legacy layout: scaffold into a sibling directory named after the locale')
+  .option('--force', 'Overwrite an existing strings.<locale>.json in the target instead of merging')
   .action((src, locale, opts) => localizeCommand(src, locale, opts));
 
 program.parseAsync(process.argv).catch((e) => {

@@ -77,6 +77,14 @@
       "video": "demo.mp4",
       "contentHash": "sha256:e2693ac136839eb7c7bb8cbba925aef0ac9f10747ef59f80fcbca1a29d0ab0bd",
       "timestamp": "2026-09-06T22:22:11.797Z"
+    },
+    {
+      "command": "localize",
+      "locale": "fr",
+      "targetDir": "locales/fr",
+      "timestamp": "2026-09-07T00:30:05.413Z"
     }
-  ]
+  ],
+  "locale": "en",
+  "baseLocale": "en"
 }

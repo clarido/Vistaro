@@ -1,0 +1,81 @@
+{
+  "history": [
+    {
+      "command": "localize",
+      "sourceDir": "../..",
+      "locale": "fr",
+      "baseLocale": "en",
+      "timestamp": "2026-09-07T00:30:05.414Z"
+    },
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": false,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T00:30:22.742Z"
+    },
+    {
+      "command": "export",
+      "duration": 14.507,
+      "output": "demo-fr.mp4",
+      "device": "desktop",
+      "theme": "light",
+      "narration": false,
+      "subtitles": "demo-fr.vtt",
+      "chapters": 5,
+      "clips": [],
+      "locale": "en",
+      "driven": true,
+      "contentHash": "sha256:89995fbb64c3e8618a65deb5a2c158442907f58907dacdfe062280cdb272c80d",
+      "steps": [
+        {
+          "index": 1,
+          "id": "intro",
+          "actualMs": 2,
+          "completedMs": 805
+        },
+        {
+          "index": 2,
+          "id": "open-section",
+          "actualMs": 2006,
+          "completedMs": 2008
+        },
+        {
+          "index": 3,
+          "id": "focus-editor",
+          "actualMs": 4004,
+          "completedMs": 4013
+        },
+        {
+          "index": 4,
+          "id": "draft",
+          "actualMs": 5004,
+          "completedMs": 7687
+        },
+        {
+          "index": 5,
+          "id": "zoom",
+          "actualMs": 7007,
+          "completedMs": 8509
+        },
+        {
+          "index": 6,
+          "id": "pull-back",
+          "actualMs": 8504,
+          "completedMs": 10504
+        },
+        {
+          "index": 7,
+          "id": "closing",
+          "actualMs": 9005,
+          "completedMs": 12007
+        }
+      ],
+      "timestamp": "2026-09-07T00:30:42.859Z"
+    }
+  ],
+  "locale": "fr",
+  "baseLocale": "en"
+}

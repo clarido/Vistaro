@@ -38,6 +38,7 @@
       "action": "type",
       "target": "#editor-type-target",
       "value": "We will ensure rigorous compliance with all requirements.",
+      "translatable": true,
       "title": "Draft the response",
       "subtitle": "Drafting the response."
     },

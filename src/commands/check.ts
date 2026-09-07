@@ -139,6 +139,15 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
     }
     if (timeline) {
         issues.push(...validateTimeline(timeline));
+        if (timeline.strings) {
+            const st = timeline.strings;
+            const file = path.basename(st.file);
+            for (const key of st.unknown) issues.push({ level: 'warning', field: 'strings', message: `${file}: key "${key}" matches no step or field (step ids: ${timeline.steps.map(s => s.id).join(', ')})` });
+            if (st.missing.length) issues.push({ level: 'info', field: 'strings', message: `${file}: ${st.missing.length} string(s) missing, inline text used: ${st.missing.slice(0, 6).join(', ')}${st.missing.length > 6 ? ', …' : ''}` });
+            if (st.untranslated.length && timeline.locale !== timeline.meta.locale) issues.push({ level: 'info', field: 'strings', message: `${file}: ${st.untranslated.length} string(s) still identical to the source text: ${st.untranslated.slice(0, 6).join(', ')}${st.untranslated.length > 6 ? ', …' : ''}` });
+        } else if (timeline.locale && timeline.locale !== timeline.meta.locale) {
+            issues.push({ level: 'info', field: 'strings', message: `locale "${timeline.locale}" requested but no strings.${timeline.locale}.json next to anim.config.json; inline text used` });
+        }
         if (!options.static && !hasErrors(issues.filter(i => i.field === 'time' || i.field === 'action'))) {
             issues.push(...await browserCheck(dir, timeline, options, issues));
         } else if (!options.static) {
