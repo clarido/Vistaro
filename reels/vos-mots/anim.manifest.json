@@ -724,6 +724,47 @@
       "buildKey": "sha256:772e6d2aa5531098cf4f89477b66e8f4ea51c24f4a70eac222f7e64826870d57",
       "builtAt": "2026-09-07T21:49:43.618Z",
       "timestamp": "2026-09-07T21:49:43.621Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 209,
+          "completedMs": 933
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1507,
+          "completedMs": 3076
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3409,
+          "completedMs": 3931
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4505,
+          "completedMs": 5015
+        }
+      ],
+      "duration": 6.015,
+      "output": "../../../../../../private/tmp/claude-501/-Users-jf-Projects-test-anim-html-video/14516e46-9a33-4786-8e1b-167b639cd016/scratchpad/p3/v.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "timestamp": "2026-09-07T22:49:08.759Z"
     }
   ],
   "contentHash": {
