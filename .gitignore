@@ -22,3 +22,6 @@ preview-step-*.png
 .cache/
 *.vtt
 demo/guide/
+
+# build-all outputs
+/help-out/

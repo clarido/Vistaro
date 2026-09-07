@@ -11,6 +11,7 @@ import { previewCommand } from './src/commands/preview';
 import { initConfigCommand } from './src/commands/init-config';
 import { guideCommand } from './src/commands/guide';
 import { recordCommand } from './src/commands/record';
+import { buildAllCommand } from './src/commands/build-all';
 
 dotenv.config({ quiet: true });
 
@@ -237,6 +238,19 @@ program
   .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
   .option('-t, --theme <mode>', 'Color scheme mode: light or dark', 'light')
   .action((dir, opts) => guideCommand(dir, opts));
+
+program
+  .command('build-all')
+  .description('Build every guide x locale of help.catalog.json (check, build, export|record --guide) into <outputDir>/<slug>/<locale>/ and write index.json + index.md; exit 1 on any failure')
+  .argument('[catalog]', 'Catalog file', 'help.catalog.json')
+  .option('--changed-only', 'Skip guides whose sources hash to what their manifest recorded for that locale')
+  .option('--diff', 'Keep the previous step frames and mark a guide stale when a frame changed beyond --diff-threshold')
+  .option('--diff-threshold <fraction>', 'Fraction of changed pixels that marks a guide stale', '0.02')
+  .option('--only <slug>', 'Build one guide')
+  .option('--locale <code>', 'Build one locale')
+  .option('--continue-on-error', 'Keep going after a failed guide (default: stop at the first failure)')
+  .option('--dry-run', 'Print the commands per guide x locale without running them')
+  .action((catalog, opts) => buildAllCommand(catalog, opts));
 
 program
   .command('localize')

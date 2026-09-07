@@ -154,6 +154,9 @@ test('localize scaffolds locales/<code>/ with copies, base + target strings, man
     const forced = cli(['localize', dir, 'fr', '--force']);
     assert.equal(forced.status, 0, forced.stderr);
     assert.ok(!fs.readFileSync(path.join(fr, 'index.html'), 'utf8').includes('<!-- traduit -->'), '--force overwrote index.html');
+    assert.match(forced.stderr, /Overwrote existing index\.html \(--force\)/);
+    assert.match(forced.stderr, /Overwrote existing anim\.config\.json \(--force\)/);
+    assert.match(forced.stderr, /Overwrote existing strings\.fr\.json \(translations lost\) \(--force\)/);
     assert.equal(readStrings(path.join(fr, 'strings.fr.json'))['steps.open.subtitle'], 'Open it.', '--force reset the strings');
     // localeDirs enumerates locales/* (and --sibling dirs known from the manifest)
     assert.deepEqual(localeDirs(dir).map(l => [l.locale, l.layout]), [['fr', 'locales']]);

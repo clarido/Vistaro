@@ -44,9 +44,13 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
     const rel = (p: string) => { const r = path.relative(process.cwd(), p); return r && !r.startsWith('..') ? r : p; };
     const kept: string[] = [];
     const copied: string[] = [];
+    const overwritten: string[] = [];
     const copyUnlessPresent = (from: string, name: string) => {
         const to = path.join(targetDir, name);
-        if (fs.existsSync(to) && !options.force) { kept.push(name); return; }
+        if (fs.existsSync(to)) {
+            if (!options.force) { kept.push(name); return; }
+            overwritten.push(name);
+        }
         fs.copyFileSync(from, to);
         copied.push(name);
     };
@@ -116,6 +120,7 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
             writeStrings(targetStringsFile, { ...seed, ...existing });
             kept.push(path.basename(targetStringsFile) + ' (merged)');
         } else {
+            if (fs.existsSync(targetStringsFile)) overwritten.push(path.basename(targetStringsFile) + ' (translations lost)');
             writeStrings(targetStringsFile, seed);
         }
     }
@@ -127,6 +132,7 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
 
     console.log(`\nScaffolded locale "${locale}" at ${rel(targetDir)}: copied ${copied.join(', ') || 'nothing new'}${mediaCopied ? `, ${mediaCopied} media file(s)` : ''}${targetStringsFile ? `; ${Object.keys(baseStrings!).length} strings` : ''}.`);
     for (const k of kept) console.log(`Kept existing ${k} (use --force to overwrite).`);
+    for (const o of overwritten) console.error(`warning  Overwrote existing ${o} (--force): the previous content is gone.`);
     if (sourceStringsFile) console.log(`Base strings (${baseLocale}): ${rel(sourceStringsFile)} (regenerated from anim.config.json).`);
     console.log(`\nNext steps:`);
     if (targetStringsFile) console.log(`  1. Translate the values in ${rel(targetStringsFile)} (titles, subtitles, narration, notes, translatable typed text). Keys and anim.config.json stay as they are.`);

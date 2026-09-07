@@ -1,0 +1,19 @@
+{
+  "outputDir": "help-out",
+  "defaults": {
+    "locales": ["en", "fr"],
+    "outputs": ["video", "guide"],
+    "width": 1920,
+    "height": 1080,
+    "theme": "light",
+    "narration": false,
+    "crop": 120
+  },
+  "guides": [
+    {
+      "slug": "draft-proposal-response",
+      "dir": "demo",
+      "title": "Draft a proposal response"
+    }
+  ]
+}
