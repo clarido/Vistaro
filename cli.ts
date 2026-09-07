@@ -139,8 +139,9 @@ program
 program
   .command('check')
   .description('Validate anim.config.json: schema, timing, and (unless --static) every target selector in a headless browser')
-  .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
+  .argument('<output_dir>', 'Directory containing anim.config.json (and index.html unless --live)')
   .option('--static', 'Schema and timing checks only, no browser')
+  .option('--live', 'Validate a timeline meant for `record` (live page): navigate/waitFor allowed, no index.html needed, no browser probe')
   .option('--json', 'Print the issues as JSON on stdout')
   .option('--locale <code>', 'Locale code (e.g. en, fr)')
   .option('-w, --width <pixels>', 'Viewport width for the browser pass')
@@ -243,13 +244,14 @@ program
   .command('build-all')
   .description('Build every guide x locale of help.catalog.json (check, build, export|record --guide) into <outputDir>/<slug>/<locale>/ and write index.json + index.md; exit 1 on any failure')
   .argument('[catalog]', 'Catalog file', 'help.catalog.json')
-  .option('--changed-only', 'Skip guides whose sources hash to what their manifest recorded for that locale')
+  .option('--changed-only', 'Skip a guide x locale whose build key (sources + render settings + tool version) matches what its manifest recorded')
   .option('--diff', 'Keep the previous step frames and mark a guide stale when a frame changed beyond --diff-threshold')
   .option('--diff-threshold <fraction>', 'Fraction of changed pixels that marks a guide stale', '0.02')
   .option('--only <slug>', 'Build one guide')
   .option('--locale <code>', 'Build one locale')
   .option('--continue-on-error', 'Keep going after a failed guide (default: stop at the first failure)')
-  .option('--dry-run', 'Print the commands per guide x locale without running them')
+  .option('--dry-run', 'Print the plan per guide x locale and stop: nothing is created, written or recorded')
+  .option('--verbose', 'Also stream the child commands\' stdout (their stderr is always streamed, prefixed with slug/locale)')
   .action((catalog, opts) => buildAllCommand(catalog, opts));
 
 program

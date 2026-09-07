@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
-import { Step, Timeline, captureAtFor } from '../engine/schema';
+import { Step, Timeline, captureAtFor, DEFAULT_CAMERA_DURATION_S, DEFAULT_FADE_MS, DEFAULT_SCROLL_MS } from '../engine/schema';
 import { runTimeline, StepResult, errorMessage, LiveOptions, isNavigationError } from '../engine/driver';
 
 /**
@@ -68,6 +68,9 @@ export interface GuideCapture {
 }
 
 /** Steps that get a guide entry: not `guide: false`, and not a target-less wait/camera/scroll. */
+/** Steps whose frame is taken once their CSS transition has settled (see whenSettled in the runtime). */
+const SETTLE_ACTIONS: ReadonlySet<string> = new Set(['fadeIn', 'transitionScreen', 'camera', 'scroll']);
+
 export function isGuideStep(step: Step): boolean {
     if (step.guide === false) return false;
     if (!step.target && (step.action === 'wait' || step.action === 'camera' || step.action === 'scroll')) return false;
@@ -139,6 +142,15 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
                 rect: result.rect ?? null, targetRect: result.targetRect, callout: null, error: result.error,
             };
             try {
+                // Transition-driven steps complete on the runtime's timer a few frames before the CSS
+                // transition visibly settles; wait for the animations themselves (target subtree + stage),
+                // bounded by the declared duration plus a margin, so unedited re-runs diff at ~0%.
+                if (SETTLE_ACTIONS.has(step.action) && !result.error && entry.capturedAt === 'completion') {
+                    const declaredMs = step.action === 'camera' ? (step.duration ?? DEFAULT_CAMERA_DURATION_S) * 1000
+                        : step.action === 'scroll' ? DEFAULT_SCROLL_MS
+                        : (typeof step.duration === 'number' ? step.duration * 1000 : DEFAULT_FADE_MS);
+                    await page.evaluate((o) => (window as any).__anim.whenSettled(o), { target: step.target, timeoutMs: Math.max(1000, declaredMs + 500) });
+                }
                 // Subtitle bar (and optionally the cursor) hidden for EVERY guide frame, the poster included:
                 // a subtitle burned into the cover image would also leak the previous locale's text.
                 await page.evaluate((o) => (window as any).__anim.beginCapture(o), { hideCursor: !!opts.hideCursor });

@@ -518,10 +518,16 @@
   }
 
   // --- runStep: one step, from cursor travel to interaction --------------------------
+  var NOT_STARTED = 'runtime not started on this document (the page navigated before this step; the driver must re-boot it)';
+
   function runStep(step, o) {
     o = o || {};
     return new Promise(function (resolve, reject) {
       onReady(function () {
+        // Under a driver, a document that was never booted/started is a navigation the driver has not
+        // seen yet: refuse instead of silently booting with default options and a clock at 0
+        // (which is how a step could report actualMs = 0 without an error).
+        if (window.__ANIM_DRIVEN && (!state.booted || state.t0 == null)) { reject(new Error(NOT_STARTED)); return; }
         if (!state.booted) boot({});
         try { runStepReady(step, o, resolve, reject); } catch (e) { reject(e); }
       });
@@ -701,6 +707,43 @@
     return Promise.all(all).then(function () { return now(); });
   }
 
+  /**
+   * Resolve once every CSS animation/transition running on the target's subtree and on the stage
+   * (body/documentElement, the camera's transform) has finished, or after opts.timeoutMs (default
+   * 3000). Guide frames of fadeIn/transitionScreen/camera/scroll steps are taken after this so a
+   * frame does not land a few frames before the transition settles (a 1-2% pixel diff otherwise).
+   * Returns { waited: ms, animations: n }.
+   */
+  function whenSettled(opts) {
+    opts = opts || {};
+    var started = now();
+    var timeoutMs = typeof opts.timeoutMs === 'number' ? opts.timeoutMs : 3000;
+    var list = [];
+    var seen = [];
+    function collect(root, subtree) {
+      if (!root || typeof root.getAnimations !== 'function') return;
+      var anims = [];
+      try { anims = root.getAnimations(subtree ? { subtree: true } : undefined); } catch (e) { anims = []; }
+      anims.forEach(function (a) {
+        if (seen.indexOf(a) >= 0) return;
+        seen.push(a);
+        if (a.playState === 'finished' || a.playState === 'idle') return;
+        list.push(a.finished.catch(function () {}));
+      });
+    }
+    var el = null;
+    if (opts.target) { try { el = document.querySelector(opts.target); } catch (e) { el = null; } }
+    collect(el, true);
+    collect(document.body, false);
+    collect(document.documentElement, false);
+    // The overlay layer (cursor, spotlight, callouts) is ours; skip it so a long cursor glide does not hold the frame.
+    if (!list.length) return Promise.resolve({ waited: 0, animations: 0 });
+    var timer = new Promise(function (resolve) { setTimeout(resolve, timeoutMs); });
+    return Promise.race([Promise.all(list), timer]).then(function () {
+      return { waited: Math.round(now() - started), animations: list.length };
+    });
+  }
+
   // --- optional in-page scheduler (only when animated.html is opened directly) ---------
   function leadFor(step, prev) {
     var t = timeMsOf(step);
@@ -753,6 +796,7 @@
     act: act,
     whenDone: whenDone,
     whenIdle: whenIdle,
+    whenSettled: whenSettled,
     now: now,
     isReady: function () { return state.ready; },
     getState: function () {

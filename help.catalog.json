@@ -2,7 +2,7 @@
   "outputDir": "help-out",
   "defaults": {
     "locales": ["en", "fr"],
-    "outputs": ["video", "guide"],
+    "outputs": ["guide"],
     "width": 1920,
     "height": 1080,
     "theme": "light",

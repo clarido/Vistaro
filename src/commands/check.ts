@@ -7,6 +7,8 @@ import { extractStrings, isAutoStepId } from '../engine/strings';
 
 export interface CheckOptions extends ViewportOptions {
     static?: boolean;
+    /** Validate for `record` (a live page): navigate/waitFor are expected, no index.html and no browser probe. */
+    live?: boolean;
     json?: boolean;
     locale?: string;
 }
@@ -139,7 +141,7 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
         issues.push({ level: 'error', message: e.message });
     }
     if (timeline) {
-        issues.push(...validateTimeline(timeline));
+        issues.push(...validateTimeline(timeline, { live: !!options.live }));
         if (timeline.strings) {
             const st = timeline.strings;
             const file = path.basename(st.file);
@@ -156,7 +158,10 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
             const ids = [...new Set(auto)];
             if (ids.length) issues.push({ level: 'warning', field: 'id', message: `${ids.length} localized step(s) use auto-generated ids (${ids.slice(0, 4).join(', ')}${ids.length > 4 ? ', …' : ''}); give them explicit "id"s so inserting a step does not re-attach their translations` });
         }
-        if (!options.static && !hasErrors(issues.filter(i => i.field === 'time' || i.field === 'action'))) {
+        if (options.live) {
+            // A live page's targets can only be probed by `record` itself (login, navigations, storage state).
+            note = 'Live timeline: targets are probed by `record` against the page, not here.';
+        } else if (!options.static && !hasErrors(issues.filter(i => i.field === 'time' || i.field === 'action'))) {
             issues.push(...await browserCheck(dir, timeline, options, issues));
         } else if (!options.static) {
             note = 'Browser pass skipped until the timing/action errors above are fixed.';

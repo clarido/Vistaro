@@ -4,6 +4,7 @@ import { AddressInfo } from 'net';
 /**
  * Tiny live-app fixture (no dependencies) exercising what a file:// mockup cannot:
  *   GET  /login        login form (POST sets a cookie and 302-redirects: a full navigation)
+ *   GET  /delayed-link a button that navigates to /flash by script 400ms after the click
  *   GET  /dashboard    needs the cookie; renders a list asynchronously after `listDelayMs`,
  *                      has an SPA-style route change (pushState, no reload) and a link to /details/1
  *   GET  /details/1    third page with a textarea
@@ -70,6 +71,12 @@ export function startLiveApp(opts: { listDelayMs?: number; respDelayMs?: number 
         }
         if (url.pathname === '/flash') {
             send(200, `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#fff;height:100vh}button{position:absolute;left:10px;top:10px}</style></head><body><button data-help="flash" onclick="document.body.style.background='#f00'">go</button></body></html>`);
+            return;
+        }
+        if (url.pathname === '/delayed-link') {
+            // The click itself does nothing visible; the page navigates by script 400ms later, after
+            // the driver has already checked the (still current) document for the next step.
+            send(200, page('Delayed', `<main><h1>Somewhere</h1><button data-help="delayed-go" onclick="setTimeout(function () { location.href = '/flash'; }, 400)">Save and continue</button></main>`));
             return;
         }
         if (url.pathname === '/hang-link') {

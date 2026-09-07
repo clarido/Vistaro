@@ -175,6 +175,11 @@ export async function stopLoading(page: Page): Promise<void> {
  * (concurrent callers share one boot) and time-boxed (a navigation that never loads is stopped
  * with window.stop() and reported instead of hanging the recording).
  */
+/** The runtime's refusal to run on a document the driver never started (see runStep in runtime.js). */
+export function isNotStartedError(e: unknown): boolean {
+    return /runtime not started on this document/.test(errorMessage(e));
+}
+
 export async function ensureLive(page: Page, live: LiveOptions, state: RunState): Promise<boolean> {
     if (state.rebooting) return state.rebooting;
     const timeoutMs = live.navigationTimeoutMs ?? 15000;
@@ -254,6 +259,15 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
             }
             result.waitedMs = Date.now() - started;
         }
+        // A redirect that had not committed at the check above (a slow server: the click's response
+        // arrives during waitFor) is a new document now; re-boot it here rather than firing into a
+        // runtime that was never started.
+        if (live && state.needsReboot && !result.error) {
+            try {
+                const rebooted = await ensureLive(page, live, state);
+                if (rebooted && i > 0 && results[i - 1]) results[i - 1].navigated = true;
+            } catch (e: any) { appendError(result, `re-boot after navigation: ${errorMessage(e)}`); }
+        }
         return result;
     };
 
@@ -273,15 +287,27 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
         const twoPhase = !!(opts.captureBeforeAct && opts.captureBeforeAct(step));
         let token: number | undefined;
         let afterStepDone = false;
+        const evaluateStep = () => withTimeout(
+            page.evaluate(
+                ([s, o]) => (window as any).__anim.runStep(s, o),
+                [step, { leadMs, instant: !!opts.instant, holdBeforeAct: twoPhase }] as [Step, { leadMs: number; instant: boolean; holdBeforeAct: boolean }],
+            ),
+            stepTimeoutMs,
+            label(step),
+        );
+        // A document the driver has not started (a navigation committed after prepare's re-boot
+        // check) is re-booted once and the step retried; anything else is the step's error.
+        const runStepOnPage = async (): Promise<StepResult & { token?: number; phase?: string }> => {
+            try { return await evaluateStep(); }
+            catch (e: any) {
+                if (!live || !isNotStartedError(e)) throw e;
+                const rebooted = await ensureLive(page, live, state);
+                if (rebooted && i > 0 && results[i - 1]) results[i - 1].navigated = true;
+                return await evaluateStep();
+            }
+        };
         try {
-            const r: StepResult & { token?: number; phase?: string } = await withTimeout(
-                page.evaluate(
-                    ([s, o]) => (window as any).__anim.runStep(s, o),
-                    [step, { leadMs, instant: !!opts.instant, holdBeforeAct: twoPhase }] as [Step, { leadMs: number; instant: boolean; holdBeforeAct: boolean }],
-                ),
-                stepTimeoutMs,
-                label(step),
-            );
+            const r = await runStepOnPage();
             if (r.phase === 'arrival') {
                 // Two-phase: capture at the arrival, then act.
                 const holdToken = r.token!;
@@ -308,6 +334,8 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
                 Object.assign(result, r);
             }
             if (result.point) state.lastPoint = result.point;
+            // The runtime measures actualMs on its own clock; a step without a measurement is a bug, not a timing.
+            if (!result.error && !(result.actualMs >= 0)) appendError(result, `no interaction time was measured (actualMs ${result.actualMs})`);
         } catch (e: any) {
             if (navigatedOk(e)) {
                 // The interaction itself navigated (form submit, link): count it as done at this moment.
