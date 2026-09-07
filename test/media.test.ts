@@ -100,6 +100,13 @@ test('encodeGif caps the long edge in either orientation', { skip: process.env.S
         assert.equal(dims(c), '720x1558', 'width: still pins the width');
 
         assert.match(describeAsset(a), /720x406, \d+/);
+
+        // The miss branch has to stay LOUD: a bare size reads exactly like a normal line, so a
+        // reader cannot tell "nothing parsed" from "this asset has no dimensions".
+        const notMedia = path.join(dir, 'notes.json');
+        fs.writeFileSync(notMedia, '{"not":"media"}');
+        assert.match(describeAsset(notMedia), /^dimensions unknown, /);
+        assert.equal(describeAsset(path.join(dir, 'absent.gif')), 'unknown size');
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
     }

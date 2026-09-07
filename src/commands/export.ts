@@ -450,9 +450,11 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         // A reel ships in every form a homepage needs: WebM beside the MP4, a poster to show before
         // playback, and a GIF for the places that take neither.
         if (reel) {
+            console.log(`  ${path.basename(outputFile)}: ${describeAsset(outputFile)}`);
             summary.webm = base + '.webm';
             console.log(`Encoding WebM: ${summary.webm}...`);
             encodeWebm(webmFile, summary.webm, { startMs: startOffsetMs, durationMs });
+            console.log(`  ${path.basename(summary.webm)}: ${describeAsset(summary.webm)}`);
             summary.poster = base + '.poster.png';
             // The poster is the payoff frame, not the opening one: a reel's first step is usually a
             // reveal, so its own time shows a half-faded element over an empty panel. Default to the
@@ -471,6 +473,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             posterAtMs = Math.min(Math.max(0, posterAtMs), Math.max(0, durationMs - 100));
             console.log(`Extracting poster at ${(posterAtMs / 1000).toFixed(2)}s: ${summary.poster}...`);
             extractPoster(outputFile, summary.poster, posterAtMs);
+            console.log(`  ${path.basename(summary.poster)}: ${describeAsset(summary.poster)}`);
             summary.gif = base + '.gif';
             console.log(`Encoding GIF (long edge ${REEL_GIF_LONG_EDGE}px, ${REEL_GIF_FPS}fps): ${summary.gif}...`);
             encodeGif(webmFile, summary.gif, { startMs: startOffsetMs, durationMs, ...gifOptions });

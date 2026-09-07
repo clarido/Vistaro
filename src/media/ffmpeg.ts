@@ -173,7 +173,9 @@ export function describeAsset(file: string): string {
     const size = mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
     const stderr = run(['-i', file], { allowFailure: true }).stderr;
     const dims = /,\s(\d{2,5}x\d{2,5})[\s,]/.exec(stderr);
-    return dims ? `${dims[1]}, ${size}` : size;
+    // A silent drop is the worse failure: the line still reads like a normal one, so a reader
+    // cannot tell "no dimensions parsed" from "this asset has none". Say which half is missing.
+    return dims ? `${dims[1]}, ${size}` : `dimensions unknown, ${size}`;
 }
 
 /** Chapters as ffmpeg lists them (`Chapter #0:N: start S, end E` + title), for verification. */

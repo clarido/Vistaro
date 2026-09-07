@@ -13,6 +13,10 @@
       "dir": "reels/ask-anything",
       "title": "Ask anything",
       "kind": "reel",
+      "locales": [
+        "en",
+        "fr"
+      ],
       "devices": [
         "desktop",
         "mobile"
