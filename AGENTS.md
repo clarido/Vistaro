@@ -1,10 +1,8 @@
-# CLAUDE.md
+# Agent manual: Screenshot Animator CLI
 
-## What is this project?
+This is the manual for an AI agent (Claude Code, Codex, Antigravity) or a person driving the CLI. It turns a **screen** (`index.html`) plus a **timeline** (`anim.config.json`) into a demo **video** (MP4 + subtitles + chapters, optional narration), a **step-by-step help guide** (`guide.json` / `guide.md` / `guide.html` + frames), and the same for **every language**, and it can do that against a **live web page** instead of a mockup. `help.catalog.json` + `build-all` produce a whole help site's worth of guides in one command.
 
-Screenshot Animator CLI -- a Node.js/TypeScript CLI that converts screenshots into animated HTML/CSS mockups and exports them as MP4 or GIF videos. It uses Vision LLMs to extract UI from images, Text LLMs to generate CSS animations, and Playwright + FFmpeg to record the result.
-
-Built to be used **by AI agents directly**. When an agent (Claude Code, Codex, Antigravity) is driving, it skips the LLM API calls entirely -- the agent writes the HTML and animations itself, then only calls `export`.
+You are the LLM. You write the screen and the timeline yourself; the CLI needs **no API key** for anything below except the optional `extract`/`animate` commands.
 
 ## Setup
 
@@ -13,140 +11,507 @@ npm install
 npx playwright install chromium
 ```
 
-API keys are optional when used by an agent. For standalone usage, set `GEMINI_API_KEY` or `ANTHROPIC_API_KEY` in `.env` or as environment variables.
+Node >= 20. TypeScript runs through `tsx` (no build step). ffmpeg is bundled (`ffmpeg-static`). Narration uses `OPENAI_API_KEY` when set, else macOS `say`.
 
-## Project structure
+## Workflow
+
+Every command below prints what it wrote; `npx tsx cli.ts --help` and `npx tsx cli.ts <command> --help` are the reference.
+
+1. **Write the screen.** Put a faithful mockup of the UI in `<dir>/index.html` (inline CSS, real element ids/classes; when the user pasted screenshots, reproduce each one; several screens can live in one file as sections you fade between). Media files referenced from `index.html` go next to it.
+2. **Write the timeline.** `npx tsx cli.ts init-config <dir>` scaffolds `<dir>/anim.config.json` in object form; edit it to match your selectors. Give every step an explicit `id` (translations and guide frames attach to it).
+3. **Check.** `npx tsx cli.ts check <dir>` validates the schema and timing statically, then replays the timeline in a headless browser and probes every target right before its step (missing, hidden, 0x0, clipped, off-screen). Fix errors; read the warnings.
+4. **Build.** `npx tsx cli.ts build <dir>` writes `<dir>/animated.html`, a self-playing page with the cursor, spotlight, ripple, camera and subtitles injected. Open it in a browser if you want to watch it.
+5. **Preview and iterate.** `npx tsx cli.ts preview <dir>` writes `<dir>/preview.png`, one labelled frame per step (`--step N` writes a single full-size `preview-step-N.png`). **Read the PNG** with your image tool, fix the timeline (a badly placed camera, a subtitle that overlaps, a step that fires too early), and repeat 3 to 5 until the frames look right.
+6. **Export.** `npx tsx cli.ts export <dir> -o demo.mp4 --guide --narration` records the video (length computed from the timeline plus `meta.tailMs`), writes `demo.vtt`, embeds chapters for titled steps, mixes the narration, then captures the guide into `<dir>/guide/`. `--clips mp4` also cuts one clip per step. A `.gif` output skips audio, chapters and subtitles.
+7. **Localize.** `npx tsx cli.ts localize <dir> fr` scaffolds `<dir>/locales/fr/` and a pre-filled `strings.fr.json`; translate the strings and the visible text of the copied `index.html`, then `check`, `build`, `export` that directory. See [Localization](#localization).
+8. **Build everything.** Describe the guides once in `help.catalog.json` and run `npx tsx cli.ts build-all --changed-only --diff`. See [Catalog and build-all](#catalog-and-build-all).
+
+For a **live app** replace steps 1 and 4 with selectors in the real page and use `record` instead of `export`. See [Live pages](#live-pages).
+
+Cinematic polish is built in: click/focus/type/highlight/hover steps get a glowing spotlight on the target and a click ripple, `camera` pushes in on an element, `scroll` brings it into view, the cursor glides with a slight drift, and subtitles are drawn as an overlay. There is nothing to paste into `index.html`.
+
+## Timeline: `anim.config.json`
+
+Object form (a bare array of steps is still accepted):
+
+```json
+{
+  "meta": { "title": "Create your first report", "slug": "create-first-report", "app": "My App", "locale": "en", "cursor": "mac", "tailMs": 2500 },
+  "steps": [
+    { "id": "intro",  "time": "0s",   "action": "fadeIn", "target": "body", "title": "Overview", "subtitle": "Welcome to the dashboard.", "narration": "Start on the dashboard to review your reports." },
+    { "id": "open",   "time": "2s",   "action": "click", "target": ".btn-primary", "title": "Open the report builder", "subtitle": "Click the primary button to begin.", "note": "The button is in the top-right corner." },
+    { "id": "prompt", "time": "3.5s", "action": "type", "target": ".chat-input", "value": "Generate a report", "title": "Describe the report", "translatable": true },
+    { "id": "zoom",   "time": "5.5s", "action": "camera", "target": ".chat-input", "scale": 1.3, "duration": 2, "guide": false },
+    { "id": "notice", "time": "8s",   "action": "highlight", "target": "#status", "title": "Watch the status" },
+    { "id": "result", "time": "10s",  "action": "transitionScreen", "target": "#screen2", "duration": 0.8, "title": "Review the result" }
+  ]
+}
+```
+
+### `meta`
+
+| Field | Meaning |
+|---|---|
+| `title` | Guide title (H1 of `guide.md`, `<title>` of `guide.html`, `meta.title` string key). |
+| `slug` | Identifier used in `guide.json`; defaults to the directory name. |
+| `app` | Application name shown in the guide. |
+| `url` | Default page for `record` (live pages). |
+| `locale` | Language of the inline text (default `en`). |
+| `tailMs` | Hold after the last step, default 2500 (`--tail` overrides). |
+| `cursor` | `mac`, `windows` or `none` (default `mac`). |
+| `resetFocusStyles` | Neutralize the page's own `:focus` outlines during recording. |
+| `drift` | Cursor drift on long glides (default on; `false` for pixel-exact tests). |
+| `voice` | `{ "openai": "alloy", "say": "Samantha" }` narration voices per engine. |
+
+### Steps
+
+| Field | Meaning |
+|---|---|
+| `id` | Stable identifier. Strings files and guide frames attach to it; auto ids (`step-03`) shift when a step is inserted, so `check`/`localize` warn about them once a strings file exists. |
+| `time` | **Moment of the interaction** (the click, the first typed character, the highlight pulse): `"2s"`, `"2000ms"` or a number of seconds. The cursor starts travelling up to 950 ms earlier (lead = min(950 ms, gap to the previous step, time)). Steps must be in order. |
+| `action` | See the table below. |
+| `target` | CSS selector. Required for click, focus, type, highlight, hover, scroll, fadeIn, transitionScreen. A 0x0 target (an empty caret span) is spotlighted through its sized ancestor. |
+| `value` | Text for `type` (typed at `cps` characters per second, default 25) or the key for `press` (`Enter`, `Tab`, `Control+K`). |
+| `title` | Step heading in the guide and the chapter name in the MP4. |
+| `subtitle` | Shown in the video's subtitle bar from `time` until the next subtitle (held at most 4 s, at least 1 s) and written to the `.vtt`; also the narration text when `narration` is absent. `null` clears the bar. |
+| `narration` | Text spoken at `time` with `--narration` (mixed into the MP4). |
+| `note` | Extra sentence under the step in the guide. |
+| `translatable` | `true` when `value` is user-visible text that must be translated (it becomes a string key). |
+| `crop` | Guide crop padding in px for this step, or `false` for the full frame only. |
+| `guide` | `false` hides the step from the guide (it still runs in the video). |
+| `captureAt` | Override the guide/preview frame moment: `"interaction"` or `"completion"`. |
+| `waitFor` | Live pages: a selector to wait for (visible) or a number of ms before the cursor moves; the delay shifts the rest of the timeline. |
+| `url` | `navigate` (live pages): the page to open. |
+| `scale`, `x`, `y`, `xOffset`, `yOffset` | `camera`: zoom factor (default 1, a pan without zoom; 1.3 is a typical push-in) and framing; `x`/`y` centre the camera on a point instead of a target, `xOffset`/`yOffset` nudge the framing. |
+| `duration` | Seconds. `camera`: length of the pan (default 2.5). `fadeIn`/`transitionScreen`: length of the fade (default: the element's own CSS transition, else 0.8 s). |
+
+### Actions and the guide capture rule
+
+| Action | What happens | Guide frame taken |
+|---|---|---|
+| `click` | Cursor travels, spotlight, press, ripple, real `el.click()` so the page's own handlers run. | At the interaction (+300 ms settle), spotlight held. |
+| `focus` | Cursor travels, spotlight, `el.focus()`. | Interaction. |
+| `type` | Cursor travels, focuses, types `value` character by character (inputs, textareas, contenteditable, plain elements with a caret). | Completion (full text visible). |
+| `highlight` | Spotlight pulse without a click ("notice this"). | Interaction. |
+| `hover` | Cursor moves onto the element. | Interaction. |
+| `press` | Keyboard key from `value` (no target). | Interaction. |
+| `camera` | Pan/zoom the page toward the target (or `x`/`y`); `scale: 1` pulls back. | Completion (zoomed framing). |
+| `scroll` | Smooth-scroll the target into view. | Completion. |
+| `fadeIn` | Reveal the target (display/opacity) with a fade. | Completion. |
+| `transitionScreen` | Fade the current screen out and the target screen in. | Completion. |
+| `navigate` | Live pages only: open `url`. | Arrival on the new page. |
+| `wait` | Nothing visible; a beat, or a subtitle change. | Interaction (the moment of the step). |
+
+Frames of completion-type steps are taken once the CSS animations on the target and the page have finished, so an unedited re-run reproduces the same pixels.
+
+## Outputs
+
+`export <dir> -o demo.mp4 --guide` writes, next to the video: `demo.vtt` (subtitles), chapters inside the MP4, and `<dir>/guide/`:
 
 ```
-cli.ts                    # Entry point (commander CLI)
-src/
-  commands/
-    extract.ts            # Screenshot -> HTML/CSS via Vision LLM
-    animate.ts            # HTML -> animated HTML via Text LLM
-    export.ts             # Playwright + FFmpeg recording to MP4/GIF
-    localize.ts           # Scaffold a translated locale dir from an existing one
-  providers.ts            # LLM provider abstraction (Gemini, Claude)
-  manifest.ts             # Writes anim.manifest.json -- a recorded history of commands run per output dir
+guide/
+  guide.json          the contract below
+  guide.md            H1, "## N. title", note, image, subtitle quote, video link
+  guide.html          the same with the video inline (chapters + cues)
+  assets/
+    poster.png        first frame (no subtitle bar)
+    step-01.png       full frame per guide step, numbered badge + spotlight
+    step-01.crop.png  the spotlighted box with `crop` padding (absent when it would be the whole frame)
+    step-01.mp4       with --clips
 ```
 
-## Getting help
+### `guide.json` (version 1)
 
-Run `npx tsx cli.ts --help` for the full usage guide, or get help for a specific command:
+```jsonc
+{
+  "version": 1, "slug": "create-first-report", "title": "Create your first report", "app": "My App",
+  "locale": "fr", "baseLocale": "en", "generatedAt": "2026-09-06T12:00:00.000Z",
+  "source": { "dir": "demo", "contentHash": "sha256:…", "tool": "screenshot-animator@2.0.0" },
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 2, "theme": "light" },
+  "video": { "file": "../demo.mp4", "durationMs": 14200, "poster": "assets/poster.png", "subtitles": "../demo.vtt", "narration": true,
+             "chapters": [{ "startMs": 2000, "endMs": 3500, "title": "Open the report builder" }],
+             "cues": [{ "startMs": 2000, "endMs": 3500, "text": "Click the primary button to begin." }] },
+  "steps": [{
+    "index": 2, "number": 1, "id": "open", "action": "click", "target": ".btn-primary",
+    "scheduledMs": 2000, "actualMs": 2004, "capturedAt": "interaction",
+    "title": "Open the report builder", "subtitle": "Click the primary button to begin.", "narration": "…", "note": "…",
+    "image": "assets/step-02.png", "crop": "assets/step-02.crop.png",
+    "rect": { "x": 1620, "y": 24, "width": 180, "height": 40 }, "targetRect": null,
+    "callout": { "number": 1, "x": 1606, "y": 10 }, "clip": "assets/step-02.mp4", "error": null
+  }]
+}
+```
+
+`index` is the position in the timeline, `number` the guide numbering (steps with `guide: false` are skipped). `actualMs` is measured in the page; `scheduledMs` is what the timeline said. `rect` is the box the spotlight framed (the sized ancestor of a 0x0 target); `rect` and `callout` are `null` only for target-less or failed steps. Paths are relative to the guide directory; `source.dir` is a basename, never an absolute path.
+
+## Localization
+
+Text lives in two places: the visible copy of `index.html`, and the timeline's `title`, `subtitle`, `narration`, `note` and translatable `value` strings. The second set is externalized into flat `strings.<locale>.json` files:
+
+```json
+{ "meta.title": "Créer votre premier rapport", "steps.open.title": "Ouvrir le générateur", "steps.open.subtitle": "Cliquez sur le bouton principal.", "steps.prompt.value": "Générer un rapport" }
+```
+
+`npx tsx cli.ts localize <dir> fr`:
+- regenerates `<dir>/strings.en.json` (the base locale) from the inline text and lists keys that changed since the last run;
+- creates `<dir>/locales/fr/` with `index.html`, `anim.config.json` and the media `index.html` references, plus `strings.fr.json` pre-filled with the source text;
+- re-running keeps the translator's `index.html`, `anim.config.json` and translations, adding new keys only (`--force` overwrites and says which files it replaced).
+
+Then translate `strings.fr.json` and the visible text in `locales/fr/index.html`, keeping ids/classes unchanged, and run `check`, `build`, `preview`, `export` on `<dir>/locales/fr` as usual. Every command applies the strings file for the directory's locale, resolved as `--locale` > `anim.manifest.json` `locale` > `meta.locale`. Never edit `time`/`action`/`target` in a locale: the choreography is shared.
+
+`--sibling` scaffolds the legacy `<dir>/../fr/` layout instead; `build-all` finds both, and an explicit `{ "fr": "path" }` map in the catalog wins over both.
+
+## Catalog and build-all
+
+`help.catalog.json` lists the guides; `npx tsx cli.ts build-all` runs `check` → `build` → `export --guide` (or `check --live` → `record --guide`) for every guide × locale into `<outputDir>/<slug>/<locale>/` and merges `index.json` + `index.md` at the root of `outputDir`. `npx tsx cli.ts build-all --help` prints the full schema.
+
+```json
+{
+  "outputDir": "help-out",
+  "defaults": { "locales": ["en", "fr"], "outputs": ["guide"], "width": 1920, "height": 1080, "theme": "light", "narration": false, "crop": 120 },
+  "guides": [
+    { "slug": "draft-proposal-response", "dir": "demo", "title": "Draft a proposal response" },
+    { "slug": "live-save", "dir": "live/save", "record": { "url": "https://app.local/save", "storageState": "auth.json" } }
+  ]
+}
+```
+
+- Paths are relative to the catalog file. `outputDir` may not be `/`, the home directory, the catalog directory, or overlap a guide directory. Every default is also valid per guide (the guide wins). `outputs` are the extras: `guide` (default), `gif`, `clips`; the video is always produced.
+- `--changed-only` skips a guide × locale whose **build key** (content hash of `index.html`, `anim.config.json`, `strings.*.json` and referenced media + the effective render settings + the tool version) matches `buildKey[locale]` in its manifest. Changing a width in the catalog rebuilds; editing `locales/fr` rebuilds only `fr`.
+- `--diff` keeps the previous step frames in `guide/.previous/`, compares them pixel by pixel with the new ones and marks the entry `stale` above `--diff-threshold` (default 2%), with `step-NN.diff.png` next to the previous frames.
+- `--only <slug>` / `--locale <code>` build a subset; the other entries keep their previous index rows. `--dry-run` prints the plan and writes nothing. Failures mark the entry `failed`, exit 1, and stop unless `--continue-on-error`.
+
+### `index.json` (version 1)
+
+```jsonc
+{ "version": 1, "generatedAt": "…", "tool": "screenshot-animator@2.0.0", "catalog": "../help.catalog.json",
+  "guides": [{ "slug": "draft-proposal-response", "locale": "fr", "title": "…", "dir": "demo", "output": "draft-proposal-response/fr",
+               "status": "ok", "builtAt": "…", "contentHash": "sha256:…", "buildKey": "sha256:…",
+               "video": "draft-proposal-response/fr/draft-proposal-response-fr.mp4", "vtt": "…/draft-proposal-response-fr.vtt", "gif": "…", "poster": "…/guide/assets/poster.png",
+               "guide": "…/guide/guide.json", "guideMd": "…/guide/guide.md", "guideHtml": "…/guide/guide.html",
+               "durationMs": 14200, "steps": 5, "stale": false, "diff": { "maxFraction": 0.001, "threshold": 0.02, "steps": { "step-02": 0.001 } }, "error": null, "ms": 41000 }] }
+```
+
+Paths are relative to `outputDir`. `status` is `ok`, `failed` (with `error`) or `skipped` (unchanged; links, `builtAt` and `stale` carried from the last build).
+
+## Live pages
+
+`record` drives a real page instead of `index.html`: the same timeline, targets as selectors in the app, real navigations.
+
+- Prefer stable `data-help="..."` attributes in the app (`[data-help="save"]`) over generated class names.
+- `waitFor` on a step waits for a selector (or ms) after a navigation or an async load before the cursor moves; the wait shifts the rest of the timeline and the recording length.
+- `navigate` opens a URL; a click that navigates (form submit, link) is detected and the runtime is re-injected on the new page.
+- Sign in once and reuse the session: `npx playwright codegen --save-storage auth.json https://app.local/login`, then `--storage-state auth.json` (never put credentials in the timeline). `--ignore-https-errors` accepts local self-signed certificates.
+- `npx tsx cli.ts check <dir> --live` validates the timeline without a page; `record` itself fails fast (exit 1) on a missing target.
+- `record <dir> --url <url> --storage-state auth.json -o demo.mp4 --guide` records, then replays the timeline in step mode on the live page to capture the guide frames. A page that already defines `window.__anim` is refused.
+
+## The manifest: what was done
+
+Every command appends an event to `<dir>/anim.manifest.json` (paths relative to the directory, URLs without credentials). Read it before re-doing someone else's work:
+
+```jsonc
+{ "locale": "fr", "baseLocale": "en",
+  "contentHash": { "fr": "sha256:…" }, "buildKey": { "fr": "sha256:…" },
+  "history": [
+    { "command": "localize", "timestamp": "…", "sourceDir": "../..", "locale": "fr", "baseLocale": "en" },
+    { "command": "build", "timestamp": "…", "cursor": "mac", "locale": "fr", "output": "animated.html" },
+    { "command": "export", "timestamp": "…", "output": "demo-fr.mp4", "duration": 14.2, "device": "desktop", "theme": "light", "locale": "fr",
+      "narration": true, "subtitles": "demo-fr.vtt", "chapters": 5, "clips": [], "guide": "guide", "contentHash": "sha256:…", "driven": true,
+      "steps": [{ "index": 2, "id": "open", "actualMs": 2004, "completedMs": 2004 }] },
+    { "command": "record", "timestamp": "…", "url": "https://app.local/save", "storageState": "../../auth.json", "navigations": 1, "shiftMs": 1027, "output": "save.mp4", "duration": 15.2,
+      "steps": [{ "index": 4, "id": "items", "actualMs": 4228, "completedMs": 4228, "waitedMs": 1813 }] },
+    { "command": "build-all", "timestamp": "…", "catalog": "../../help.catalog.json", "locale": "fr", "output": "../../help-out/draft-proposal-response/fr", "contentHash": "…", "buildKey": "…", "stale": false, "builtAt": "…" }
+  ] }
+```
+
+Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `localize` and `build-all` (`check` and `preview` write nothing). `export`/`record` events carry the measured `actualMs`/`completedMs` per step, `navigated`/`waitedMs` on live steps, and `shiftMs` when live waits stretched the recording.
+
+## Standalone use with an LLM API key
+
+`extract <image> <dir>` (screenshot → `index.html`, Vision LLM) and `animate <dir> "<prompt>"` (prompt → `anim.config.json` + `animated.html`) need `GEMINI_API_KEY` or `ANTHROPIC_API_KEY` (`.env` or environment; `--provider`, `--model`, `GEMINI_MODEL`, `CLAUDE_MODEL`). An agent skips both and writes the files itself.
+
+## Contributor notes
+
+- Layout: `cli.ts` (commander, `buildProgram()`), `src/engine/` (`schema.ts` parsing/validation, `runtime.js` the in-page engine, `inject.ts` builds `animated.html`, `driver.ts` drives a Playwright page), `src/commands/`, `src/guide/` (capture, render, diff), `src/media/` (ffmpeg, tts, vtt, chapters, contact sheet), `src/catalog.ts`, `src/manifest.ts`, `src/browser.ts`.
+- `runtime.js` is plain browser JavaScript injected as text (no imports, must tolerate document-start injection). The timing constants at the top of `schema.ts` are mirrored as literals there and `test/constants.test.ts` asserts they stay equal.
+- **Rule for `page.evaluate` callbacks:** no inner functions inside the callback. `tsx`/esbuild adds a `__name` helper that does not exist in the page, so the callback throws silently. Put helpers in `runtime.js` and call them by name (`__anim.markStep(...)`).
+- Tests: `npm test` (`node:test` through `tsx`, serial: `--test-concurrency=1`, about 10 minutes with the browser tests; `SKIP_BROWSER=1` skips them). Fixtures: `test/fixtures/basic/` (a mockup with every action) and `test/fixtures/live-app/server.ts` (a login/dashboard app for `record`).
+- Docs: `npm run docs` regenerates the CLI reference block below (and in README.md) from `cli.ts`; `npm run docs:check` and `test/docs.test.ts` fail when it is stale.
+
+## CLI reference
+
+<!-- cli-reference:start -->
+Generated from `cli.ts` by `npm run docs`; do not edit by hand. `npx tsx cli.ts <command> --help` prints the same, plus the usage guide (`--help`) and the catalog schema (`build-all --help`).
+
+[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`build-all`](#build-all) · [`localize`](#localize)
+
+### `init-config`
 
 ```bash
-npx tsx cli.ts --help
-npx tsx cli.ts extract --help
-npx tsx cli.ts animate --help
-npx tsx cli.ts export --help
+npx tsx cli.ts init-config <output_dir> [options]
 ```
 
-## Key commands
+Scaffold an anim.config.json timeline file in the target directory
+
+| Argument | Description |
+|---|---|
+| `<output_dir>` | Directory to initialize the config in |
+
+| Option | Description |
+|---|---|
+| `--force` | Overwrite an existing anim.config.json |
+
+### `extract`
 
 ```bash
-# Extract HTML from a screenshot (needs API key)
-npx tsx cli.ts extract <image_path> <output_dir> [--provider gemini|claude]
-
-# Generate animations from a prompt (needs API key)
-npx tsx cli.ts animate <output_dir> "<prompt>" [--provider gemini|claude]
-
-# Export to video (no API key needed)
-npx tsx cli.ts export <output_dir> --duration <seconds> --output <file.mp4>
-
-# Scaffold a translated locale dir reusing the same timeline (no API key needed)
-npx tsx cli.ts localize <output_dir> <locale>
+npx tsx cli.ts extract <image_path> <output_dir> [options]
 ```
 
-## Multiple screenshots
+Extract an HTML/CSS essence from a screenshot (needs an LLM API key)
 
-Paste multiple screenshots directly into the agent's chat window. The agent sees all of them, reproduces each screen in HTML, and can combine them into a single animated flow with transitions.
+| Argument | Description |
+|---|---|
+| `<image_path>` | Path to the screenshot image |
+| `<output_dir>` | Directory to save the generated HTML essence |
 
-Example prompts:
+| Option | Description |
+|---|---|
+| `-p, --provider <provider>` | LLM provider (gemini or claude) (default: `gemini`) |
+| `-m, --model <model>` | LLM model ID (e.g. gemini-2.5-flash, claude-haiku-4-5-20251001). Defaults per provider |
+| `-a, --abstraction <level>` | Abstraction distillation level: none, moderate, high (default: `none`) |
+| `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
+| `-f, --framework <type>` | Output framework: html or react (default: `html`) |
+| `-t, --theme <mode>` | Color scheme mode: light or dark (default: `light`) |
 
-> "Here are 3 screenshots of our onboarding flow. Recreate each screen and animate a walkthrough that transitions between them with a fade."
-
-> "I'm pasting the login page and the dashboard. Animate a user logging in on the first screen, then transition to the dashboard with the stats fading in."
-
-The agent writes all screens into one `animated.html` (e.g. fade out screen 1, fade in screen 2) and exports a single video:
+### `animate`
 
 ```bash
-npx tsx cli.ts export ./output --duration 15 --output onboarding-flow.mp4
+npx tsx cli.ts animate <output_dir> <prompt> [options]
 ```
 
-For standalone usage (with API keys), extract each screenshot into its own directory:
+Write anim.config.json + animated.html from a prompt (needs an LLM API key; agents write the timeline themselves and run build)
+
+| Argument | Description |
+|---|---|
+| `<output_dir>` | Directory containing the generated HTML essence |
+| `<prompt>` | Prompt describing the desired animation |
+
+| Option | Description |
+|---|---|
+| `-p, --provider <provider>` | LLM provider (gemini or claude) (default: `gemini`) |
+| `-m, --model <model>` | LLM model ID (e.g. gemini-2.5-flash, claude-haiku-4-5-20251001). Defaults per provider |
+| `-c, --cursor <style>` | Cursor style: mac, windows, none (default: `none`) |
+| `-l, --loop` | Loop the generated HTML animation endlessly |
+| `--locale <code>` | Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json |
+
+### `build`
 
 ```bash
-npx tsx cli.ts extract login.png ./output/login --provider gemini
-npx tsx cli.ts extract dashboard.png ./output/dashboard --provider gemini
+npx tsx cli.ts build <output_dir> [options]
 ```
 
-## Agent workflow (no API key)
+Build animated.html from index.html + anim.config.json (no LLM, no API key)
 
-When acting as the agent, skip `extract` and `animate`. Instead:
+| Argument | Description |
+|---|---|
+| `<output_dir>` | Directory containing index.html and anim.config.json |
 
-1. Write `index.html` with the UI markup into the output directory.
-2. Write `anim.config.json` with the animation timeline:
-   ```json
-   [
-     { "time": "0s", "action": "fadeIn", "target": "#screen1", "subtitle": "Welcome." },
-     { "time": "2s", "action": "click", "target": ".btn-primary", "subtitle": "Click to begin." }
-   ]
-   ```
-3. Write `animated.html` with CSS keyframe animations and subtitle overlays.
-4. Run: `npx tsx cli.ts export <output_dir> --duration <seconds> --output <file.mp4>`
+| Option | Description |
+|---|---|
+| `-c, --cursor <style>` | Cursor style: mac, windows, none (default: meta.cursor or mac) |
+| `-l, --loop` | Loop the animation endlessly when opened in a browser |
+| `--locale <code>` | Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json |
+| `--force` | Build even if the timeline has validation errors |
+| `-o, --output <file>` | Write the built HTML somewhere other than <output_dir>/animated.html |
 
-## Recording what was done, and re-running for other languages
+### `check`
 
-Every `animate`, `export`, and `localize` call **automatically** appends a timestamped entry to `<output_dir>/anim.manifest.json` (command, options, prompt, locale) -- this is a real record written by the CLI itself, not something you need to maintain by hand. Read it with `cat <output_dir>/anim.manifest.json` if you need to know what has already been done to a given output directory (e.g. resuming someone else's work, or checking whether a video was already exported for a locale).
-
-If a user needs the same demo in multiple languages, don't rebuild the timeline from scratch -- reuse it:
-
-1. `npx tsx cli.ts localize <source_dir> <locale>` scaffolds `<locale>/` (e.g. `fr/`) as a sibling of `<source_dir>`, copying `index.html`, `anim.config.json`, and any local media (screenshots) as a starting point.
-2. Edit the **text only** in the new directory: translate visible copy in `index.html` and the `"subtitle"` strings in `anim.config.json`. Leave every `"time"`/`"action"`/`"target"` untouched -- targets are CSS selectors (`#btn-primary`), not text, so the exact same choreography (clicks, camera pans, highlights) replays correctly against the translated screen as long as element IDs/classes are unchanged.
-3. Write `animated.html` for the new locale the same way you did for the original (or run `animate`), then `npx tsx cli.ts export <locale_dir> --duration <seconds> --output demo-<locale>.mp4 --locale <locale>`.
-
-This is the intended workflow specifically because it needs no new tooling to translate content -- you (the agent) already read and write the visible text; `localize` just saves you from re-deriving the timeline and re-copying media by hand.
-
-## Cinematic polish (Scribe-style output)
-
-Two things separate a good demo video from an amateur one: a **spotlight highlight** on whatever the cursor is about to interact with, and a **cinematic camera** that pushes in on the relevant area instead of holding a static wide shot the whole time. Both are now first-class:
-
-- `npx tsx cli.ts animate` (LLM-driven path, `--cursor mac|windows` + `anim.config.json`) injects all of this automatically: a glowing spotlight box around the target element on `click`/`focus`/`type`/`highlight` steps, an expanding ripple pulse on `click`, and support for `camera` and `scroll` steps.
-- When you (the agent) hand-write `animated.html` directly -- the common path since you skip `extract`/`animate` -- replicate the same visual language so output quality stays consistent. Paste this before `</head>` and `</body>`:
-
-```html
-<style>
-#anim-cli-highlight { position: fixed; border-radius: 10px; border: 2px solid #3B82F6; box-shadow: 0 0 0 4px rgba(59,130,246,0.18), 0 0 28px rgba(59,130,246,0.35); pointer-events: none; z-index: 99996; opacity: 0; transition: left .5s cubic-bezier(.16,1,.3,1), top .5s cubic-bezier(.16,1,.3,1), width .5s cubic-bezier(.16,1,.3,1), height .5s cubic-bezier(.16,1,.3,1); }
-#anim-cli-highlight.anim-cli-pulse { animation: anim-cli-highlightPulse 1.3s cubic-bezier(.16,1,.3,1) forwards; }
-@keyframes anim-cli-highlightPulse { 0% { opacity:0 } 15% { opacity:1 } 75% { opacity:1 } 100% { opacity:0 } }
-.anim-cli-ripple { position: fixed; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%; background: rgba(59,130,246,.35); border: 2px solid rgba(59,130,246,.65); pointer-events:none; z-index:99997; animation: anim-cli-rippleAnim .6s cubic-bezier(.16,1,.3,1) forwards; }
-@keyframes anim-cli-rippleAnim { 0% { width:14px; height:14px; margin:-7px 0 0 -7px; opacity:.9 } 100% { width:80px; height:80px; margin:-40px 0 0 -40px; opacity:0 } }
-</style>
+```bash
+npx tsx cli.ts check <output_dir> [options]
 ```
 
-Then, wherever your timeline script moves the fake cursor to an element and clicks/types into it, call a `highlight(el)` helper that positions `#anim-cli-highlight` over the element's `getBoundingClientRect()` (with ~6px padding) and re-triggers the `.anim-cli-pulse` class, and a `ripple(x, y)` helper that drops a `.anim-cli-ripple` div at the click point and removes it after ~700ms. For a camera push-in, transition `document.body.style.transform` (e.g. `scale(1.3) translate(Xpx, Ypx)` computed to center the target element) over 1.5-3s with `cubic-bezier(.65,0,.35,1)` -- see `src/commands/animate.ts` for the exact reference implementation if you want to copy it verbatim.
+Validate anim.config.json: schema, timing, strings, and (unless --static/--live) every target selector in a headless browser
 
-**Timeline action vocabulary** (works whether you write the timeline as JSON for `animate` or drive your own hand-written script):
-- `fadeIn`, `click`, `focus`, `type` (types `value` char-by-char), `transitionScreen`
-- `highlight` -- spotlight an element without clicking it (good for "notice this" beats)
-- `camera` -- `{ "action": "camera", "target": "#el", "scale": 1.3, "duration": 2 }` pans/zooms the whole page to center on `target` (or use explicit `x`/`y` instead of `target`)
-- `scroll` -- `{ "action": "scroll", "target": "#el" }` smooth-scrolls the element into view
+| Argument | Description |
+|---|---|
+| `<output_dir>` | Directory containing anim.config.json (and index.html unless --live) |
 
-## CLI options
+| Option | Description |
+|---|---|
+| `--static` | Schema and timing checks only, no browser |
+| `--live` | Validate a timeline meant for `record` (live page): navigate/waitFor allowed, no index.html needed, no browser probe |
+| `--json` | Print the issues as JSON on stdout |
+| `--locale <code>` | Locale code (e.g. en, fr) |
+| `-w, --width <pixels>` | Viewport width for the browser pass |
+| `-H, --height <pixels>` | Viewport height for the browser pass |
+| `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
+| `-t, --theme <mode>` | Color scheme mode: light or dark (default: `light`) |
 
-- `--provider gemini|claude` -- select LLM provider (auto-falls back if key missing)
-- `--model <id>` -- override default model (e.g. `gemini-2.5-flash`, `claude-haiku-4-5-20251001`)
-- `--device desktop|mobile` -- viewport size for extract/export
-- `--theme light|dark` -- forces CSS media query during recording
-- `--framework html|react` -- output format for extract
-- `--abstraction none|moderate|high` -- wireframe fidelity level
-- `--cursor mac|windows|none` -- cursor style in animations
-- `--loop` -- loop animation endlessly
-- `--voiceover <script.txt>` -- macOS TTS voiceover in exported video
-- `--width` / `--height` -- override the export resolution (defaults: 1920x1080 desktop, 390x844 mobile, recorded at 2x pixel density for crisp/retina-quality video; encoded with libx264 `-crf 18 -preset slow` for near-lossless output)
-- `--locale <code>` (on `animate`/`export`) -- tags the recorded manifest entry with a locale code (e.g. `en`, `fr`); purely metadata, doesn't change rendering
+### `preview`
 
-## Code style
+```bash
+npx tsx cli.ts preview <output_dir> [options]
+```
 
-- TypeScript with `tsx` runtime (no build step)
-- No test suite currently
-- CLI framework: `commander`
+Render one labelled frame per step to <output_dir>/preview.png (or a single full-size frame with --step N)
+
+| Argument | Description |
+|---|---|
+| `<output_dir>` | Directory containing index.html and anim.config.json |
+
+| Option | Description |
+|---|---|
+| `-s, --step <n>` | Write only step N (1-based) at full resolution to preview-step-N.png |
+| `--at <when>` | Capture point per step: "auto" (like the guide: clicks at the interaction, typing/camera/fades at completion), "interaction", or "end" (default: `auto`) |
+| `-o, --output <file>` | Output PNG path |
+| `-c, --cursor <style>` | Cursor style: mac, windows, none (default: meta.cursor or mac) |
+| `--locale <code>` | Locale code (e.g. en, fr) |
+| `--force` | Preview even if the timeline has validation errors |
+| `-w, --width <pixels>` | Viewport width in pixels |
+| `-H, --height <pixels>` | Viewport height in pixels |
+| `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
+| `-t, --theme <mode>` | Color scheme mode: light or dark (default: `light`) |
+
+### `export`
+
+```bash
+npx tsx cli.ts export <output_dir> [options]
+```
+
+Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narration and step guide); the length comes from the timeline
+
+| Argument | Description |
+|---|---|
+| `<output_dir>` | Directory containing index.html + anim.config.json (or a legacy animated.html) |
+
+| Option | Description |
+|---|---|
+| `-d, --duration <seconds>` | Override the export length in seconds (default: computed from the timeline; 5 without a config) |
+| `-o, --output <file>` | Output video file path (.mp4 or .gif) (default: `output.mp4`) |
+| `-w, --width <pixels>` | Width of the exported video in pixels |
+| `-H, --height <pixels>` | Height of the exported video in pixels |
+| `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
+| `-t, --theme <mode>` | Color scheme mode for Playwright: light or dark (default: `light`) |
+| `--narration` | Synthesize each step's "narration" (or "subtitle") and mix it in at the step's time (OPENAI_API_KEY or macOS say) |
+| `--voice <name>` | TTS voice (OpenAI voice name, or a macOS `say` voice) |
+| `-v, --voiceover <path>` | Path to a text file with a whole-video voiceover script (legacy, starts at 0s) |
+| `--no-subtitles` | Do not write <output>.vtt |
+| `--no-chapters` | Do not embed MP4 chapters for titled steps |
+| `--clips <format>` | Also cut one clip per step next to the video: mp4 or gif |
+| `--tail <ms>` | Hold after the last step (overrides meta.tailMs, default 2500) |
+| `--guide` | Also write the step-by-step guide (guide.json, guide.md, guide.html, assets/) after the video |
+| `--guide-dir <dir>` | Guide output directory (default: <output_dir>/guide) |
+| `--crop <px>` | Guide crops: padding around each step's box in px (default 120) |
+| `--no-crop` | Guide: full frames only, no crops |
+| `--hide-cursor` | Guide: hide the fake cursor in the step screenshots |
+| `--force` | Export even if the timeline has validation errors; step failures then do not fail the command |
+| `--locale <code>` | Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json |
+
+### `record`
+
+```bash
+npx tsx cli.ts record <output_dir> [options]
+```
+
+Record the timeline against a live page (URL) instead of a local mockup: real navigations, waitFor, storage state
+
+| Argument | Description |
+|---|---|
+| `<output_dir>` | Directory containing anim.config.json (targets are selectors in the live app, e.g. [data-help="save"]) |
+
+| Option | Description |
+|---|---|
+| `--url <url>` | Page to open (default: meta.url in anim.config.json) |
+| `--storage-state <file>` | Playwright storage state (cookies/localStorage), e.g. from `npx playwright codegen --save-storage auth.json` |
+| `--ignore-https-errors` | Accept self-signed certificates (mkcert-style local HTTPS) |
+| `-o, --output <file>` | Output video file path (.mp4 or .gif) (default: `output.mp4`) |
+| `-d, --duration <seconds>` | Override the recording length in seconds (default: computed from the timeline) |
+| `-w, --width <pixels>` | Width of the recorded video in pixels |
+| `-H, --height <pixels>` | Height of the recorded video in pixels |
+| `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
+| `-t, --theme <mode>` | Color scheme mode: light or dark (default: `light`) |
+| `--narration` | Synthesize each step's narration and mix it in |
+| `--voice <name>` | TTS voice |
+| `--no-subtitles` | Do not write <output>.vtt |
+| `--no-chapters` | Do not embed MP4 chapters |
+| `--clips <format>` | Also cut one clip per step: mp4 or gif |
+| `--tail <ms>` | Hold after the last step (overrides meta.tailMs) |
+| `--guide` | Also capture the step guide against the live page (re-navigates, replays in step mode) |
+| `--guide-dir <dir>` | Guide output directory (default: <output_dir>/guide) |
+| `--crop <px>` | Guide crops: padding around each step's box in px (default 120) |
+| `--no-crop` | Guide: full frames only |
+| `--hide-cursor` | Guide: hide the fake cursor in step screenshots |
+| `--force` | Record even if the timeline has validation errors; step failures then do not fail the command |
+| `--locale <code>` | Locale code for this output (e.g. en, fr) |
+
+### `guide`
+
+```bash
+npx tsx cli.ts guide <output_dir> [options]
+```
+
+Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) from index.html + anim.config.json; links the last exported video when present
+
+| Argument | Description |
+|---|---|
+| `<output_dir>` | Directory containing index.html and anim.config.json |
+
+| Option | Description |
+|---|---|
+| `-o, --output <dir>` | Guide output directory (default: <output_dir>/guide) |
+| `--crop <px>` | Padding around each step's box for the cropped image, in px (default 120) |
+| `--no-crop` | Full frames only, no crops |
+| `--clips <format>` | Cut one clip per step from the last exported video: mp4 or gif |
+| `--hide-cursor` | Hide the fake cursor in the step screenshots |
+| `--url <url>` | After a `record`: replay against this URL instead of the one in the manifest |
+| `--storage-state <file>` | After a `record`: storage state for the live replay (default: the one the record used) |
+| `--ignore-https-errors` | Accept self-signed certificates on the live replay |
+| `--locale <code>` | Locale code (e.g. en, fr) |
+| `--force` | Capture even if the timeline has validation errors; step failures then do not fail the command |
+| `-w, --width <pixels>` | Viewport width in pixels |
+| `-H, --height <pixels>` | Viewport height in pixels |
+| `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
+| `-t, --theme <mode>` | Color scheme mode: light or dark (default: `light`) |
+
+### `build-all`
+
+```bash
+npx tsx cli.ts build-all [catalog] [options]
+```
+
+Build every guide x locale of help.catalog.json (check, build, export|record --guide) into <outputDir>/<slug>/<locale>/ and merge index.json + index.md; exit 1 on any failure
+
+| Argument | Description |
+|---|---|
+| `[catalog]` | Catalog file (default: `help.catalog.json`) |
+
+| Option | Description |
+|---|---|
+| `--changed-only` | Skip a guide x locale whose build key (sources + render settings + tool version) matches what its manifest recorded |
+| `--diff` | Keep the previous step frames and mark a guide stale when a frame changed beyond --diff-threshold |
+| `--diff-threshold <fraction>` | Fraction of changed pixels that marks a guide stale (default: `0.02`) |
+| `--only <slug>` | Build one guide |
+| `--locale <code>` | Build one locale |
+| `--continue-on-error` | Keep going after a failed guide (default: stop at the first failure) |
+| `--dry-run` | Print the plan per guide x locale and stop: nothing is created, written or recorded |
+| `--verbose` | Also stream the child commands' stdout (their stderr is always streamed, prefixed with slug/locale) |
+
+### `localize`
+
+```bash
+npx tsx cli.ts localize <source_dir> <locale> [options]
+```
+
+Scaffold <source_dir>/locales/<locale>/ with index.html, anim.config.json, media and a pre-filled strings.<locale>.json; the choreography is reused as is
+
+| Argument | Description |
+|---|---|
+| `<source_dir>` | Existing output directory to localize from (contains index.html, optionally anim.config.json) |
+| `<locale>` | Target locale code, e.g. fr, es, pt-BR |
+
+| Option | Description |
+|---|---|
+| `-o, --output-dir <dir>` | Directory to scaffold into (default: <source_dir>/locales/<locale>) |
+| `--sibling` | Legacy layout: scaffold into a sibling directory named after the locale |
+| `--force` | Overwrite the target's index.html, anim.config.json and strings.<locale>.json (translations are lost); by default they are kept and only new strings are added |
+<!-- cli-reference:end -->

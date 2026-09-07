@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { generateContent, ProviderConfig, resolveProvider } from '../providers';
+import { recordEvent } from '../manifest';
 
 function getSystemPrompt(abstraction: string, device: string, framework: string, theme: string): string {
     let abstractionRule = "";
@@ -66,6 +67,13 @@ export async function extractCommand(imagePath: string, outputDir: string, optio
 
         const outPath = path.join(outputDir, options.framework === 'react' ? 'index.tsx' : 'index.html');
         fs.writeFileSync(outPath, htmlContent, 'utf-8');
+        // The manifest records where index.html came from (paths relative to the output dir, never absolute).
+        const imageRel = path.relative(path.resolve(outputDir), imgResolved).split(path.sep).join('/');
+        recordEvent(outputDir, {
+            command: 'extract', image: imageRel.startsWith('..') ? path.basename(imgResolved) : imageRel,
+            provider: resolved, model: options.model, abstraction: options.abstraction, device: options.device, framework: options.framework, theme: options.theme,
+            output: path.basename(outPath),
+        });
         console.log(`\nSuccess! Extracted UI saved to ${outPath}`);
     } catch (error: any) {
         console.error('Failed to extract UI essence:', error.message);

@@ -1,14 +1,19 @@
 {
   "name": "screenshot-animator",
-  "version": "1.1.0",
-  "description": "HTML Video Editor CLI. Generates HTML mockup UI from screenshots using Vision LLMs, animates them, and exports to .mp4",
+  "version": "2.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "description": "CLI that turns a UI mockup (index.html + anim.config.json) or a live web page into demo videos, step-by-step help guides and their translations, driven by an AI agent or by hand",
   "main": "cli.ts",
   "bin": {
     "screenshot-animator": "./cli.ts"
   },
   "scripts": {
     "start": "tsx cli.ts",
-    "test": "node --import tsx --test --test-concurrency=1 test/*.test.ts"
+    "test": "node --import tsx --test --test-concurrency=1 test/*.test.ts",
+    "docs": "tsx scripts/gen-cli-reference.ts",
+    "docs:check": "tsx scripts/gen-cli-reference.ts --check"
   },
   "keywords": [
     "cli",
