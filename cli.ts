@@ -245,7 +245,7 @@ program
   .argument('<locale>', 'Target locale code, e.g. fr, es, pt-BR')
   .option('-o, --output-dir <dir>', 'Directory to scaffold into (default: <source_dir>/locales/<locale>)')
   .option('--sibling', 'Legacy layout: scaffold into a sibling directory named after the locale')
-  .option('--force', 'Overwrite an existing strings.<locale>.json in the target instead of merging')
+  .option('--force', 'Overwrite the target\'s index.html, anim.config.json and strings.<locale>.json (translations are lost); by default they are kept and only new strings are added')
   .action((src, locale, opts) => localizeCommand(src, locale, opts));
 
 program.parseAsync(process.argv).catch((e) => {

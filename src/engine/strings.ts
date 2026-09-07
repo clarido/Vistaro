@@ -14,6 +14,16 @@ import type { Timeline, Step } from './schema';
 
 export type StringMap = Record<string, string>;
 
+/** `fr`, `pt-BR`, `zh-Hant-TW`: language, optional script, optional region (never a directory name such as `my-guide-dir`). */
+export function isLocaleCode(code: unknown): code is string {
+    return typeof code === 'string' && /^[a-z]{2,3}(-[A-Z][a-z]{3})?(-(?:[A-Z]{2}|\d{3}))?$/.test(code);
+}
+
+/** Auto-generated step ids (`step-NN`) re-attach translations when a step is inserted; explicit ids are safer. */
+export function isAutoStepId(id: string): boolean {
+    return /^step-\d+$/.test(id);
+}
+
 export const STEP_STRING_FIELDS = ['title', 'subtitle', 'narration', 'note'] as const;
 
 export function stringsFileName(locale: string): string {
@@ -88,7 +98,9 @@ export function applyStrings(timeline: Timeline, strings: StringMap): ApplyRepor
 }
 
 export function readStrings(file: string): StringMap {
-    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    let raw: unknown;
+    try { raw = JSON.parse(fs.readFileSync(file, 'utf8')); }
+    catch (e: any) { throw new Error(`${file}: invalid JSON (${e.message})`); }
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`${file}: expected a JSON object of "key": "text"`);
     const out: StringMap = {};
     for (const [k, v] of Object.entries(raw)) {
@@ -107,5 +119,13 @@ export function writeStrings(file: string, strings: StringMap): void {
  * (set by `localize`), then the timeline's own meta.locale.
  */
 export function resolveLocale(requested: string | undefined, manifestLocale: string | undefined, metaLocale: string | undefined): string | undefined {
-    return requested || manifestLocale || metaLocale || undefined;
+    return requested || (isLocaleCode(manifestLocale) ? manifestLocale : undefined) || metaLocale || undefined;
+}
+
+/** Keys whose value differs between two string maps (added, removed or changed). */
+export function diffStrings(before: StringMap, after: StringMap): { added: string[]; removed: string[]; changed: string[] } {
+    const added = Object.keys(after).filter(k => !(k in before));
+    const removed = Object.keys(before).filter(k => !(k in after));
+    const changed = Object.keys(after).filter(k => k in before && before[k] !== after[k]);
+    return { added, removed, changed };
 }

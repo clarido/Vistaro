@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { readManifest } from '../manifest';
-import { applyStrings, readStrings, resolveLocale, stringsPath } from './strings';
+import { applyStrings, readStrings, resolveLocale, stringsPath, isLocaleCode } from './strings';
 
 /**
  * Timeline schema: parsing, normalization and validation of anim.config.json.
@@ -121,6 +121,8 @@ export interface Timeline {
     legacy: boolean;
     /** Locale the timeline was loaded for (--locale > manifest > meta.locale), when any. */
     locale?: string;
+    /** Source language of the strings (manifest baseLocale set by `localize`, else meta.locale). */
+    baseLocale?: string;
     /** Strings file applied by loadTimeline, with its key report. */
     strings?: { file: string; locale: string; applied: string[]; unknown: string[]; missing: string[]; untranslated: string[] };
 }
@@ -245,6 +247,8 @@ export function loadTimeline(dir: string, opts: { locale?: string } = {}): Timel
     }
     const manifest = readManifest(dir);
     const locale = resolveLocale(opts.locale, manifest.locale, timeline.meta.locale);
+    // Legacy manifests carried a directory name in baseLocale; only a locale code is trusted.
+    timeline.baseLocale = (isLocaleCode(manifest.baseLocale) ? manifest.baseLocale : undefined) || timeline.meta.locale || undefined;
     if (locale) {
         timeline.locale = locale;
         const file = stringsPath(dir, locale);
@@ -325,8 +329,8 @@ function issueFor(step: Step, level: Issue['level'], message: string, field?: st
     return { level, step: step.index, id: step.id, field, message, time: step.time, action: step.action, target: step.target };
 }
 
-/** Static validation. Errors make `build`/`check` fail; warnings are informational. */
-export function validateTimeline(timeline: Timeline): Issue[] {
+/** Static validation. Errors make `build`/`check` fail; warnings are informational. `live`: validating for `record`. */
+export function validateTimeline(timeline: Timeline, opts: { live?: boolean } = {}): Issue[] {
     const issues: Issue[] = [];
     const steps = timeline.steps;
     const seenIds = new Map<string, number>();
@@ -362,7 +366,7 @@ export function validateTimeline(timeline: Timeline): Issue[] {
             }
             if (s.action === 'navigate') {
                 if (typeof s.url !== 'string' || !s.url) issues.push(issueFor(s, 'error', 'action "navigate" requires a "url"', 'url'));
-                else issues.push(issueFor(s, 'warning', 'action "navigate" only runs under `record` (live pages); build/export/preview ignore it', 'action'));
+                else if (!opts.live) issues.push(issueFor(s, 'warning', 'action "navigate" only runs under `record` (live pages); build/export/preview ignore it', 'action'));
             }
             if (s.action === 'press' && (typeof s.value !== 'string' || !s.value)) {
                 issues.push(issueFor(s, 'error', 'action "press" requires a "value" (key name, e.g. "Enter")', 'value'));

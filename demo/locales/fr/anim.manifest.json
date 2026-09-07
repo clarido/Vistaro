@@ -74,6 +74,22 @@
         }
       ],
       "timestamp": "2026-09-07T00:30:42.859Z"
+    },
+    {
+      "command": "localize",
+      "sourceDir": "../..",
+      "locale": "fr",
+      "baseLocale": "en",
+      "timestamp": "2026-09-07T01:01:10.937Z"
+    },
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": false,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-07T01:01:12.017Z"
     }
   ],
   "locale": "fr",

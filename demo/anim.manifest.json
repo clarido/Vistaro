@@ -83,6 +83,12 @@
       "locale": "fr",
       "targetDir": "locales/fr",
       "timestamp": "2026-09-07T00:30:05.413Z"
+    },
+    {
+      "command": "localize",
+      "locale": "fr",
+      "targetDir": "locales/fr",
+      "timestamp": "2026-09-07T01:01:10.936Z"
     }
   ],
   "locale": "en",

@@ -163,8 +163,8 @@ export async function buildGuide(browser: Browser, dir: string, timeline: Timeli
     }
 
     const manifest = readManifest(dir);
-    // --locale > manifest.locale > meta.locale
-    const locale = opts.locale || manifest.locale || timeline.meta.locale || 'en';
+    // The locale loadTimeline resolved (--locale > manifest.locale > meta.locale).
+    const locale = timeline.locale || opts.locale || 'en';
     const toStep = (c: CapturedStep): GuideStepJson => {
         const s: GuideStepJson = {
             index: c.index, number: c.number, id: c.id, action: c.action, target: c.target,
@@ -192,7 +192,7 @@ export async function buildGuide(browser: Browser, dir: string, timeline: Timeli
         title: timeline.meta.title || path.basename(path.resolve(dir)),
         app: timeline.meta.app,
         locale,
-        baseLocale: manifest.baseLocale || locale,
+        baseLocale: timeline.baseLocale || locale,
         generatedAt: new Date().toISOString(),
         source: { dir: path.basename(path.resolve(dir)), contentHash, tool: toolVersion() },
         viewport: { width, height, deviceScaleFactor: opts.viewport.deviceScaleFactor ?? 2, theme: opts.viewport.theme === 'dark' ? 'dark' : 'light' },
@@ -238,7 +238,7 @@ export async function guideCommand(dir: string, options: GuideOptions = {}): Pro
         }
         const failed = result.capture.steps.filter(s => s.error);
         const relToDir = (p: string) => path.relative(path.resolve(dir), p).split(path.sep).join('/');
-        recordEvent(dir, { command: 'guide', output: relToDir(outDir), crop, clips: options.clips, locale: options.locale ?? timeline.meta.locale, steps: result.capture.steps.length, video: video ? relToDir(video.file) : null, url: session ? sanitizeUrl(options.url || video!.url!) : undefined, contentHash: hashGuideDir(dir) });
+        recordEvent(dir, { command: 'guide', output: relToDir(outDir), crop, clips: options.clips, locale: timeline.locale ?? options.locale ?? timeline.meta.locale, steps: result.capture.steps.length, video: video ? relToDir(video.file) : null, url: session ? sanitizeUrl(options.url || video!.url!) : undefined, contentHash: hashGuideDir(dir) });
         console.log(`\nWrote ${displayPath(result.json)}, guide.md, guide.html (${result.capture.steps.length} steps${video ? ', video linked' : ''}).`);
         if (failed.length) {
             console.error(`${options.force ? 'warning  (--force)' : 'FAILED:'} ${failed.length} step(s) failed during capture; see guide.json "error" fields.`);

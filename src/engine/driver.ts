@@ -156,6 +156,20 @@ function appendError(result: StepResult, msg: string): void {
 }
 
 /**
+ * Abandon a pending navigation. A page stuck waiting for a server has no execution context to run
+ * `window.stop()` in (the evaluate never settles), so use the CDP command first and time-box both.
+ */
+export async function stopLoading(page: Page): Promise<void> {
+    try {
+        const cdp = await withTimeout(page.context().newCDPSession(page), 2000, 'cdp session');
+        try { await withTimeout(cdp.send('Page.stopLoading'), 2000, 'Page.stopLoading'); }
+        finally { await cdp.detach().catch(() => {}); }
+        return;
+    } catch { /* not Chromium, or the session could not be opened: fall back */ }
+    await withTimeout(page.evaluate(() => window.stop()), 2000, 'window.stop').catch(() => {});
+}
+
+/**
  * Live pages: after a navigation the new document has the runtime (init script) but no boot.
  * Wait for load, boot with the last cursor point, and continue the Node-owned clock. Serialized
  * (concurrent callers share one boot) and time-boxed (a navigation that never loads is stopped
@@ -168,7 +182,7 @@ export async function ensureLive(page: Page, live: LiveOptions, state: RunState)
         try {
             await page.waitForLoadState('load', { timeout: timeoutMs });
         } catch (e: any) {
-            await page.evaluate(() => window.stop()).catch(() => {});
+            await stopLoading(page);
             throw new Error(`navigation did not load within ${timeoutMs}ms (stopped): ${errorMessage(e)}`);
         }
         const kind: string = await page.evaluate(() => { const a = (window as any).__anim; return !a ? 'none' : (typeof a.boot === 'function' && typeof a.runStep === 'function' ? (a.isReady() ? 'ready' : 'ours') : 'foreign'); }).catch(() => 'none');
@@ -320,7 +334,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
                     result.completedMs = nowMs();
                     token = undefined;
                 } catch (e: any) {
-                    await page.evaluate(() => window.stop()).catch(() => {});
+                    await stopLoading(page);
                     appendError(result, `navigate ${step.url}: ${errorMessage(e)}`);
                 }
             } else {
@@ -330,14 +344,21 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
 
         const awaitCompletion = async () => {
             if (token === undefined || Number.isFinite(result.completedMs ?? NaN)) return;
+            // On a live page a click may start a navigation that never commits; the page then answers
+            // no evaluate at all, so the completion wait is capped by the navigation time box.
+            const completionTimeoutMs = live ? Math.min(stepTimeoutMs, live.navigationTimeoutMs ?? 15000) : stepTimeoutMs;
             try {
                 result.completedMs = await withTimeout(
                     page.evaluate((t) => (window as any).__anim.whenDone(t), token),
-                    stepTimeoutMs,
+                    completionTimeoutMs,
                     `${label(step)} completion`,
                 );
             } catch (e: any) {
                 if (navigatedOk(e)) { result.completedMs = nowMs(); result.navigated = true; }
+                else if (live && /did not finish within/.test(errorMessage(e))) {
+                    await stopLoading(page);
+                    appendError(result, `${errorMessage(e)} (page stuck in a pending navigation? stopped)`);
+                }
                 else appendError(result, errorMessage(e));
             }
         };

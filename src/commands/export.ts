@@ -76,7 +76,7 @@ export function reportOutcome(verb: string, summary: ExportSummary, extra = ''):
         if (failed) parts.push(`${failed} step(s) failed during the recording: ${summary.failedSteps.map(r => `step ${r.index} (${r.action}${r.target ? ' ' + r.target : ''})`).join(', ')}`);
         if (summary.failedGuideSteps) parts.push(`${summary.failedGuideSteps} guide step(s) failed during capture (see guide.json "error" fields)`);
         const head = summary.force ? 'warning  (--force)' : 'FAILED:';
-        console.error(`\n${head} ${parts.join('; ')}. ${verb} written to ${rel(summary.output)} (${formatTime(summary.durationMs)}${extra})${details} but it is missing what those steps were meant to show; see anim.manifest.json for per-step errors.`);
+        console.error(`\n${head} ${parts.join('; ')}. ${verb} ${rel(summary.output)} (${formatTime(summary.durationMs)}${extra})${details}, but it is missing what those steps were meant to show; see anim.manifest.json for per-step errors.`);
         if (!summary.force) process.exitCode = 1;
         return;
     }
@@ -126,7 +126,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     if (session && !fs.existsSync(path.resolve(outputDir, 'anim.config.json'))) throw new Error(`anim.config.json not found in ${outputDir} (record needs a timeline)`);
     if (fs.existsSync(path.resolve(outputDir, 'anim.config.json'))) {
         timeline = session?.timeline ?? loadTimeline(outputDir, { locale: options.locale });
-        const issues = validateTimeline(timeline);
+        const issues = validateTimeline(timeline, { live: !!session });
         for (const issue of issues) console.error(formatIssue(issue));
         if (hasErrors(issues)) {
             if (!options.force) throw new Error(`${issues.filter(i => i.level === 'error').length} validation error(s) in anim.config.json (use --force to export anyway)`);
@@ -393,7 +393,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         navigations: runState.navigations || undefined, shiftMs: runState.shiftMs || undefined,
         duration: durationMs / 1000, output: relToDir(outputFile), device: options.device, theme: options.theme,
         voiceover: options.voiceover, narration: !!options.narration, subtitles: summary.vtt ? path.basename(summary.vtt) : false,
-        chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), locale: options.locale ?? timeline?.meta.locale,
+        chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), locale: timeline?.locale ?? options.locale ?? timeline?.meta.locale,
         driven, guide: guideDir ? relToDir(guideDir) : undefined, contentHash: driven ? hashGuideDir(outputDir) : undefined,
         steps: results.map(r => ({ index: r.index, id: r.id, actualMs: r.actualMs, completedMs: r.completedMs, navigated: r.navigated || undefined, waitedMs: r.waitedMs || undefined, error: r.error })),
     });

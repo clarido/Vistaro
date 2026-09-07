@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { chromium, Browser } from 'playwright';
 import { startLiveApp, LiveApp } from './fixtures/live-app/server';
 import { parseTimeline } from '../src/engine/schema';
@@ -197,17 +197,40 @@ test('record: with a slow server (400ms latency) the first changed frame still l
     }
 });
 
-test('record: a navigation that never completes is stopped, reported, exits 1, and the process ends', { skip }, async () => {
+test('record: a navigation that never completes is stopped, reported, exits 1, and the process ends (click and navigate paths)', { skip }, async () => {
     const dir = writeDir('hang', { meta: { url: `${app.url}/hang-link`, cursor: 'mac', tailMs: 300 }, steps: [
         { time: 0.5, action: 'click', target: '[data-help="go-hang"]', title: 'Go' },
         { time: 1.5, action: 'highlight', target: 'h1', title: 'Never' },
     ] });
-    const started = Date.now();
-    const r = await cli(['record', dir, '-o', path.join(work, 'hang.mp4'), '--width', '320', '--height', '200']);
-    const took = Date.now() - started;
+    // Orphaned browser/ffmpeg processes (parent pid 1) before and after: the CLI must leave none behind.
+    const orphans = () => { try { return parseInt(execSync("ps -ax -o ppid,command | awk '$1==1' | grep -E 'chrom|ffmpeg' | grep -v grep | wc -l").toString().trim(), 10); } catch { return -1; } };
+    const orphansBefore = orphans();
+    let started = Date.now();
+    let r = await cli(['record', dir, '-o', path.join(work, 'hang.mp4'), '--width', '320', '--height', '200']);
+    let took = Date.now() - started;
     assert.equal(r.status, 1, r.stderr + r.stdout);
-    assert.match(r.stderr, /navigation did not load within \d+ms|did not finish within/);
-    assert.ok(took < 60000, `finished in ${took}ms`);
+    assert.match(r.stderr, /navigation did not load within \d+ms|did not finish within 15000ms/);
+    assert.ok(took < 25000, `click path finished in ${took}ms (15s navigation box + launch/encode overhead)`);
+    await new Promise(res => setTimeout(res, 2000));
+    assert.ok(orphans() <= orphansBefore, `no orphaned browser/ffmpeg processes (before ${orphansBefore}, after ${orphans()})`);
+
+    // explicit navigate step to the hanging URL: goto times out; stopping the load must not need a JS context
+    const dir2 = writeDir('hang-nav', { meta: { url: `${app.url}/hang-link`, cursor: 'mac', tailMs: 300 }, steps: [
+        { id: 'nav', time: 1, action: 'navigate', url: `${app.url}/hang` },
+        { time: 2, action: 'highlight', target: 'h1', title: 'After' },
+    ] });
+    started = Date.now();
+    r = await cli(['record', dir2, '-o', path.join(work, 'hang-nav.mp4'), '--width', '320', '--height', '200', '--force']);
+    took = Date.now() - started;
+    assert.equal(r.status, 0, 'with --force the failed navigate is a warning: ' + r.stderr + r.stdout);
+    assert.match(r.stderr, /navigate .*\/hang: .*Timeout/i);
+    assert.ok(took < 25000, `navigate path finished in ${took}ms`);
+    assert.ok(!/only runs under `record`/.test(r.stderr), 'no misleading static navigate warning during record');
+    await new Promise(res => setTimeout(res, 2000));
+    assert.ok(orphans() <= orphansBefore, `no orphaned browser/ffmpeg processes (before ${orphansBefore}, after ${orphans()})`);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir2, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    assert.match(ev.steps[0].error, /navigate/);
+    assert.equal(ev.steps[1].error, undefined, 'the step after the abandoned navigation still runs on the stopped page');
 });
 
 test('record: a page that defines its own window.__anim is refused and the CLI exits', { skip }, async () => {

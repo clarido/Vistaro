@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
+import { isLocaleCode } from './engine/strings';
 
 /**
  * Files that define a guide's content: index.html, anim.config.json, strings.*.json, and only
@@ -46,6 +47,41 @@ export function hashGuideDir(dir: string): string {
         h.update('\0');
     }
     return 'sha256:' + h.digest('hex');
+}
+
+/** Where a locale of `dir` lives: `<dir>/locales/<code>/` by default, or the legacy sibling `<dir>/../<code>/`. */
+export function localeDirFor(dir: string, code: string, opts: { sibling?: boolean } = {}): string {
+    return opts.sibling ? path.resolve(dir, '..', code) : path.resolve(dir, 'locales', code);
+}
+
+export interface LocaleDir { locale: string; dir: string; layout: 'locales' | 'sibling' }
+
+/**
+ * Every localized directory of `dir`: `locales/<code>/` entries that hold an anim.config.json, plus
+ * sibling directories the manifest's `localize` events point at (legacy layout), each still present.
+ */
+export function localeDirs(dir: string): LocaleDir[] {
+    const out = new Map<string, LocaleDir>();
+    const localesRoot = path.join(dir, 'locales');
+    if (fs.existsSync(localesRoot) && fs.statSync(localesRoot).isDirectory()) {
+        for (const name of fs.readdirSync(localesRoot).sort()) {
+            const full = path.join(localesRoot, name);
+            if (isLocaleCode(name) && fs.existsSync(path.join(full, 'anim.config.json'))) out.set(name, { locale: name, dir: full, layout: 'locales' });
+        }
+    }
+    const manifestPath = path.join(dir, 'anim.manifest.json');
+    if (fs.existsSync(manifestPath)) {
+        try {
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            for (const ev of manifest.history || []) {
+                if (ev.command !== 'localize' || !isLocaleCode(ev.locale) || !ev.targetDir || out.has(ev.locale)) continue;
+                const full = path.resolve(dir, ev.targetDir);
+                if (full.startsWith(path.resolve(localesRoot) + path.sep)) continue;
+                if (fs.existsSync(path.join(full, 'anim.config.json'))) out.set(ev.locale, { locale: ev.locale, dir: full, layout: 'sibling' });
+            }
+        } catch { /* corrupt manifest: ignore */ }
+    }
+    return [...out.values()];
 }
 
 export function toolVersion(): string {

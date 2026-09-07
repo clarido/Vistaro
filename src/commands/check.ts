@@ -3,6 +3,7 @@ import * as path from 'path';
 import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, CURSOR_ACTIONS, TARGET_REQUIRED } from '../engine/schema';
 import { runTimeline, ensureRuntime } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions } from '../browser';
+import { extractStrings, isAutoStepId } from '../engine/strings';
 
 export interface CheckOptions extends ViewportOptions {
     static?: boolean;
@@ -144,9 +145,16 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
             const file = path.basename(st.file);
             for (const key of st.unknown) issues.push({ level: 'warning', field: 'strings', message: `${file}: key "${key}" matches no step or field (step ids: ${timeline.steps.map(s => s.id).join(', ')})` });
             if (st.missing.length) issues.push({ level: 'info', field: 'strings', message: `${file}: ${st.missing.length} string(s) missing, inline text used: ${st.missing.slice(0, 6).join(', ')}${st.missing.length > 6 ? ', …' : ''}` });
-            if (st.untranslated.length && timeline.locale !== timeline.meta.locale) issues.push({ level: 'info', field: 'strings', message: `${file}: ${st.untranslated.length} string(s) still identical to the source text: ${st.untranslated.slice(0, 6).join(', ')}${st.untranslated.length > 6 ? ', …' : ''}` });
-        } else if (timeline.locale && timeline.locale !== timeline.meta.locale) {
+            if (st.untranslated.length && timeline.locale !== timeline.baseLocale) issues.push({ level: 'info', field: 'strings', message: `${file}: ${st.untranslated.length} string(s) still identical to the source text: ${st.untranslated.slice(0, 6).join(', ')}${st.untranslated.length > 6 ? ', …' : ''}` });
+        } else if (timeline.locale && timeline.locale !== timeline.baseLocale) {
             issues.push({ level: 'info', field: 'strings', message: `locale "${timeline.locale}" requested but no strings.${timeline.locale}.json next to anim.config.json; inline text used` });
+        }
+        // Translations attach to step ids: auto-generated step-NN ids silently move when a step is inserted.
+        const localized = !!timeline.strings || fs.readdirSync(path.resolve(dir)).some(f => /^strings\.[A-Za-z0-9-]+\.json$/.test(f));
+        if (localized) {
+            const auto = Object.keys(extractStrings(timeline)).map(k => /^steps\.(.+)\.[a-z]+$/.exec(k)?.[1]).filter((id): id is string => !!id && isAutoStepId(id));
+            const ids = [...new Set(auto)];
+            if (ids.length) issues.push({ level: 'warning', field: 'id', message: `${ids.length} localized step(s) use auto-generated ids (${ids.slice(0, 4).join(', ')}${ids.length > 4 ? ', …' : ''}); give them explicit "id"s so inserting a step does not re-attach their translations` });
         }
         if (!options.static && !hasErrors(issues.filter(i => i.field === 'time' || i.field === 'action'))) {
             issues.push(...await browserCheck(dir, timeline, options, issues));

@@ -5,7 +5,8 @@ import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
 import { parseTimeline, loadTimeline } from '../src/engine/schema';
-import { extractStrings, applyStrings, resolveLocale, writeStrings, readStrings } from '../src/engine/strings';
+import { extractStrings, applyStrings, resolveLocale, writeStrings, readStrings, isLocaleCode, diffStrings } from '../src/engine/strings';
+import { localeDirs, localeDirFor } from '../src/catalog';
 import { narrationOf } from '../src/media/tts';
 
 const root = path.resolve(__dirname, '..');
@@ -128,6 +129,11 @@ test('localize scaffolds locales/<code>/ with copies, base + target strings, man
     const src = cli(['build', dir, '--locale', 'fr', '-o', path.join(work, 'src-fr.html')]);
     assert.equal(src.status, 0, src.stderr);
     assert.ok(fs.readFileSync(path.join(work, 'src-fr.html'), 'utf8').includes('Ouvrez-le.'));
+    // a translator's edits to the target index.html and config survive a re-run (blocker fix)
+    fs.appendFileSync(path.join(fr, 'index.html'), '<!-- traduit -->');
+    const cfgFr = JSON.parse(fs.readFileSync(path.join(fr, 'anim.config.json'), 'utf8'));
+    cfgFr.meta.note = 'edited in the locale';
+    fs.writeFileSync(path.join(fr, 'anim.config.json'), JSON.stringify(cfgFr));
     // re-running localize merges (keeps translations, adds new keys) unless --force
     fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(dir, 'anim.config.json'), 'utf8')), steps: [...JSON.parse(fs.readFileSync(path.join(dir, 'anim.config.json'), 'utf8')).steps, { id: 'extra', time: 6, action: 'wait', title: 'Extra' }] }));
     const again = cli(['localize', dir, 'fr']);
@@ -135,9 +141,58 @@ test('localize scaffolds locales/<code>/ with copies, base + target strings, man
     const merged = readStrings(path.join(fr, 'strings.fr.json'));
     assert.equal(merged['steps.open.subtitle'], 'Ouvrez-le.', 'translation kept');
     assert.equal(merged['steps.extra.title'], 'Extra', 'new key added');
+    assert.ok(fs.readFileSync(path.join(fr, 'index.html'), 'utf8').includes('<!-- traduit -->'), 'translated index.html kept');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'anim.config.json'), 'utf8')).meta.note, 'edited in the locale', 'edited config kept');
+    assert.match(again.stdout, /Kept existing index\.html/);
+    assert.match(again.stdout, /Base strings changed since the last run[\s\S]*\+ steps\.extra\.title/);
+    assert.equal(readStrings(path.join(dir, 'strings.en.json'))['steps.extra.title'], 'Extra', 'base strings regenerated');
+    // manifest events of a locale build record the resolved locale, not the source meta.locale
+    const bFr = cli(['build', fr]);
+    assert.equal(bFr.status, 0, bFr.stderr);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'anim.manifest.json'), 'utf8')).history.at(-1).locale, 'fr');
+    // --force overwrites the target files
+    const forced = cli(['localize', dir, 'fr', '--force']);
+    assert.equal(forced.status, 0, forced.stderr);
+    assert.ok(!fs.readFileSync(path.join(fr, 'index.html'), 'utf8').includes('<!-- traduit -->'), '--force overwrote index.html');
+    assert.equal(readStrings(path.join(fr, 'strings.fr.json'))['steps.open.subtitle'], 'Open it.', '--force reset the strings');
+    // localeDirs enumerates locales/* (and --sibling dirs known from the manifest)
+    assert.deepEqual(localeDirs(dir).map(l => [l.locale, l.layout]), [['fr', 'locales']]);
+    assert.equal(localeDirFor(dir, 'de'), path.join(dir, 'locales', 'de'));
     // legacy sibling layout still available
     const sib = cli(['localize', dir, 'es', '--sibling']);
     assert.equal(sib.status, 0, sib.stderr);
     assert.ok(fs.existsSync(path.join(work, 'es', 'strings.es.json')));
+    assert.deepEqual(localeDirs(dir).map(l => [l.locale, l.layout]).sort(), [['es', 'sibling'], ['fr', 'locales']]);
+    // fr -> fr-CA: values seeded from the French view, no strings.en.json written into the fr dir
+    writeStrings(path.join(fr, 'strings.fr.json'), { ...readStrings(path.join(fr, 'strings.fr.json')), 'steps.open.subtitle': 'Ouvrez-le.' });
+    const ca = cli(['localize', fr, 'fr-CA']);
+    assert.equal(ca.status, 0, ca.stderr + ca.stdout);
+    const caStrings = readStrings(path.join(fr, 'locales', 'fr-CA', 'strings.fr-CA.json'));
+    assert.equal(caStrings['steps.open.subtitle'], 'Ouvrez-le.', 'seeded from the localized source');
+    assert.ok(!fs.existsSync(path.join(fr, 'strings.en.json')), 'a locale dir gets no base strings file');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'locales', 'fr-CA', 'anim.manifest.json'), 'utf8')).baseLocale, 'en');
     fs.rmSync(work, { recursive: true, force: true });
+});
+
+test('strings edge cases: invalid JSON names the strings file, dotted ids, locale code validation, legacy baseLocale ignored', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-strings-edge-'));
+    fs.writeFileSync(path.join(d, 'anim.config.json'), JSON.stringify({ meta: { locale: 'en' }, steps: [{ id: 'a.b', time: 0, action: 'wait', subtitle: 'Hi' }, { time: 1, action: 'wait', subtitle: 'Auto id' }] }));
+    fs.writeFileSync(path.join(d, 'strings.fr.json'), '{ not json');
+    assert.throws(() => loadTimeline(d, { locale: 'fr' }), /strings\.fr\.json: invalid JSON/);
+    writeStrings(path.join(d, 'strings.fr.json'), { 'steps.a.b.subtitle': 'Salut', 'steps.step-02.subtitle': 'Id auto' });
+    const tl = loadTimeline(d, { locale: 'fr' });
+    assert.equal(tl.steps[0].subtitle, 'Salut', 'ids containing dots work');
+    assert.equal(tl.steps[1].subtitle, 'Id auto');
+    assert.deepEqual(tl.strings!.unknown, []);
+    // check warns about the auto-generated id in a localized dir
+    const c = cli(['check', d, '--static', '--locale', 'fr']);
+    assert.match(c.stdout, /auto-generated ids \(step-02\)/);
+    // legacy manifest baseLocale holding a directory name is not trusted
+    fs.writeFileSync(path.join(d, 'anim.manifest.json'), JSON.stringify({ locale: 'fr', baseLocale: 'my-guide-dir', history: [] }));
+    assert.equal(loadTimeline(d).baseLocale, 'en');
+    assert.equal(loadTimeline(d).locale, 'fr');
+    assert.ok(isLocaleCode('fr') && isLocaleCode('pt-BR') && isLocaleCode('zh-Hant-TW'));
+    assert.ok(!isLocaleCode('my-guide-dir') && !isLocaleCode('EN') && !isLocaleCode('locales'));
+    assert.deepEqual(diffStrings({ a: '1', b: '2' }, { b: '3', c: '4' }), { added: ['c'], removed: ['a'], changed: ['b'] });
+    fs.rmSync(d, { recursive: true, force: true });
 });
