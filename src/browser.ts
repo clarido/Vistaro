@@ -120,7 +120,31 @@ export function sanitizeUrl(url: string): string {
     for (const [k, v] of [...u.searchParams.entries()]) {
         if (SECRET_PARAM.test(k) && v) u.searchParams.set(k, '***');
     }
+    u.hash = sanitizeFragment(u.hash);
     return u.toString();
+}
+
+/**
+ * The OAuth implicit flow returns credentials in the fragment (`#access_token=...&token_type=...`),
+ * which reaches the manifest and the guide like any other URL. Key/value fragments are redacted per
+ * key, exactly like the query; a fragment that is not key/value but looks like a bare token is
+ * redacted whole. An ordinary anchor (`#section-2`) is left alone.
+ */
+function sanitizeFragment(hash: string): string {
+    const raw = hash.replace(/^#/, '');
+    if (!raw) return hash;
+    if (/[=&]/.test(raw)) {
+        const parts = raw.split('&').map(pair => {
+            const eq = pair.indexOf('=');
+            if (eq < 0) return pair;
+            const k = pair.slice(0, eq);
+            const v = pair.slice(eq + 1);
+            return SECRET_PARAM.test(decodeURIComponent(k)) && v ? `${k}=***` : pair;
+        });
+        return '#' + parts.join('&');
+    }
+    // A bare fragment that looks like a secret rather than an anchor: long and not word-like.
+    return /^[A-Za-z0-9._~+/-]{24,}$/.test(raw) && /\d/.test(raw) ? '#***' : hash;
 }
 
 /**

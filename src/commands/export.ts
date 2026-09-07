@@ -8,7 +8,7 @@ import { bootOptions } from '../engine/inject';
 import { encodeMp4, encodeGif, cutClip, probeDurationMs } from '../media/ffmpeg';
 import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions, NarrationClip } from '../media/tts';
 import { buildGuide, resolveCrop, VideoInfo } from './guide';
-import { hashGuideDir } from '../catalog';
+import { hashGuideDir, relPosix, displayPath } from '../catalog';
 import { subtitleCues, buildVtt } from '../media/vtt';
 import { chaptersFor, ffmetadata } from '../media/chapters';
 
@@ -64,7 +64,7 @@ export interface ExportSummary {
 
 /** Shared by export and record: the success line, or the failure summary + exit code 1. */
 export function reportOutcome(verb: string, summary: ExportSummary, extra = ''): void {
-    const rel = (p: string) => { const r = path.relative(process.cwd(), p); return r && !r.startsWith('..') ? r : p; };
+    const rel = displayPath;
     const details = (summary.vtt ? `, subtitles ${rel(summary.vtt)}` : '') +
         (summary.chapters ? `, ${summary.chapters} chapters` : '') +
         (summary.narration ? `, narration mixed in` : '') +
@@ -389,7 +389,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     }
 
     // Paths in the manifest are relative to the output directory (never absolute, never cwd-relative).
-    const relToDir = (p: string) => path.relative(path.resolve(outputDir), p).split(path.sep).join('/');
+    const relToDir = (p: string) => relPosix(path.resolve(outputDir), p);
     recordEvent(outputDir, {
         command: session ? session.command : 'export', url: session ? sanitizeUrl(session.url) : undefined, storageState: session?.storageState ? relToDir(path.resolve(session.storageState)) : undefined,
         navigations: runState.navigations || undefined, shiftMs: runState.shiftMs || undefined,

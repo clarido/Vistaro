@@ -3,6 +3,7 @@ import * as path from 'path';
 import { loadTimeline, validateTimeline, formatIssue, hasErrors, computeDurationMs, formatTime } from '../engine/schema';
 import { buildAnimatedHtml } from '../engine/inject';
 import { recordEvent } from '../manifest';
+import { relPosix } from '../catalog';
 
 export interface BuildOptions {
     cursor?: string;
@@ -49,7 +50,7 @@ export function buildCommand(dir: string, options: BuildOptions = {}): void {
     fs.writeFileSync(outPath, out, 'utf8');
 
     const cursor = options.cursor ?? timeline.meta.cursor ?? 'mac';
-    recordEvent(dir, { command: 'build', cursor, loop: !!options.loop, locale: timeline.locale ?? options.locale ?? timeline.meta.locale, force: !!options.force, output: path.relative(path.resolve(dir), outPath).split(path.sep).join('/') });
+    recordEvent(dir, { command: 'build', cursor, loop: !!options.loop, locale: timeline.locale ?? options.locale ?? timeline.meta.locale, force: !!options.force, output: relPosix(path.resolve(dir), outPath) });
 
     const durationMs = computeDurationMs(timeline);
     console.log(`Built ${outPath} (${timeline.steps.length} steps, ${formatTime(durationMs)} total, cursor: ${cursor}${options.loop ? ', loop' : ''}).`);

@@ -110,6 +110,12 @@ export interface RunOptions {
     state?: RunState;
     /** Steps for which `afterStep` runs at the arrival (before the interaction), e.g. navigating clicks in a guide. */
     captureBeforeAct?: (step: Step) => boolean;
+    /**
+     * Second capture point for the steps `captureBeforeAct` selected: runs after the interaction
+     * (and the settle), so a hook that captured the arrival can decide which frame to keep. Always
+     * runs once per two-phase step, failures included, so such a hook can finish its bookkeeping.
+     */
+    afterAct?: (step: Step, result: StepResult) => void | Promise<void>;
     beforeStep?: (step: Step) => void | Promise<void>;
     afterStep?: (step: Step, result: StepResult) => void | Promise<void>;
 }
@@ -287,6 +293,15 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
         const twoPhase = !!(opts.captureBeforeAct && opts.captureBeforeAct(step));
         let token: number | undefined;
         let afterStepDone = false;
+        let actDone = false;
+        // A two-phase step always reaches afterAct exactly once, so a hook holding an arrival frame
+        // is never left with a pending entry (a failed act included).
+        const finishAct = async () => {
+            if (actDone || !twoPhase || !opts.afterAct) return;
+            actDone = true;
+            try { await opts.afterAct(step, result); }
+            catch (e: any) { appendError(result, `afterAct hook: ${errorMessage(e)}`); }
+        };
         const evaluateStep = () => withTimeout(
             page.evaluate(
                 ([s, o]) => (window as any).__anim.runStep(s, o),
@@ -344,7 +359,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
                 result.navigated = true;
             } else {
                 appendError(result, errorMessage(e));
-                if (!afterStepDone) await finishFailed();
+                if (!afterStepDone) await finishFailed(); else await finishAct();
                 return;
             }
         }
@@ -403,6 +418,9 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
                 try { await opts.afterStep(step, result); }
                 catch (e: any) { appendError(result, `afterStep hook: ${errorMessage(e)}`); }
             }
+        } else if (twoPhase && opts.afterAct) {
+            if (opts.mode === 'step' && settleMs > 0 && !opts.instant) await page.waitForTimeout(settleMs);
+            await finishAct();
         }
         await awaitCompletion();
     };

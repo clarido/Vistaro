@@ -3,7 +3,7 @@ import * as path from 'path';
 import { recordEvent, setManifestFields, readManifest } from '../manifest';
 import { loadTimeline, parseTimeline } from '../engine/schema';
 import { extractStrings, stringsPath, writeStrings, readStrings, StringMap, isLocaleCode, isAutoStepId, diffStrings } from '../engine/strings';
-import { referencedLocalFiles, localeDirFor, htmlLocalRefs } from '../catalog';
+import { referencedLocalFiles, localeDirFor, htmlLocalRefs, relPosix, displayPath } from '../catalog';
 
 const MEDIA_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.css', '.js', '.woff', '.woff2', '.ttf', '.otf', '.mp4', '.webm', '.mp3'];
 
@@ -41,7 +41,7 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
     }
     fs.mkdirSync(targetDir, { recursive: true });
 
-    const rel = (p: string) => { const r = path.relative(process.cwd(), p); return r && !r.startsWith('..') ? r : p; };
+    const rel = displayPath;
     const kept: string[] = [];
     const copied: string[] = [];
     const overwritten: string[] = [];
@@ -127,8 +127,8 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
 
     setManifestFields(targetDir, { locale, baseLocale });
     if (!isLocaleCode(srcManifest.locale)) setManifestFields(sourceDir, { locale: sourceIsLocale ? srcManifest.locale : baseLocale, baseLocale });
-    recordEvent(sourceDir, { command: 'localize', locale, targetDir: path.relative(path.resolve(sourceDir), targetDir).split(path.sep).join('/') });
-    recordEvent(targetDir, { command: 'localize', sourceDir: path.relative(targetDir, path.resolve(sourceDir)).split(path.sep).join('/'), locale, baseLocale });
+    recordEvent(sourceDir, { command: 'localize', locale, targetDir: relPosix(path.resolve(sourceDir), targetDir) });
+    recordEvent(targetDir, { command: 'localize', sourceDir: relPosix(targetDir, path.resolve(sourceDir)), locale, baseLocale });
 
     console.log(`\nScaffolded locale "${locale}" at ${rel(targetDir)}: copied ${copied.join(', ') || 'nothing new'}${mediaCopied ? `, ${mediaCopied} media file(s)` : ''}${targetStringsFile ? `; ${Object.keys(baseStrings!).length} strings` : ''}.`);
     for (const k of kept) console.log(`Kept existing ${k} (use --force to overwrite).`);

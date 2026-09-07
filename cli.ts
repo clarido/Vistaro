@@ -13,8 +13,7 @@ import { guideCommand } from './src/commands/guide';
 import { recordCommand } from './src/commands/record';
 import { buildAllCommand } from './src/commands/build-all';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pkg = require('./package.json') as { version: string };
+import { toolPackage } from './src/catalog';
 
 /**
  * The commander program with every command registered. Exported (without parsing) so
@@ -26,7 +25,7 @@ export function buildProgram(): Command {
   program
     .name('anim-cli')
     .description('Turn a UI mockup (index.html + anim.config.json) or a live web page into a demo video, a step-by-step help guide, and their translations')
-    .version(pkg.version);
+    .version(toolPackage().version);
 
   program.addHelpText('after', `
 =========================================

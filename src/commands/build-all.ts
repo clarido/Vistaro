@@ -3,7 +3,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { createHash } from 'crypto';
 import { pathToFileURL } from 'url';
-import { readCatalog, locateLocaleDir, writeIndex, readIndex, mergeIndexEntries, hashGuideDir, toolVersion, effectiveSettings, Catalog, CatalogGuide, EffectiveSettings, IndexEntry, IndexJson } from '../catalog';
+import { readCatalog, locateLocaleDir, relPosix, writeIndex, readIndex, mergeIndexEntries, hashGuideDir, toolVersion, effectiveSettings, Catalog, CatalogGuide, EffectiveSettings, IndexEntry, IndexJson } from '../catalog';
 import { loadTimeline } from '../engine/schema';
 import { readManifest, setManifestFields, recordEvent } from '../manifest';
 import { keepPreviousFrames, diffGuideFrames } from '../guide/diff';
@@ -75,7 +75,7 @@ function tail(s: string, n = 6): string {
 
 /** Links (relative to outputDir) for whatever of a guide × locale's outputs exist on disk. */
 function linksOnDisk(entry: IndexEntry, outDir: string, videoFile: string): void {
-    const rel = (file: string) => `${entry.output}/${path.relative(outDir, file).split(path.sep).join('/')}`;
+    const rel = (file: string) => `${entry.output}/${relPosix(outDir, file)}`;
     const guideDir = path.join(outDir, 'guide');
     const vtt = videoFile.replace(/\.mp4$/i, '.vtt');
     const gif = videoFile.replace(/\.mp4$/i, '.gif');
@@ -146,7 +146,7 @@ export async function buildAllCommand(catalogFile: string | undefined, options: 
         const outputs = settings.outputs;
         const entry: IndexEntry = {
             slug: guide.slug, locale, title,
-            dir: path.relative(catalogDir, guide.dir).split(path.sep).join('/'),
+            dir: relPosix(catalogDir, guide.dir),
             output: `${guide.slug}/${locale}`, status: 'failed',
         };
         entries.push(entry);
@@ -267,7 +267,7 @@ export async function buildAllCommand(catalogFile: string | undefined, options: 
         // Remember what was built for --changed-only (per locale: the sources' hash and the full build key).
         const merge = (field: string) => ({ ...(manifest[field] && typeof manifest[field] === 'object' ? manifest[field] : {}) });
         setManifestFields(srcDir, { contentHash: { ...merge('contentHash'), [locale]: contentHash }, buildKey: { ...merge('buildKey'), [locale]: buildKey } });
-        recordEvent(srcDir, { command: 'build-all', catalog: path.relative(srcDir, catalog.file!).split(path.sep).join('/'), locale, output: path.relative(srcDir, outDir).split(path.sep).join('/'), contentHash, buildKey, stale: entry.stale, builtAt: entry.builtAt });
+        recordEvent(srcDir, { command: 'build-all', catalog: relPosix(srcDir, catalog.file!), locale, output: relPosix(srcDir, outDir), contentHash, buildKey, stale: entry.stale, builtAt: entry.builtAt });
         console.log(`✓ ${guide.slug}/${locale}${entry.stale ? ' (stale: frames changed)' : ''} in ${((entry.ms || 0) / 1000).toFixed(1)}s`);
     }
 
@@ -281,7 +281,7 @@ export async function buildAllCommand(catalogFile: string | undefined, options: 
     const previous = readIndex(catalog.outputDir);
     const index: IndexJson = {
         version: 1, generatedAt: new Date().toISOString(), tool: toolVersion(),
-        catalog: path.relative(catalog.outputDir, catalog.file!).split(path.sep).join('/'),
+        catalog: relPosix(catalog.outputDir, catalog.file!),
         guides: mergeIndexEntries(previous?.guides, entries, planned.map(p => ({ slug: p.guide.slug, locale: p.locale }))),
     };
     const written = writeIndex(catalog.outputDir, index);

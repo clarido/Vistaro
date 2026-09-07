@@ -89,13 +89,13 @@ Object form (a bare array of steps is still accepted):
 
 | Action | What happens | Guide frame taken |
 |---|---|---|
-| `click` | Cursor travels, spotlight, press, ripple, real `el.click()` so the page's own handlers run. | At the interaction (+300 ms settle), spotlight held. |
+| `click` | Cursor travels, spotlight, press, ripple, real `el.click()` so the page's own handlers run. | At the interaction (+300 ms settle), spotlight held; a click that hides its own target (a screen swap, a navigation) is captured just before the click instead, and records `capturedAt: "arrival"`. |
 | `focus` | Cursor travels, spotlight, `el.focus()`. | Interaction. |
 | `type` | Cursor travels, focuses, types `value` character by character (inputs, textareas, contenteditable, plain elements with a caret). | Completion (full text visible). |
 | `highlight` | Spotlight pulse without a click ("notice this"). | Interaction. |
 | `hover` | Cursor moves onto the element. | Interaction. |
 | `press` | Keyboard key from `value` (no target). | Interaction. |
-| `camera` | Pan/zoom the page toward the target (or `x`/`y`); `scale: 1` pulls back. | Completion (zoomed framing). |
+| `camera` | Pan/zoom the page toward the target (or `x`/`y`); `scale: 1` pulls back. The cursor rides along, staying on the element it last landed on. | Completion (zoomed framing). |
 | `scroll` | Smooth-scroll the target into view. | Completion. |
 | `fadeIn` | Reveal the target (display/opacity) with a fade. | Completion. |
 | `transitionScreen` | Fade the current screen out and the target screen in. | Completion. |
@@ -242,6 +242,7 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 - **Rule for `page.evaluate` callbacks:** no inner functions inside the callback. `tsx`/esbuild adds a `__name` helper that does not exist in the page, so the callback throws silently. Put helpers in `runtime.js` and call them by name (`__anim.markStep(...)`).
 - Tests: `npm test` (`node:test` through `tsx`, serial: `--test-concurrency=1`, about 10 minutes with the browser tests; `SKIP_BROWSER=1` skips them, `SKIP_TTS=1` skips the macOS `say` narration test). `ANIM_DEBUG=1` makes `check` print every target probe and `export` print page/context close timings and trim details on stderr. Fixtures: `test/fixtures/basic/` (a mockup with every action) and `test/fixtures/live-app/server.ts` (a login/dashboard app for `record`).
 - Docs: `npm run docs` regenerates the CLI reference block below (and in README.md) from `cli.ts`; `npm run docs:check` and `test/docs.test.ts` fail when it is stale.
+- CI: `.github/workflows/test.yml` runs `npm run docs:check`, `tsc --noEmit` and the suite on Ubuntu with a cached Chromium, about 12 to 15 minutes. It needs no secrets.
 
 ## CLI reference
 

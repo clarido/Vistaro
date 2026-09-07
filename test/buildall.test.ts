@@ -5,7 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { spawnSync, spawn } from 'child_process';
 import { pathToFileURL } from 'url';
-import { readCatalog, resolveLocaleDir, locateLocaleDir, writeIndex, mergeIndexEntries, outputDirProblem, effectiveSettings, IndexJson, IndexEntry } from '../src/catalog';
+import { readCatalog, locateLocaleDir, writeIndex, mergeIndexEntries, outputDirProblem, effectiveSettings, IndexJson, IndexEntry } from '../src/catalog';
 import { buildKeyFor } from '../src/commands/build-all';
 import { diffPng } from '../src/guide/diff';
 import { PNG } from 'pngjs';
@@ -70,13 +70,13 @@ test('readCatalog validates shape, dirs, slugs, locales, outputs, settings types
     }
     // locale dir resolution: explicit map > locales/<code> > sibling; base locale = the guide dir
     const g = c.guides[0];
-    assert.equal(resolveLocaleDir(g, 'en', 'en'), g.dir);
-    assert.equal(resolveLocaleDir(g, 'fr', 'en'), undefined);
+    assert.equal(locateLocaleDir(g, 'en', 'en').dir, g.dir);
+    assert.equal(locateLocaleDir(g, 'fr', 'en').dir, undefined);
     assert.match(locateLocaleDir(g, 'fr', 'en').error || '', /no directory for locale "fr"/);
     assert.equal(cli(['localize', g.dir, 'fr']).status, 0);
-    assert.equal(resolveLocaleDir(g, 'fr', 'en'), path.join(g.dir, 'locales', 'fr'));
+    assert.equal(locateLocaleDir(g, 'fr', 'en').dir, path.join(g.dir, 'locales', 'fr'));
     assert.equal(cli(['localize', g.dir, 'es', '--sibling']).status, 0);
-    assert.equal(resolveLocaleDir(g, 'es', 'en'), path.join(d, 'es'));
+    assert.equal(locateLocaleDir(g, 'es', 'en').dir, path.join(d, 'es'));
     // an explicit map resolves against the catalog file, not the guide's parent (dir "guides/foo" + map "guides/foo-de")
     fs.mkdirSync(path.join(d, 'guides', 'foo'), { recursive: true });
     fs.cpSync(fixture, path.join(d, 'guides', 'foo'), { recursive: true });
@@ -84,7 +84,7 @@ test('readCatalog validates shape, dirs, slugs, locales, outputs, settings types
     fs.copyFileSync(path.join(g.dir, 'anim.config.json'), path.join(d, 'guides', 'foo-de', 'anim.config.json'));
     fs.writeFileSync(path.join(d, 'map.json'), JSON.stringify({ outputDir: 'out', guides: [{ slug: 'foo', dir: 'guides/foo', locales: { de: 'guides/foo-de', it: 'guides/foo-it' } }] }));
     const cm = readCatalog(path.join(d, 'map.json'));
-    assert.equal(resolveLocaleDir(cm.guides[0], 'de', 'en'), path.join(d, 'guides', 'foo-de'));
+    assert.equal(locateLocaleDir(cm.guides[0], 'de', 'en').dir, path.join(d, 'guides', 'foo-de'));
     assert.match(locateLocaleDir(cm.guides[0], 'it', 'en').error || '', /locales\.it points at .*foo-it, which has no anim\.config\.json/, 'an explicit-map miss is its own message');
     // the build key changes with the sources, the settings and the tool; not with key order
     const st = effectiveSettings(cm.guides[0], { width: 640 });

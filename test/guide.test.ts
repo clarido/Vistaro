@@ -11,6 +11,7 @@ import { hashGuideDir, referencedLocalFiles } from '../src/catalog';
 import { launchPage, fileUrl } from '../src/browser';
 import { ensureRuntime } from '../src/engine/driver';
 import { listChapters } from '../src/media/ffmpeg';
+import { diffPng } from '../src/guide/diff';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
@@ -218,7 +219,12 @@ test('export --guide --clips: video block, chapters, poster, clips wired into gu
     assert.ok(g.video!.chapters.length >= 5);
     assert.equal(g.video!.chapters[1].title, 'Open the panel');
     const click = g.steps[0];
-    assert.ok(Math.abs(click.actualMs - 1000) <= 100, `actualMs from the video pass: ${click.actualMs}`);
+    // The guide does not re-time anything: its actualMs is the video pass's own measurement, so the
+    // two numbers must be identical rather than merely close to the schedule.
+    const exportEvent = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const clickStep = exportEvent.steps.find((s: any) => s.index === click.index);
+    assert.equal(click.actualMs, clickStep.actualMs, 'guide actualMs comes from the video pass');
+    assert.ok(click.actualMs >= 900, `and it is the real interaction moment: ${click.actualMs}ms`);
     assert.equal(click.clip, '../out-step-02.mp4');
     assert.ok(fs.existsSync(path.join(work, 'g', click.clip!)));
     assert.equal(listChapters(path.join(work, 'g', click.clip!)).length, 0, 'clips carry no chapters');
@@ -306,4 +312,59 @@ test('guide marks never capture mid-transition: whenSettled outlasts a 3s CSS fa
     } finally {
         await launched.close();
     }
+});
+
+test('a click that hides its own target keeps the frame taken before the click; a normal click stays settled', { skip }, () => {
+    // Screen-swap handlers run inside the 300ms settle, so the settled frame would show the new
+    // screen with the spotlight framing an element that is no longer on it.
+    const dir = path.join(work, 'swap');
+    fs.mkdirSync(dir);
+    fs.writeFileSync(path.join(dir, 'index.html'), `<!doctype html><html><head><meta charset="utf-8"><style>
+      body { margin: 0; font: 16px sans-serif; background: #fff; height: 100vh; }
+      .screen { padding: 40px; }
+      /* Deliberately dark: if the wrong frame were kept, step-01 would look like screen 2. */
+      #screen2 { display: none; background: #101828; color: #fff; height: 100vh; }
+      button { padding: 12px 20px; font-size: 16px; }
+    </style></head><body>
+      <div class="screen" id="screen1"><h1 id="title1">Step one</h1><button id="go">Continue</button></div>
+      <div class="screen" id="screen2"><h1 id="title2">Step two</h1><button id="ok">Finish</button></div>
+      <script>
+        document.getElementById('go').addEventListener('click', function () {
+          document.getElementById('screen1').style.display = 'none';
+          document.getElementById('screen2').style.display = 'block';
+        });
+      </script>
+    </body></html>`);
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({
+        meta: { title: 'Screen swap', cursor: 'mac', drift: false },
+        steps: [
+            { id: 'go', time: 0.5, action: 'click', target: '#go', title: 'Continue' },
+            { id: 'ok', time: 1.5, action: 'click', target: '#ok', title: 'Finish' },
+        ],
+    }));
+    const out = path.join(work, 'swap-guide');
+    const r = cli(['guide', dir, '-o', out, '--width', '800', '--height', '600']);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    const g: GuideJson = JSON.parse(fs.readFileSync(path.join(out, 'guide.json'), 'utf8'));
+    const [go, ok] = g.steps;
+
+    // The click that hid its own target: frame taken at the arrival, spotlight on the button clicked.
+    assert.equal(go.capturedAt, 'arrival', JSON.stringify(go));
+    assert.ok(go.rect && go.rect.width > 0, `spotlight framed #go: ${JSON.stringify(go.rect)}`);
+    assert.equal(go.image, 'assets/step-01.png');
+    assert.match(r.stdout, /hid its own target/);
+    // The click that did not: the ordinary settled frame.
+    assert.equal(ok.capturedAt, 'interaction', JSON.stringify(ok));
+    assert.equal(ok.image, 'assets/step-02.png');
+
+    // No arrival leftovers: assets hold exactly the documented files.
+    const assets = fs.readdirSync(path.join(out, 'assets')).sort();
+    assert.deepEqual(assets.filter(f => f.includes('.arrival')), [], `arrival frames cleaned up: ${assets.join(', ')}`);
+    for (const s of g.steps) {
+        assert.ok(fs.existsSync(path.join(out, s.image!)), `${s.id} frame on disk`);
+        if (s.crop) assert.ok(fs.existsSync(path.join(out, s.crop)), `${s.id} crop on disk`);
+    }
+    // The kept frame really shows the first screen: its pixels differ from the second screen's frame.
+    const framesDiffer = diffPng(path.join(out, go.image!), path.join(out, ok.image!));
+    assert.ok(framesDiffer > 0.5, `the kept frame shows the light pre-click screen, not the dark one after it (diff ${framesDiffer})`);
 });

@@ -40,6 +40,22 @@ export function htmlLocalRefs(html: string): HtmlRef[] {
     return out;
 }
 
+/** Forward slashes whatever the platform separator is: every path we serialize goes through this. */
+export function toPosix(p: string): string {
+    return p.split(path.sep).join('/');
+}
+
+/** A serialized path: `to` relative to `from`, with forward slashes. */
+export function relPosix(from: string, to: string): string {
+    return toPosix(path.relative(path.resolve(from), path.resolve(to)));
+}
+
+/** A path for a human to read: relative to the working directory when it is inside it, else absolute. */
+export function displayPath(p: string): string {
+    const r = path.relative(process.cwd(), p);
+    return r && !r.startsWith('..') ? r : p;
+}
+
 /** decodeURIComponent that falls back to the input on a malformed sequence (a literal "%" in a file name). */
 export function safeDecode(s: string): string {
     try { return decodeURIComponent(s); } catch { return s; }
@@ -52,7 +68,7 @@ export function referencedLocalFiles(dir: string): string[] {
     const refs = new Set<string>();
     for (const ref of htmlLocalRefs(fs.readFileSync(indexPath, 'utf8'))) {
         const rel = path.relative(dir, path.resolve(dir, ref.file));
-        if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) refs.add(rel.split(path.sep).join('/'));
+        if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) refs.add(toPosix(rel));
     }
     return [...refs].sort();
 }
@@ -61,7 +77,7 @@ export function referencedLocalFiles(dir: string): string[] {
 export function hashGuideDir(dir: string): string {
     const h = createHash('sha256');
     for (const file of guideSourceFiles(dir)) {
-        h.update(path.relative(dir, file).split(path.sep).join('/'));
+        h.update(relPosix(dir, file));
         h.update('\0');
         h.update(fs.readFileSync(file));
         h.update('\0');
@@ -72,36 +88,6 @@ export function hashGuideDir(dir: string): string {
 /** Where a locale of `dir` lives: `<dir>/locales/<code>/` by default, or the legacy sibling `<dir>/../<code>/`. */
 export function localeDirFor(dir: string, code: string, opts: { sibling?: boolean } = {}): string {
     return opts.sibling ? path.resolve(dir, '..', code) : path.resolve(dir, 'locales', code);
-}
-
-export interface LocaleDir { locale: string; dir: string; layout: 'locales' | 'sibling' }
-
-/**
- * Every localized directory of `dir`: `locales/<code>/` entries that hold an anim.config.json, plus
- * sibling directories the manifest's `localize` events point at (legacy layout), each still present.
- */
-export function localeDirs(dir: string): LocaleDir[] {
-    const out = new Map<string, LocaleDir>();
-    const localesRoot = path.join(dir, 'locales');
-    if (fs.existsSync(localesRoot) && fs.statSync(localesRoot).isDirectory()) {
-        for (const name of fs.readdirSync(localesRoot).sort()) {
-            const full = path.join(localesRoot, name);
-            if (isLocaleCode(name) && fs.existsSync(path.join(full, 'anim.config.json'))) out.set(name, { locale: name, dir: full, layout: 'locales' });
-        }
-    }
-    const manifestPath = path.join(dir, 'anim.manifest.json');
-    if (fs.existsSync(manifestPath)) {
-        try {
-            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-            for (const ev of manifest.history || []) {
-                if (ev.command !== 'localize' || !isLocaleCode(ev.locale) || !ev.targetDir || out.has(ev.locale)) continue;
-                const full = path.resolve(dir, ev.targetDir);
-                if (full.startsWith(path.resolve(localesRoot) + path.sep)) continue;
-                if (fs.existsSync(path.join(full, 'anim.config.json'))) out.set(ev.locale, { locale: ev.locale, dir: full, layout: 'sibling' });
-            }
-        } catch { /* corrupt manifest: ignore */ }
-    }
-    return [...out.values()];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -289,12 +275,9 @@ export interface LocaleResolution { dir?: string; error?: string }
 /**
  * Directory holding `locale` for a guide: an explicit map entry (absolute after readCatalog), else
  * `<dir>/locales/<code>/`, else the legacy sibling `<dir>/../<code>/`; the base locale is the guide
- * directory itself. An explicit path without anim.config.json is its own error; otherwise the hint is to run localize.
+ * directory itself. Returns the reason on a miss: an explicit path without anim.config.json is its
+ * own error, anything else is the hint to run `localize`.
  */
-export function resolveLocaleDir(guide: CatalogGuide, locale: string, baseLocale: string): string | undefined {
-    return locateLocaleDir(guide, locale, baseLocale).dir;
-}
-
 export function locateLocaleDir(guide: CatalogGuide, locale: string, baseLocale: string): LocaleResolution {
     if (locale === baseLocale) return { dir: guide.dir };
     if (guide.locales && !Array.isArray(guide.locales) && guide.locales[locale]) {
@@ -388,11 +371,17 @@ export function writeIndex(outputDir: string, index: IndexJson): { json: string;
     return { json, md };
 }
 
-export function toolVersion(): string {
+/** The package manifest, read once: the CLI's --version and toolVersion() agree by construction. */
+export function toolPackage(): { name: string; version: string } {
     try {
         const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-        return `${pkg.name}@${pkg.version}`;
-    } catch {
-        return 'screenshot-animator';
-    }
+        if (typeof pkg?.version === 'string') return { name: pkg.name || 'screenshot-animator', version: pkg.version };
+    } catch { /* not readable from here (bundled?): fall through */ }
+    return { name: 'screenshot-animator', version: '0.0.0' };
+}
+
+/** `name@version`, stamped into guide.json and index.json. */
+export function toolVersion(): string {
+    const pkg = toolPackage();
+    return `${pkg.name}@${pkg.version}`;
 }

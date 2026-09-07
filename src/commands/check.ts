@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, CURSOR_ACTIONS, TARGET_REQUIRED } from '../engine/schema';
+import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue } from '../engine/schema';
 import { runTimeline, ensureRuntime } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions } from '../browser';
 import { extractStrings, isAutoStepId } from '../engine/strings';
@@ -28,9 +28,9 @@ interface TargetProbe {
     inViewport?: boolean;
 }
 
-function issueFor(step: Step, level: Issue['level'], message: string, field = 'target'): Issue {
-    return { level, step: step.index, id: step.id, field, message, time: step.time, action: step.action, target: step.target };
-}
+/** Same Issue shape as the static pass; the browser pass reports about a target unless told otherwise. */
+const issueFor = (step: Step, level: Issue['level'], message: string, field = 'target'): Issue =>
+    schemaIssue(step, level, message, field);
 
 /** Run the timeline in a headless page (step mode, instant) and probe each target right before its step. */
 export async function browserCheck(dir: string, timeline: Timeline, opts: ViewportOptions, staticIssues: Issue[] = []): Promise<Issue[]> {

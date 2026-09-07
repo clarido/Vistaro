@@ -1,0 +1,45 @@
+# Typecheck, docs drift and the full test suite on every push and pull request.
+# Expect roughly 12 to 15 minutes: the suite runs serially (--test-concurrency=1) and most of it
+# drives a real Chromium and encodes video with ffmpeg. No secrets are needed; the narration test
+# skips off macOS, and nothing here reaches the network beyond npm and the browser download.
+name: test
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'   # engines.node is >=20.6 (node --import)
+          cache: npm
+
+      - run: npm ci
+
+      # Chromium is ~130MB; keyed on the lock file so a Playwright bump re-downloads it.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium
+        # --with-deps installs the system libraries even when the browser itself was cached.
+        run: npx playwright install --with-deps chromium
+
+      - name: CLI reference is up to date
+        run: npm run docs:check
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test

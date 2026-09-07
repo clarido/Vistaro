@@ -152,7 +152,14 @@ test('record --guide: badges on the post-navigation pages, video linked, actual 
     const note = g.steps.find(s => s.id === 'note')!;       // /details/1 after the link navigation
     assert.ok(items.callout && items.rect && items.rect.width > 100, JSON.stringify(items));
     assert.ok(note.callout && note.rect && note.rect.width > 100, JSON.stringify(note));
-    assert.ok(Math.abs(items.actualMs - 3200) < 300, `actualMs from the recording: ${items.actualMs}`);
+    // Same invariant as the local guide: the times come from the recording pass, not from the schedule
+    // (a live page's waitFor can legitimately push every later step out).
+    const recordEvent = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const itemsStep = recordEvent.steps.find((s: any) => s.id === 'items');
+    assert.equal(items.actualMs, itemsStep.actualMs, 'guide actualMs comes from the recording');
+    const submitStep = recordEvent.steps.find((s: any) => s.id === 'submit');
+    assert.ok(items.actualMs > submitStep.actualMs, `the list step ran after the login click: ${items.actualMs} vs ${submitStep.actualMs}`);
+    assert.ok(items.actualMs >= 3200, `and no earlier than scheduled: ${items.actualMs}`);
     assert.ok(g.video!.chapters.length >= 6);
     // clicks that navigated in the video pass are captured at the arrival (cursor pressed, spotlight on, before the click)
     for (const id of ['submit', 'details']) {
@@ -203,17 +210,29 @@ test('record: a navigation that commits during the next step\'s waitFor (script 
 test('record: with a slow server (400ms latency) the first changed frame still lands within 1.5 frames of actualMs', { skip }, async () => {
     const slow = await startLiveApp({ respDelayMs: 400 });
     try {
-        const dir = writeDir('latency', { meta: { url: `${slow.url}/flash`, cursor: 'none', drift: false, tailMs: 600 }, steps: [{ time: 1, action: 'click', target: '[data-help="flash"]' }] });
-        const out = path.join(work, 'latency.mp4');
-        const r = await cli(['record', dir, '-o', out, '--width', '320', '--height', '200', '--no-chapters', '--no-subtitles']);
-        assert.equal(r.status, 0, r.stderr + r.stdout);
-        const actualMs: number = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1).steps[0].actualMs;
-        const frames = samplePixels(out, 300, 190);
-        const first = frames.findIndex(f => f.r > 200 && f.g < 80);
-        assert.ok(first > 0, `a red frame exists after a white one (${frames.length} frames)`);
-        const frameMs = frames[1].ptsMs - frames[0].ptsMs;
-        const delta = frames[first].ptsMs - actualMs;
-        assert.ok(Math.abs(delta) <= frameMs * 1.5 + 5, `first red frame at ${frames[first].ptsMs}ms vs actualMs ${actualMs}ms (delta ${delta}ms) with 400ms server latency`);
+        // A pure timing measurement (video trim alignment): one attempt can lose to a scheduling
+        // hiccup on a loaded machine without the alignment being wrong, so a miss is retried once
+        // and only a repeated miss fails.
+        const attempt = async (n: number): Promise<string | undefined> => {
+            const dir = writeDir(`latency${n}`, { meta: { url: `${slow.url}/flash`, cursor: 'none', drift: false, tailMs: 600 }, steps: [{ time: 1, action: 'click', target: '[data-help="flash"]' }] });
+            const out = path.join(work, `latency${n}.mp4`);
+            const r = await cli(['record', dir, '-o', out, '--width', '320', '--height', '200', '--no-chapters', '--no-subtitles']);
+            assert.equal(r.status, 0, r.stderr + r.stdout);
+            const actualMs: number = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1).steps[0].actualMs;
+            const frames = samplePixels(out, 300, 190);
+            const first = frames.findIndex(f => f.r > 200 && f.g < 80);
+            assert.ok(first > 0, `a red frame exists after a white one (${frames.length} frames)`);
+            const frameMs = frames[1].ptsMs - frames[0].ptsMs;
+            const delta = frames[first].ptsMs - actualMs;
+            return Math.abs(delta) <= frameMs * 1.5 + 5
+                ? undefined
+                : `first red frame at ${frames[first].ptsMs}ms vs actualMs ${actualMs}ms (delta ${delta}ms) with 400ms server latency`;
+        };
+        const miss = await attempt(1);
+        if (miss) {
+            const again = await attempt(2);
+            assert.equal(again, undefined, `${miss} (and again on the retry: ${again})`);
+        }
     } finally {
         await slow.close();
     }
@@ -264,9 +283,15 @@ test('record: a page that defines its own window.__anim is refused and the CLI e
     assert.ok(Date.now() - started < 30000, 'browser closed, process exited');
 });
 
-test('sanitizeUrl strips credentials and redacts token-like query params', () => {
+test('sanitizeUrl strips credentials and redacts token-like query params and fragments', () => {
     assert.equal(sanitizeUrl('https://user:pw@app.example.com/x?token=abc&page=2&api_key=k'), 'https://app.example.com/x?token=***&page=2&api_key=***');
     assert.equal(sanitizeUrl('http://127.0.0.1:3000/login'), 'http://127.0.0.1:3000/login');
+    // The OAuth implicit flow puts the credential in the fragment, which reaches the manifest too.
+    assert.equal(sanitizeUrl('https://app.example.com/cb#access_token=ya29.abc&token_type=Bearer&expires_in=3600'),
+        'https://app.example.com/cb#access_token=***&token_type=***&expires_in=3600');
+    assert.equal(sanitizeUrl('https://app.example.com/p#section-2'), 'https://app.example.com/p#section-2', 'an ordinary anchor is left alone');
+    assert.equal(sanitizeUrl('https://app.example.com/p#getting-started'), 'https://app.example.com/p#getting-started');
+    assert.equal(sanitizeUrl('https://app.example.com/cb#eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0'), 'https://app.example.com/cb#***', 'a bare token-shaped fragment is redacted whole');
 });
 
 

@@ -6,7 +6,7 @@ import * as path from 'path';
 import { spawnSync } from 'child_process';
 import { parseTimeline, loadTimeline } from '../src/engine/schema';
 import { extractStrings, applyStrings, resolveLocale, writeStrings, readStrings, isLocaleCode, diffStrings } from '../src/engine/strings';
-import { localeDirs, localeDirFor } from '../src/catalog';
+import { locateLocaleDir, localeDirFor } from '../src/catalog';
 import { narrationOf } from '../src/media/tts';
 
 const root = path.resolve(__dirname, '..');
@@ -158,14 +158,16 @@ test('localize scaffolds locales/<code>/ with copies, base + target strings, man
     assert.match(forced.stderr, /Overwrote existing anim\.config\.json \(--force\)/);
     assert.match(forced.stderr, /Overwrote existing strings\.fr\.json \(translations lost\) \(--force\)/);
     assert.equal(readStrings(path.join(fr, 'strings.fr.json'))['steps.open.subtitle'], 'Open it.', '--force reset the strings');
-    // localeDirs enumerates locales/* (and --sibling dirs known from the manifest)
-    assert.deepEqual(localeDirs(dir).map(l => [l.locale, l.layout]), [['fr', 'locales']]);
+    // locateLocaleDir finds the locales/<code> layout; an absent locale reports why
+    const guide = { slug: 'g', dir };
+    assert.equal(locateLocaleDir(guide, 'fr', 'en').dir, path.join(dir, 'locales', 'fr'));
+    assert.match(locateLocaleDir(guide, 'de', 'en').error || '', /no directory for locale "de"/);
     assert.equal(localeDirFor(dir, 'de'), path.join(dir, 'locales', 'de'));
     // legacy sibling layout still available
     const sib = cli(['localize', dir, 'es', '--sibling']);
     assert.equal(sib.status, 0, sib.stderr);
     assert.ok(fs.existsSync(path.join(work, 'es', 'strings.es.json')));
-    assert.deepEqual(localeDirs(dir).map(l => [l.locale, l.layout]).sort(), [['es', 'sibling'], ['fr', 'locales']]);
+    assert.equal(locateLocaleDir(guide, 'es', 'en').dir, path.join(work, 'es'), 'the legacy sibling layout still resolves');
     // fr -> fr-CA: values seeded from the French view, no strings.en.json written into the fr dir
     writeStrings(path.join(fr, 'strings.fr.json'), { ...readStrings(path.join(fr, 'strings.fr.json')), 'steps.open.subtitle': 'Ouvrez-le.' });
     const ca = cli(['localize', fr, 'fr-CA']);

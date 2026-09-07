@@ -325,7 +325,8 @@ export function leadMsFor(step: Step, prev?: Step): number {
     return lead;
 }
 
-function issueFor(step: Step, level: Issue['level'], message: string, field?: string): Issue {
+/** An Issue carrying the step's identity. Shared with `check`, so both passes report the same shape. */
+export function issueFor(step: Step, level: Issue['level'], message: string, field?: string): Issue {
     return { level, step: step.index, id: step.id, field, message, time: step.time, action: step.action, target: step.target };
 }
 

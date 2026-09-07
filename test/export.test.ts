@@ -45,10 +45,13 @@ test('export: driven recording, auto duration, .vtt, chapters, manifest', { skip
     assert.ok(chapters.length >= 5, `chapters: ${JSON.stringify(chapters)}`);
     assert.equal(chapters[0].title, 'Overview');
     assert.equal(chapters[1].title, 'Open the panel');
-    assert.ok(Math.abs(chapters[1].startMs - 1000) <= 150, `chapter 2 starts at ${chapters[1].startMs}`);
 
     const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8'));
     const last = manifest.history.at(-1);
+    // Chapters are cut at the moment the step actually ran in this recording, not at its scheduled
+    // time: comparing the two same-run numbers holds whatever the machine was doing.
+    const openStep = last.steps.find((s: any) => s.id === 'open');
+    assert.ok(Math.abs(chapters[1].startMs - openStep.actualMs) <= 120, `chapter 2 at ${chapters[1].startMs}ms vs the measured step at ${openStep.actualMs}ms`);
     assert.equal(last.command, 'export');
     assert.equal(last.driven, true);
     assert.equal(last.output, '../out.mp4', 'output recorded relative to the dir');

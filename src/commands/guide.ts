@@ -11,7 +11,7 @@ import { chaptersFor } from '../media/chapters';
 import { subtitleCues } from '../media/vtt';
 import { cutClip, probeDurationMs } from '../media/ffmpeg';
 import { NarrationClip, narrationOf } from '../media/tts';
-import { hashGuideDir, toolVersion } from '../catalog';
+import { hashGuideDir, toolVersion, relPosix, toPosix } from '../catalog';
 import { readManifest, recordEvent } from '../manifest';
 
 export interface GuideOptions extends ViewportOptions {
@@ -54,7 +54,7 @@ const DEFAULT_CROP_PX = 120;
 /** Path relative to the working directory when it lives inside it, else absolute. */
 function displayPath(p: string): string {
     const r = path.relative(process.cwd(), path.resolve(p));
-    return r && !r.startsWith('..') ? r.split(path.sep).join('/') : path.resolve(p);
+    return r && !r.startsWith('..') ? toPosix(r) : path.resolve(p);
 }
 
 export function resolveCrop(crop: GuideOptions['crop']): number | false {
@@ -109,7 +109,7 @@ export async function buildGuide(browser: Browser, dir: string, timeline: Timeli
 }): Promise<{ json: string; md: string; html: string; capture: GuideCapture }> {
     const { width, height } = resolveViewport(opts.viewport);
     const assetsDir = path.join(opts.outDir, 'assets');
-    const rel = (p: string) => path.relative(opts.outDir, p).split(path.sep).join('/');
+    const rel = (p: string) => relPosix(opts.outDir, p);
 
     const driven = await newDrivenPage(browser, { ...opts.viewport, deviceScaleFactor: opts.viewport.deviceScaleFactor ?? 2, storageState: opts.session?.storageState, runtime: !!opts.session, ignoreHttpsErrors: opts.session?.ignoreHttpsErrors });
     let capture: GuideCapture;
@@ -237,7 +237,7 @@ export async function guideCommand(dir: string, options: GuideOptions = {}): Pro
             await launched.close();
         }
         const failed = result.capture.steps.filter(s => s.error);
-        const relToDir = (p: string) => path.relative(path.resolve(dir), p).split(path.sep).join('/');
+        const relToDir = (p: string) => relPosix(path.resolve(dir), p);
         recordEvent(dir, { command: 'guide', output: relToDir(outDir), crop, clips: options.clips, locale: timeline.locale ?? options.locale ?? timeline.meta.locale, steps: result.capture.steps.length, video: video ? relToDir(video.file) : null, url: session ? sanitizeUrl(options.url || video!.url!) : undefined, contentHash: hashGuideDir(dir) });
         console.log(`\nWrote ${displayPath(result.json)}, guide.md, guide.html (${result.capture.steps.length} steps${video ? ', video linked' : ''}).`);
         if (failed.length) {

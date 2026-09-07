@@ -29,6 +29,7 @@
   var FADE_MS = 800;
   var SCROLL_MS = 600;
   var DEFAULT_TAIL_MS = 2500;
+  var CAMERA_EASING = 'cubic-bezier(0.65, 0, 0.35, 1)';
   var SUBTITLE_HOLD_MS = 4000;
 
   var ALIASES = { showText: 'fadeIn' };
@@ -220,12 +221,27 @@
     void state.cursor.offsetWidth;
     state.point = { x: x, y: y };
   }
-  function moveCursor(x, y, ms) {
+  function moveCursor(x, y, ms, easing) {
     if (!state.cursor) return;
     if (!ms || ms <= 0) { placeCursor(x, y); return; }
-    state.cursor.style.transition = 'transform ' + ms + 'ms cubic-bezier(0.16, 1, 0.3, 1)';
+    state.cursor.style.transition = 'transform ' + ms + 'ms ' + (easing || 'cubic-bezier(0.16, 1, 0.3, 1)');
     state.cursor.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
     state.point = { x: x, y: y };
+  }
+  /**
+   * Remember where the cursor came to rest as an element plus a fraction of its box, so a camera
+   * move can carry the cursor with the page (the cursor is position:fixed in the overlay layer, so
+   * a transform on <body> would otherwise slide the page out from under it). Fractions, not pixels:
+   * the element's box is scaled by the camera.
+   */
+  function setCursorAnchor(el, spotEl, point) {
+    var host = el;
+    var r = el.getBoundingClientRect();
+    var outside = !r.width || !r.height || point.x < r.left || point.x > r.right || point.y < r.top || point.y > r.bottom;
+    if (outside && spotEl && spotEl !== el) { host = spotEl; r = spotEl.getBoundingClientRect(); }
+    state.cursorAnchor = (r.width && r.height)
+      ? { el: host, fx: (point.x - r.left) / r.width, fy: (point.y - r.top) / r.height }
+      : { el: host, fx: 0.5, fy: 0.5 };
   }
   function pressCursor(x, y, ms) {
     if (!state.cursor) return;
@@ -432,10 +448,31 @@
       }
     }
     var dur = instant ? 0 : (step.duration != null ? step.duration : DEFAULT_CAMERA_S);
+    var finalTransform = 'scale(' + scale + ') translate(' + x + ', ' + y + ')';
     stage.style.transformOrigin = 'center center';
-    stage.style.transition = dur > 0 ? 'transform ' + dur + 's cubic-bezier(0.65, 0, 0.35, 1)' : 'none';
-    stage.style.transform = 'scale(' + scale + ') translate(' + x + ', ' + y + ')';
+
+    // Where the cursor's anchor element ends up under the final transform: measured by applying it
+    // with transitions off, not computed, so transform-origin, a body box that is not the viewport
+    // and compounding camera moves are all handled by the browser.
+    var cursorTo = null;
+    var anchor = state.cursorAnchor;
+    if (state.cursor && anchor && anchor.el && anchor.el.isConnected) {
+      var beforeTransform = stage.style.transform;
+      var beforeTransition = stage.style.transition;
+      stage.style.transition = 'none';
+      stage.style.transform = finalTransform;
+      var ar = anchor.el.getBoundingClientRect();
+      cursorTo = { x: ar.left + anchor.fx * ar.width, y: ar.top + anchor.fy * ar.height };
+      stage.style.transform = beforeTransform;
+      void stage.offsetWidth;
+      stage.style.transition = beforeTransition;
+    }
+
+    stage.style.transition = dur > 0 ? 'transform ' + dur + 's ' + CAMERA_EASING : 'none';
+    stage.style.transform = finalTransform;
     if (dur === 0) void stage.offsetWidth;
+    // The cursor rides the same curve for the same time, so it stays on its element throughout.
+    if (cursorTo) moveCursor(cursorTo.x, cursorTo.y, dur * 1000, CAMERA_EASING);
     return wait(dur * 1000);
   }
 
@@ -589,6 +626,7 @@
         // travel would leave the cursor, ripple and highlight on stale coordinates.
         var fresh = measurePoint();
         if (fresh.x !== point.x || fresh.y !== point.y) { point = fresh; placeCursor(point.x, point.y); }
+        setCursorAnchor(el, spotEl, point);
         highlight(spotEl);
         pressCursor(point.x, point.y, pressMs);
       }
@@ -808,6 +846,7 @@
         t0: state.t0, timeOrigin: performance.timeOrigin, inFlight: Object.keys(state.completions).length };
     },
     moveCursor: moveCursor,
+    cursorAnchor: function () { var a = state.cursorAnchor; return a && a.el && a.el.isConnected ? { fx: a.fx, fy: a.fy, rect: rectOf(a.el) } : null; },
     placeCursor: placeCursor,
     anchorOf: anchorOf,
     isClipped: isClipped,
