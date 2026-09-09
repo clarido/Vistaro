@@ -2,20 +2,31 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { createHash } from 'crypto';
-import { isLocaleCode } from './engine/strings';
-import { TimelineKind, TIMELINE_KINDS, DeviceKind, DEVICE_KINDS } from './engine/schema';
+import { isLocaleCode, localizedStringsFiles } from './engine/strings';
+import { TimelineKind, TIMELINE_KINDS, DeviceKind, DEVICE_KINDS, resolveConfigPath } from './engine/schema';
 
 /**
- * Files that define a guide's content: index.html, anim.config.json, strings.*.json, and only
+ * Files that define a guide's content: index.html, its timeline (`opts.config`, else
+ * anim.config.json), that timeline's strings.*.json, and only
  * the local media files index.html actually references (src/href/url()). Generated outputs
  * (animated.html, manifest, preview*.png, exports, guide/) never count.
  */
-export function guideSourceFiles(dir: string): string[] {
+export function guideSourceFiles(dir: string, opts: { config?: string } = {}): string[] {
     const out = new Set<string>();
     const add = (name: string) => { const full = path.join(dir, name); if (fs.existsSync(full) && fs.statSync(full).isFile()) out.add(full); };
+    const addFull = (full: string) => { if (fs.existsSync(full) && fs.statSync(full).isFile()) out.add(full); };
     add('index.html');
-    add('anim.config.json');
-    for (const name of fs.readdirSync(dir)) if (/^strings\.[a-z0-9-]+\.json$/i.test(name)) add(name);
+    const config = resolveConfigPath(dir, opts.config);
+    if (config === path.resolve(dir, 'anim.config.json')) {
+        // The historical set, byte for byte: every cached contentHash depends on it not moving.
+        add('anim.config.json');
+        for (const name of fs.readdirSync(dir)) if (/^strings\.[a-z0-9-]+\.json$/i.test(name)) add(name);
+    } else {
+        // A scenario hashes its own timeline and its own strings only. Folding in the directory's
+        // default config would make an edit to one scenario rebuild every other one.
+        addFull(config);
+        for (const file of localizedStringsFiles(config)) addFull(file);
+    }
     for (const ref of referencedLocalFiles(dir)) add(ref);
     return [...out].sort();
 }
@@ -75,9 +86,9 @@ export function referencedLocalFiles(dir: string): string[] {
 }
 
 /** `sha256:<hex>` over the guide's source files (names + bytes), for staleness checks. */
-export function hashGuideDir(dir: string): string {
+export function hashGuideDir(dir: string, opts: { config?: string } = {}): string {
     const h = createHash('sha256');
-    for (const file of guideSourceFiles(dir)) {
+    for (const file of guideSourceFiles(dir, opts)) {
         h.update(relPosix(dir, file));
         h.update('\0');
         h.update(fs.readFileSync(file));

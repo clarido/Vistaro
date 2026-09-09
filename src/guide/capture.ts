@@ -51,6 +51,12 @@ export interface CaptureOptions {
     settleMs?: number;
     /** Hide the fake cursor in guide frames (default false: the cursor shows where to click). */
     hideCursor?: boolean;
+    /**
+     * Burn the spotlight ring and numbered badge into each frame (default true). `false` still
+     * records `rect`/`callout`: the marks are placed, measured, then removed before the shot, so a
+     * consumer that draws its own hotspot (an interactive tour) gets clean frames plus the geometry.
+     */
+    marks?: boolean;
     /** Write assets/poster.png (only useful when a video will be linked). Default true. */
     poster?: boolean;
     /** Live page handling (record): navigations survived, waitFor honoured. */
@@ -168,6 +174,11 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
                 entry.rect = marks.rect;
                 entry.targetRect = marks.targetRect ?? entry.targetRect;
                 entry.callout = marks.callout;
+            }
+            // marks:false wants the geometry without the furniture. endCapture() would also restore
+            // the subtitle bar and cursor this capture session deliberately hid, so undo just the two.
+            if (marks && opts.marks === false) {
+                await page.evaluate(() => { (window as any).__anim.releaseHighlight(); (window as any).__anim.hideCallout(); });
             }
             // The marks snap into place; anything still animating on the page is awaited once more.
             await page.evaluate((o) => (window as any).__anim.whenSettled(o), { timeoutMs: SETTLE_GUARD_MS });

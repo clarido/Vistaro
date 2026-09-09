@@ -36,6 +36,9 @@ reels/**/embed.snippet.html
 # build-all outputs
 /help-out/
 
+# `npx tsx cli.ts tour` regenerates this whole site from tour.catalog.json (stale scenario pages included)
+/tour-out/
+
 # Playwright storage state (session cookies) — never commit
 auth.json
 

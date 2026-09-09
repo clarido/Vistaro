@@ -875,7 +875,12 @@
 
     if (point) moveCursor(point.x, point.y, travelMs);
 
-    setTimeout(function () {
+    // Registered so stop() -- and therefore restart() -- cancels them. Unregistered, a step
+    // abandoned mid-travel (a tour seek, a replay) still fires its arrival and its interaction
+    // against the restored page: the ring re-opens on a detached node and parks in the corner,
+    // and el.click() lands on a document that never asked for it. play() calls stop() before it
+    // schedules anything, so registering costs the clock-driven path nothing.
+    state.timers.push(setTimeout(function () {
       if (hasPoint) {
         // Re-measure at arrival: a camera move or a layout-expanding click during the
         // travel would leave the cursor, ripple and highlight on stale coordinates.
@@ -888,7 +893,7 @@
         else highlight(spotEl);
         pressCursor(point.x, point.y, pressMs);
       }
-      setTimeout(function () {
+      state.timers.push(setTimeout(function () {
         if (o.holdBeforeAct) {
           // Two-phase step: report the arrival (cursor pressed, spotlight on, nothing clicked yet) and
           // wait for act(token). Guides capture navigating clicks here, before the page goes away.
@@ -900,8 +905,8 @@
         }
         if (point) releaseCursor(point.x, point.y);
         interact(resolve, reject);
-      }, pressMs);
-    }, travelMs);
+      }, pressMs));
+    }, travelMs));
 
     function interact(resolve, reject) {
       var actualMs = now();

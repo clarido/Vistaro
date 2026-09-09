@@ -127,7 +127,7 @@ Contributing: `npm test` runs the suite (serial, with browser tests; `SKIP_BROWS
 <!-- cli-reference:start -->
 Generated from `cli.ts` by `npm run docs`; do not edit by hand. `npx tsx cli.ts <command> --help` prints the same, plus the usage guide (`--help`) and the catalog schema (`build-all --help`).
 
-[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`build-all`](#build-all) · [`localize`](#localize)
+[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
 
 ### `init-config`
 
@@ -362,6 +362,7 @@ Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) fro
 | `--no-crop` | Full frames only, no crops |
 | `--clips <format>` | Cut one clip per step from the last exported video: mp4 or gif |
 | `--hide-cursor` | Hide the fake cursor in the step screenshots |
+| `--no-marks` | Do not burn the spotlight ring and numbered badge into the frames (rect/callout are still recorded) |
 | `--url <url>` | After a `record`: replay against this URL instead of the one in the manifest |
 | `--storage-state <file>` | After a `record`: storage state for the live replay (default: the one the record used) |
 | `--ignore-https-errors` | Accept self-signed certificates on the live replay |
@@ -397,6 +398,23 @@ Build every guide x locale of help.catalog.json (check, build, export|record --g
 | `--dry-run` | Print the plan per guide x locale and stop: nothing is created, written or recorded |
 | `--verbose` | Also stream the child commands' stdout (their stderr is always streamed, prefixed with slug/locale) |
 | `--allow-reset` | Let each guide's "meta.reset" run before its passes (a shell command out of its anim.config.json) |
+
+### `tour`
+
+```bash
+npx tsx cli.ts tour [catalog] [options]
+```
+
+Build an interactive tour site from tour.catalog.json: a scenario rail plus a canvas that plays any scenario step by step (no capture, no encoding)
+
+| Argument | Description |
+|---|---|
+| `[catalog]` | Catalog file (default: `tour.catalog.json`) |
+
+| Option | Description |
+|---|---|
+| `-o, --output <dir>` | Directory to write the tour into (default: the catalog's outputDir, else tour-out) |
+| `--force` | Build scenarios that have validation errors |
 
 ### `localize`
 

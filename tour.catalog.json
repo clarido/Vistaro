@@ -1,0 +1,28 @@
+{
+  "outputDir": "tour-out",
+  "product": {
+    "name": "Clarido",
+    "tagline": "Proposal writing for public-sector bids",
+    "accent": "#2f6bff"
+  },
+  "rail": {
+    "title": "What would you like to see?",
+    "subtitle": "Pick a scenario and it plays on the left. You can pause or step through it at any time."
+  },
+  "groups": [
+    { "id": "writing", "label": "Writing a response" },
+    { "id": "delivery", "label": "Reviewing and delivering" }
+  ],
+  "defaults": { "width": 1920, "height": 1080 },
+  "scenarios": [
+    { "slug": "draft-response", "dir": "demo", "group": "writing",
+      "label": "Draft a proposal response",
+      "blurb": "Open a section and write the answer in the editor." },
+    { "slug": "whats-left", "dir": "demo", "config": "demo/scenarios/whats-left.json", "group": "writing",
+      "label": "See what is left to write",
+      "blurb": "Read the outline as a to-do list and open the next section." },
+    { "slug": "export-word", "dir": "demo", "config": "demo/scenarios/export-word.json", "group": "delivery",
+      "label": "Export the proposal to Word",
+      "blurb": "Turn the finished outline into a .docx in one click." }
+  ]
+}

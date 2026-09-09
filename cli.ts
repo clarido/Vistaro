@@ -11,6 +11,7 @@ import { previewCommand } from './src/commands/preview';
 import { initConfigCommand } from './src/commands/init-config';
 import { guideCommand } from './src/commands/guide';
 import { recordCommand } from './src/commands/record';
+import { tourCommand } from './src/commands/tour';
 import { buildAllCommand } from './src/commands/build-all';
 
 import { toolPackage } from './src/catalog';
@@ -258,6 +259,7 @@ RECORD OF WHAT WAS DONE:
     .option('--no-crop', 'Full frames only, no crops')
     .option('--clips <format>', 'Cut one clip per step from the last exported video: mp4 or gif')
     .option('--hide-cursor', 'Hide the fake cursor in the step screenshots')
+    .option('--no-marks', 'Do not burn the spotlight ring and numbered badge into the frames (rect/callout are still recorded)')
     .option('--url <url>', 'After a `record`: replay against this URL instead of the one in the manifest')
     .option('--storage-state <file>', 'After a `record`: storage state for the live replay (default: the one the record used)')
     .option('--ignore-https-errors', 'Accept self-signed certificates on the live replay')
@@ -337,6 +339,33 @@ INCREMENTAL RUNS:
     .action((catalog, opts) => buildAllCommand(catalog, opts));
 
   program
+    .command('tour')
+    .description('Build an interactive tour site from tour.catalog.json: a scenario rail plus a canvas that plays any scenario step by step (no capture, no encoding)')
+    .argument('[catalog]', 'Catalog file', 'tour.catalog.json')
+    .option('-o, --output <dir>', 'Directory to write the tour into (default: the catalog\'s outputDir, else tour-out)')
+    .option('--force', 'Build scenarios that have validation errors')
+    .action((catalog, opts) => tourCommand(catalog, opts))
+    .addHelpText('after', `
+Catalog shape:
+  {
+    "outputDir": "tour-out",
+    "product":  { "name": "Clarido", "tagline": "...", "accent": "#2f6bff" },
+    "rail":     { "title": "What would you like to see?", "subtitle": "..." },
+    "groups":   [{ "id": "writing", "label": "Writing" }],
+    "defaults": { "width": 1920, "height": 1080 },
+    "scenarios": [
+      { "slug": "draft-response", "dir": "demo", "label": "Draft a response", "blurb": "...", "group": "writing" },
+      { "slug": "export-word", "dir": "demo", "config": "demo/scenarios/export-word.json", "label": "Export to Word" }
+    ]
+  }
+
+  A scenario is a mockup directory plus a timeline. "config" points at a timeline other than
+  <dir>/anim.config.json, which is how several scenarios share one screen: the same index.html,
+  a different choreography. Every scenario page is the mockup with the runtime and the tour
+  scheduler injected -- nothing is recorded, so a scenario weighs what its HTML weighs.
+`)
+
+  program
     .command('localize')
     .description('Scaffold <source_dir>/locales/<locale>/ with index.html, anim.config.json, media and a pre-filled strings.<locale>.json; the choreography is reused as is')
     .argument('<source_dir>', 'Existing output directory to localize from (contains index.html, optionally anim.config.json)')
@@ -382,4 +411,3 @@ if (require.main === module) {
     })
     .finally(exitWhenDrained);
 }
-

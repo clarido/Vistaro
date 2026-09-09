@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "title": "See what is left to write",
+    "slug": "whats-left",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 1500,
+    "resetFocusStyles": true
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body",
+      "title": "Open the proposal", "subtitle": "The outline is the to-do list." },
+    { "id": "count", "time": "2s", "action": "highlight", "target": ".section-count",
+      "title": "Read the counter", "subtitle": "Ten sections, none finished yet." },
+    { "id": "scan", "time": "4s", "action": "hover", "target": "#item-3",
+      "title": "Scan the sections", "subtitle": "Each row carries its own status." },
+    { "id": "open", "time": "6s", "action": "click", "target": "#item-3",
+      "title": "Open one to see the ask", "subtitle": "The requirement opens beside the outline.",
+      "note": "The editor keeps the outline visible, so you never lose your place." }
+  ]
+}

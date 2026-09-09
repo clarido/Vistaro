@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Interactive tour</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="mark" id="mark"></span>
+      <span class="name" id="product-name">Product tour</span>
+    </div>
+    <p class="tagline" id="tagline"></p>
+  </header>
+
+  <main>
+    <section class="stage-col">
+      <div class="stage" id="stage">
+        <div class="screen" id="screen"><!-- iframe injected here --></div>
+        <div class="veil" id="veil" hidden><button class="play-big" id="play-big" aria-label="Play">▶</button></div>
+      </div>
+
+      <div class="caption" id="caption">
+        <span class="eyebrow" id="eyebrow"></span>
+        <h2 id="cap-title">Pick a scenario</h2>
+        <p id="cap-body">Choose what you want to see on the right and it plays here.</p>
+      </div>
+
+      <div class="controls" id="controls">
+        <button id="btn-restart" title="Start over" aria-label="Start over">↺</button>
+        <button id="btn-prev" title="Previous step" aria-label="Previous step">‹</button>
+        <button id="btn-play" class="primary" title="Play" aria-label="Play">▶</button>
+        <button id="btn-next" title="Next step" aria-label="Next step">›</button>
+        <div class="ticks" id="ticks" role="tablist" aria-label="Steps"></div>
+        <span class="count" id="count"></span>
+      </div>
+    </section>
+
+    <aside class="rail">
+      <h2 class="rail-title" id="rail-title">What would you like to see?</h2>
+      <p class="rail-sub" id="rail-sub">Pick a scenario and it plays on the left.</p>
+      <div id="rail-list"></div>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

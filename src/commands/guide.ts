@@ -23,6 +23,8 @@ export interface GuideOptions extends ViewportOptions {
     locale?: string;
     force?: boolean;
     hideCursor?: boolean;
+    /** --no-marks: clean frames, geometry still recorded (commander sets false). */
+    marks?: boolean;
     /** Live replay (after a record): override the URL / storage state recorded in the manifest. */
     url?: string;
     storageState?: string;
@@ -106,7 +108,7 @@ export function videoFromManifest(dir: string): VideoInfo | undefined {
 /** Run the guide capture on a fresh page (no video, no drift) and write guide.json/.md/.html. */
 export async function buildGuide(browser: Browser, dir: string, timeline: Timeline, opts: {
     outDir: string; crop: number | false; clips?: string; video?: VideoInfo; viewport: ViewportOptions & { deviceScaleFactor?: number };
-    hideCursor?: boolean; locale?: string; log?: (m: string) => void; warn?: (m: string) => void;
+    hideCursor?: boolean; marks?: boolean; locale?: string; log?: (m: string) => void; warn?: (m: string) => void;
     /** Live page (record): how to open it, the auth state, and the driver's live options. */
     session?: { open: (page: Page) => Promise<void>; storageState?: string; live: LiveOptions; ignoreHttpsErrors?: boolean };
     /** Steps that navigated in the video pass: captured at the arrival, before the click. */
@@ -124,7 +126,7 @@ export async function buildGuide(browser: Browser, dir: string, timeline: Timeli
         if (opts.session) await opts.session.open(driven.page);
         else await driven.page.goto(fileUrl(path.join(dir, 'index.html')), { waitUntil: 'load' });
         await ensureRuntime(driven.page, timeline, { drift: false });
-        capture = await captureGuide(driven.page, timeline, { assetsDir, crop: opts.crop, viewport: { width, height }, hideCursor: opts.hideCursor, poster: !!opts.video, live: opts.session?.live, navigated: opts.navigated ?? opts.video?.navigated, log: opts.log });
+        capture = await captureGuide(driven.page, timeline, { assetsDir, crop: opts.crop, viewport: { width, height }, hideCursor: opts.hideCursor, marks: opts.marks, poster: !!opts.video, live: opts.session?.live, navigated: opts.navigated ?? opts.video?.navigated, log: opts.log });
     } finally {
         await driven.close();
     }
@@ -241,7 +243,7 @@ export async function guideCommand(dir: string, options: GuideOptions = {}): Pro
         let result;
         try {
             await launched.page.close();
-            result = await buildGuide(launched.browser, dir, timeline, { outDir, crop, clips: options.clips, video, viewport: options, hideCursor: options.hideCursor, locale: options.locale, log: m => console.log(m), warn: m => console.error(m), session });
+            result = await buildGuide(launched.browser, dir, timeline, { outDir, crop, clips: options.clips, video, viewport: options, hideCursor: options.hideCursor, marks: options.marks, locale: options.locale, log: m => console.log(m), warn: m => console.error(m), session });
         } finally {
             await launched.close();
         }

@@ -99,6 +99,103 @@
       "video": "demo.mp4",
       "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
       "timestamp": "2026-09-07T21:55:54.560Z"
+    },
+    {
+      "command": "guide",
+      "output": "tour",
+      "crop": false,
+      "locale": "en",
+      "steps": 5,
+      "video": "demo.mp4",
+      "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
+      "timestamp": "2026-09-09T19:08:38.389Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "draft-response",
+      "output": "../tour-out",
+      "steps": 5,
+      "locale": "en",
+      "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
+      "timestamp": "2026-09-09T20:14:27.016Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "whats-left",
+      "config": "scenarios/whats-left.json",
+      "output": "../tour-out",
+      "steps": 4,
+      "locale": "en",
+      "contentHash": "sha256:9113b01f090b20c7255e4f761f626ca181be247233168418f8994cfeb5c8217f",
+      "timestamp": "2026-09-09T20:14:27.019Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "export-word",
+      "config": "scenarios/export-word.json",
+      "output": "../tour-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:fc03d69755764d47b0c43898797fc402e25d986d941fc2664ccfa63720a12493",
+      "timestamp": "2026-09-09T20:14:27.022Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "draft-response",
+      "output": "../tour-out",
+      "steps": 5,
+      "locale": "en",
+      "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
+      "timestamp": "2026-09-09T20:57:07.376Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "whats-left",
+      "config": "scenarios/whats-left.json",
+      "output": "../tour-out",
+      "steps": 4,
+      "locale": "en",
+      "contentHash": "sha256:9113b01f090b20c7255e4f761f626ca181be247233168418f8994cfeb5c8217f",
+      "timestamp": "2026-09-09T20:57:07.379Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "export-word",
+      "config": "scenarios/export-word.json",
+      "output": "../tour-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:fc03d69755764d47b0c43898797fc402e25d986d941fc2664ccfa63720a12493",
+      "timestamp": "2026-09-09T20:57:07.381Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "draft-response",
+      "output": "../tour-out",
+      "steps": 5,
+      "locale": "en",
+      "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
+      "timestamp": "2026-09-09T21:34:35.823Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "whats-left",
+      "config": "scenarios/whats-left.json",
+      "output": "../tour-out",
+      "steps": 4,
+      "locale": "en",
+      "contentHash": "sha256:9113b01f090b20c7255e4f761f626ca181be247233168418f8994cfeb5c8217f",
+      "timestamp": "2026-09-09T21:34:35.829Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "export-word",
+      "config": "scenarios/export-word.json",
+      "output": "../tour-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:fc03d69755764d47b0c43898797fc402e25d986d941fc2664ccfa63720a12493",
+      "timestamp": "2026-09-09T21:34:35.831Z"
     }
   ],
   "locale": "en",

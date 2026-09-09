@@ -1,0 +1,117 @@
+/* Tour shell. Every colour comes from a token so a catalog's product.accent can repaint the app. */
+:root {
+  --accent: #2f6bff;
+  --ink: #10151f;
+  --muted: #667085;
+  --line: #e6e8ee;
+  --paper: #ffffff;
+  --ground: #f6f7f9;
+  --canvas: #0d0f14;
+  --radius: 14px;
+  --rail: 340px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  display: flex; flex-direction: column;
+}
+
+.top {
+  display: flex; align-items: baseline; gap: 14px;
+  padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--paper);
+}
+.brand { display: flex; align-items: center; gap: 9px; }
+.mark { width: 20px; height: 20px; border-radius: 6px; background: var(--accent); display: inline-block; }
+.name { font-weight: 640; letter-spacing: -.01em; }
+.tagline { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+main {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr var(--rail);
+  gap: 22px; padding: 22px 24px; align-items: start;
+}
+
+/* ---- canvas ---- */
+.stage-col { min-width: 0; }
+.stage {
+  position: relative; background: var(--canvas); border-radius: var(--radius); overflow: hidden;
+  box-shadow: 0 18px 44px rgba(16, 21, 31, .16), 0 0 0 1px rgba(16, 21, 31, .06);
+}
+/* The mockup renders at its authored viewport and is scaled as a whole: these screens mix fixed px
+   with vw/vh, so letting the iframe reflow at a smaller width would not shrink them, it would
+   rearrange them. */
+.screen { position: relative; width: 100%; overflow: hidden; }
+.screen iframe { border: 0; display: block; transform-origin: top left; }
+.screen.empty { aspect-ratio: 16 / 9; }
+
+.veil {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: rgba(9, 11, 16, .45); backdrop-filter: blur(2px);
+}
+.play-big {
+  width: 74px; height: 74px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--paper); color: var(--ink); font-size: 24px; padding-left: 5px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+
+.caption { padding: 16px 4px 12px; min-height: 84px; }
+.eyebrow { font-size: 11px; font-weight: 640; letter-spacing: .08em; color: var(--accent); text-transform: uppercase; }
+.caption h2 { margin: 3px 0 4px; font-size: 19px; font-weight: 640; letter-spacing: -.015em; }
+.caption p { margin: 0; color: var(--muted); }
+
+.controls {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 11px;
+}
+.controls button {
+  font: inherit; font-size: 15px; line-height: 1; border: 0; border-radius: 8px; cursor: pointer;
+  width: 34px; height: 34px; background: transparent; color: var(--ink);
+}
+.controls button:hover:not(:disabled) { background: var(--ground); }
+.controls button:disabled { opacity: .32; cursor: default; }
+.controls .primary { background: var(--accent); color: #fff; }
+.controls .primary:hover { filter: brightness(1.07); }
+.count { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
+
+.ticks { flex: 1; display: flex; gap: 5px; margin: 0 6px; }
+.tick {
+  flex: 1; height: 6px; border-radius: 3px; background: #d7dbe4; border: 0; padding: 0;
+  cursor: pointer; transition: background .2s;
+}
+.tick:hover { background: #aab3c4; }
+.tick.done { background: color-mix(in srgb, var(--accent) 42%, #d7dbe4); }
+.tick.on { background: var(--accent); }
+
+/* ---- scenario rail ---- */
+.rail {
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px; position: sticky; top: 22px; max-height: calc(100vh - 130px); overflow: auto;
+}
+.rail-title { margin: 0 0 4px; font-size: 15.5px; font-weight: 640; letter-spacing: -.01em; }
+.rail-sub { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+.group-label {
+  font-size: 11px; font-weight: 660; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--muted); margin: 16px 0 7px;
+}
+.group-label:first-child { margin-top: 0; }
+
+.card {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  padding: 11px 13px; margin-bottom: 8px; font: inherit; color: inherit;
+  transition: border-color .18s, box-shadow .18s, transform .18s;
+}
+.card:hover { border-color: #c3cbdb; transform: translateY(-1px); box-shadow: 0 5px 16px rgba(16,21,31,.07); }
+.card .t { font-weight: 600; font-size: 14px; display: flex; align-items: baseline; gap: 8px; }
+.card .b { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+.card .meta { display: block; color: var(--muted); font-size: 11.5px; font-weight: 500; margin-top: 6px; }
+.card[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+body.is-playing .card[aria-current="true"] .t::after { content: "● playing"; font-size: 10.5px; color: var(--accent); font-weight: 600; white-space: nowrap; }
+
+@media (max-width: 1080px) {
+  main { grid-template-columns: 1fr; }
+  .rail { position: static; max-height: none; }
+}
+@media (prefers-reduced-motion: reduce) { .card { transition: none; } }
+[hidden] { display: none !important; }

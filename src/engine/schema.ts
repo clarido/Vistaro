@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { readManifest } from '../manifest';
-import { applyStrings, readStrings, resolveLocale, stringsPath, isLocaleCode } from './strings';
+import { applyStrings, readStrings, resolveLocale, stringsPath, stringsPathFor, isLocaleCode } from './strings';
 
 /**
  * Timeline schema: parsing, normalization and validation of anim.config.json.
@@ -242,6 +242,8 @@ export interface Timeline {
     baseLocale?: string;
     /** Strings file applied by loadTimeline, with its key report. */
     strings?: { file: string; locale: string; applied: string[]; unknown: string[]; missing: string[]; untranslated: string[] };
+    /** Absolute path of the file this timeline was read from; set by loadTimeline. */
+    configFile?: string;
 }
 
 export interface Issue {
@@ -337,16 +339,30 @@ export function parseTimeline(raw: unknown): Timeline {
 }
 
 /**
- * Read and parse `<dir>/anim.config.json`, then overlay `strings.<locale>.json` when one exists for
+ * Which timeline file a directory means: `config` relative to `dir` (absolute passes through),
+ * else `anim.config.json`. One place decides it, so the strings file, the content hash and the
+ * output names all derive from the same answer.
+ */
+export function resolveConfigPath(dir: string, config?: string): string {
+    return path.resolve(dir, config || 'anim.config.json');
+}
+
+/**
+ * Read and parse the directory's timeline (`opts.config`, else `<dir>/anim.config.json`), then
+ * overlay that timeline's strings file when one exists for
  * the resolved locale (--locale > anim.manifest.json locale > meta.locale). Every command loads
  * its timeline through here, so a localized directory renders translated titles, subtitles,
  * narration, notes and translatable typed values without touching the choreography.
  * Throws with a readable message when missing or invalid.
  */
-export function loadTimeline(dir: string, opts: { locale?: string; device?: DeviceKind } = {}): Timeline {
-    const p = path.resolve(dir, 'anim.config.json');
+export function loadTimeline(dir: string, opts: { locale?: string; device?: DeviceKind; config?: string } = {}): Timeline {
+    const p = resolveConfigPath(dir, opts.config);
     if (!fs.existsSync(p)) {
-        throw new Error(`anim.config.json not found in ${path.resolve(dir)} (run \`init-config ${dir}\` to scaffold one)`);
+        // Keyed on where it RESOLVED, not on whether an option was passed, so an explicit
+        // --config anim.config.json still gets the scaffolding hint.
+        throw new Error(p === path.resolve(dir, 'anim.config.json')
+            ? `anim.config.json not found in ${path.resolve(dir)} (run \`init-config ${dir}\` to scaffold one)`
+            : `timeline not found: ${p}`);
     }
     let raw: unknown;
     try {
@@ -366,7 +382,7 @@ export function loadTimeline(dir: string, opts: { locale?: string; device?: Devi
     timeline.baseLocale = (isLocaleCode(manifest.baseLocale) ? manifest.baseLocale : undefined) || timeline.meta.locale || undefined;
     if (locale) {
         timeline.locale = locale;
-        const file = stringsPath(dir, locale);
+        const file = stringsPathFor(p, locale);
         if (fs.existsSync(file)) {
             let strings;
             try { strings = readStrings(file); } catch (e: any) { throw new Error(e.message); }
@@ -377,6 +393,7 @@ export function loadTimeline(dir: string, opts: { locale?: string; device?: Devi
     // After the strings are applied (so a translated override still lands) and before any validation,
     // so every caller downstream sees one already-resolved timeline.
     if (opts.device) applyDevice(timeline, opts.device);
+    timeline.configFile = p;
     return timeline;
 }
 

@@ -4,13 +4,22 @@ import { Timeline, computeDurationMs, reelOptions, AutoplayMode, DEFAULT_CPS } f
 
 /** Absolute path of the plain-JS browser runtime, read from disk and injected as text. */
 export const RUNTIME_PATH = path.join(__dirname, 'runtime.js');
+/** Absolute path of the tour scheduler injected beside the runtime for a tour scenario page. */
+export const TOUR_BRIDGE_PATH = path.join(__dirname, 'tour-bridge.js');
 
 let cachedRuntime: string | undefined;
+let cachedBridge: string | undefined;
 
 /** Source of src/engine/runtime.js (cached after first read). */
 export function runtimeSource(): string {
     if (cachedRuntime === undefined) cachedRuntime = fs.readFileSync(RUNTIME_PATH, 'utf8');
     return cachedRuntime;
+}
+
+/** Source of src/engine/tour-bridge.js (cached after first read). */
+export function tourBridgeSource(): string {
+    if (cachedBridge === undefined) cachedBridge = fs.readFileSync(TOUR_BRIDGE_PATH, 'utf8');
+    return cachedBridge;
 }
 
 export type CursorStyle = 'mac' | 'windows' | 'none';
@@ -105,6 +114,36 @@ export function stripRuntime(html: string): string {
 export function buildAnimatedHtml(html: string, timeline: Timeline, opts: InjectOptions = {}): string {
     const boot = bootOptions(timeline, opts, true);
     const block = `\n${START}\n<script>\n${runtimeSource()}\nwindow.__anim.boot(${scriptJson(boot)});\n</script>\n${END}\n`;
+    let out = stripRuntime(html);
+    if (/<\/body>/i.test(out)) out = out.replace(/<\/body>/i, `${block}</body>`);
+    else out += block;
+    return out;
+}
+
+/**
+ * A scenario page for the tour shell: the same mockup, the same runtime, plus the message-driven
+ * scheduler. Three things differ from `build`:
+ *   - `autoplay: 'message'` so the page never starts on its own (the shell owns playback);
+ *   - `subtitles: false` because the shell draws the caption in its own chrome, where it can be
+ *     selected, translated by the browser, and read by a screen reader;
+ *   - `loop: false` -- looping is the shell's call, made after the last step reports in.
+ * The timeline travels with the page so the scheduler can replay any prefix of it instantly.
+ */
+export function buildTourPage(html: string, timeline: Timeline, opts: InjectOptions = {}): string {
+    const boot = bootOptions(timeline, {
+        ...opts,
+        subtitles: false,
+        autoplay: 'message',
+        loop: false,
+        // Drift scales <body> to 1.025 from a centred origin, which overhangs the viewport by 1.25%
+        // per edge (16px at 1280). In a fullscreen video that overhang is merely off-screen; inside a
+        // tour canvas it is CROPPED by the frame, so a full-bleed panel loses 16px of itself and its
+        // spotlight ring with it. Same reason live pages default it off. An author still opts in.
+        drift: opts.drift ?? (timeline.meta.drift !== undefined ? !!timeline.meta.drift : false),
+    }, true);
+    const payload = { meta: { tailMs: timeline.meta?.tailMs }, steps: timeline.steps };
+    const block = `\n${START}\n<script>\n${runtimeSource()}\n${tourBridgeSource()}\n`
+        + `window.__anim.boot(${scriptJson(boot)});\nwindow.__tour.boot(${scriptJson(payload)});\n</script>\n${END}\n`;
     let out = stripRuntime(html);
     if (/<\/body>/i.test(out)) out = out.replace(/<\/body>/i, `${block}</body>`);
     else out += block;

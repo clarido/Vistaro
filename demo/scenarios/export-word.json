@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "title": "Export the proposal to Word",
+    "slug": "export-word",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 1500,
+    "resetFocusStyles": true
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body",
+      "title": "Start from the outline", "subtitle": "Every section of the proposal, in one list." },
+    { "id": "progress", "time": "2s", "action": "highlight", "target": ".section-count",
+      "title": "Check the progress", "subtitle": "The counter tracks completed sections.",
+      "note": "Export stays available at any point, finished or not." },
+    { "id": "frame-header", "time": "4s", "action": "camera", "target": ".topbar", "scale": 1.2, "duration": 1.4, "guide": false },
+    { "id": "export", "time": "6s", "action": "click", "target": "#btn-export",
+      "title": "Export to Word", "subtitle": "One click produces the .docx." },
+    { "id": "pull-back", "time": "7.6s", "action": "camera", "scale": 1, "duration": 1.4, "guide": false }
+  ]
+}
