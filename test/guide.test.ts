@@ -15,14 +15,35 @@ import { diffPng } from '../src/guide/diff';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
+/** ffmpeg probes run in-process; bounded so a wedged decode fails here instead of leaning on the runner cap. */
+const FFMPEG_PROBE_TIMEOUT_MS = 120000;
 const fixture = path.join(__dirname, 'fixtures', 'basic');
-const cli = (args: string[]) => spawnSync(process.execPath, ['--import', 'tsx', 'cli.ts', ...args], { cwd: root, encoding: 'utf8' });
+/**
+ * A wedged child (a Chromium that will not close, a page stuck mid-navigation) used to hang the
+ * whole suite: nothing bounded the wait, and node:test's own default timeout is Infinity. This
+ * bound is per CALL, not per test, and it must stay well above the slowest healthy one -- CI runs
+ * ~1.4x slower than a local machine and AGENTS.md warns the suite degrades beside other browser
+ * jobs -- while staying far under the runner's own --test-timeout, so a wedge is reported here,
+ * by name, rather than as the runner cancelling the whole test.
+ */
+const CLI_TIMEOUT_MS = 300000;
+
+/** spawnSync reports a timeout as error ETIMEDOUT + signal SIGKILL and status null, which an
+ *  `assert.equal(res.status, 0)` renders as "expected null to equal 0" -- true, and useless. */
+function assertRan(res: { error?: Error; signal?: NodeJS.Signals | null }, args: string[]): void {
+    if (res.signal || res.error) {
+        const code = (res.error as NodeJS.ErrnoException | undefined)?.code;
+        const why = code === 'ETIMEDOUT' ? `did not finish within ${CLI_TIMEOUT_MS}ms and was killed` : `was killed by ${res.signal ?? code}`;
+        throw new Error(`cli ${args.join(' ')} ${why}`);
+    }
+}
+const cli = (args: string[]) => { const res = spawnSync(process.execPath, ['--import', 'tsx', 'cli.ts', ...args], { cwd: root, encoding: 'utf8', timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' }); assertRan(res, args); return res; };
 
 const pngSize = (file: string) => { const b = fs.readFileSync(file); return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) }; };
 
 /** Fraction of dark pixels (luma < 110) in the centre-bottom band where the subtitle pill sits (2x frames of a 1280x800 viewport). */
 function subtitleBandDarkFraction(file: string): number {
-    const res = spawnSync(require('ffmpeg-static'), ['-i', file, '-vf', 'crop=1000:140:780:1400', '-f', 'rawvideo', '-pix_fmt', 'gray', '-'], { maxBuffer: 64 * 1024 * 1024 });
+    const res = spawnSync(require('ffmpeg-static'), ['-i', file, '-vf', 'crop=1000:140:780:1400', '-f', 'rawvideo', '-pix_fmt', 'gray', '-'], { maxBuffer: 64 * 1024 * 1024, timeout: FFMPEG_PROBE_TIMEOUT_MS });
     const px = res.stdout;
     let dark = 0;
     for (let i = 0; i < px.length; i++) if (px[i] < 110) dark++;
@@ -250,7 +271,7 @@ test('export --guide --clips: video block, chapters, poster, clips wired into gu
         (async () => { const b = await chromium.launch(); const p = await b.newPage();
           await p.goto(pathToFileURL(process.argv[1]).href); await p.waitForTimeout(300);
           const n = await p.evaluate(() => { const t = document.querySelector('video').textTracks; return t.length ? (t[0].cues ? t[0].cues.length : -1) : 0; });
-          console.log(n); await b.close(); })();`, path.join(work, 'g', 'guide.html')], { cwd: root, encoding: 'utf8' });
+          console.log(n); await b.close(); })();`, path.join(work, 'g', 'guide.html')], { cwd: root, encoding: 'utf8', timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' });
     assert.equal(parseInt(cueCount.stdout.trim(), 10) >= 2, true, `cues on file://: ${cueCount.stdout} ${cueCount.stderr}`);
     const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8'));
     const ev = manifest.history.at(-1);

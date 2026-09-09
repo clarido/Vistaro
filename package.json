@@ -11,7 +11,7 @@
   },
   "scripts": {
     "start": "tsx cli.ts",
-    "test": "node --import tsx --test --test-concurrency=1 test/*.test.ts",
+    "test": "node --import tsx --test --test-concurrency=1 --test-timeout=1800000 test/*.test.ts",
     "docs": "tsx scripts/gen-cli-reference.ts",
     "docs:check": "tsx scripts/gen-cli-reference.ts --check"
   },

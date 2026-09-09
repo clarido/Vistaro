@@ -16,14 +16,27 @@ import { sanitizeUrl } from '../src/browser';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
+/** ffmpeg probes run in-process; bounded so a wedged decode fails here instead of leaning on the runner cap. */
+const FFMPEG_PROBE_TIMEOUT_MS = 120000;
+/**
+ * A wedged child (a Chromium that will not close, a page stuck mid-navigation) used to hang the
+ * whole suite: nothing bounded the wait, and node:test's own default timeout is Infinity. This
+ * bound is per CALL, not per test, and it must stay well above the slowest healthy one -- CI runs
+ * ~1.4x slower than a local machine and AGENTS.md warns the suite degrades beside other browser
+ * jobs -- while staying far under the runner's own --test-timeout, so a wedge is reported here,
+ * by name, rather than as the runner cancelling the whole test.
+ */
+const CLI_TIMEOUT_MS = 300000;
+
 /** Async spawn: the live-app server runs in this process, so a sync spawn would block its event loop. */
-function cli(args: string[]): Promise<{ status: number | null; stdout: string; stderr: string }> {
+function cli(args: string[]): Promise<{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }> {
     return new Promise((resolve) => {
-        const child = spawn(process.execPath, ['--import', 'tsx', 'cli.ts', ...args], { cwd: root });
+        const child = spawn(process.execPath, ['--import', 'tsx', 'cli.ts', ...args], { cwd: root, timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' });
         let stdout = '', stderr = '';
         child.stdout.on('data', d => { stdout += d; });
         child.stderr.on('data', d => { stderr += d; });
-        child.on('close', (status) => resolve({ status, stdout, stderr }));
+        // signal is carried out, or a timeout kill would be indistinguishable from a crash.
+        child.on('close', (status, signal) => resolve({ status, signal, stdout, stderr }));
     });
 }
 
@@ -182,7 +195,7 @@ test('record --guide: badges on the post-navigation pages, video linked, actual 
 
 /** Per-frame colour of one pixel plus its timestamp (see export.test.ts). */
 function samplePixels(file: string, x: number, y: number): { ptsMs: number; r: number; g: number; b: number }[] {
-    const res = require('child_process').spawnSync(require('ffmpeg-static'), ['-i', file, '-vf', `format=rgb24,crop=2:2:${x}:${y},showinfo`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 64 * 1024 * 1024 });
+    const res = require('child_process').spawnSync(require('ffmpeg-static'), ['-i', file, '-vf', `format=rgb24,crop=2:2:${x}:${y},showinfo`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 64 * 1024 * 1024, timeout: FFMPEG_PROBE_TIMEOUT_MS });
     const pts = [...res.stderr.toString().matchAll(/pts_time:\s*([\d.]+)/g)].map((m: any) => Math.round(parseFloat(m[1]) * 1000));
     const px = res.stdout;
     return pts.map((ptsMs: number, i: number) => ({ ptsMs, r: px[i * 12], g: px[i * 12 + 1], b: px[i * 12 + 2] }));
@@ -244,7 +257,7 @@ test('record: a navigation that never completes is stopped, reported, exits 1, a
         { time: 1.5, action: 'highlight', target: 'h1', title: 'Never' },
     ] });
     // Orphaned browser/ffmpeg processes (parent pid 1) before and after: the CLI must leave none behind.
-    const orphans = () => { try { return parseInt(execSync("ps -ax -o ppid,command | awk '$1==1' | grep -E 'chrom|ffmpeg' | grep -v grep | wc -l").toString().trim(), 10); } catch { return -1; } };
+    const orphans = () => { try { return parseInt(execSync("ps -ax -o ppid,command | awk '$1==1' | grep -E 'chrom|ffmpeg' | grep -v grep | wc -l", { timeout: 30000 }).toString().trim(), 10); } catch { return -1; } };
     const orphansBefore = orphans();
     let started = Date.now();
     let r = await cli(['record', dir, '-o', path.join(work, 'hang.mp4'), '--width', '320', '--height', '200']);

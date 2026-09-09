@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { recordEvent } from '../manifest';
 import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS, deviceKind, reelOptions, intrinsicDurationMs, parseTime, emulateMobileFor } from '../engine/schema';
 import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions, RunAbortedError, errorMessage } from '../engine/driver';
-import { launchPage, fileUrl, ViewportOptions, resolveViewport, closeWithWatchdog, sanitizeUrl } from '../browser';
+import { launchPage, fileUrl, ViewportOptions, resolveViewport, closeWithWatchdog, closeBrowser, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
 import { encodeMp4, encodeGif, encodeWebm, extractPoster, cutClip, probeDurationMs, describeAsset } from '../media/ffmpeg';
 import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions, NarrationClip } from '../media/tts';
@@ -328,7 +328,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         throw e;
     } finally {
         // Whatever failed above (open, runtime, recording, encode, guide), the browser must go, or the CLI never exits.
-        await closeWithWatchdog(() => launched.browser.close(), 'browser');
+        await closeBrowser(launched.browser);
     }
 
     /** The whole failure on one bounded line: errorMessage() keeps only the first, and a Playwright error's detail is on the rest. */

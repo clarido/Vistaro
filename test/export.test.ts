@@ -9,9 +9,33 @@ import { parseTimeline, computeDurationMs } from '../src/engine/schema';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
+/** ffmpeg probes run in-process; bounded so a wedged decode fails here instead of leaning on the runner cap. */
+const FFMPEG_PROBE_TIMEOUT_MS = 120000;
 const fixture = path.join(__dirname, 'fixtures', 'basic');
-const cli = (args: string[], env: Record<string, string> = {}) =>
-    spawnSync(process.execPath, ['--import', 'tsx', 'cli.ts', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...env } });
+/**
+ * A wedged child (a Chromium that will not close, a page stuck mid-navigation) used to hang the
+ * whole suite: nothing bounded the wait, and node:test's own default timeout is Infinity. This
+ * bound is per CALL, not per test, and it must stay well above the slowest healthy one -- CI runs
+ * ~1.4x slower than a local machine and AGENTS.md warns the suite degrades beside other browser
+ * jobs -- while staying far under the runner's own --test-timeout, so a wedge is reported here,
+ * by name, rather than as the runner cancelling the whole test.
+ */
+const CLI_TIMEOUT_MS = 300000;
+
+/** spawnSync reports a timeout as error ETIMEDOUT + signal SIGKILL and status null, which an
+ *  `assert.equal(res.status, 0)` renders as "expected null to equal 0" -- true, and useless. */
+function assertRan(res: { error?: Error; signal?: NodeJS.Signals | null }, args: string[]): void {
+    if (res.signal || res.error) {
+        const code = (res.error as NodeJS.ErrnoException | undefined)?.code;
+        const why = code === 'ETIMEDOUT' ? `did not finish within ${CLI_TIMEOUT_MS}ms and was killed` : `was killed by ${res.signal ?? code}`;
+        throw new Error(`cli ${args.join(' ')} ${why}`);
+    }
+}
+const cli = (args: string[], env: Record<string, string> = {}) => {
+    const res = spawnSync(process.execPath, ['--import', 'tsx', 'cli.ts', ...args], { cwd: root, encoding: 'utf8', timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL', env: { ...process.env, ...env } });
+    assertRan(res, args);
+    return res;
+};
 
 let work: string;
 before(() => {
@@ -149,7 +173,7 @@ test('export records index.html with the runtime injected, never a stale animate
 /** Per-frame colour of one pixel plus its timestamp, straight from ffmpeg. */
 function samplePixels(file: string, x: number, y: number): { ptsMs: number; r: number; g: number; b: number }[] {
     // Convert to RGB before cropping: a 1x1 crop is invalid on yuv420p (chroma planes round to 0). 2x2 block = 12 bytes/frame.
-    const res = spawnSync(require('ffmpeg-static'), ['-i', file, '-vf', `format=rgb24,crop=2:2:${x}:${y},showinfo`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 64 * 1024 * 1024 });
+    const res = spawnSync(require('ffmpeg-static'), ['-i', file, '-vf', `format=rgb24,crop=2:2:${x}:${y},showinfo`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 64 * 1024 * 1024, timeout: FFMPEG_PROBE_TIMEOUT_MS });
     const pts = [...res.stderr.toString().matchAll(/pts_time:\s*([\d.]+)/g)].map(m => Math.round(parseFloat(m[1]) * 1000));
     const px = res.stdout;
     return pts.map((ptsMs, i) => ({ ptsMs, r: px[i * 12], g: px[i * 12 + 1], b: px[i * 12 + 2] }));
@@ -182,7 +206,7 @@ test('export --narration mixes per-step TTS (macOS say) and caches clips', { ski
     assert.match(r.stdout, /narration mixed in/);
     const cache = fs.readdirSync(path.join(dir, '.cache', 'tts'));
     assert.equal(cache.length, 2, 'two narrated steps (intro, open) -> two cached clips');
-    const info = spawnSync(require('ffmpeg-static'), ['-i', out], { encoding: 'utf8' }).stderr;
+    const info = spawnSync(require('ffmpeg-static'), ['-i', out], { encoding: 'utf8', timeout: FFMPEG_PROBE_TIMEOUT_MS }).stderr;
     assert.match(info, /Stream #0:1.*Audio: aac/);
     const again = cli(['export', dir, '-o', out, '--narration', '--width', '640', '--height', '400'], { OPENAI_API_KEY: '' });
     assert.equal(again.status, 0);
@@ -219,7 +243,7 @@ test('a reel export ships mp4 + webm + poster + gif, silent, with no subtitles o
     assert.equal(listChapters(out).length, 0, 'and no chapters');
 
     // The MP4 must carry no audio stream at all, not merely a silent one.
-    const probe = spawnSync(require('ffmpeg-static'), ['-i', out], { encoding: 'utf8' });
+    const probe = spawnSync(require('ffmpeg-static'), ['-i', out], { encoding: 'utf8', timeout: FFMPEG_PROBE_TIMEOUT_MS });
     const info = probe.stderr || '';
     assert.ok(/Stream .*Video/.test(info), 'the video stream is there');
     assert.ok(!/Stream .*Audio/.test(info), `no audio stream: ${info.split('\n').filter(l => /Stream/.test(l)).join(' | ')}`);
@@ -273,7 +297,7 @@ test('preview and export render a reel under the same emulation, and a guide und
         const r = cli(['export', dir, '-o', out, '--device', 'mobile']);
         assert.equal(r.status, 0, r.stderr + r.stdout);
         const frame = path.join(work, name + '-frame.png');
-        spawnSync(require('ffmpeg-static'), ['-y', '-ss', '0.6', '-i', out, '-frames:v', '1', frame], { encoding: 'utf8' });
+        spawnSync(require('ffmpeg-static'), ['-y', '-ss', '0.6', '-i', out, '-frames:v', '1', frame], { encoding: 'utf8', timeout: FFMPEG_PROBE_TIMEOUT_MS });
         assert.ok(fs.existsSync(frame), 'a frame was extracted');
         return flagOf(frame);
     };

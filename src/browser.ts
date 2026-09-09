@@ -110,7 +110,7 @@ export async function launchPage(opts: LaunchOptions = {}): Promise<LaunchedPage
     const close = async () => {
         await closeWithWatchdog(() => page.close(), 'page');
         await closeWithWatchdog(() => context.close(), 'context');
-        await closeWithWatchdog(() => browser.close(), 'browser');
+        await closeBrowser(browser);
     };
     return { browser, context, page, width, height, close };
 }
@@ -120,6 +120,19 @@ export async function newDrivenPage(browser: Browser, opts: ContextOptions = {})
     const { context } = await newContext(browser, opts);
     const page = await context.newPage();
     return { context, page, close: async () => { await closeWithWatchdog(() => page.close(), 'page'); await closeWithWatchdog(() => context.close(), 'context'); } };
+}
+
+/**
+ * Give up on a browser that would not close, and say so loudly. What is left behind is not merely
+ * an orphaned Chromium: it is a live Playwright connection, which keeps THIS process alive with
+ * all its work already done and printed, so a caller waiting on the CLI (build-all's runCli, the
+ * test suite's spawnSync) waits for a child that will never exit. Playwright exposes no handle on
+ * the browser process to kill from here, so the backstop is exitWhenDrained() in cli.ts: it forces
+ * the exit, and Playwright's own `process.on('exit')` hook kills the browser on the way out.
+ */
+export async function closeBrowser(browser: Browser, timeoutMs = 10000): Promise<void> {
+    await closeWithWatchdog(() => browser.close(), 'browser', timeoutMs);
+    if (browser.isConnected()) console.error('warning  the browser is still connected after close(); the exit watchdog will force it down');
 }
 
 /** Close calls can hang on a page stuck mid-navigation; never let that keep the CLI alive. */

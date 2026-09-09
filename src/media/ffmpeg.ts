@@ -11,10 +11,25 @@ export function ffmpegPath(): string {
 
 export interface RunResult { status: number; stdout: string; stderr: string }
 
+/**
+ * How long one ffmpeg invocation may run. This bound cannot be delegated upwards: spawnSync blocks
+ * the event loop, so neither the exit watchdog in cli.ts nor any timer in this process can fire
+ * while ffmpeg is stuck -- only an outer kill would end it. And getting stuck is reachable from the
+ * very failure this bound exists for: when closeWithWatchdog gives up on context.close(), the webm
+ * Playwright was finalizing is truncated, and probeDurationMs then asks ffmpeg to decode it whole.
+ */
+const FFMPEG_TIMEOUT_MS = 10 * 60 * 1000;
+
 /** Run ffmpeg with safe argument passing. Throws with the stderr tail when it fails (unless allowFailure). */
 export function run(args: string[], opts: { allowFailure?: boolean } = {}): RunResult {
-    const r = spawnSync(ffmpegPath(), args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    const r = spawnSync(ffmpegPath(), args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: FFMPEG_TIMEOUT_MS });
     const result = { status: r.status ?? -1, stdout: r.stdout || '', stderr: r.stderr || '' };
+    // A timeout populates r.error too, so it must be told apart first: reporting a ten-minute stall
+    // as "could not start" would send the reader looking for a missing binary.
+    if (r.signal) {
+        const why = r.signal === 'SIGTERM' ? ` (it ran longer than ${FFMPEG_TIMEOUT_MS / 1000}s)` : '';
+        throw new Error(`ffmpeg was killed by ${r.signal}${why} for: ffmpeg ${args.join(' ')}`);
+    }
     if (r.error) throw new Error(`ffmpeg could not start: ${r.error.message}`);
     if (result.status !== 0 && !opts.allowFailure) {
         const tail = result.stderr.trim().split('\n').slice(-6).join('\n');

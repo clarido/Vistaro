@@ -14,15 +14,35 @@ import { startLiveApp } from './fixtures/live-app/server';
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
 const fixture = path.join(__dirname, 'fixtures', 'basic');
+/**
+ * A wedged child (a Chromium that will not close, a page stuck mid-navigation) used to hang the
+ * whole suite: nothing bounded the wait, and node:test's own default timeout is Infinity. This
+ * bound is per CALL, not per test, and it must stay well above the slowest healthy one -- CI runs
+ * ~1.4x slower than a local machine and AGENTS.md warns the suite degrades beside other browser
+ * jobs -- while staying far under the runner's own --test-timeout, so a wedge is reported here,
+ * by name, rather than as the runner cancelling the whole test.
+ */
+const CLI_TIMEOUT_MS = 300000;
+
+/** spawnSync reports a timeout as error ETIMEDOUT + signal SIGKILL and status null, which an
+ *  `assert.equal(res.status, 0)` renders as "expected null to equal 0" -- true, and useless. */
+function assertRan(res: { error?: Error; signal?: NodeJS.Signals | null }, args: string[]): void {
+    if (res.signal || res.error) {
+        const code = (res.error as NodeJS.ErrnoException | undefined)?.code;
+        const why = code === 'ETIMEDOUT' ? `did not finish within ${CLI_TIMEOUT_MS}ms and was killed` : `was killed by ${res.signal ?? code}`;
+        throw new Error(`cli ${args.join(' ')} ${why}`);
+    }
+}
 // The tsx loader by absolute path: these commands run from the catalog directory, where `tsx` does not resolve.
-const cli = (args: string[], cwd = root) => spawnSync(process.execPath, ['--import', pathToFileURL(require.resolve('tsx')).href, path.join(root, 'cli.ts'), ...args], { cwd, encoding: 'utf8' });
+const cli = (args: string[], cwd = root) => { const res = spawnSync(process.execPath, ['--import', pathToFileURL(require.resolve('tsx')).href, path.join(root, 'cli.ts'), ...args], { cwd, encoding: 'utf8', timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' }); assertRan(res, args); return res; };
 /** Async variant for tests that serve a fixture app from this process (spawnSync would deadlock it). */
-const cliAsync = (args: string[], cwd = root) => new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
-    const child = spawn(process.execPath, ['--import', pathToFileURL(require.resolve('tsx')).href, path.join(root, 'cli.ts'), ...args], { cwd });
+const cliAsync = (args: string[], cwd = root) => new Promise<{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }>((resolve) => {
+    const child = spawn(process.execPath, ['--import', pathToFileURL(require.resolve('tsx')).href, path.join(root, 'cli.ts'), ...args], { cwd, timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' });
     let stdout = '', stderr = '';
     child.stdout.on('data', d => { stdout += d; });
     child.stderr.on('data', d => { stderr += d; });
-    child.on('close', status => resolve({ status, stdout, stderr }));
+    // signal is carried out, or a timeout kill would be indistinguishable from a crash.
+    child.on('close', (status, signal) => resolve({ status, signal, stdout, stderr }));
 });
 
 let work: string;

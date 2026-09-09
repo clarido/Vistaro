@@ -25,7 +25,7 @@ export interface BuildAllOptions {
     allowReset?: boolean;
 }
 
-interface StepRun { cmd: string[]; status: number | null; stdout: string; stderr: string; ms: number }
+interface StepRun { cmd: string[]; status: number | null; stdout: string; stderr: string; ms: number; timedOut?: boolean }
 
 /**
  * What --changed-only compares: the sources of the locale dir, the effective render settings that
@@ -46,6 +46,16 @@ export function buildKeyFor(contentHash: string, settings: EffectiveSettings, re
 }
 
 /**
+ * How long one child command (check, build, export, record) may take before build-all stops
+ * waiting on it. Generous -- a 1080p export with narration is minutes of real work -- but finite:
+ * a child that wedges (a Chromium that will not close, a page stuck mid-navigation) would
+ * otherwise hang the whole catalog build with no output and no failure.
+ */
+const CHILD_TIMEOUT_MS = 15 * 60 * 1000;
+/** Grace between asking the child to go and insisting, so its own cleanup (browser, ffmpeg) can run. */
+const CHILD_KILL_GRACE_MS = 10000;
+
+/**
  * Run one CLI command as a child process (no shell, so no pipeline can mask an exit status), and
  * return its status and output. Every artifact is asserted on disk afterwards, never inferred.
  * stderr is streamed live with a `slug/locale:` prefix (stdout too with --verbose) so a long
@@ -57,6 +67,20 @@ function runCli(args: string[], cwd: string, prefix: string, verbose: boolean): 
         // The tsx loader by absolute path: `--import tsx` would be resolved from `cwd` (the catalog directory).
         const child = spawn(process.execPath, ['--import', pathToFileURL(require.resolve('tsx')).href, path.join(__dirname, '..', '..', 'cli.ts'), ...args], { cwd, env: process.env });
         let stdout = '', stderr = '';
+        let timedOut = false;
+        // Cleared on close, so neither timer outlives the child. The hard kill is unconditional
+        // rather than guarded on exitCode: a child that died FROM the SIGTERM leaves exitCode null
+        // (signalCode carries the signal), so an `exitCode === null` guard reads "still alive" for
+        // exactly the case it means to exclude, and only Node's no-op kill on a closed handle hides it.
+        let hard: NodeJS.Timeout | undefined;
+        const insist = setTimeout(() => {
+            timedOut = true;
+            process.stderr.write(`  ${prefix}: timed out after ${Math.round(CHILD_TIMEOUT_MS / 1000)}s and was terminated\n`);
+            child.kill('SIGTERM');
+            hard = setTimeout(() => child.kill('SIGKILL'), CHILD_KILL_GRACE_MS);
+            hard.unref();
+        }, CHILD_TIMEOUT_MS);
+        insist.unref();
         const stream = (to: NodeJS.WriteStream) => {
             let pending = '';
             return (chunk: Buffer | string) => {
@@ -70,8 +94,10 @@ function runCli(args: string[], cwd: string, prefix: string, verbose: boolean): 
         const errStream = stream(process.stderr);
         child.stdout.on('data', d => { stdout += d; outStream?.(d); });
         child.stderr.on('data', d => { stderr += d; errStream(d); });
-        child.on('close', (status) => resolve({ cmd: args, status, stdout, stderr, ms: Date.now() - started }));
-        child.on('error', (e) => resolve({ cmd: args, status: -1, stdout, stderr: stderr + String(e), ms: Date.now() - started }));
+        const done = () => { clearTimeout(insist); clearTimeout(hard); };
+        // A killed child can still exit 0-ish on some signals; a timeout is a failure whatever it reports.
+        child.on('close', (status) => { done(); resolve({ cmd: args, status: timedOut ? -1 : status, stdout, stderr, ms: Date.now() - started, timedOut }); });
+        child.on('error', (e) => { done(); resolve({ cmd: args, status: -1, stdout, stderr: stderr + String(e), ms: Date.now() - started }); });
     });
 }
 
@@ -278,7 +304,11 @@ export async function buildAllCommand(catalogFile: string | undefined, options: 
                 continue;
             }
             const run = await runCli(args, catalogDir, rowLabel, !!options.verbose);
-            if (run.status !== 0) { error = `${args[0]} exited ${run.status}: ${tail(run.stderr) || tail(run.stdout)}`; break; }
+            if (run.status !== 0) {
+                const why = run.timedOut ? `timed out after ${Math.round(CHILD_TIMEOUT_MS / 1000)}s and was terminated | ` : '';
+                error = `${args[0]} exited ${run.status}: ${why}${tail(run.stderr) || tail(run.stdout)}`;
+                break;
+            }
         }
         // Write-then-assert: the artifacts must exist, whatever the exit status said.
         if (!error && !fs.existsSync(videoFile)) error = `${produce[0]} reported success but ${path.relative(catalogDir, videoFile)} is missing`;

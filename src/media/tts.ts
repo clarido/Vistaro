@@ -50,10 +50,14 @@ async function openaiSpeech(text: string, voice: string, outFile: string): Promi
     fs.writeFileSync(outFile, Buffer.from(await response.arrayBuffer()));
 }
 
+/** One step's narration is seconds of speech; a minute means `say` is wedged, not slow. Bounded for
+ *  the same reason as ffmpeg: execFileSync blocks the event loop, so no watchdog here can end it. */
+const SAY_TIMEOUT_MS = 60000;
+
 function saySpeech(text: string, voice: string | undefined, outFile: string): void {
     const args = voice ? ['-v', voice] : [];
     // Text goes through stdin so a narration starting with "-" is never parsed as an option.
-    execFileSync('say', [...args, '-o', outFile], { input: text, stdio: ['pipe', 'ignore', 'ignore'] });
+    execFileSync('say', [...args, '-o', outFile], { input: text, stdio: ['pipe', 'ignore', 'ignore'], timeout: SAY_TIMEOUT_MS });
 }
 
 /**

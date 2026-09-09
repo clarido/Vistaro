@@ -349,10 +349,37 @@ INCREMENTAL RUNS:
   return program;
 }
 
+/**
+ * The command is done, so the process must follow it out. A browser that refused to close (see
+ * closeBrowser) or any other handle left ref'd keeps node alive indefinitely with every byte of
+ * output already printed -- and a caller that waits on this child (build-all's runCli, the test
+ * suite's spawnSync) then waits forever. That is why a hung run reads as a loop rather than a
+ * failure. Give the event loop a grace period to drain by itself, then say what is holding it open
+ * and leave. The timer is unref'd, so a healthy run still exits the instant its work is done.
+ */
+const EXIT_GRACE_MS = 5000;
+function exitWhenDrained(): void {
+  const timer = setTimeout(() => {
+    // Requests as well as handles: a pending libuv request (threadpool fs, dns, zlib) holds the loop
+    // open too, and counting only handles would print "0 handle(s)" in the one situation where this
+    // message is the whole diagnostic.
+    const open: unknown[] = [...((process as any)._getActiveHandles?.() ?? []), ...((process as any)._getActiveRequests?.() ?? [])];
+    const kinds = [...new Set(open.map(h => (h as any)?.constructor?.name ?? typeof h))].join(', ') || 'unknown';
+    console.error(`warning  the command finished but ${open.length} handle(s)/request(s) still hold this process open (${kinds}); exiting with ${process.exitCode ?? 0} anyway`);
+    process.exit(process.exitCode ?? 0);
+  }, EXIT_GRACE_MS);
+  timer.unref();
+}
+
 if (require.main === module) {
   dotenv.config({ quiet: true });
-  buildProgram().parseAsync(process.argv).catch((e) => {
-    console.error(`Error: ${e && e.message ? e.message : e}`);
-    process.exit(1);
-  });
+  buildProgram().parseAsync(process.argv)
+    .catch((e) => {
+      console.error(`Error: ${e && e.message ? e.message : e}`);
+      // exitCode rather than exit(1): the same drain-then-leave path as a success, so a failure
+      // that also leaked a handle exits instead of hanging with its error message already printed.
+      process.exitCode = 1;
+    })
+    .finally(exitWhenDrained);
 }
+
