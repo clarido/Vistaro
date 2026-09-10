@@ -1,0 +1,42 @@
+{
+  "history": [
+    {
+      "command": "tour",
+      "scenario": "demarche-ou-dispositif",
+      "output": "../../tour-actifs-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:0f24e8f4fb1ba69e0e153b35561d4c6434c2a5c889d998da1311728d22af6a32",
+      "timestamp": "2026-09-09T21:48:12.979Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "importer-une-demarche",
+      "config": "scenarios/importer.json",
+      "output": "../../tour-actifs-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:72492ad00c18671e015604fe192e6243ab1e8fac2c3771016a5848eef1ee4e27",
+      "timestamp": "2026-09-09T21:48:12.982Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "demarche-ou-dispositif",
+      "output": "../../tour-actifs-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:423d81e848b51dac4e411e427088ce4218f4cbf7a69d43a0693847d11341abf8",
+      "timestamp": "2026-09-09T21:49:53.555Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "importer-une-demarche",
+      "config": "scenarios/importer.json",
+      "output": "../../tour-actifs-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:fd1ab30e32e62f0ed42807bc876dbab5cfff416ca9023d820913a26d829b2369",
+      "timestamp": "2026-09-09T21:49:53.557Z"
+    }
+  ]
+}

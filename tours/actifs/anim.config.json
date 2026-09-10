@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "title": "Démarche ou dispositif ?",
+    "slug": "demarche-ou-dispositif",
+    "app": "Clarido",
+    "locale": "fr",
+    "cursor": "mac",
+    "tailMs": 1800
+  },
+  "steps": [
+    {
+      "id": "liste",
+      "time": "0s",
+      "action": "highlight",
+      "target": "#liste",
+      "title": "Le capital méthodologique de la firme",
+      "subtitle": "Ce que vous réutilisez d'un mandat à l'autre.",
+      "note": "À distinguer de la « méthodologie du mandat », qui est la section notée d'une soumission précise."
+    },
+    {
+      "id": "ajouter",
+      "time": "2.4s",
+      "action": "click",
+      "target": "#btn-ajouter",
+      "title": "Ajouter un actif",
+      "subtitle": "Clarido demande d'abord de quoi il s'agit."
+    },
+    {
+      "id": "choix",
+      "time": "4.4s",
+      "action": "fadeIn",
+      "target": "#modal-ajouter",
+      "duration": 0.4,
+      "title": "Deux natures, pas une",
+      "subtitle": "Une démarche complète, ou un dispositif."
+    },
+    {
+      "id": "demarche",
+      "time": "6.2s",
+      "action": "highlight",
+      "target": "#choix-demarche",
+      "title": "La démarche : les phases d'un mandat",
+      "subtitle": "Vous les nommez une fois, Clarido vous les repropose.",
+      "note": "C'est la trame complète, du début à la fin d'un mandat."
+    },
+    {
+      "id": "dispositif",
+      "time": "8.4s",
+      "action": "highlight",
+      "target": "#choix-dispositif",
+      "title": "Le dispositif : une façon de faire qui vous distingue",
+      "subtitle": "Une séance, un comité, une grille, un livrable.",
+      "note": "Un dispositif se glisse dans une phase : c'est souvent lui que l'évaluateur retient."
+    }
+  ]
+}

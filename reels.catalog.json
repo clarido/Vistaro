@@ -68,6 +68,28 @@
         "embed"
       ],
       "scale": 2
+    },
+    {
+      "slug": "mon-contenu",
+      "dir": "reels/mon-contenu",
+      "title": "Demandez à votre mémoire",
+      "kind": "reel",
+      "locales": [
+        "fr"
+      ],
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "outputs": [
+        "webm",
+        "poster",
+        "gif",
+        "embed"
+      ],
+      "scale": 2,
+      "width": 1440,
+      "height": 810
     }
   ]
 }

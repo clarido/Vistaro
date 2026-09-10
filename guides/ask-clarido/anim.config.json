@@ -1,0 +1,59 @@
+{
+  "meta": {
+    "title": "Interroger la mémoire de la firme",
+    "slug": "ask-clarido",
+    "app": "Clarido",
+    "locale": "fr",
+    "url": "http://localhost:3001/fr/contenu",
+    "cursor": "mac",
+    "tailMs": 2500
+  },
+  "steps": [
+    {
+      "id": "page",
+      "time": "0.5s",
+      "action": "highlight",
+      "target": "h1",
+      "waitFor": "input[placeholder^=\"Rechercher\"]",
+      "title": "Ouvrir « Mon contenu »",
+      "subtitle": "Tout ce que Clarido utilise pour rédiger vos soumissions.",
+      "note": "La bibliothèque tient les actifs de la firme : profils, clients, CV, projets, actifs méthodologiques."
+    },
+    {
+      "id": "champ",
+      "time": "2.5s",
+      "action": "click",
+      "target": "input[placeholder^=\"Rechercher\"]",
+      "title": "Cliquer dans la barre de recherche",
+      "subtitle": "La même barre cherche et répond."
+    },
+    {
+      "id": "question",
+      "time": "4s",
+      "action": "type",
+      "target": "input[placeholder^=\"Rechercher\"]",
+      "value": "Combien de mandats municipaux depuis 2020 ?",
+      "translatable": true,
+      "title": "Poser la question en clair",
+      "subtitle": "Pas de mots-clés à deviner : une phrase suffit."
+    },
+    {
+      "id": "envoyer",
+      "time": "6.4s",
+      "action": "press",
+      "value": "Enter",
+      "title": "Envoyer",
+      "subtitle": "Clarido cherche dans la bibliothèque de la firme."
+    },
+    {
+      "id": "reponse",
+      "time": "7.4s",
+      "action": "highlight",
+      "target": "[role=\"region\"][aria-label=\"Réponse de Clarido\"]",
+      "waitFor": "[role=\"region\"][aria-label=\"Réponse de Clarido\"]",
+      "title": "La réponse arrive avec ses sources",
+      "subtitle": "Le nombre d'éléments trouvés, et chacun cliquable.",
+      "note": "Rien n'est inventé : la réponse ne cite que des actifs réellement présents dans la bibliothèque."
+    }
+  ]
+}

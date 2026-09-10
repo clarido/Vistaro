@@ -1,0 +1,65 @@
+{
+  "meta": {
+    "title": "Chaque critère, sa preuve",
+    "slug": "chaque-critere-sa-preuve",
+    "app": "Clarido",
+    "locale": "fr",
+    "cursor": "mac",
+    "tailMs": 1500
+  },
+  "steps": [
+    {
+      "id": "devis",
+      "time": "0s",
+      "action": "highlight",
+      "target": "#rail",
+      "title": "Le devis, découpé en critères",
+      "subtitle": "La grille d'évaluation du donneur d'ordre, telle qu'elle est notée.",
+      "note": "Clarido lit le devis et en tire les critères, avec leur pointage."
+    },
+    {
+      "id": "choisir",
+      "time": "2.2s",
+      "action": "click",
+      "target": "#crit-1",
+      "title": "Ouvrir un critère",
+      "subtitle": "Expérience en assainissement des sols — 30 points."
+    },
+    {
+      "id": "memoire",
+      "time": "4.4s",
+      "action": "transitionScreen",
+      "target": "#lib-matches",
+      "duration": 0.7,
+      "title": "La mémoire de la firme répond",
+      "subtitle": "Ce que la firme a réellement fait sur ce sujet précis.",
+      "note": "Les actifs viennent de la bibliothèque de la firme, jamais du web."
+    },
+    {
+      "id": "perimetre",
+      "time": "6.8s",
+      "action": "highlight",
+      "target": "#lib-matches .perimeter",
+      "title": "Le périmètre est annoncé",
+      "subtitle": "148 mandats, 32 CV, 19 références — vous savez où il a cherché."
+    },
+    {
+      "id": "inserer",
+      "time": "8.8s",
+      "action": "click",
+      "target": "#insert-btn",
+      "title": "Insérer la preuve",
+      "subtitle": "L'actif retenu entre dans la section."
+    },
+    {
+      "id": "ancre",
+      "time": "10.8s",
+      "action": "fadeIn",
+      "target": "#para-inserted",
+      "duration": 0.6,
+      "title": "Le paragraphe est ancré",
+      "subtitle": "Chaque fait garde le lien vers le mandat dont il sort.",
+      "note": "La citation est cliquable : elle ouvre l'actif dans la bibliothèque."
+    }
+  ]
+}

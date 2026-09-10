@@ -1,0 +1,277 @@
+{
+  "history": [
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "bibliotheque",
+          "actualMs": 203,
+          "completedMs": 925
+        },
+        {
+          "index": 2,
+          "id": "question",
+          "actualMs": 1707,
+          "completedMs": 2956
+        },
+        {
+          "index": 3,
+          "id": "reponse",
+          "actualMs": 4004,
+          "completedMs": 4465
+        },
+        {
+          "index": 4,
+          "id": "preuves",
+          "actualMs": 4904,
+          "completedMs": 5594
+        }
+      ],
+      "duration": 6.994,
+      "output": "mon-contenu-fr.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:efd34a7876a6014fac4125babe026222e2ff3876ad4daa9946412db7a0c067a2",
+      "timestamp": "2026-09-09T21:23:03.959Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "bibliotheque",
+          "actualMs": 206,
+          "completedMs": 943
+        },
+        {
+          "index": 2,
+          "id": "question",
+          "actualMs": 1706,
+          "completedMs": 2954
+        },
+        {
+          "index": 3,
+          "id": "reponse",
+          "actualMs": 4004,
+          "completedMs": 4393
+        },
+        {
+          "index": 4,
+          "id": "preuves",
+          "actualMs": 4907,
+          "completedMs": 5559
+        }
+      ],
+      "duration": 6.959,
+      "output": "mon-contenu-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:efd34a7876a6014fac4125babe026222e2ff3876ad4daa9946412db7a0c067a2",
+      "timestamp": "2026-09-09T21:23:22.093Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "bibliotheque",
+          "actualMs": 207,
+          "completedMs": 946
+        },
+        {
+          "index": 2,
+          "id": "question",
+          "actualMs": 1707,
+          "completedMs": 2955
+        },
+        {
+          "index": 3,
+          "id": "reponse",
+          "actualMs": 4004,
+          "completedMs": 4395
+        },
+        {
+          "index": 4,
+          "id": "preuves",
+          "actualMs": 4905,
+          "completedMs": 5562
+        }
+      ],
+      "duration": 6.962,
+      "output": "mon-contenu-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:9c78b141fbb0c32f6dfef49da24a4b26413c8ccdd7af6015d7af019c96d75470",
+      "timestamp": "2026-09-09T21:24:17.786Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T21:24:32.636Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T21:25:38.953Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T21:32:21.688Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "bibliotheque",
+          "actualMs": 208,
+          "completedMs": 928
+        },
+        {
+          "index": 2,
+          "id": "question",
+          "actualMs": 1706,
+          "completedMs": 2954
+        },
+        {
+          "index": 3,
+          "id": "reponse",
+          "actualMs": 4004,
+          "completedMs": 4463
+        },
+        {
+          "index": 4,
+          "id": "preuves",
+          "actualMs": 4907,
+          "completedMs": 5632
+        }
+      ],
+      "duration": 7.032,
+      "output": "../../reels-out/mon-contenu/fr/mon-contenu-fr-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:9c78b141fbb0c32f6dfef49da24a4b26413c8ccdd7af6015d7af019c96d75470",
+      "timestamp": "2026-09-09T21:32:49.375Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../reels-out/mon-contenu/fr",
+      "contentHash": "sha256:9c78b141fbb0c32f6dfef49da24a4b26413c8ccdd7af6015d7af019c96d75470",
+      "buildKey": "sha256:1eae813e36f41c02e46407ec14e51683858264770b65769172dea921143966ff",
+      "builtAt": "2026-09-09T21:32:49.414Z",
+      "timestamp": "2026-09-09T21:32:49.418Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T21:32:51.441Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "bibliotheque",
+          "actualMs": 206,
+          "completedMs": 1015
+        },
+        {
+          "index": 2,
+          "id": "question",
+          "actualMs": 1706,
+          "completedMs": 2955
+        },
+        {
+          "index": 3,
+          "id": "reponse",
+          "actualMs": 4005,
+          "completedMs": 4400
+        },
+        {
+          "index": 4,
+          "id": "preuves",
+          "actualMs": 4908,
+          "completedMs": 5653
+        }
+      ],
+      "duration": 7.053,
+      "output": "../../reels-out/mon-contenu/fr/mon-contenu-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:9c78b141fbb0c32f6dfef49da24a4b26413c8ccdd7af6015d7af019c96d75470",
+      "timestamp": "2026-09-09T21:33:17.030Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../reels-out/mon-contenu/fr",
+      "contentHash": "sha256:9c78b141fbb0c32f6dfef49da24a4b26413c8ccdd7af6015d7af019c96d75470",
+      "buildKey": "sha256:c712299900c60344652ef33416bad84c7889ea07f2d274059e6f2dfab89d33fd",
+      "builtAt": "2026-09-09T21:33:17.062Z",
+      "timestamp": "2026-09-09T21:33:17.064Z"
+    }
+  ],
+  "contentHash": {
+    "fr:desktop": "sha256:9c78b141fbb0c32f6dfef49da24a4b26413c8ccdd7af6015d7af019c96d75470",
+    "fr:mobile": "sha256:9c78b141fbb0c32f6dfef49da24a4b26413c8ccdd7af6015d7af019c96d75470"
+  },
+  "buildKey": {
+    "fr:desktop": "sha256:1eae813e36f41c02e46407ec14e51683858264770b65769172dea921143966ff",
+    "fr:mobile": "sha256:c712299900c60344652ef33416bad84c7889ea07f2d274059e6f2dfab89d33fd"
+  }
+}

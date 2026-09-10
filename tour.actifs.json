@@ -1,0 +1,33 @@
+{
+  "outputDir": "tour-actifs-out",
+  "product": {
+    "name": "Clarido",
+    "tagline": "Actifs méthodologiques — le capital que la firme réutilise",
+    "accent": "#2563EB"
+  },
+  "rail": {
+    "title": "Que voulez-vous voir ?",
+    "subtitle": "Deux scénarios sur le même écran. Vous pouvez mettre en pause ou avancer pas à pas."
+  },
+  "groups": [
+    { "id": "capital", "label": "Le capital méthodologique" }
+  ],
+  "defaults": { "width": 1280, "height": 720, "locale": "fr" },
+  "scenarios": [
+    {
+      "slug": "demarche-ou-dispositif",
+      "dir": "tours/actifs",
+      "group": "capital",
+      "label": "Démarche ou dispositif ?",
+      "blurb": "Les deux natures d'actif que Clarido distingue, dans ses propres mots."
+    },
+    {
+      "slug": "importer-une-demarche",
+      "dir": "tours/actifs",
+      "config": "tours/actifs/scenarios/importer.json",
+      "group": "capital",
+      "label": "Importer une démarche",
+      "blurb": "Un Word existant devient un actif en phases, réutilisable."
+    }
+  ]
+}

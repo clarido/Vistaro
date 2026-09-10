@@ -1,0 +1,56 @@
+{
+  "history": [
+    {
+      "command": "record",
+      "url": "http://localhost:3001/fr/contenu",
+      "storageState": "../../auth.json",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "page",
+          "actualMs": 505,
+          "completedMs": 508,
+          "waitedMs": 15
+        },
+        {
+          "index": 2,
+          "id": "champ",
+          "actualMs": 2504,
+          "completedMs": 2513
+        },
+        {
+          "index": 3,
+          "id": "question",
+          "actualMs": 4003,
+          "completedMs": 5973
+        },
+        {
+          "index": 4,
+          "id": "envoyer",
+          "actualMs": 6403,
+          "completedMs": 6413
+        },
+        {
+          "index": 5,
+          "id": "reponse",
+          "actualMs": 7404,
+          "completedMs": 7406,
+          "waitedMs": 301
+        }
+      ],
+      "duration": 9.906,
+      "output": "ask-clarido-fr.mp4",
+      "narration": false,
+      "subtitles": "ask-clarido-fr.vtt",
+      "chapters": 5,
+      "clips": [],
+      "guide": "guide",
+      "contentHash": "sha256:91e4e67ff354e391f27cdfab6fc9731a5bdcb9402789c327def4a16ebdb1be06",
+      "timestamp": "2026-09-09T21:39:13.285Z"
+    }
+  ]
+}

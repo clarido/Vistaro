@@ -1,0 +1,63 @@
+{
+  "meta": {
+    "title": "Importer une démarche",
+    "slug": "importer-une-demarche",
+    "app": "Clarido",
+    "locale": "fr",
+    "cursor": "mac",
+    "tailMs": 1800
+  },
+  "steps": [
+    {
+      "id": "importe",
+      "time": "0s",
+      "action": "highlight",
+      "target": ".row:first-child .row-title",
+      "title": "Une démarche déjà importée",
+      "subtitle": "Un document Word devenu un actif en 5 phases.",
+      "note": "L'étiquette « Importé » dit d'où vient l'actif ; la flèche à droite retélécharge le document d'origine."
+    },
+    {
+      "id": "ouvrir",
+      "time": "2.4s",
+      "action": "click",
+      "target": "#btn-importer",
+      "title": "Importer la suivante",
+      "subtitle": "Vos méthodologies existent déjà en Word : partez de là."
+    },
+    {
+      "id": "boite",
+      "time": "4.4s",
+      "action": "fadeIn",
+      "target": "#modal-importer",
+      "duration": 0.4,
+      "title": "Déposer le document",
+      "subtitle": "Un .docx, un PDF, ou du texte collé."
+    },
+    {
+      "id": "depot",
+      "time": "6.2s",
+      "action": "highlight",
+      "target": "#zone-depot",
+      "title": "Clarido en extrait les phases",
+      "subtitle": "Vous n'avez pas à ressaisir votre méthodologie.",
+      "note": "L'extraction lit le document ; rien n'est inventé, les phases viennent du texte déposé."
+    },
+    {
+      "id": "contexte",
+      "time": "8.4s",
+      "action": "highlight",
+      "target": "#champs",
+      "title": "Le contexte reste à vous",
+      "subtitle": "Nom, client, secteur, année : c'est vous qui nommez."
+    },
+    {
+      "id": "analyser",
+      "time": "10.4s",
+      "action": "highlight",
+      "target": "#btn-analyser",
+      "title": "Analyser",
+      "subtitle": "L'actif rejoint la bibliothèque, réutilisable dès la prochaine soumission."
+    }
+  ]
+}

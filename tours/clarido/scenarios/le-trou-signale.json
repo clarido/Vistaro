@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "title": "Le trou signalé",
+    "slug": "le-trou-signale",
+    "app": "Clarido",
+    "locale": "fr",
+    "cursor": "mac",
+    "tailMs": 1500
+  },
+  "steps": [
+    {
+      "id": "critere",
+      "time": "0s",
+      "action": "highlight",
+      "target": "#crit-4",
+      "title": "Un critère comme les autres",
+      "subtitle": "Plan de gestion des risques — 20 points."
+    },
+    {
+      "id": "ouvrir",
+      "time": "2s",
+      "action": "click",
+      "target": "#crit-4",
+      "title": "L'ouvrir",
+      "subtitle": "Même geste que pour n'importe quel autre critère."
+    },
+    {
+      "id": "rien",
+      "time": "4.2s",
+      "action": "transitionScreen",
+      "target": "#lib-gap",
+      "duration": 0.7,
+      "title": "Rien dans la bibliothèque",
+      "subtitle": "Aucun des 148 mandats ne documente ce sujet.",
+      "note": "L'absence de résultat est une information livrée, pas un écran vide."
+    },
+    {
+      "id": "refus",
+      "time": "6.6s",
+      "action": "highlight",
+      "target": "#lib-gap .gap-body",
+      "title": "Clarido ne rédigera pas ce critère",
+      "subtitle": "Ce qui manque est signalé, jamais inventé.",
+      "note": "Un modèle qui écrit quand même produit une phrase que l'évaluateur ne peut pas vérifier."
+    },
+    {
+      "id": "suite",
+      "time": "8.8s",
+      "action": "highlight",
+      "target": "#gap-cta",
+      "title": "Le prochain dépôt utile",
+      "subtitle": "Le trou devient la prochaine chose à déposer en mémoire."
+    }
+  ]
+}

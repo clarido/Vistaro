@@ -247,6 +247,236 @@
       "buildKey": "sha256:d40dde22de66eca26e1b625d57aad94556c8747e47b5fa53143a4ef341b93aa6",
       "builtAt": "2026-09-07T22:18:33.521Z",
       "timestamp": "2026-09-07T22:18:33.523Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "criteres",
+          "actualMs": 210,
+          "completedMs": 1111
+        },
+        {
+          "index": 2,
+          "id": "preuves",
+          "actualMs": 1707,
+          "completedMs": 2631
+        },
+        {
+          "index": 3,
+          "id": "trou",
+          "actualMs": 3406,
+          "completedMs": 4114
+        },
+        {
+          "index": 4,
+          "id": "bilan",
+          "actualMs": 4507,
+          "completedMs": 5127
+        },
+        {
+          "index": 5,
+          "id": "lean",
+          "actualMs": 5513,
+          "completedMs": 7018
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7731,
+          "completedMs": 8934
+        }
+      ],
+      "duration": 10.134,
+      "output": "le-trou-signale-fr.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "timestamp": "2026-09-09T21:01:37.621Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "criteres",
+          "actualMs": 210,
+          "completedMs": 950
+        },
+        {
+          "index": 2,
+          "id": "preuves",
+          "actualMs": 1710,
+          "completedMs": 2500
+        },
+        {
+          "index": 3,
+          "id": "trou",
+          "actualMs": 3405,
+          "completedMs": 3984
+        },
+        {
+          "index": 4,
+          "id": "bilan",
+          "actualMs": 4506,
+          "completedMs": 5016
+        }
+      ],
+      "duration": 6.216,
+      "output": "le-trou-signale-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "timestamp": "2026-09-09T21:02:00.578Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T21:04:06.102Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "criteres",
+          "actualMs": 205,
+          "completedMs": 1127
+        },
+        {
+          "index": 2,
+          "id": "preuves",
+          "actualMs": 1706,
+          "completedMs": 2777
+        },
+        {
+          "index": 3,
+          "id": "trou",
+          "actualMs": 3414,
+          "completedMs": 4142
+        },
+        {
+          "index": 4,
+          "id": "bilan",
+          "actualMs": 4515,
+          "completedMs": 5184
+        },
+        {
+          "index": 5,
+          "id": "lean",
+          "actualMs": 5433,
+          "completedMs": 6935
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7620,
+          "completedMs": 8823
+        }
+      ],
+      "duration": 10.023,
+      "output": "../../reels-out/le-trou-signale/fr/le-trou-signale-fr-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "timestamp": "2026-09-09T21:05:11.373Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../reels-out/le-trou-signale/fr",
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "buildKey": "sha256:1f670087b7a3955523b79976f73d6d4930c4c21c745538a66b09ed602f2978b5",
+      "builtAt": "2026-09-09T21:05:11.419Z",
+      "timestamp": "2026-09-09T21:05:11.424Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T21:05:13.941Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "criteres",
+          "actualMs": 205,
+          "completedMs": 945
+        },
+        {
+          "index": 2,
+          "id": "preuves",
+          "actualMs": 1709,
+          "completedMs": 2494
+        },
+        {
+          "index": 3,
+          "id": "trou",
+          "actualMs": 3409,
+          "completedMs": 3994
+        },
+        {
+          "index": 4,
+          "id": "bilan",
+          "actualMs": 4511,
+          "completedMs": 5028
+        }
+      ],
+      "duration": 6.228,
+      "output": "../../reels-out/le-trou-signale/fr/le-trou-signale-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "timestamp": "2026-09-09T21:05:36.143Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../reels-out/le-trou-signale/fr",
+      "contentHash": "sha256:7deb272a736e3abb25f08a4f5b7718641fbe36ab52cae4afe7e3470daee88ab5",
+      "buildKey": "sha256:d40dde22de66eca26e1b625d57aad94556c8747e47b5fa53143a4ef341b93aa6",
+      "builtAt": "2026-09-09T21:05:36.187Z",
+      "timestamp": "2026-09-09T21:05:36.190Z"
     }
   ],
   "contentHash": {

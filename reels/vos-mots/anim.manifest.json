@@ -765,6 +765,236 @@
       "clips": [],
       "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
       "timestamp": "2026-09-07T22:49:08.759Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 205,
+          "completedMs": 1010
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1509,
+          "completedMs": 3077
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3406,
+          "completedMs": 4131
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4928,
+          "completedMs": 5554
+        },
+        {
+          "index": 5,
+          "id": "push",
+          "actualMs": 5318,
+          "completedMs": 6719
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7808,
+          "completedMs": 9010
+        }
+      ],
+      "duration": 10.01,
+      "output": "vos-mots-fr.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "timestamp": "2026-09-09T21:00:33.957Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 204,
+          "completedMs": 934
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1505,
+          "completedMs": 3072
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3403,
+          "completedMs": 3933
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4504,
+          "completedMs": 5033
+        }
+      ],
+      "duration": 6.033,
+      "output": "vos-mots-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "timestamp": "2026-09-09T21:00:48.575Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T21:02:24.173Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 210,
+          "completedMs": 1061
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1510,
+          "completedMs": 3078
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3412,
+          "completedMs": 4140
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4506,
+          "completedMs": 5193
+        },
+        {
+          "index": 5,
+          "id": "push",
+          "actualMs": 5310,
+          "completedMs": 6714
+        },
+        {
+          "index": 6,
+          "id": "pullback",
+          "actualMs": 7807,
+          "completedMs": 9009
+        }
+      ],
+      "duration": 10.009,
+      "output": "../../reels-out/vos-mots/fr/vos-mots-fr-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "timestamp": "2026-09-09T21:03:39.812Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../reels-out/vos-mots/fr",
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "buildKey": "sha256:c2699e7690d7e2fcf86c72ba4e6951bb662a5076ed3887f9d8a80cebcdf49cdf",
+      "builtAt": "2026-09-09T21:03:39.875Z",
+      "timestamp": "2026-09-09T21:03:39.880Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T21:03:42.689Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "termes",
+          "actualMs": 206,
+          "completedMs": 922
+        },
+        {
+          "index": 2,
+          "id": "redaction",
+          "actualMs": 1508,
+          "completedMs": 3076
+        },
+        {
+          "index": 3,
+          "id": "suite",
+          "actualMs": 3407,
+          "completedMs": 3939
+        },
+        {
+          "index": 4,
+          "id": "verdict",
+          "actualMs": 4508,
+          "completedMs": 5023
+        }
+      ],
+      "duration": 6.023,
+      "output": "../../reels-out/vos-mots/fr/vos-mots-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "timestamp": "2026-09-09T21:04:02.901Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "fr",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../reels-out/vos-mots/fr",
+      "contentHash": "sha256:ac41db187e05dc8c8ed12c8b78d428218615f96995d54307fedfe11f3fcf3fcf",
+      "buildKey": "sha256:772e6d2aa5531098cf4f89477b66e8f4ea51c24f4a70eac222f7e64826870d57",
+      "builtAt": "2026-09-09T21:04:02.941Z",
+      "timestamp": "2026-09-09T21:04:02.944Z"
     }
   ],
   "contentHash": {

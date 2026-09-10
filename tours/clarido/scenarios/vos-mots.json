@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Vos mots, pas les siens",
+    "slug": "vos-mots",
+    "app": "Clarido",
+    "locale": "fr",
+    "cursor": "mac",
+    "tailMs": 1500
+  },
+  "steps": [
+    {
+      "id": "section",
+      "time": "0s",
+      "action": "highlight",
+      "target": "#sheet",
+      "title": "La section en cours",
+      "subtitle": "Approche méthodologique, telle qu'elle s'écrit."
+    },
+    {
+      "id": "ecrire",
+      "time": "2s",
+      "action": "type",
+      "target": "#draft",
+      "value": "Nous offrons une solution clé en main.",
+      "translatable": true,
+      "title": "Écrire une phrase",
+      "subtitle": "Une formule que la firme a bannie de ses soumissions."
+    },
+    {
+      "id": "signal",
+      "time": "5s",
+      "action": "fadeIn",
+      "target": "#flag",
+      "duration": 0.5,
+      "title": "Le terme interdit est signalé",
+      "subtitle": "« solution clé en main » figure dans vos termes interdits."
+    },
+    {
+      "id": "regle",
+      "time": "7s",
+      "action": "highlight",
+      "target": "#flag",
+      "title": "La règle vient de la firme",
+      "subtitle": "Pas d'un style générique : c'est votre liste, tenue par vous.",
+      "note": "La même liste s'applique aux sections, aux bios et aux descriptions d'entreprise."
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "outputDir": "tour-clarido-out",
+  "product": {
+    "name": "Clarido",
+    "tagline": "La mémoire active de la firme pour les appels d'offres",
+    "accent": "#2563EB"
+  },
+  "rail": {
+    "title": "Que voulez-vous voir ?",
+    "subtitle": "Choisissez un scénario : il se joue à gauche, sur le même écran. Vous pouvez mettre en pause ou avancer pas à pas."
+  },
+  "groups": [
+    { "id": "memoire", "label": "Répondre depuis la mémoire" },
+    { "id": "garde-fous", "label": "Ce que Clarido refuse de faire" }
+  ],
+  "defaults": { "width": 1280, "height": 720, "locale": "fr" },
+  "scenarios": [
+    {
+      "slug": "chaque-critere-sa-preuve",
+      "dir": "tours/clarido",
+      "group": "memoire",
+      "label": "Chaque critère, sa preuve",
+      "blurb": "Ouvrir un critère du devis et voir ce que la bibliothèque de la firme contient à son sujet."
+    },
+    {
+      "slug": "le-trou-signale",
+      "dir": "tours/clarido",
+      "config": "tours/clarido/scenarios/le-trou-signale.json",
+      "group": "garde-fous",
+      "label": "Le trou signalé",
+      "blurb": "Un critère sans preuve en mémoire : Clarido le dit au lieu de l'inventer."
+    },
+    {
+      "slug": "vos-mots",
+      "dir": "tours/clarido",
+      "config": "tours/clarido/scenarios/vos-mots.json",
+      "group": "garde-fous",
+      "label": "Vos mots, pas les siens",
+      "blurb": "Une formule bannie par la firme est signalée pendant la rédaction."
+    }
+  ]
+}
