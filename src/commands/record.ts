@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadTimeline } from '../engine/schema';
+import { loadTimeline, cliConfigPath } from '../engine/schema';
 import { assertReachable, sanitizeUrl } from '../browser';
 import { ExportOptions, runExport, LiveSession, reportOutcome } from './export';
 
@@ -19,7 +19,7 @@ export interface RecordOptions extends Omit<ExportOptions, 'output'> {
 export async function recordCommand(dir: string, options: RecordOptions): Promise<void> {
     const tempVideoDir = path.join(dir, '.temp-video');
     try {
-        const timeline = loadTimeline(dir, { locale: options.locale });
+        const timeline = loadTimeline(dir, { locale: options.locale, config: cliConfigPath(options.config) });
         const url = options.url || timeline.meta.url;
         if (!url) throw new Error('no URL: pass --url <url> or set meta.url in anim.config.json');
         if (options.storageState && !fs.existsSync(options.storageState)) throw new Error(`storage state file not found: ${options.storageState}`);

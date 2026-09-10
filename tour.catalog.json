@@ -13,7 +13,7 @@
     { "id": "writing", "label": "Writing a response" },
     { "id": "delivery", "label": "Reviewing and delivering" }
   ],
-  "defaults": { "width": 1920, "height": 1080 },
+  "defaults": { "width": 1920, "height": 1080, "devices": ["desktop"] },
   "scenarios": [
     { "slug": "draft-response", "dir": "demo", "group": "writing",
       "label": "Draft a proposal response",

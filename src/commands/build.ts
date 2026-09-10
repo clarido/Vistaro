@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadTimeline, validateTimeline, formatIssue, hasErrors, computeDurationMs, formatTime, deviceKind, reelOptions, isReel } from '../engine/schema';
+import { loadTimeline, validateTimeline, formatIssue, hasErrors, computeDurationMs, formatTime, deviceKind, reelOptions, isReel, cliConfigPath, configStem } from '../engine/schema';
 import { buildAnimatedHtml } from '../engine/inject';
 import { recordEvent } from '../manifest';
 import { relPosix } from '../catalog';
@@ -10,6 +10,8 @@ export interface BuildOptions {
     cursor?: string;
     loop?: boolean;
     locale?: string;
+    /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
+    config?: string;
     force?: boolean;
     /** Write somewhere other than <dir>/animated.html. */
     output?: string;
@@ -78,7 +80,7 @@ export function buildCommand(dir: string, options: BuildOptions = {}): void {
 
     let timeline;
     try {
-        timeline = loadTimeline(dir, { locale: options.locale, device: deviceKind(options.device) });
+        timeline = loadTimeline(dir, { locale: options.locale, device: deviceKind(options.device), config: cliConfigPath(options.config) });
     } catch (e: any) {
         console.error(`Error: ${e.message}`);
         process.exit(1);
@@ -99,7 +101,8 @@ export function buildCommand(dir: string, options: BuildOptions = {}): void {
     // `options.loop` stays undefined when the flag is absent, so meta.reel.loop still decides; `!!` here
     // would hand inject.ts an explicit false and silently override the profile.
     const out = buildAnimatedHtml(html, timeline, { cursor: options.cursor, loop: options.loop });
-    const outPath = options.output ? path.resolve(options.output) : path.join(dir, 'animated.html');
+    const stem = configStem(dir, cliConfigPath(options.config));
+    const outPath = options.output ? path.resolve(options.output) : path.join(dir, stem ? `animated.${stem}.html` : 'animated.html');
     fs.writeFileSync(outPath, out, 'utf8');
 
     // The embed pair: a framable page, and the snippet that drives it from the parent.
@@ -111,7 +114,10 @@ export function buildCommand(dir: string, options: BuildOptions = {}): void {
         // Named for the device, always: a reel is genuinely two deliverables (a desktop page and a
         // phone-shaped one) and they must coexist in one directory. Unsuffixed names would have the
         // second build silently overwrite the first, leaving a desktop page inside a mobile frame.
-        const name = `embed-${device}`;
+        // The stem joins the device for the same reason the device is there at all: with --config,
+        // two timelines in one directory would otherwise write the same embed-<device>.html and the
+        // second build would silently replace the first.
+        const name = stem ? `embed-${stem}-${device}` : `embed-${device}`;
         embedFile = path.join(dir, `${name}.html`);
         const embedHtml = out.includes('</head>') ? out.replace('</head>', `${EMBED_CSS}\n</head>`) : EMBED_CSS + '\n' + out;
         fs.writeFileSync(embedFile, embedHtml, 'utf8');

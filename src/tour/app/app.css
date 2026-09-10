@@ -42,7 +42,12 @@ main {
    with vw/vh, so letting the iframe reflow at a smaller width would not shrink them, it would
    rearrange them. */
 .screen { position: relative; width: 100%; overflow: hidden; }
-.screen iframe { border: 0; display: block; transform-origin: top left; }
+.screen iframe {
+  border: 0; display: block; transform-origin: top left;
+  /* The shell drives playback; nothing in the mockup is meant to be tapped. Without this the
+     canvas -- most of a phone screen -- swallows the swipe that should scroll the page. */
+  pointer-events: none;
+}
 .screen.empty { aspect-ratio: 16 / 9; }
 
 .veil {
@@ -64,14 +69,28 @@ main {
   display: flex; align-items: center; gap: 8px;
   padding: 9px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 11px;
 }
-.controls button {
+.controls > button {
   font: inherit; font-size: 15px; line-height: 1; border: 0; border-radius: 8px; cursor: pointer;
   width: 34px; height: 34px; background: transparent; color: var(--ink);
+  /* Without this the flex row shrinks them below their nominal size (measured 24px wide). */
+  flex: 0 0 auto;
 }
-.controls button:hover:not(:disabled) { background: var(--ground); }
-.controls button:disabled { opacity: .32; cursor: default; }
-.controls .primary { background: var(--accent); color: #fff; }
-.controls .primary:hover { filter: brightness(1.07); }
+/* Coarse pointers get the 44px minimum; a mouse keeps the tighter bar. */
+@media (pointer: coarse), (max-width: 1080px) {
+  .controls > button { width: 44px; height: 44px; }
+  .card { padding: 14px 15px; }
+}
+@media (max-width: 560px) {
+  /* Four 44px targets plus the counter overflow a phone bar by ~10px. The ticks already say
+     which step this is, so the counter is what goes. */
+  .controls { gap: 4px; padding: 8px; }
+  .count { display: none; }
+  .ticks { margin: 0 4px; }
+}
+.controls > button:hover:not(:disabled) { background: var(--ground); }
+.controls > button:disabled { opacity: .32; cursor: default; }
+.controls > .primary { background: var(--accent); color: #fff; }
+.controls > .primary:hover { filter: brightness(1.07); }
 .count { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
 
 .ticks { flex: 1; display: flex; gap: 5px; margin: 0 6px; }
@@ -110,8 +129,34 @@ main {
 body.is-playing .card[aria-current="true"] .t::after { content: "● playing"; font-size: 10.5px; color: var(--accent); font-weight: 600; white-space: nowrap; }
 
 @media (max-width: 1080px) {
-  main { grid-template-columns: 1fr; }
-  .rail { position: static; max-height: none; }
+  /* The rail moves ABOVE the canvas and becomes a horizontal strip: stacked underneath it fell
+     below the fold, hiding the very thing that makes this a tour rather than a clip. */
+  /* Flex column rather than a one-column grid: `main` is itself a flex item with a definite
+     height, and the grid rows got compressed under it so the rail and the canvas overlapped. */
+  /* align-items:start is inherited from the grid layout, where it keeps the rail from stretching
+     tall. In a flex COLUMN the same value stops items stretching WIDE, so the canvas sized itself
+     to the iframe's 390px layout box and pushed the page sideways. */
+  main { display: flex; flex-direction: column; align-items: stretch; }
+  .stage-col { order: 2; }
+  .rail { order: 1; position: static; max-height: none; flex: 0 0 auto; }
+  .rail-sub { display: none; }
+  #rail-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  #rail-list .group-label { display: none; }
+  .card { flex: 0 0 auto; width: min(74vw, 300px); margin-bottom: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .card { transition: none; } }
 [hidden] { display: none !important; }
+
+/* ---- solo: one scenario, no rail, framed by someone else's page (tour --embed) ----
+   The host sizes the frame from the height this page reports, so the layout must be content-sized:
+   `main` stops stretching, and nothing here may depend on the viewport height. */
+body.solo { display: block; }
+body.solo main {
+  display: block; padding: 12px; gap: 0;
+}
+body.solo .top, body.solo .rail { display: none; }
+/* The narrow-screen rule reorders the rail above the canvas; with no rail there is nothing to order,
+   and inheriting the column flexbox would stretch the stage to a height the host never asked for. */
+@media (max-width: 1080px) {
+  body.solo main { display: block; }
+}

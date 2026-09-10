@@ -21,10 +21,16 @@
   var timer = null;
   var reduced = false;
 
+  // The shell (or an embed page) that frames this scenario is served from the same origin, so the
+  // wildcard is not needed there. It stays as the fallback for file://, where Chromium reports an
+  // origin of "file://" -- a string that LOOKS usable but can never match the receiving window's
+  // opaque origin, so a message sent to it is dropped with no error anywhere.
+  var UP = (location.protocol !== 'file:' && location.origin && location.origin !== 'null') ? location.origin : '*';
+
   function post(type, extra) {
     var msg = { source: 'anim-tour', type: type };
     if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) msg[k] = extra[k];
-    try { parent.postMessage(msg, '*'); } catch (e) { /* not framed */ }
+    try { parent.postMessage(msg, UP); } catch (e) { /* not framed */ }
   }
 
   function timeMs(s) {
@@ -140,7 +146,13 @@
     }
   }
 
-  window.addEventListener('message', function (e) { handle(e && e.data); });
+  // Only the frame that embeds this page may drive it. Without this, any script on the top-level
+  // customer page can reach the scenario window (frames[0].frames[0]) and step it directly, behind
+  // the shell's back -- harmless to a mockup, but the inbound half should match the outbound one.
+  window.addEventListener('message', function (e) {
+    if (e.source !== parent) return;
+    handle(e && e.data);
+  });
 
   window.__tour = {
     version: 1,

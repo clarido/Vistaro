@@ -1081,6 +1081,160 @@
       "clips": [],
       "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
       "timestamp": "2026-09-07T22:29:33.559Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T23:30:27.054Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 214,
+          "completedMs": 1018
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 510,
+          "completedMs": 1303
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1915,
+          "completedMs": 2755
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3920,
+          "completedMs": 4532
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4615,
+          "completedMs": 5638
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5810,
+          "completedMs": 7213
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7409,
+          "completedMs": 8022
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8408,
+          "completedMs": 9610
+        }
+      ],
+      "duration": 10.31,
+      "output": "../../reels-out/ask-anything/en/ask-anything-en-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-09T23:31:29.698Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "en",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../reels-out/ask-anything/en",
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "buildKey": "sha256:22bdc0982e51000e492c507ad3125292e7a78c4d21d5a9e7b2f24929328b6a3d",
+      "builtAt": "2026-09-09T23:31:29.739Z",
+      "timestamp": "2026-09-09T23:31:29.744Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T23:31:31.780Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 510,
+          "completedMs": 1295
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1907,
+          "completedMs": 2746
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3909,
+          "completedMs": 4480
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4609,
+          "completedMs": 5296
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7405,
+          "completedMs": 7929
+        }
+      ],
+      "duration": 8.629,
+      "output": "../../reels-out/ask-anything/en/ask-anything-en-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "timestamp": "2026-09-09T23:31:52.984Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../reels.catalog.json",
+      "locale": "en",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../reels-out/ask-anything/en",
+      "contentHash": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce",
+      "buildKey": "sha256:fbdfd7a79e6175155e664a54919b973ab0ad7846813d24df06503754ccad989a",
+      "builtAt": "2026-09-09T23:31:53.007Z",
+      "timestamp": "2026-09-09T23:31:53.010Z"
     }
   ],
   "contentHash": {
@@ -1088,8 +1242,8 @@
     "en:mobile": "sha256:db4085e75bc147c1dcdff9dcfe5e1ebcd0e43d75b5d28f1d917f174a2382a9ce"
   },
   "buildKey": {
-    "en:desktop": "sha256:4ccad1800c619283a0b89330d6818087a720c9a3b044ff17585c6dc8bae16f82",
-    "en:mobile": "sha256:93f423a9138fee7d45fe83c7c6babadebc36e30b676d42d99642f2524380ad44"
+    "en:desktop": "sha256:22bdc0982e51000e492c507ad3125292e7a78c4d21d5a9e7b2f24929328b6a3d",
+    "en:mobile": "sha256:fbdfd7a79e6175155e664a54919b973ab0ad7846813d24df06503754ccad989a"
   },
   "locale": "en",
   "baseLocale": "en"

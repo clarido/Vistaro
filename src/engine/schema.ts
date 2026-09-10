@@ -348,6 +348,29 @@ export function resolveConfigPath(dir: string, config?: string): string {
 }
 
 /**
+ * A `--config` value as typed on the command line: resolved against the CWD, like every other path
+ * option the CLI takes (-o, --storage-state, --guide-dir), then handed to loadTimeline absolute.
+ * The library's own base is the timeline's directory; keeping the two apart is why every command
+ * prints the path it resolved.
+ */
+export function cliConfigPath(config?: string): string | undefined {
+    return config ? path.resolve(config) : undefined;
+}
+
+/**
+ * The name a non-default timeline lends to its outputs (`scenarios/export-word.json` ->
+ * `export-word`), or undefined for the directory's own. Two scenarios in one directory would
+ * otherwise share `preview.png`, `animated.html` and `guide/`, and an author would read one
+ * scenario's contact sheet while fixing the other's timeline.
+ */
+export function configStem(dir: string, config?: string): string | undefined {
+    if (!config) return undefined;
+    const p = resolveConfigPath(dir, config);
+    if (p === path.resolve(dir, 'anim.config.json')) return undefined;
+    return path.basename(p).replace(/\.json$/i, '');
+}
+
+/**
  * Read and parse the directory's timeline (`opts.config`, else `<dir>/anim.config.json`), then
  * overlay that timeline's strings file when one exists for
  * the resolved locale (--locale > anim.manifest.json locale > meta.locale). Every command loads

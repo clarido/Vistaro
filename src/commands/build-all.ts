@@ -28,13 +28,28 @@ export interface BuildAllOptions {
 interface StepRun { cmd: string[]; status: number | null; stdout: string; stderr: string; ms: number; timedOut?: boolean }
 
 /**
- * What --changed-only compares: the sources of the locale dir, the effective render settings that
- * shape the output (viewport, theme, crop, cursor, narration, extras, record target) and the tool
- * version. Stored as manifest.buildKey[locale] beside contentHash[locale].
+ * Bump this whenever a change alters the BYTES a build produces without changing any input the
+ * build key already covers: an encode setting, a filter graph, an injected runtime, the guide
+ * layout. It exists because the key's only tool-side input used to be `toolVersion()`, which is
+ * the DECLARED package version -- so a behaviour change that shipped without a version bump left
+ * every cached key intact and `--changed-only` skipped every row that needed the fix. That is not
+ * a visible failure: it looks exactly like a fast, successful, up-to-date build, and the artifact
+ * on disk stays wrong. It happened -- c52780e changed GIF encoding and touched no package.json,
+ * and a stale oversized GIF survived the next build.
+ *
+ * Bumping it invalidates every cached key, so the next `--changed-only` run is a full rebuild.
+ * That is the point: it is the cheapest way to say "what this tool emits is not what it emitted".
  */
-export function buildKeyFor(contentHash: string, settings: EffectiveSettings, record: CatalogGuide['record'], tool = toolVersion()): string {
+export const OUTPUT_REVISION = 1;
+
+/**
+ * What --changed-only compares: the sources of the locale dir, the effective render settings that
+ * shape the output (viewport, theme, crop, cursor, narration, extras, record target), the tool
+ * version and OUTPUT_REVISION. Stored as manifest.buildKey[locale] beside contentHash[locale].
+ */
+export function buildKeyFor(contentHash: string, settings: EffectiveSettings, record: CatalogGuide['record'], tool = toolVersion(), outputRevision = OUTPUT_REVISION): string {
     const facts = {
-        contentHash, tool,
+        contentHash, tool, outputRevision,
         width: settings.width, height: settings.height, theme: settings.theme, crop: settings.crop,
         hideCursor: settings.hideCursor, narration: settings.narration, outputs: [...settings.outputs].sort(),
         // kind, device and scale all change what is produced: leaving any of them out would make

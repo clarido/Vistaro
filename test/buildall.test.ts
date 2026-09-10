@@ -6,7 +6,7 @@ import * as path from 'path';
 import { spawnSync, spawn } from 'child_process';
 import { pathToFileURL } from 'url';
 import { readCatalog, locateLocaleDir, writeIndex, mergeIndexEntries, outputDirProblem, effectiveSettings, IndexJson, IndexEntry } from '../src/catalog';
-import { buildKeyFor } from '../src/commands/build-all';
+import { buildKeyFor, OUTPUT_REVISION } from '../src/commands/build-all';
 import { diffPng } from '../src/guide/diff';
 import { PNG } from 'pngjs';
 import { startLiveApp } from './fixtures/live-app/server';
@@ -114,6 +114,9 @@ test('readCatalog validates shape, dirs, slugs, locales, outputs, settings types
     assert.notEqual(k1, buildKeyFor('sha256:a', { ...st, width: 641 }, undefined, 'tool@1'));
     assert.notEqual(k1, buildKeyFor('sha256:a', st, undefined, 'tool@2'));
     assert.notEqual(k1, buildKeyFor('sha256:a', st, { url: 'http://x' }, 'tool@1'));
+    // A change that alters the produced bytes without touching any input above -- an encode setting,
+    // a filter graph, the injected runtime -- is only visible to --changed-only through this.
+    assert.notEqual(k1, buildKeyFor('sha256:a', st, undefined, 'tool@1', OUTPUT_REVISION + 1));
 });
 
 test('mergeIndexEntries keeps untouched entries, replaces touched ones, drops entries no longer in the catalog', () => {

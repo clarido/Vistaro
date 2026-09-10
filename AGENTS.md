@@ -30,7 +30,7 @@ For a **live app** replace steps 1 and 4 with selectors in the real page and use
 
 For a **marketing reel** set `"kind": "reel"` in `meta`. The guide chrome and the guide validations switch off, so steps need no `title` and the ten-step guideline does not apply; write the motion instead, mostly `animate` and `camera`. Step 6 loses `--guide` and `--narration` and ships an MP4, a WebM, a poster and a GIF in one command; step 4 gains `--embed` for the looping page. Steps 7 and 8 are unchanged, and one responsive mockup covers both form factors through `--device` plus per-step `mobile`/`desktop` overrides and `only`. **Read [Authoring a reel](#authoring-a-reel-four-constraints-that-are-not-guessable) before you write the screen**: all four constraints there fail silently, producing a plausible-looking clip that is wrong.
 
-For an **interactive tour** -- a demo canvas with a rail of scenarios the visitor picks from, each playing step by step with play/pause and per-step navigation -- keep the timeline exactly as it is and replace steps 4 to 6 with `npx tsx cli.ts tour`. Nothing is captured and nothing is encoded: a scenario page is the mockup itself with the runtime and the tour scheduler injected, so it stays crisp at any size and weighs what its HTML weighs. Several scenarios normally share one screen; see [Tours](#tours).
+For an **interactive tour** -- a demo canvas with a rail of scenarios the visitor picks from, each playing step by step with play/pause and per-step navigation -- keep the timeline exactly as it is and replace steps 4 to 6 with `npx tsx cli.ts tour`. Nothing is captured and nothing is encoded: a scenario page is the mockup itself with the runtime and the tour scheduler injected, so it stays crisp at any size and weighs what its HTML weighs. Several scenarios normally share one screen; see [Tours](#tours). `tour --embed` also writes an `<anim-tour>` element so a scenario can be dropped into a marketing page.
 
 Cinematic polish is built in: click/focus/type/highlight/hover steps get a glowing spotlight on the target and a click ripple, `camera` pushes in on an element, `scroll` brings it into view, the cursor glides with a slight drift, and subtitles are drawn as an overlay. There is nothing to paste into `index.html`. A reel turns the spotlight, ripple and subtitle bar off and carries its motion with `animate` and `camera` instead; set `"cursor": "none"` too unless the clip is demonstrating a click.
 
@@ -212,7 +212,7 @@ Then translate `strings.fr.json` and the visible text in `locales/fr/index.html`
 - Paths are relative to the catalog file. `outputDir` may not be `/`, the home directory, the catalog directory, or overlap a guide directory. Every default is also valid per guide (the guide wins). `outputs` are the extras: `guide` (default for a guide), `gif`, `clips`, `webm`, `poster`, `embed`; the video is always produced and never listed as an output.
 - A guide entry may set `kind: "reel"`, whose default outputs are `["webm", "poster", "gif"]` and which produces no guide. `devices: ["desktop", "mobile"]` expands it to one row per device, sharing `<slug>/<locale>/` with the device in every filename (`ask-anything-en-mobile.mp4`, `embed-mobile.html`). Render settings gain `device` and `scale`, both valid in `defaults` and per guide.
 - The manifest key is the plain locale for a guide and `<locale>:<device>` for a device-expanded row, so manifests written before reels existed stay valid.
-- `--changed-only` skips a guide × locale whose **build key** (content hash of `index.html`, `anim.config.json`, `strings.*.json` and referenced media + the effective render settings + the tool version) matches `buildKey[locale]` in its manifest and whose video still exists on disk. Changing a width in the catalog rebuilds; editing `locales/fr` rebuilds only `fr`.
+- `--changed-only` skips a guide × locale whose **build key** (content hash of `index.html`, `anim.config.json`, `strings.*.json` and referenced media + the effective render settings + the tool version + `OUTPUT_REVISION`) matches `buildKey[locale]` in its manifest and whose video still exists on disk. Changing a width in the catalog rebuilds; editing `locales/fr` rebuilds only `fr`.
 - `--diff` keeps the previous step frames in `guide/.previous/`, compares them pixel by pixel with the new ones and marks the entry `stale` above `--diff-threshold` (default 2%), with `step-NN.diff.png` next to the previous frames.
 - `--only <slug>` / `--locale <code>` build a subset; the other entries keep their previous index rows. `--dry-run` prints the plan and writes nothing. Failures mark the entry `failed`, exit 1, and stop unless `--continue-on-error`.
 
@@ -260,7 +260,32 @@ A tour timeline is an ordinary `kind: "guide"` timeline -- the same file can sti
 - **Seeking replays; it does not rewind.** Jumping to step N calls `__anim.restart()` to put the authored DOM back, re-runs every earlier step with `{instant: true}`, then plays N at full speed. That is why the page always agrees with itself -- there is no separate "state at step N" to drift -- and why a typed field really is empty again after you seek back past the step that filled it.
 - **Media queries evaluate at the authored width, never the displayed width.** The shell renders the scenario at its authored viewport and transform-scales the whole frame, so a mockup that is right at 1920 is right in a 700px canvas. This is the opposite of the reel `--scale` rule; do not carry that intuition over.
 - **Dwell between steps** is the authored gap between their `time`s minus the cursor lead, floored at 450 ms.
+- **Devices are separate pages, not a stylesheet.** `devices: ["desktop", "mobile"]` builds one page per form factor (`index-desktop.html`, `index-mobile.html`), because `only` drops steps and `mobile`/`desktop` merge into them: one authored file yields two genuinely different timelines. The device is in every filename for the reason the reels learned it -- an unsuffixed pair has the second build silently overwrite the first, leaving a desktop page in a phone-shaped frame. The shell picks a variant with `matchMedia` and reloads on a rotation that crosses the breakpoint. `defaults.width`/`height` describe the **desktop** canvas; a phone page takes 390x844 unless `defaults.mobile` overrides it.
+- **A mobile variant needs a responsive screen.** `--device mobile` resolves the timeline, not the layout. A fixed-width mockup (`demo` is a 1100px window with `vw`-positioned decor) renders cropped in a 390px frame, so `demo` ships desktop-only. Author the screen to reflow first, then add the device.
 - **The legibility law.** The whole frame is scaled, so `on-screen px = authored px x (canvas width / authored width)`. A tour canvas is much smaller than a fullscreen video, which is why a mockup that reads perfectly as an exported MP4 can be unreadable in a tour: the 1920-wide `demo` screen has 13px body text, and in a ~1090px canvas that lands at 7.4px. **Author tour screens at 1280x720**, where the same canvas gives 11px. The rule is `canvas >= authored width x 11 / smallest authored text size`. Measured on a screen authored to it: canvas 1190, scale 0.929, 12px landing at 11.2px and 14px at 13.0px. The same screen authored at 1920 would have put that 12px at 6.9px.
+
+### Embedding a tour in someone else's page
+
+`tour --embed` adds, beside the shell: `embed-<slug>-<device>.html` per scenario (the canvas, the caption and the transport, no rail and no page chrome), `anim-tour.js`, and `embed-<slug>.snippet.html`. Serving is over **http(s), never `file://`** -- the shell reads `tours.json` with `fetch`.
+
+The documented path is the custom element:
+
+```html
+<script type="module" src="https://host/tour/anim-tour.js"></script>
+<anim-tour src="https://host/tour/" scenario="draft-response" autoplay="inview"></anim-tour>
+```
+
+Attributes: `src` (the tour root), `scenario`, `device` (`auto` (default), `desktop`, `mobile`), `autoplay` (`none` (default), `inview`, `immediate`), `height` (px before the page reports its own). Methods: `play()`, `pause()`, `restart()`, `next()`, `prev()`, `goto(i)`. Events on the element, for analytics: `tourready`, `tourstep` (`detail` carries `index`, `chapter`, `chapters`, `title`, `playing`), `tourend`, `tourerror`. `embed-<slug>.snippet.html` is the same behaviour written out as a plain script, for a CMS that strips module scripts.
+
+An embed page is the **same shell in solo mode** -- `app.js` with `data-scenario` on the body and no rail -- so the canvas, the captions and the transport cannot drift from the full tour.
+
+What is not guessable here:
+
+- **Play/pause has to be decided by the host, not the embed.** An `IntersectionObserver` inside a frame measures against *that frame's* viewport, so an embed far below the fold reports itself fully visible and plays to nobody. This is why the protocol has an inbound half at all, and why the snippet ships an observer instead of leaving it to the page. The reel embed (`build --embed`) has the same shape for the same reason.
+- **The device is chosen by the host, and checked against what was built.** Only the host knows the visitor's real viewport; the frame is whatever size it was given. The element also fetches `tours.json` and falls back to a variant that exists, because a desktop-only tour asked for `mobile` would otherwise frame a 404 -- a blank box, on the device where it is least likely to be noticed.
+- **Auto-height must be measured from the content, never from the document.** `documentElement.scrollHeight` inside a frame can never report *less* than the frame it is already in, so a document measurement makes the height ratchet up and never come back down. The embed reports `main`'s own bottom instead.
+- **Messages are same-origin except on `file://`.** The scenario page, the embed page and the shell are all served together, so `postMessage` targets `location.origin`. The exception is `file://`, where Chromium reports an origin of `"file://"` -- a string that looks usable but can never match the receiving window's opaque origin, so a message sent to it is dropped with no error anywhere. Reports to the *embedding* page default to `*` because a tour is public content; `--embed-origin` names one site instead.
+- **Why an iframe and not a shadow-DOM component.** `runtime.js` owns `document.body`: the camera transforms it, and `restart()` empties it and rebuilds it from a boot snapshot -- which in a shadow-DOM component would delete the host's page. Mockups are also authored in viewport units (`100vw`, `-40vw`), which only mean the right thing when the document really is the viewport. A frame-free component would need the runtime scoped to a root element and the authoring contract moved to container-query units.
 
 ## Authoring a reel: four constraints that are not guessable
 
@@ -320,7 +345,7 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 
 ## Contributor notes
 
-- Layout: `cli.ts` (commander, `buildProgram()`), `src/engine/` (`schema.ts` parsing/validation, `runtime.js` the in-page engine, `inject.ts` builds `animated.html`, `tour-bridge.js` the message-driven scheduler a tour page runs on, `driver.ts` drives a Playwright page), `src/commands/`, `src/guide/` (capture, render, diff), `src/media/` (ffmpeg, tts, vtt, chapters, contact sheet), `src/tour/app/` (the tour shell: generic HTML/CSS/JS copied into the output verbatim), `src/catalog.ts`, `src/manifest.ts`, `src/browser.ts`.
+- Layout: `cli.ts` (commander, `buildProgram()`), `src/engine/` (`schema.ts` parsing/validation, `runtime.js` the in-page engine, `inject.ts` builds `animated.html`, `tour-bridge.js` the message-driven scheduler a tour page runs on, `driver.ts` drives a Playwright page), `src/commands/`, `src/guide/` (capture, render, diff), `src/media/` (ffmpeg, tts, vtt, chapters, contact sheet), `src/tour/app/` (the tour shell: generic HTML/CSS/JS copied into the output verbatim; `embed.html` is the solo-mode page template and `anim-tour.js` the custom element, both shipped only by `--embed`), `src/catalog.ts`, `src/manifest.ts`, `src/browser.ts`.
 - `runtime.js` and `tour-bridge.js` are plain browser JavaScript injected as text (no imports, must tolerate document-start injection). The bridge is the third scheduler over `runStep`: the other two are `play()` inside the runtime and `driver.ts` outside it, and neither can be seeked because both advance on a clock. The timing constants at the top of `schema.ts` are mirrored as literals there and `test/constants.test.ts` asserts they stay equal.
 - The spotlight ring pulses by scaling itself, so its measured rect is a few px off wherever it was positioned. A test that asserts where the ring landed must read its inline style, not `getBoundingClientRect()`.
 - `overflow: hidden` is still programmatically scrollable, and the runtime scrolls a clipped target into view before interacting, so content below such a container's fold is reachable and is not a crop. Only `overflow: clip` hides something for good. `check`'s crop warning and the spotlight clamp both draw the line there; a fixture meant to be unreachable must use `clip`.
@@ -328,6 +353,7 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 - Tests: `npm test` (`node:test` through `tsx`, serial: `--test-concurrency=1`, about 10 minutes with the browser tests; `SKIP_BROWSER=1` skips them, `SKIP_TTS=1` skips the macOS `say` narration test). `ANIM_DEBUG=1` makes `check` print every target probe and `export` print page/context close timings and trim details on stderr. Fixtures: `test/fixtures/basic/` (a mockup with every action), `test/fixtures/controlled/` (a React-style controlled input with a value tracker; served by the live app at `/controlled`) and `test/fixtures/live-app/server.ts` (a login/dashboard app for `record`, plus `/once`, a Save that works once per process, for the reset-hook checks).
 - **Nothing in a run may wait forever.** `node:test`'s own default timeout is `Infinity`, and a pending `await` that holds any live handle (a Chromium, a socket) then hangs the suite with no output and no failure -- which reads as a loop, not a hang. Bounds, innermost first, and the inner ones must always fire before the outer ones or the useful message is lost: `FFMPEG_TIMEOUT_MS` (`media/ffmpeg.ts`, 10 min) and `SAY_TIMEOUT_MS` (`media/tts.ts`, 60 s) -- these two cannot be delegated upward, because `spawnSync`/`execFileSync` block the event loop, so no timer in the process can fire while they are stuck; `CLI_TIMEOUT_MS` (300 s) with `killSignal: 'SIGKILL'` on every `spawnSync`/`spawn` of the CLI in `test/`, each helper calling `assertRan()` so a kill reports as a named failure instead of `expected null to equal 0`; `CHILD_TIMEOUT_MS` in `build-all.ts` (15 min per child, SIGTERM then SIGKILL after a grace, reported at report time so a chatty death cannot push it out of `tail()`); `exitWhenDrained()` in `cli.ts`, which force-exits 5 s after the command resolves if handles or libuv requests still hold the process, naming them -- the backstop for a browser that would not close, since Playwright exposes no public handle on its browser process from a `Browser` (its own `process.on('exit')` hook kills the browser when the watchdog exits, so no orphan is left); and last `--test-timeout` in the `test` script, 30 min. **That last number is a last resort, not the real bound, and it is sized against a sum:** the cap is per test, `CLI_TIMEOUT_MS` is per call, and the slowest `buildall.test.ts` test makes 12 calls -- at 600 s the runner cancelled the test (losing the child's message) as soon as two children wedged. Raise it, or split the test, before adding calls to a long one. Add a new spawn, add its bound.
 - **The browser-driven commands are sensitive to what else is running on the machine.** A step is abandoned after `stepTimeoutMs` (30 s, `driver.ts:243`) and the suite's orphaned-process check counts Chromium and ffmpeg machine-wide, so running exports beside `npm test`, or several exports beside a `preview`, produces timeouts and process-count failures that do not reproduce on an idle machine. Run one browser-driven job at a time before concluding a step is genuinely stuck. Non-fatal `context did not close within 10000ms` / `browser did not close within 10000ms` warnings belong to the same family and appear even serially, on a long `build-all`.
+- **Changing what a build emits means bumping `OUTPUT_REVISION`** (`build-all.ts`, beside `buildKeyFor`). The key's only tool-side input used to be `toolVersion()`, the *declared* package version, so a behaviour change shipped without a version bump left every cached key intact and `--changed-only` skipped exactly the rows that needed the fix -- indistinguishable from a fast, successful, up-to-date build. Bump it for an encode setting, a filter graph, an injected runtime or a guide layout change; the next `--changed-only` run is then a full rebuild, which is the point.
 - Docs: `npm run docs` regenerates the CLI reference block below (and in README.md) from `cli.ts`; `npm run docs:check` and `test/docs.test.ts` fail when it is stale.
 - CI: `.github/workflows/test.yml` runs `npm run docs:check`, `tsc --noEmit` and the suite on Ubuntu with a cached Chromium, about 12 to 15 minutes. It needs no secrets.
 
@@ -416,6 +442,7 @@ Build animated.html from index.html + anim.config.json (no LLM, no API key)
 | `--device <type>` | Which device's timeline to bake in (resolves "only"/"mobile"/"desktop" steps): desktop or mobile (default: `desktop`) |
 | `--embed` | Also write embed.html (a framable, self-contained clip) and embed.snippet.html (the parent-side iframe snippet) |
 | `-l, --loop` | Loop the animation endlessly when opened in a browser |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--locale <code>` | Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json |
 | `--force` | Build even if the timeline has validation errors |
 | `-o, --output <file>` | Write the built HTML somewhere other than <output_dir>/animated.html |
@@ -443,6 +470,7 @@ Validate anim.config.json: schema, timing, strings, and (unless --static/--live)
 | `--reset-cmd <command>` | Live probe: shell command run before the pass |
 | `--allow-reset` | Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this) |
 | `--guide` | Validate as a guide: a numbered step without a "title" is an error, not a warning |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--json` | Print the issues as JSON on stdout |
 | `--locale <code>` | Locale code (e.g. en, fr) |
 | `-w, --width <pixels>` | Viewport width for the browser pass |
@@ -465,6 +493,7 @@ Render one labelled frame per step to <output_dir>/preview.png (or a single full
 | Option | Description |
 |---|---|
 | `-s, --step <n>` | Write only step N (1-based) at full resolution to preview-step-N.png |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--scale <n>` | Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width |
 | `--at <when>` | Capture point per step: "auto" (like the guide: clicks at the interaction, typing/camera/fades at completion), "interaction", or "end" (default: `auto`) |
 | `-o, --output <file>` | Output PNG path |
@@ -504,6 +533,7 @@ Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narra
 | `--no-chapters` | Do not embed MP4 chapters for titled steps |
 | `--clips <format>` | Also cut one clip per step next to the video: mp4 or gif |
 | `--tail <ms>` | Hold after the last step (overrides meta.tailMs, default 2500) |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--guide` | Also write the step-by-step guide (guide.json, guide.md, guide.html, assets/) after the video |
 | `--guide-dir <dir>` | Guide output directory (default: <output_dir>/guide) |
 | `--crop <px>` | Guide crops: padding around each step's box in px (default 120) |
@@ -544,6 +574,7 @@ Record the timeline against a live page (URL) instead of a local mockup: real na
 | `--no-chapters` | Do not embed MP4 chapters |
 | `--clips <format>` | Also cut one clip per step: mp4 or gif |
 | `--tail <ms>` | Hold after the last step (overrides meta.tailMs) |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--guide` | Also capture the step guide against the live page (re-navigates, replays in step mode) |
 | `--guide-dir <dir>` | Guide output directory (default: <output_dir>/guide) |
 | `--crop <px>` | Guide crops: padding around each step's box in px (default 120) |
@@ -572,6 +603,7 @@ Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) fro
 | `--clips <format>` | Cut one clip per step from the last exported video: mp4 or gif |
 | `--hide-cursor` | Hide the fake cursor in the step screenshots |
 | `--no-marks` | Do not burn the spotlight ring and numbered badge into the frames (rect/callout are still recorded) |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--url <url>` | After a `record`: replay against this URL instead of the one in the manifest |
 | `--storage-state <file>` | After a `record`: storage state for the live replay (default: the one the record used) |
 | `--ignore-https-errors` | Accept self-signed certificates on the live replay |
@@ -624,6 +656,8 @@ Build an interactive tour site from tour.catalog.json: a scenario rail plus a ca
 |---|---|
 | `-o, --output <dir>` | Directory to write the tour into (default: the catalog's outputDir, else tour-out) |
 | `--force` | Build scenarios that have validation errors |
+| `--embed` | Also write embed-<slug>-<device>.html per scenario, the <anim-tour> custom element and a no-module snippet fallback |
+| `--embed-origin <origin>` | targetOrigin the embed pages use to report to the page that frames them (default: any) |
 
 ### `localize`
 

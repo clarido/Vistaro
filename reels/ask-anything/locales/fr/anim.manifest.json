@@ -62,8 +62,170 @@
       "force": false,
       "output": "animated.html",
       "timestamp": "2026-09-07T20:23:49.639Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T23:31:54.843Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "nav",
+          "actualMs": 207,
+          "completedMs": 945
+        },
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 510,
+          "completedMs": 1409
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1905,
+          "completedMs": 3085
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3906,
+          "completedMs": 4701
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4608,
+          "completedMs": 5571
+        },
+        {
+          "index": 6,
+          "id": "push",
+          "actualMs": 5808,
+          "completedMs": 7210
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7407,
+          "completedMs": 8101
+        },
+        {
+          "index": 8,
+          "id": "pullback",
+          "actualMs": 8409,
+          "completedMs": 9611
+        }
+      ],
+      "duration": 10.311,
+      "output": "../../../../reels-out/ask-anything/fr/ask-anything-fr-desktop.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:1d0cb17e41a1668144dc55919ced5444225a7f6296c31313c8d2cf5b7bdcd75a",
+      "timestamp": "2026-09-09T23:32:45.806Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../../../reels.catalog.json",
+      "locale": "fr",
+      "device": "desktop",
+      "kind": "reel",
+      "output": "../../../../reels-out/ask-anything/fr",
+      "contentHash": "sha256:1d0cb17e41a1668144dc55919ced5444225a7f6296c31313c8d2cf5b7bdcd75a",
+      "buildKey": "sha256:4f62c75a3f81f8041a39073ae59801e727b0ed50b3dee14f602931aab20653ec",
+      "builtAt": "2026-09-09T23:32:45.852Z",
+      "timestamp": "2026-09-09T23:32:45.854Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "fr",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-09-09T23:32:47.867Z"
+    },
+    {
+      "command": "export",
+      "device": "mobile",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 2,
+          "id": "cards",
+          "actualMs": 505,
+          "completedMs": 1304
+        },
+        {
+          "index": 3,
+          "id": "ask",
+          "actualMs": 1904,
+          "completedMs": 3084
+        },
+        {
+          "index": 4,
+          "id": "answer",
+          "actualMs": 3905,
+          "completedMs": 4487
+        },
+        {
+          "index": 5,
+          "id": "bars",
+          "actualMs": 4604,
+          "completedMs": 5304
+        },
+        {
+          "index": 7,
+          "id": "recover",
+          "actualMs": 7405,
+          "completedMs": 7937
+        }
+      ],
+      "duration": 8.637,
+      "output": "../../../../reels-out/ask-anything/fr/ask-anything-fr-mobile.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:1d0cb17e41a1668144dc55919ced5444225a7f6296c31313c8d2cf5b7bdcd75a",
+      "timestamp": "2026-09-09T23:33:10.739Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../../../reels.catalog.json",
+      "locale": "fr",
+      "device": "mobile",
+      "kind": "reel",
+      "output": "../../../../reels-out/ask-anything/fr",
+      "contentHash": "sha256:1d0cb17e41a1668144dc55919ced5444225a7f6296c31313c8d2cf5b7bdcd75a",
+      "buildKey": "sha256:63cedac31f2ee04687b3b3701bca9c58727c397687adfe82b9257fb448370903",
+      "builtAt": "2026-09-09T23:33:10.781Z",
+      "timestamp": "2026-09-09T23:33:10.783Z"
     }
   ],
   "locale": "fr",
-  "baseLocale": "en"
+  "baseLocale": "en",
+  "contentHash": {
+    "fr:desktop": "sha256:1d0cb17e41a1668144dc55919ced5444225a7f6296c31313c8d2cf5b7bdcd75a",
+    "fr:mobile": "sha256:1d0cb17e41a1668144dc55919ced5444225a7f6296c31313c8d2cf5b7bdcd75a"
+  },
+  "buildKey": {
+    "fr:desktop": "sha256:4f62c75a3f81f8041a39073ae59801e727b0ed50b3dee14f602931aab20653ec",
+    "fr:mobile": "sha256:63cedac31f2ee04687b3b3701bca9c58727c397687adfe82b9257fb448370903"
+  }
 }

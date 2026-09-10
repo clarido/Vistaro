@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { recordEvent } from '../manifest';
-import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS, deviceKind, reelOptions, intrinsicDurationMs, parseTime, emulateMobileFor } from '../engine/schema';
+import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS, deviceKind, reelOptions, intrinsicDurationMs, parseTime, emulateMobileFor, resolveConfigPath, cliConfigPath, configStem } from '../engine/schema';
 import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions, RunAbortedError, errorMessage } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions, resolveViewport, closeWithWatchdog, closeBrowser, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
@@ -27,6 +27,8 @@ export interface ExportOptions extends ViewportOptions {
     tail?: string;
     force?: boolean;
     locale?: string;
+    /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
+    config?: string;
     /** Also capture the step-by-step guide (guide.json/.md/.html + assets) after the video. */
     guide?: boolean;
     guideDir?: string;
@@ -137,10 +139,16 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     // always recorded with the runtime injected, so an edit to index.html after `build` can never
     // produce a video that disagrees with check/preview; animated.html is the self-playing page for
     // humans. Without a timeline, a built animated.html keeps the legacy blind-wait path.
+    // One resolution for the whole command. An explicit --config that does not exist is a hard error
+    // and must never fall through to the legacy animated.html path below: a typo would otherwise
+    // record a blind 5-second video of whatever the last `build` left on disk and report success.
+    const configPath = resolveConfigPath(outputDir, cliConfigPath(options.config));
+    const hasConfig = fs.existsSync(configPath);
+    if (options.config && !hasConfig) throw new Error(`timeline not found: ${displayPath(configPath)}`);
+
     let htmlPath = path.resolve(outputDir, 'index.html');
     if (!session) {
         const animated = path.resolve(outputDir, 'animated.html');
-        const hasConfig = fs.existsSync(path.resolve(outputDir, 'anim.config.json'));
         if ((!hasConfig || !fs.existsSync(htmlPath)) && fs.existsSync(animated)) htmlPath = animated;
         if (!fs.existsSync(htmlPath)) throw new Error(`could not find index.html or animated.html in ${outputDir}`);
     }
@@ -148,13 +156,13 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
 
     // Timeline (optional for legacy directories without anim.config.json; required for a live session).
     let timeline: Timeline | undefined;
-    if (session && !fs.existsSync(path.resolve(outputDir, 'anim.config.json'))) throw new Error(`anim.config.json not found in ${outputDir} (record needs a timeline)`);
-    if (fs.existsSync(path.resolve(outputDir, 'anim.config.json'))) {
-        timeline = session?.timeline ?? loadTimeline(outputDir, { locale: options.locale, device: deviceKind(options.device) });
+    if (session && !hasConfig) throw new Error(`timeline not found: ${displayPath(configPath)} (record needs a timeline)`);
+    if (hasConfig) {
+        timeline = session?.timeline ?? loadTimeline(outputDir, { locale: options.locale, device: deviceKind(options.device), config: cliConfigPath(options.config) });
         const issues = validateTimeline(timeline, { live: !!session, guide: !!options.guide });
         for (const issue of issues) console.error(formatIssue(issue));
         if (hasErrors(issues)) {
-            if (!options.force) throw new Error(`${issues.filter(i => i.level === 'error').length} validation error(s) in anim.config.json (use --force to export anyway)`);
+            if (!options.force) throw new Error(`${issues.filter(i => i.level === 'error').length} validation error(s) in ${displayPath(configPath)} (use --force to export anyway)`);
             console.error('--force: exporting despite validation errors; failing steps are skipped.');
         }
         if (options.tail !== undefined) {
@@ -504,7 +512,11 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     // Pass 2: guide capture on a fresh page in the same browser (no video, no drift).
     let guideDir: string | undefined;
     if (options.guide) {
-        guideDir = path.resolve(options.guideDir || path.join(outputDir, 'guide'));
+        // The same guide-<stem>/ name `guide --config` writes (guide.ts). Sharing a plain guide/
+        // between two scenarios of one directory means the published guide is whichever ran last --
+        // exactly the collision configStem exists to prevent.
+        const guideStem = configStem(outputDir, cliConfigPath(options.config));
+        guideDir = path.resolve(options.guideDir || path.join(outputDir, guideStem ? `guide-${guideStem}` : 'guide'));
         const actual = new Map<number, number>();
         for (const r of results) if (Number.isFinite(r.actualMs)) actual.set(r.index, r.actualMs);
         const clipFiles = new Map<number, string>();
@@ -545,7 +557,13 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         duration: durationMs / 1000, output: relToDir(outputFile),
         voiceover: options.voiceover ? relToDir(path.resolve(options.voiceover)) : undefined, narration: !!options.narration, subtitles: summary.vtt ? path.basename(summary.vtt) : false,
         chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), guide: guideDir ? relToDir(guideDir) : undefined,
-        contentHash: driven ? hashGuideDir(outputDir) : undefined,
+        contentHash: driven ? hashGuideDir(outputDir, { config: cliConfigPath(options.config) }) : undefined,
+        // Which timeline produced this video: guide --config must not link a sibling scenario's.
+        // Normalized through configStem so an explicit `--config anim.config.json` records nothing,
+        // the same way it derives no stem -- otherwise a later plain `guide <dir>` compares
+        // undefined against "anim.config.json", finds no video, and silently writes a guide with
+        // no clips and no chapters.
+        config: configStem(outputDir, cliConfigPath(options.config)) ? relPosix(path.resolve(outputDir), configPath) : undefined,
     });
     eventRecorded = true;
     return summary;

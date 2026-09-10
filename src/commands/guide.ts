@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Browser, Page } from 'playwright';
-import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, leadMsFor, emulateMobileFor } from '../engine/schema';
+import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, leadMsFor, emulateMobileFor, cliConfigPath, configStem } from '../engine/schema';
 import { ensureRuntime, StepResult, LiveOptions } from '../engine/driver';
 import { launchPage, fileUrl, resolveViewport, ViewportOptions, newDrivenPage, assertReachable, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
@@ -21,6 +21,8 @@ export interface GuideOptions extends ViewportOptions {
     crop?: string | number | false;
     clips?: string;
     locale?: string;
+    /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
+    config?: string;
     force?: boolean;
     hideCursor?: boolean;
     /** --no-marks: clean frames, geometry still recorded (commander sets false). */
@@ -73,11 +75,14 @@ export function resolveCrop(crop: GuideOptions['crop']): number | false {
 }
 
 /** Reuse the manifest's most recent driven export as the guide's video when its file still exists. */
-export function videoFromManifest(dir: string): VideoInfo | undefined {
+export function videoFromManifest(dir: string, configRel?: string): VideoInfo | undefined {
     const manifest = readManifest(dir);
     for (let i = manifest.history.length - 1; i >= 0; i--) {
         const ev = manifest.history[i];
         if ((ev.command !== 'export' && ev.command !== 'record') || !ev.driven || !ev.output) continue;
+        // With two timelines in one directory the newest export is not necessarily THIS timeline's.
+        // An event with no `config` predates the field and means the directory's default one.
+        if ((ev.config ?? undefined) !== configRel) continue;
         // `output` is recorded relative to the guide directory; older entries were relative to the cwd.
         let file = path.resolve(dir, ev.output);
         if (!fs.existsSync(file)) file = path.resolve(ev.output);
@@ -215,13 +220,16 @@ export async function buildGuide(browser: Browser, dir: string, timeline: Timeli
 /** `guide <dir>`: capture pass only, reusing the last exported video from the manifest when present. */
 export async function guideCommand(dir: string, options: GuideOptions = {}): Promise<void> {
     try {
-        const timeline = loadTimeline(dir, { locale: options.locale });
-        const issues = validateTimeline(timeline, { guide: true, live: !!videoFromManifest(dir)?.url });
+        const configAbs = cliConfigPath(options.config);
+        const configRel = configAbs ? relPosix(path.resolve(dir), configAbs) : undefined;
+        const timeline = loadTimeline(dir, { locale: options.locale, config: configAbs });
+        const issues = validateTimeline(timeline, { guide: true, live: !!videoFromManifest(dir, configRel)?.url });
         for (const issue of issues) console.error(formatIssue(issue));
         if (hasErrors(issues) && !options.force) throw new Error('fix the validation errors above or pass --force');
         const crop = resolveCrop(options.crop);
-        const outDir = path.resolve(options.output || path.join(dir, 'guide'));
-        const video = videoFromManifest(dir);
+        const stem = configStem(dir, configAbs);
+        const outDir = path.resolve(options.output || path.join(dir, stem ? `guide-${stem}` : 'guide'));
+        const video = videoFromManifest(dir, configRel);
         if (video) console.log(`Using video ${displayPath(video.file)} from the last export (${(video.durationMs / 1000).toFixed(1)}s).`);
         else console.log('No exported video found in the manifest; the guide will have screenshots only (run `export` first for video, chapters and clips).');
 
@@ -249,7 +257,7 @@ export async function guideCommand(dir: string, options: GuideOptions = {}): Pro
         }
         const failed = result.capture.steps.filter(s => s.error);
         const relToDir = (p: string) => relPosix(path.resolve(dir), p);
-        recordEvent(dir, { command: 'guide', output: relToDir(outDir), crop, clips: options.clips, locale: timeline.locale ?? options.locale ?? timeline.meta.locale, steps: result.capture.steps.length, video: video ? relToDir(video.file) : null, url: session ? sanitizeUrl(options.url || video!.url!) : undefined, contentHash: hashGuideDir(dir) });
+        recordEvent(dir, { command: 'guide', output: relToDir(outDir), crop, clips: options.clips, locale: timeline.locale ?? options.locale ?? timeline.meta.locale, steps: result.capture.steps.length, video: video ? relToDir(video.file) : null, url: session ? sanitizeUrl(options.url || video!.url!) : undefined, contentHash: hashGuideDir(dir, { config: cliConfigPath(options.config) }), config: configRel });
         console.log(`\nWrote ${displayPath(result.json)}, guide.md, guide.html (${result.capture.steps.length} steps${video ? ', video linked' : ''}).`);
         if (failed.length) {
             console.error(`${options.force ? 'warning  (--force)' : 'FAILED:'} ${failed.length} step(s) failed during capture; see guide.json "error" fields.`);

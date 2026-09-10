@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadTimeline, validateTimeline, formatIssue, hasErrors, formatTime, Step, captureAtFor, deviceKind, emulateMobileFor, isReel, reelOptions } from '../engine/schema';
+import { loadTimeline, validateTimeline, formatIssue, hasErrors, formatTime, Step, captureAtFor, deviceKind, emulateMobileFor, isReel, reelOptions, cliConfigPath, configStem } from '../engine/schema';
 import { runTimeline, ensureRuntime } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions, resolveViewport } from '../browser';
 import { renderContactSheet, SheetFrame } from '../media/contactSheet';
@@ -12,6 +12,8 @@ export interface PreviewOptions extends ViewportOptions {
     output?: string;
     cursor?: string;
     locale?: string;
+    /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
+    config?: string;
     force?: boolean;
 }
 
@@ -33,9 +35,12 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
         console.error(`Error: ${htmlPath} not found.`);
         process.exit(1);
     }
+    // Non-default timelines get their own contact sheet: sharing preview.png between two scenarios
+    // means reading one sheet while fixing the other's timeline.
+    const stem = configStem(dir, cliConfigPath(options.config));
     let timeline;
     try {
-        timeline = loadTimeline(dir, { locale: options.locale, device: deviceKind(options.device) });
+        timeline = loadTimeline(dir, { locale: options.locale, device: deviceKind(options.device), config: cliConfigPath(options.config) });
     } catch (e: any) {
         console.error(`Error: ${e.message}`);
         process.exit(1);
@@ -98,7 +103,7 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
         }
 
         if (only !== undefined) {
-            const out = options.output ? path.resolve(options.output) : path.join(dir, `preview-step-${only}.png`);
+            const out = options.output ? path.resolve(options.output) : path.join(dir, stem ? `preview-${stem}-step-${only}.png` : `preview-step-${only}.png`);
             fs.writeFileSync(out, frames[0].png);
             console.log(`Wrote ${out} (${launched.width}x${launched.height} @2x).`);
         } else {
@@ -107,7 +112,7 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
             const count = `${timeline.steps.length} steps${posterTile ? ' + poster' : ''}`;
             const title = `${timeline.meta.title || path.basename(path.resolve(dir))} — ${count}`;
             const sheet = await renderContactSheet(browser, frames, { title });
-            const out = options.output ? path.resolve(options.output) : path.join(dir, 'preview.png');
+            const out = options.output ? path.resolve(options.output) : path.join(dir, stem ? `preview.${stem}.png` : 'preview.png');
             fs.writeFileSync(out, sheet);
             console.log(`Wrote ${out} (${frames.length} frames). Open it to review every step; use --step N for a full-size frame.`);
         }

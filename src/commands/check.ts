@@ -1,11 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
-import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue, deviceKind, emulateMobileFor } from '../engine/schema';
+import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue, deviceKind, emulateMobileFor, cliConfigPath, resolveConfigPath } from '../engine/schema';
 import { runTimeline, ensureRuntime, LiveOptions } from '../engine/driver';
 import { bootOptions } from '../engine/inject';
 import { launchPage, fileUrl, ViewportOptions, assertReachable, sanitizeUrl, resolveViewport } from '../browser';
-import { extractStrings, isAutoStepId } from '../engine/strings';
+import { extractStrings, isAutoStepId, stringsPathFor, localizedStringsFiles } from '../engine/strings';
+import { displayPath } from '../catalog';
 import { runResetCommand, resolveResetCommand } from '../reset';
 
 export interface CheckOptions extends ViewportOptions {
@@ -24,6 +25,8 @@ export interface CheckOptions extends ViewportOptions {
     guide?: boolean;
     json?: boolean;
     locale?: string;
+    /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
+    config?: string;
 }
 
 /** Sub-pixel layout rounding routinely puts an element a pixel over an edge; below this it is noise. */
@@ -316,7 +319,7 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
     let note = '';
     let kind = options.static ? 'static' : 'static + browser';
     try {
-        timeline = loadTimeline(dir, { locale: options.locale, device: deviceKind(options.device) });
+        timeline = loadTimeline(dir, { locale: options.locale, device: deviceKind(options.device), config: cliConfigPath(options.config) });
     } catch (e: any) {
         issues.push({ level: 'error', message: e.message });
     }
@@ -333,10 +336,12 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
             if (st.missing.length) issues.push({ level: 'info', field: 'strings', message: `${file}: ${st.missing.length} string(s) missing, inline text used: ${st.missing.slice(0, 6).join(', ')}${st.missing.length > 6 ? ', …' : ''}` });
             if (st.untranslated.length && timeline.locale !== timeline.baseLocale) issues.push({ level: 'info', field: 'strings', message: `${file}: ${st.untranslated.length} string(s) still identical to the source text: ${st.untranslated.slice(0, 6).join(', ')}${st.untranslated.length > 6 ? ', …' : ''}` });
         } else if (timeline.locale && timeline.locale !== timeline.baseLocale) {
-            issues.push({ level: 'info', field: 'strings', message: `locale "${timeline.locale}" requested but no strings.${timeline.locale}.json next to anim.config.json; inline text used` });
+            issues.push({ level: 'info', field: 'strings', message: `locale "${timeline.locale}" requested but no ${displayPath(stringsPathFor(timeline.configFile!, timeline.locale))}; inline text used` });
         }
         // Translations attach to step ids: auto-generated step-NN ids silently move when a step is inserted.
-        const localized = !!timeline.strings || fs.readdirSync(path.resolve(dir)).some(f => /^strings\.[A-Za-z0-9-]+\.json$/.test(f));
+        // Per timeline, not per directory: the directory scan missed scenarios/x.strings.fr.json and
+        // fired for an untranslated scenario merely because the default timeline beside it was localized.
+        const localized = !!timeline.strings || localizedStringsFiles(timeline.configFile!).length > 0;
         if (localized) {
             const auto = Object.keys(extractStrings(timeline)).map(k => /^steps\.(.+)\.[a-z]+$/.exec(k)?.[1]).filter((id): id is string => !!id && isAutoStepId(id));
             const ids = [...new Set(auto)];
@@ -378,9 +383,12 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
         process.stdout.write(JSON.stringify(issues, null, 2) + '\n');
     } else {
         for (const issue of issues) console.log(formatIssue(issue));
-        const where = path.resolve(dir, 'anim.config.json');
+        // `timeline` stays undefined when loadTimeline threw (missing file, bad JSON, a typo'd
+        // --config): the failure is reported as an issue and the summary below still runs, so
+        // neither of these reads may assume it loaded.
+        const where = timeline?.configFile ?? resolveConfigPath(dir, cliConfigPath(options.config));
         const fullPass = kind === 'static + browser' || kind === 'static + live probe';
-        if (errors + warnings === 0) console.log(`${infos ? '\n' : ''}OK: ${where} (${timeline!.steps.length} steps, ${kind} check${infos ? `, ${infos} info` : ''}).`);
+        if (errors + warnings === 0 && timeline) console.log(`${infos ? '\n' : ''}OK: ${where} (${timeline.steps.length} steps, ${kind} check${infos ? `, ${infos} info` : ''}).`);
         else console.log(`\n${errors} error(s), ${warnings} warning(s)${infos ? `, ${infos} info` : ''} in ${where}${fullPass ? '' : ` (${kind} check only)`}.`);
     }
     if (note) log(note);

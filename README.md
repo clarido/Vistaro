@@ -207,6 +207,7 @@ Build animated.html from index.html + anim.config.json (no LLM, no API key)
 | `--device <type>` | Which device's timeline to bake in (resolves "only"/"mobile"/"desktop" steps): desktop or mobile (default: `desktop`) |
 | `--embed` | Also write embed.html (a framable, self-contained clip) and embed.snippet.html (the parent-side iframe snippet) |
 | `-l, --loop` | Loop the animation endlessly when opened in a browser |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--locale <code>` | Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json |
 | `--force` | Build even if the timeline has validation errors |
 | `-o, --output <file>` | Write the built HTML somewhere other than <output_dir>/animated.html |
@@ -234,6 +235,7 @@ Validate anim.config.json: schema, timing, strings, and (unless --static/--live)
 | `--reset-cmd <command>` | Live probe: shell command run before the pass |
 | `--allow-reset` | Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this) |
 | `--guide` | Validate as a guide: a numbered step without a "title" is an error, not a warning |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--json` | Print the issues as JSON on stdout |
 | `--locale <code>` | Locale code (e.g. en, fr) |
 | `-w, --width <pixels>` | Viewport width for the browser pass |
@@ -256,6 +258,7 @@ Render one labelled frame per step to <output_dir>/preview.png (or a single full
 | Option | Description |
 |---|---|
 | `-s, --step <n>` | Write only step N (1-based) at full resolution to preview-step-N.png |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--scale <n>` | Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width |
 | `--at <when>` | Capture point per step: "auto" (like the guide: clicks at the interaction, typing/camera/fades at completion), "interaction", or "end" (default: `auto`) |
 | `-o, --output <file>` | Output PNG path |
@@ -295,6 +298,7 @@ Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narra
 | `--no-chapters` | Do not embed MP4 chapters for titled steps |
 | `--clips <format>` | Also cut one clip per step next to the video: mp4 or gif |
 | `--tail <ms>` | Hold after the last step (overrides meta.tailMs, default 2500) |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--guide` | Also write the step-by-step guide (guide.json, guide.md, guide.html, assets/) after the video |
 | `--guide-dir <dir>` | Guide output directory (default: <output_dir>/guide) |
 | `--crop <px>` | Guide crops: padding around each step's box in px (default 120) |
@@ -335,6 +339,7 @@ Record the timeline against a live page (URL) instead of a local mockup: real na
 | `--no-chapters` | Do not embed MP4 chapters |
 | `--clips <format>` | Also cut one clip per step: mp4 or gif |
 | `--tail <ms>` | Hold after the last step (overrides meta.tailMs) |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--guide` | Also capture the step guide against the live page (re-navigates, replays in step mode) |
 | `--guide-dir <dir>` | Guide output directory (default: <output_dir>/guide) |
 | `--crop <px>` | Guide crops: padding around each step's box in px (default 120) |
@@ -363,6 +368,7 @@ Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) fro
 | `--clips <format>` | Cut one clip per step from the last exported video: mp4 or gif |
 | `--hide-cursor` | Hide the fake cursor in the step screenshots |
 | `--no-marks` | Do not burn the spotlight ring and numbered badge into the frames (rect/callout are still recorded) |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--url <url>` | After a `record`: replay against this URL instead of the one in the manifest |
 | `--storage-state <file>` | After a `record`: storage state for the live replay (default: the one the record used) |
 | `--ignore-https-errors` | Accept self-signed certificates on the live replay |
@@ -415,6 +421,8 @@ Build an interactive tour site from tour.catalog.json: a scenario rail plus a ca
 |---|---|
 | `-o, --output <dir>` | Directory to write the tour into (default: the catalog's outputDir, else tour-out) |
 | `--force` | Build scenarios that have validation errors |
+| `--embed` | Also write embed-<slug>-<device>.html per scenario, the <anim-tour> custom element and a no-module snippet fallback |
+| `--embed-origin <origin>` | targetOrigin the embed pages use to report to the page that frames them (default: any) |
 
 ### `localize`
 
