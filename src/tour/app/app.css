@@ -8,15 +8,20 @@
   --ground: #f6f7f9;
   --canvas: #0d0f14;
   --radius: 14px;
-  --rail: 340px;
+  /* One token shapes the whole chrome: the theme.radius override lands here and every surface
+     follows, not just the stage. */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-xs: calc(var(--radius) - 7px);
+  --rail: 300px;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
   margin: 0; background: var(--ground); color: var(--ink);
-  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  font: 15px/1.55 var(--font, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif);
   display: flex; flex-direction: column;
 }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .top {
   display: flex; align-items: baseline; gap: 14px;
@@ -25,11 +30,15 @@ body {
 .brand { display: flex; align-items: center; gap: 9px; }
 .mark { width: 20px; height: 20px; border-radius: 6px; background: var(--accent); display: inline-block; }
 .name { font-weight: 640; letter-spacing: -.01em; }
-.tagline { margin: 0; color: var(--muted); font-size: 13.5px; }
+/* Tour context, not the marketing tagline: while the visitor is being taught, the header answers
+   "what is this page", not "what is this product". */
+.context { margin: 0; color: var(--muted); font-size: 13.5px; }
 
 main {
   flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr var(--rail);
-  gap: 22px; padding: 22px 24px; align-items: start;
+  /* Tight chrome is a legibility decision, not taste: the canvas gets every px the page can give
+     it, because the mockup's authored type is multiplied by canvas / authored width. */
+  gap: 18px; padding: 18px; align-items: start;
 }
 
 /* ---- canvas ---- */
@@ -43,7 +52,7 @@ main {
    rearrange them. */
 .screen { position: relative; width: 100%; overflow: hidden; }
 .screen iframe {
-  border: 0; display: block; transform-origin: top left;
+  border: 0; display: block; margin: 0 auto; transform-origin: top left;
   /* The shell drives playback; nothing in the mockup is meant to be tapped. Without this the
      canvas -- most of a phone screen -- swallows the swipe that should scroll the page. */
   pointer-events: none;
@@ -52,60 +61,136 @@ main {
 
 .veil {
   position: absolute; inset: 0; display: grid; place-items: center;
-  background: rgba(9, 11, 16, .45); backdrop-filter: blur(2px);
+  /* Dimmed hard enough that the rest-state mockup -- its emptiest composition -- reads as a
+     backdrop, not as a broken app. */
+  background: rgba(9, 11, 16, .55); backdrop-filter: blur(3px);
 }
 .play-big {
   width: 74px; height: 74px; border-radius: 50%; border: 0; cursor: pointer;
   background: var(--paper); color: var(--ink); font-size: 24px; padding-left: 5px;
   box-shadow: 0 10px 30px rgba(0,0,0,.35);
 }
+/* The picture itself is a play/pause surface once a scenario is loaded (app.js toggles on click). */
+body.is-ready .stage { cursor: pointer; }
+/* A scenario that cannot be read honestly refuses to play: below half the authored size (a phone
+   with a desktop-authored screen) the stage explains itself instead of running an illegible
+   thumbnail. The rail strip above stays browsable; a mobile-variant build clears the bar alone. */
+.fallback {
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center;
+  text-align: center; gap: 4px; padding: 24px;
+  /* Opaque canvas colour: the too-small thumbnail must not ghost through behind the text. */
+  background: var(--canvas);
+}
+.fallback-icon { font-size: 26px; opacity: .85; }
+.fallback-title { margin: 6px 0 0; color: var(--paper); font-weight: 640; font-size: 16px; }
+.fallback-body { margin: 0; color: var(--paper); opacity: .78; font-size: 13.5px; max-width: 42ch; }
+body.too-small .controls, body.too-small .cap-bottom { display: none; }
+/* The veil and its big play button belong to the player the card just withdrew. */
+body.too-small .veil { display: none; }
+body.too-small .stage { cursor: default; }
+/* Fullscreen frames the whole stage column -- step title, canvas, sentence and transport -- not a
+   mute picture: a fullscreen tour is still a tour. */
+.stage-col:fullscreen {
+  background: var(--ground); padding: 18px; overflow: auto;
+  display: flex; flex-direction: column; justify-content: center;
+}
 
-.caption { padding: 16px 4px 12px; min-height: 84px; }
+/* ---- step caption ----
+   The title sits ABOVE the canvas because a tutorial's step title is an instruction: it names
+   what is about to happen, so it is read before the cursor moves -- not after, like a video
+   description. The explanatory sentence keeps the below-canvas spot, where there is time to read
+   it. Both blocks reserve their height so a step change never shifts the canvas. */
+.cap-top { padding: 0 4px 10px; min-height: 64px; }
 .eyebrow { font-size: 11px; font-weight: 640; letter-spacing: .08em; color: var(--accent); text-transform: uppercase; }
-.caption h2 { margin: 3px 0 4px; font-size: 19px; font-weight: 640; letter-spacing: -.015em; }
-.caption p { margin: 0; color: var(--muted); }
+.cap-top h2 {
+  margin: 3px 0 0; font-size: 19px; font-weight: 640; letter-spacing: -.015em;
+  text-wrap: balance;
+}
+.cap-bottom { padding: 12px 4px 0; min-height: 42px; display: flex; align-items: baseline; gap: 16px; }
+.cap-bottom p { margin: 0; color: var(--muted); max-width: 72ch; }
+/* End of a scenario: the next one is offered where the eye already is, not back in the rail. */
+.cap-next { margin-left: auto; flex: 0 0 auto; }
+.link-next {
+  border: 0; background: none; padding: 0; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--accent);
+  white-space: nowrap;
+}
+.link-next:hover { text-decoration: underline; }
 
 .controls {
   display: flex; align-items: center; gap: 8px;
-  padding: 9px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 11px;
+  padding: 9px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm);
 }
 .controls > button {
-  font: inherit; font-size: 15px; line-height: 1; border: 0; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: 15px; line-height: 1; border: 0; border-radius: var(--radius-xs); cursor: pointer;
   width: 34px; height: 34px; background: transparent; color: var(--ink);
   /* Without this the flex row shrinks them below their nominal size (measured 24px wide). */
   flex: 0 0 auto;
 }
-/* Coarse pointers get the 44px minimum; a mouse keeps the tighter bar. */
-@media (pointer: coarse), (max-width: 1080px) {
-  .controls > button { width: 44px; height: 44px; }
-  .card { padding: 14px 15px; }
-}
 @media (max-width: 560px) {
-  /* Four 44px targets plus the counter overflow a phone bar by ~10px. The ticks already say
-     which step this is, so the counter is what goes. */
+  /* A phone bar cannot fit four 44px targets plus generous padding: tighten the gaps and drop
+     only the chevron -- the menu button itself is the step list and stays. */
   .controls { gap: 4px; padding: 8px; }
-  .count { display: none; }
+  .chev { display: none; }
   .ticks { margin: 0 4px; }
 }
 .controls > button:hover:not(:disabled) { background: var(--ground); }
 .controls > button:disabled { opacity: .32; cursor: default; }
 .controls > .primary { background: var(--accent); color: #fff; }
 .controls > .primary:hover { filter: brightness(1.07); }
-.count { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
 
 .ticks { flex: 1; display: flex; gap: 5px; margin: 0 6px; }
 .tick {
   flex: 1; height: 6px; border-radius: 3px; background: #d7dbe4; border: 0; padding: 0;
   cursor: pointer; transition: background .2s;
+  /* The bar is 6px tall but the button is the tap target: the ::after extends the hit area to a
+     touchable size without drawing anything. */
+  position: relative;
 }
+.tick::after { content: ''; position: absolute; inset: -10px -6px; }
 .tick:hover { background: #aab3c4; }
 .tick.done { background: color-mix(in srgb, var(--accent) 42%, #d7dbe4); }
 .tick.on { background: var(--accent); }
 
+/* ---- steps menu ----
+   The counter is the door to the step list: seeking by title must not live only in hover
+   tooltips, which ask the visitor to remember which number a title lived at. */
+.stepmenu { position: relative; flex: 0 0 auto; }
+.stepmenu > button {
+  display: flex; align-items: center; gap: 5px;
+  font: inherit; font-size: 12.5px; line-height: 1; border: 0; border-radius: var(--radius-xs); cursor: pointer;
+  height: 34px; padding: 0 9px; background: transparent; color: var(--muted);
+  font-variant-numeric: tabular-nums; flex: 0 0 auto;
+}
+.stepmenu > button:hover:not(:disabled) { background: var(--ground); color: var(--ink); }
+.stepmenu > button:disabled { opacity: .32; cursor: default; }
+.chev { font-size: 10px; }
+.menu {
+  position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 30;
+  min-width: 300px; max-width: 76vw; max-height: 44vh; overflow: auto;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: 0 14px 40px rgba(16, 21, 31, .18); padding: 6px;
+}
+.menu-item {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  font: inherit; font-size: 13px; color: var(--ink); line-height: 1.4;
+  background: none; border: 0; border-radius: var(--radius-xs); padding: 8px 10px;
+}
+.menu-item:hover { background: var(--ground); }
+.menu-item.on { color: var(--accent); font-weight: 640; }
+
+/* Coarse pointers get the 44px minimum; a mouse keeps the tighter bar. This block lives AFTER the
+   base rules it touches: a media query adds no specificity, so an equal-specificity rule later in
+   the file silently wins (the steps button was 34px on touch for exactly that reason). */
+@media (pointer: coarse) {
+  .controls > button { width: 44px; height: 44px; }
+  .stepmenu > button { height: 44px; }
+}
+
 /* ---- scenario rail ---- */
 .rail {
   background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 18px; position: sticky; top: 22px; max-height: calc(100vh - 130px); overflow: auto;
+  padding: 16px; position: sticky; top: 18px; max-height: calc(100vh - 118px); overflow: auto;
 }
 .rail-title { margin: 0 0 4px; font-size: 15.5px; font-weight: 640; letter-spacing: -.01em; }
 .rail-sub { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
@@ -117,7 +202,7 @@ main {
 
 .card {
   display: block; width: 100%; text-align: left; cursor: pointer;
-  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm);
   padding: 11px 13px; margin-bottom: 8px; font: inherit; color: inherit;
   transition: border-color .18s, box-shadow .18s, transform .18s;
 }
@@ -126,11 +211,21 @@ main {
 .card .b { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
 .card .meta { display: block; color: var(--muted); font-size: 11.5px; font-weight: 500; margin-top: 6px; }
 .card[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
-body.is-playing .card[aria-current="true"] .t::after { content: "● playing"; font-size: 10.5px; color: var(--accent); font-weight: 600; white-space: nowrap; }
+/* Playing state is a pulsing dot (aria-hidden), appended by app.js: a bare CSS "● playing" string
+   could not follow the catalog's language and truncated long card titles. */
+.card .dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+  display: inline-block; flex: 0 0 auto; animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse { 50% { opacity: .35; } }
 
-@media (max-width: 1080px) {
+@media (max-width: 1439px) {
   /* The rail moves ABOVE the canvas and becomes a horizontal strip: stacked underneath it fell
      below the fold, hiding the very thing that makes this a tour rather than a clip. */
+  /* Side-by-side only survives where the canvas still clears the mockup's legibility floor:
+     viewport minus 354px of chrome must keep canvas >= 1083px for 13px authored text to land at
+     11px, which needs a viewport of 1437px. Below that, a full-width stacked canvas reads better
+     than a starved side rail. */
   /* Flex column rather than a one-column grid: `main` is itself a flex item with a definite
      height, and the grid rows got compressed under it so the rail and the canvas overlapped. */
   /* align-items:start is inherited from the grid layout, where it keeps the rail from stretching
@@ -144,7 +239,10 @@ body.is-playing .card[aria-current="true"] .t::after { content: "● playing"; f
   #rail-list .group-label { display: none; }
   .card { flex: 0 0 auto; width: min(74vw, 300px); margin-bottom: 0; }
 }
-@media (prefers-reduced-motion: reduce) { .card { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+  .card .dot { animation: none; }
+}
 [hidden] { display: none !important; }
 
 /* ---- solo: one scenario, no rail, framed by someone else's page (tour --embed) ----
@@ -157,6 +255,6 @@ body.solo main {
 body.solo .top, body.solo .rail { display: none; }
 /* The narrow-screen rule reorders the rail above the canvas; with no rail there is nothing to order,
    and inheriting the column flexbox would stretch the stage to a height the host never asked for. */
-@media (max-width: 1080px) {
+@media (max-width: 1439px) {
   body.solo main { display: block; }
 }

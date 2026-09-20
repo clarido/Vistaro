@@ -31,6 +31,14 @@ export interface TourCatalog {
     product?: { name?: string; tagline?: string; accent?: string };
     rail?: { title?: string; subtitle?: string };
     groups?: { id: string; label: string }[];
+    /** Chrome-string overrides for the shell (step eyebrow, transport titles, rest and error copy).
+     *  The shell ships English defaults; a catalog whose content is French overrides them here so
+     *  the player speaks the same language as the scenarios it plays. */
+    strings?: Record<string, string>;
+    /** Design-token overrides so the chrome can wear the caller's colours: each key maps to one of
+     *  the shell's CSS custom properties (accent, ink, muted, line, paper, ground, canvas, radius,
+     *  font). Values are used verbatim; contrast is the caller's responsibility. */
+    theme?: Record<string, string>;
     defaults?: {
         /** The desktop canvas. A phone page uses 390x844 unless `mobile` overrides it. */
         width?: number; height?: number;
@@ -88,6 +96,19 @@ function tourEmbedSnippet(slug: string, label: string, devices: DeviceKind[], he
 `;
 }
 
+/** Shape check for the catalog's string-map blocks ("strings", "theme"): unknown keys are the
+ *  shell's business (it warns), but a non-string value would break the chrome at render time. */
+function checkStringMap(raw: any, field: string, problems: string[]): void {
+    if (raw[field] === undefined) return;
+    if (!raw[field] || typeof raw[field] !== 'object' || Array.isArray(raw[field])) {
+        problems.push(`"${field}" must be an object of overrides`);
+        return;
+    }
+    for (const [k, v] of Object.entries(raw[field])) {
+        if (typeof v !== 'string') problems.push(`${field}.${k} must be a string`);
+    }
+}
+
 export function readTourCatalog(file: string): { catalog: TourCatalog; dir: string } {
     if (!fs.existsSync(file)) throw new Error(`catalog not found: ${displayPath(file)}`);
     let raw: any;
@@ -110,6 +131,11 @@ export function readTourCatalog(file: string): { catalog: TourCatalog; dir: stri
         if (!Array.isArray(dd) || !dd.length) problems.push(`defaults.devices must be a non-empty array (${DEVICE_KINDS.join(', ')})`);
         else for (const d of dd) if (!DEVICE_KINDS.includes(d)) problems.push(`defaults.devices: unknown device "${d}" (${DEVICE_KINDS.join(', ')})`);
     }
+
+    // Unknown keys are ignored by the shell (it warns in the console), but a non-string value would
+    // break the chrome at render time, so the shape is checked here where the message can name the key.
+    checkStringMap(raw, 'strings', problems);
+    checkStringMap(raw, 'theme', problems);
 
     raw.scenarios.forEach((s: any, i: number) => {
         if (!s || typeof s !== 'object') { problems.push(`scenarios[${i}] must be an object`); return; }
@@ -226,7 +252,31 @@ export async function tourCommand(catalogFile: string, options: TourOptions = {}
 
     const scenariosDir = path.join(outDir, 'scenarios');
     fs.mkdirSync(scenariosDir, { recursive: true });
-    for (const f of APP_FILES) fs.copyFileSync(path.join(APP_DIR, f), path.join(outDir, f));
+    // The catalog's locale and chrome strings are baked into the shell pages: first paint and the
+    // load-failure path -- everything that happens before tours.json can arrive -- must speak the
+    // catalog's language, not the shell's English defaults. `<` is escaped so a string containing
+    // `</script>` in the catalog cannot break out of the inline island.
+    const chrome = JSON.stringify({ locale: catalog.defaults?.locale, strings: catalog.strings || {}, theme: catalog.theme || {} }).replace(/</g, '\\u003c');
+    for (const f of APP_FILES) {
+        const dst = path.join(outDir, f);
+        if (f === 'index.html') {
+            // A function replacer, not a replacement string: `$&` in a catalog string would
+            // re-insert the matched <script> tag and terminate the island early (the same trap
+            // the embed fill below dodges with `fill`).
+            const baked = fs.readFileSync(path.join(APP_DIR, f), 'utf8').replace(
+                '<script src="app.js"></script>',
+                () => `<script>window.__TOUR_CHROME__ = ${chrome};</script>\n  <script src="app.js"></script>`,
+            );
+            // The replacement keys on the template's exact markup; if the shell template changes,
+            // fail loudly instead of silently shipping a page whose first paint is English.
+            if (!baked.includes('window.__TOUR_CHROME__')) {
+                throw new Error('tour shell template changed: the chrome bake no longer applies');
+            }
+            fs.writeFileSync(dst, baked, 'utf8');
+        } else {
+            fs.copyFileSync(path.join(APP_DIR, f), dst);
+        }
+    }
     if (options.embed) for (const f of EMBED_FILES) fs.copyFileSync(path.join(APP_DIR, f), path.join(outDir, f));
     const embedTemplate = options.embed ? fs.readFileSync(path.join(APP_DIR, 'embed.html'), 'utf8') : '';
     const embedFiles = new Set<string>();
@@ -299,8 +349,10 @@ export async function tourCommand(catalogFile: string, options: TourOptions = {}
                     viewport: { width: vp.width, height: vp.height },
                     durationMs: computeDurationMs(timeline),
                     stepCount: shown.length,
-                    steps: timeline.steps.map((st, i) => ({
-                        index: i, id: st.id, action: st.action, title: st.title || '',
+                    // st.index (authored, 1-based) like guide.json and the manifest -- not the array
+                    // position; the message protocol's 0-based positions are a bridge-internal matter.
+                    steps: timeline.steps.map(st => ({
+                        index: st.index, id: st.id, action: st.action, title: st.title || '',
                         subtitle: st.subtitle || '', note: st.note || '',
                         hidden: st.guide === false || !st.title,
                     })),
@@ -330,6 +382,7 @@ export async function tourCommand(catalogFile: string, options: TourOptions = {}
                         .replace(/__DEVICE__/g, fill(device))
                         .replace(/__AUTOPLAY__/g, fill('none'))
                         .replace(/__ORIGIN__/g, fill(escapeHtml(options.embedOrigin || '*')))
+                        .replace(/__CHROME__/g, fill(chrome))
                         .replace(/__TITLE__/g, fill(escapeHtml(label || s.slug))), 'utf8');
                     embedFiles.add(file);
                 }
@@ -400,6 +453,12 @@ export async function tourCommand(catalogFile: string, options: TourOptions = {}
         product: catalog.product || {},
         rail: catalog.rail || {},
         groups: catalog.groups || [],
+        // The shell's own words travel with the data: defaults.locale becomes <html lang> and the
+        // document title, strings overrides any chrome string. Both are dropped when absent, so a
+        // catalog that never heard of them builds byte-identical tours.json to before.
+        locale: catalog.defaults?.locale,
+        strings: catalog.strings,
+        theme: catalog.theme,
         scenarios,
     }, null, 2) + '\n', 'utf8');
 

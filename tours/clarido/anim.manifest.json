@@ -144,6 +144,348 @@
       "locale": "fr",
       "contentHash": "sha256:fdde4042500a2ad297edfc99b09a62f8e68993e492a050629c5b1fa2ee4faeff",
       "timestamp": "2026-09-09T20:59:34.852Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "chaque-critere-sa-preuve",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:29fd24e2ba0ff22a7a27002d68bdd8d9bbd49bedc4dc0048e2ecf9791e8ed4e2",
+      "timestamp": "2026-09-20T00:18:07.452Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "le-trou-signale",
+      "config": "scenarios/le-trou-signale.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:68a29c8ea8f3e2978aa215c54b80410b2f76165554afb1dc6a08f57431342fac",
+      "timestamp": "2026-09-20T00:18:07.455Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "vos-mots",
+      "config": "scenarios/vos-mots.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 4,
+      "locale": "fr",
+      "contentHash": "sha256:fdde4042500a2ad297edfc99b09a62f8e68993e492a050629c5b1fa2ee4faeff",
+      "timestamp": "2026-09-20T00:18:07.457Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "chaque-critere-sa-preuve",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:29fd24e2ba0ff22a7a27002d68bdd8d9bbd49bedc4dc0048e2ecf9791e8ed4e2",
+      "timestamp": "2026-09-20T00:23:49.185Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "le-trou-signale",
+      "config": "scenarios/le-trou-signale.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:68a29c8ea8f3e2978aa215c54b80410b2f76165554afb1dc6a08f57431342fac",
+      "timestamp": "2026-09-20T00:23:49.188Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "vos-mots",
+      "config": "scenarios/vos-mots.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 4,
+      "locale": "fr",
+      "contentHash": "sha256:fdde4042500a2ad297edfc99b09a62f8e68993e492a050629c5b1fa2ee4faeff",
+      "timestamp": "2026-09-20T00:23:49.191Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "chaque-critere-sa-preuve",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:29fd24e2ba0ff22a7a27002d68bdd8d9bbd49bedc4dc0048e2ecf9791e8ed4e2",
+      "timestamp": "2026-09-20T00:40:47.229Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "le-trou-signale",
+      "config": "scenarios/le-trou-signale.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:68a29c8ea8f3e2978aa215c54b80410b2f76165554afb1dc6a08f57431342fac",
+      "timestamp": "2026-09-20T00:40:47.232Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "vos-mots",
+      "config": "scenarios/vos-mots.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 4,
+      "locale": "fr",
+      "contentHash": "sha256:fdde4042500a2ad297edfc99b09a62f8e68993e492a050629c5b1fa2ee4faeff",
+      "timestamp": "2026-09-20T00:40:47.234Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "chaque-critere-sa-preuve",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:29fd24e2ba0ff22a7a27002d68bdd8d9bbd49bedc4dc0048e2ecf9791e8ed4e2",
+      "timestamp": "2026-09-20T00:56:34.860Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "le-trou-signale",
+      "config": "scenarios/le-trou-signale.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:68a29c8ea8f3e2978aa215c54b80410b2f76165554afb1dc6a08f57431342fac",
+      "timestamp": "2026-09-20T00:56:34.863Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "vos-mots",
+      "config": "scenarios/vos-mots.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 4,
+      "locale": "fr",
+      "contentHash": "sha256:fdde4042500a2ad297edfc99b09a62f8e68993e492a050629c5b1fa2ee4faeff",
+      "timestamp": "2026-09-20T00:56:34.864Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "le-trou-signale",
+      "config": "scenarios/le-trou-signale.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../../../../../tmp/tour-theme-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:68a29c8ea8f3e2978aa215c54b80410b2f76165554afb1dc6a08f57431342fac",
+      "timestamp": "2026-09-20T00:56:43.765Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "chaque-critere-sa-preuve",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:29fd24e2ba0ff22a7a27002d68bdd8d9bbd49bedc4dc0048e2ecf9791e8ed4e2",
+      "timestamp": "2026-09-20T00:58:10.573Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "le-trou-signale",
+      "config": "scenarios/le-trou-signale.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:68a29c8ea8f3e2978aa215c54b80410b2f76165554afb1dc6a08f57431342fac",
+      "timestamp": "2026-09-20T00:58:10.577Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "vos-mots",
+      "config": "scenarios/vos-mots.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 4,
+      "locale": "fr",
+      "contentHash": "sha256:fdde4042500a2ad297edfc99b09a62f8e68993e492a050629c5b1fa2ee4faeff",
+      "timestamp": "2026-09-20T00:58:10.579Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "le-trou-signale",
+      "config": "scenarios/le-trou-signale.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../../../../../tmp/tour-theme-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:68a29c8ea8f3e2978aa215c54b80410b2f76165554afb1dc6a08f57431342fac",
+      "timestamp": "2026-09-20T00:58:11.234Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "chaque-critere-sa-preuve",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:29fd24e2ba0ff22a7a27002d68bdd8d9bbd49bedc4dc0048e2ecf9791e8ed4e2",
+      "timestamp": "2026-09-20T00:59:03.459Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "le-trou-signale",
+      "config": "scenarios/le-trou-signale.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:68a29c8ea8f3e2978aa215c54b80410b2f76165554afb1dc6a08f57431342fac",
+      "timestamp": "2026-09-20T00:59:03.461Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "vos-mots",
+      "config": "scenarios/vos-mots.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 4,
+      "locale": "fr",
+      "contentHash": "sha256:fdde4042500a2ad297edfc99b09a62f8e68993e492a050629c5b1fa2ee4faeff",
+      "timestamp": "2026-09-20T00:59:03.463Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "chaque-critere-sa-preuve",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:29fd24e2ba0ff22a7a27002d68bdd8d9bbd49bedc4dc0048e2ecf9791e8ed4e2",
+      "timestamp": "2026-09-20T01:03:25.471Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "le-trou-signale",
+      "config": "scenarios/le-trou-signale.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:68a29c8ea8f3e2978aa215c54b80410b2f76165554afb1dc6a08f57431342fac",
+      "timestamp": "2026-09-20T01:03:25.474Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "vos-mots",
+      "config": "scenarios/vos-mots.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 4,
+      "locale": "fr",
+      "contentHash": "sha256:fdde4042500a2ad297edfc99b09a62f8e68993e492a050629c5b1fa2ee4faeff",
+      "timestamp": "2026-09-20T01:03:25.477Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "chaque-critere-sa-preuve",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:29fd24e2ba0ff22a7a27002d68bdd8d9bbd49bedc4dc0048e2ecf9791e8ed4e2",
+      "timestamp": "2026-09-20T01:34:08.437Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "le-trou-signale",
+      "config": "scenarios/le-trou-signale.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 5,
+      "locale": "fr",
+      "contentHash": "sha256:68a29c8ea8f3e2978aa215c54b80410b2f76165554afb1dc6a08f57431342fac",
+      "timestamp": "2026-09-20T01:34:08.439Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "vos-mots",
+      "config": "scenarios/vos-mots.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../tour-clarido-out",
+      "steps": 4,
+      "locale": "fr",
+      "contentHash": "sha256:fdde4042500a2ad297edfc99b09a62f8e68993e492a050629c5b1fa2ee4faeff",
+      "timestamp": "2026-09-20T01:34:08.440Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "s",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../../../../../../tmp/tour-dollar-out",
+      "steps": 6,
+      "locale": "fr",
+      "contentHash": "sha256:29fd24e2ba0ff22a7a27002d68bdd8d9bbd49bedc4dc0048e2ecf9791e8ed4e2",
+      "timestamp": "2026-09-20T01:34:13.522Z"
     }
   ]
 }
