@@ -6,7 +6,7 @@ import * as path from 'path';
 import { spawnSync } from 'child_process';
 import { chromium, Browser } from 'playwright';
 import { parseTimeline } from '../src/engine/schema';
-import { buildAnimatedHtml } from '../src/engine/inject';
+import { buildAnimatedHtml, runtimeSource } from '../src/engine/inject';
 import { runTimeline, ensureRuntime } from '../src/engine/driver';
 import { fileUrl } from '../src/browser';
 
@@ -126,6 +126,166 @@ test('runTimeline(step) returns measured results and consecutive camera steps do
     assert.match(transforms['zoom'], /^scale\(1\.3\) translate\(/);
     assert.equal(await page.inputValue('#field'), 'Ada');
     await context.close();
+});
+
+test('subtitle chip is sized to the recorded frame (~4% of height) and is scale-stable', { skip }, async () => {
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'anim.config.json'), 'utf8')));
+    // No inner functions inside: this whole callback is serialized into the page (AGENTS.md).
+    // Computed max-width returns Chromium's unevaluated min() expression, so the wrap width is
+    // read back from the custom property sizeSubtitleLayer() set.
+    const readChip = () => {
+        const chip = document.querySelector('.anim-cli-sub-item') as HTMLDivElement;
+        const cs = getComputedStyle(chip);
+        const layer = getComputedStyle(document.getElementById('anim-cli-subtitle-layer')!);
+        return { fs: parseFloat(cs.fontSize), max: parseFloat(layer.getPropertyValue('--anim-sub-max')), pad: parseFloat(cs.paddingLeft) };
+    };
+    const subtitleAt = async (width: number, height: number, zoom = 1) => {
+        const context = await browser.newContext({ viewport: { width, height } });
+        await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+        const page = await context.newPage();
+        await page.goto(fileUrl(path.join(fixture, 'index.html')));
+        await ensureRuntime(page, tl, { drift: false, zoom });
+        await page.evaluate(() => (window as any).__anim.showSubtitle('Click the primary button.'));
+        const styles = await page.evaluate(readChip);
+        await context.close();
+        return styles;
+    };
+    // Landscape: 4.2% of frame height (the old fixed 20px was under half of that), wrap width
+    // about the old 800px chip of a 1920 render.
+    const hd = await subtitleAt(1920, 1080);
+    assert.ok(Math.abs(hd.fs - 45.36) < 0.5, `1080p font ~45.36px, got ${hd.fs}`);
+    assert.ok(Math.abs(hd.max - 810) < 4, `1080p wrap ~810px, got ${hd.max}`);
+    assert.ok(Math.abs(hd.pad - 1.6 * hd.fs) < 1, 'chip paddings follow the font in em');
+    const small = await subtitleAt(1280, 720);
+    assert.ok(Math.abs(small.fs - 30.24) < 0.5, `720p font ~30.24px, got ${small.fs}`);
+    // A scaled recording (viewport x2, :root zoom 2): the same AUTHORED px, painting at 2x in the
+    // 2x-denser frame, so the share of the frame does not move. A vw/vh font size doubles here
+    // (measured: 4.2vh paints at 8.4% of the frame at --scale 2) -- this pins the compensation.
+    const scaled = await subtitleAt(3840, 2160, 2);
+    assert.ok(Math.abs(scaled.fs - hd.fs) < 0.5, `scaled font stays ${hd.fs}px authored, got ${scaled.fs}`);
+    assert.ok(Math.abs(scaled.max - hd.max) < 4, `scaled wrap stays ${hd.max}px authored, got ${scaled.max}`);
+    // Portrait keys on width (6vw) instead of height, and never passes the 40px side gutters.
+    const portrait = await subtitleAt(390, 844);
+    assert.ok(Math.abs(portrait.fs - 23.4) < 0.5, `portrait font 6vw = 23.4px, got ${portrait.fs}`);
+    assert.ok(Math.abs(portrait.max - 310) < 4, `portrait wrap <= w - 80 = 310px, got ${portrait.max}`);
+    // Small windows keep a 20px floor.
+    const tiny = await subtitleAt(600, 400);
+    assert.ok(Math.abs(tiny.fs - 20) < 0.5, `tiny window floor 20px, got ${tiny.fs}`);
+});
+
+test('subtitle chip re-sizes when the viewer resizes the window (animated.html)', { skip }, async () => {
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'anim.config.json'), 'utf8')));
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.goto(fileUrl(path.join(fixture, 'index.html')));
+    await ensureRuntime(page, tl, { drift: false });
+    await page.evaluate(() => (window as any).__anim.showSubtitle('Welcome.'));
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.waitForTimeout(100);
+    const fontPx = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.anim-cli-sub-item')!).fontSize));
+    assert.ok(Math.abs(fontPx - 30.24) < 0.5, `font follows a window resize to 30.24px, got ${fontPx}`);
+    await context.close();
+});
+
+test('subtitle chip dodges the spotlighted target and the cursor', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.setContent(`<!doctype html><html><head></head><body style="margin:0">
+        <button id="bottom-mid" style="position:fixed; left:490px; bottom:70px; width:300px; height:50px;">Save</button>
+        <button id="top-mid" style="position:fixed; left:490px; top:40px; width:300px; height:50px;">Menu</button>
+    </body></html>`);
+    const tl = parseTimeline({ meta: { cursor: 'mac' }, steps: [] });
+    await ensureRuntime(page, tl, { drift: false });
+    const placeOf = () => document.querySelector('.anim-cli-sub-item')!.getAttribute('data-place');
+    const clearOf = (sel: string) => {
+        const chip = document.querySelector('.anim-cli-sub-item')!.getBoundingClientRect();
+        const el = document.querySelector(sel)!.getBoundingClientRect();
+        return chip.left >= el.right + 16 || chip.right <= el.left - 16 || chip.top >= el.bottom + 16 || chip.bottom <= el.top - 16;
+    };
+    // Nothing on screen to protect: the cue sits at its home position.
+    await page.evaluate(() => (window as any).__anim.showSubtitle('Watch closely.'));
+    assert.equal(await page.evaluate(placeOf), 'bottom');
+    // A highlight landing under the chip pushes the held cue to the top band, clear of the button.
+    await page.evaluate(() => (window as any).__anim.highlight(document.getElementById('bottom-mid')));
+    assert.equal(await page.evaluate(placeOf), 'top');
+    assert.equal(await page.evaluate(clearOf, '#bottom-mid'), true, 'chip is clear of the spotlighted button');
+    // The obstacle model protects the CURRENT spotlight: once the ring moves to the top button the
+    // bottom band is clear again and the chip comes home instead of hiding in a corner forever.
+    await page.evaluate(() => (window as any).__anim.highlight(document.getElementById('top-mid')));
+    assert.equal(await page.evaluate(placeOf), 'bottom');
+    // Both bands blocked at once (spotlight on top, cursor parking on the bottom band): the chip
+    // takes the first clear corner.
+    await page.evaluate(() => (window as any).__anim.moveCursor(640, 700, 10));
+    await page.waitForTimeout(50);
+    assert.equal(await page.evaluate(placeOf), 'bottom-left');
+    assert.equal(await page.evaluate(clearOf, '#top-mid'), true, 'chip is clear of the top button');
+    // The cursor moving onto the corner chip moves it again -- back home, now that the bottom
+    // band's only blocker was that same cursor.
+    await page.evaluate(() => (window as any).__anim.moveCursor(200, 700, 10));
+    await page.waitForTimeout(50);
+    assert.equal(await page.evaluate(placeOf), 'bottom');
+    await context.close();
+});
+
+test('meta.subtitleScale multiplies the automatic subtitle size', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.setContent('<!doctype html><html><head></head><body style="margin:0"><p>Hello</p></body></html>');
+    const tl = parseTimeline({ meta: { subtitleScale: 1.5 }, steps: [] });
+    await ensureRuntime(page, tl, { drift: false });
+    await page.evaluate(() => (window as any).__anim.showSubtitle('A bigger cue.'));
+    const chip = await page.evaluate(() => {
+        const el = document.querySelector('.anim-cli-sub-item')!;
+        const cs = getComputedStyle(el);
+        const layer = getComputedStyle(document.getElementById('anim-cli-subtitle-layer')!);
+        return { fs: parseFloat(cs.fontSize), max: parseFloat(layer.getPropertyValue('--anim-sub-max')) };
+    });
+    assert.ok(Math.abs(chip.fs - 68.04) < 0.5, `1.5 x 45.36px = 68.04px, got ${chip.fs}`);
+    assert.ok(Math.abs(chip.max - 1215) < 4, `wrap width scales with the font (810 x 1.5), got ${chip.max}`);
+    await context.close();
+});
+
+test('subtitle dodge follows the real step path (lastSpot) and is zoom-stable', { skip }, async () => {
+    const tl = parseTimeline({ meta: { cursor: 'mac' }, steps: [
+        { id: 'hit', time: '0s', action: 'click', target: '#band-btn', subtitle: 'Publish the response now.' },
+    ] });
+    const run = async (width: number, height: number, zoom: number) => {
+        const context = await browser.newContext({ viewport: { width, height } });
+        await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+        const page = await context.newPage();
+        await page.setContent(`<!doctype html><html><head></head><body style="margin:0">
+            <button id="band-btn" style="position:absolute; left:490px; top:690px; width:300px; height:50px;">Save</button>
+        </body></html>`);
+        await ensureRuntime(page, tl, { drift: false, zoom });
+        await page.evaluate(() => (window as any).__anim.start());
+        const result = await page.evaluate((s: any) => (window as any).__anim.runStep(s, { leadMs: 120 }), tl.steps[0]);
+        // getBoundingClientRect here (not offset*): both boxes are settled by now, and the visual
+        // rects are what the viewer sees -- the clearest possible statement of "does not cover".
+        const out = await page.evaluate(() => {
+            const chip = document.querySelector('.anim-cli-sub-item')!.getBoundingClientRect();
+            const btn = document.getElementById('band-btn')!.getBoundingClientRect();
+            return {
+                place: document.querySelector('.anim-cli-sub-item')!.getAttribute('data-place'),
+                clear: chip.right <= btn.left || chip.left >= btn.right || chip.bottom <= btn.top || chip.top >= btn.bottom,
+            };
+        });
+        await context.close();
+        return { ...out, error: result.error };
+    };
+    // The path every real export takes: runStep sets lastSpot at step start, so the chip dodges
+    // before the cursor arrives -- not only via the primitives API.
+    const one = await run(1280, 800, 1);
+    assert.equal(one.error, undefined, `step failed: ${one.error}`);
+    assert.equal(one.place, 'top');
+    assert.equal(one.clear, true, 'chip does not cover the bottom-band target');
+    // A 2x scaled recording: the same authored decision, painted rectangles still clear.
+    const two = await run(2560, 1600, 2);
+    assert.equal(two.error, undefined, `step failed at zoom 2: ${two.error}`);
+    assert.equal(two.place, 'top');
+    assert.equal(two.clear, true, 'chip does not cover the target at zoom 2');
 });
 
 test('runTimeline(timed): interactions land within 100ms of schedule, results carry completedMs', { skip }, async () => {
@@ -722,4 +882,88 @@ test('a camera push is distinguishable from the drift transform', { skip }, asyn
     await runTimeline(page, tl, { mode: 'step' });
     assert.equal(await page.evaluate(() => (window as any).__anim.cameraActive()), true, 'a camera step sets it');
     await context.close();
+});
+
+test('restart() re-executes classic body scripts, so addEventListener wiring survives a replay', { skip }, async () => {
+    // cloneNode keeps attributes but not listeners, and a re-appended script clone never executes:
+    // after a tour seek or a loop restart, a mockup whose click steps rely on page-side handlers
+    // silently stopped working (the click fired into a fresh button nobody had wired).
+    const context = await browser.newContext({ viewport: { width: 800, height: 600 } });
+    const page = await context.newPage();
+    try {
+        await page.setContent(`<!doctype html><html><head><style>button { padding: 10px 20px; }</style></head><body>
+            <button id="btn">Go</button><input id="field">
+            <div id="wrap"><section>
+              <button id="nested-btn">Nested</button>
+              <script>
+                window.__nestedWired = (window.__nestedWired || 0) + 1;
+                document.getElementById('nested-btn').addEventListener('click', function () {
+                    window.__nestedClicks = (window.__nestedClicks || 0) + 1;
+                });
+              </script>
+            </section></div>
+            <script>
+                window.__wired = (window.__wired || 0) + 1;
+                document.getElementById('btn').addEventListener('click', function () {
+                    window.__clicks = (window.__clicks || 0) + 1;
+                });
+            </script>
+            <script data-anim-rerun="false">
+                window.__optoutRan = (window.__optoutRan || 0) + 1;
+            </script>
+        </body></html>`);
+        const timeline = parseTimeline({ meta: { cursor: 'none' }, steps: [{ id: 'go', time: 0.5, action: 'click', target: '#btn' }] });
+        // Boot like a tour page: a timeline (so a snapshot is taken) under autoplay 'message', so
+        // nothing self-plays and the test owns every runStep.
+        await page.addScriptTag({ content: runtimeSource() });
+        await page.evaluate((tl) => (window as any).__anim.boot({ cursor: 'none', autoplay: 'message', timeline: tl }), { meta: {}, steps: timeline.steps });
+        await page.waitForFunction(() => (window as any).__anim.isReady());
+        assert.equal(await page.evaluate(() => (window as any).__wired), 1);
+        assert.equal(await page.evaluate(() => (window as any).__optoutRan), 1);
+
+        const r1: any = await page.evaluate((s) => (window as any).__anim.runStep(s, { leadMs: 0 }), timeline.steps[0]);
+        await page.evaluate((t) => (window as any).__anim.whenDone(t), r1.token);
+        assert.equal(await page.evaluate(() => (window as any).__clicks), 1, 'the page\'s own listener ran via el.click()');
+
+        await page.evaluate(() => (window as any).__anim.restart());
+        assert.equal(await page.evaluate(() => (window as any).__wired), 2, 'the classic script re-executed on the rebuilt DOM');
+        assert.equal(await page.evaluate(() => (window as any).__nestedWired), 2, 'a script NESTED in a wrapper element re-executed too (screens live in sections)');
+        assert.equal(await page.evaluate(() => (window as any).__optoutRan), 1, 'the data-anim-rerun="false" script did not');
+        const r2: any = await page.evaluate((s) => (window as any).__anim.runStep(s, { leadMs: 0 }), timeline.steps[0]);
+        await page.evaluate((t) => (window as any).__anim.whenDone(t), r2.token);
+        assert.equal(await page.evaluate(() => (window as any).__clicks), 2, 'the listener on the FRESH button fires after the restart');
+        // The nested script's own wiring works again on the rebuilt DOM (a click step targets it).
+        const r3: any = await page.evaluate((s) => (window as any).__anim.runStep({ ...s, target: '#nested-btn' }, { leadMs: 0 }), timeline.steps[0]);
+        await page.evaluate((t) => (window as any).__anim.whenDone(t), r3.token);
+        assert.equal(await page.evaluate(() => (window as any).__nestedClicks), 1, 'the nested section\'s listener fires on the fresh clone');
+    } finally {
+        await context.close();
+    }
+});
+
+test('runtime timers and intervals remove themselves once fired (no unbounded growth)', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 800, height: 600 } });
+    const page = await context.newPage();
+    try {
+        await page.setContent('<!doctype html><html><body><button id="btn">Go</button><input id="field"></body></html>');
+        const timeline = parseTimeline({ meta: { cursor: 'mac' }, steps: [
+            { id: 'a', time: 0.1, action: 'click', target: '#btn' },
+            { id: 'b', time: 0.2, action: 'type', target: '#field', value: 'Hello there', cps: 40 },
+            { id: 'c', time: 0.3, action: 'camera', target: '#field', scale: 1.2, duration: 0.3 },
+            { id: 'd', time: 0.4, action: 'highlight', target: '#btn' },
+        ] });
+        await page.addScriptTag({ content: runtimeSource() });
+        await page.evaluate((tl) => (window as any).__anim.boot({ autoplay: 'message', timeline: tl }), { meta: {}, steps: timeline.steps });
+        await page.waitForFunction(() => (window as any).__anim.isReady());
+        for (const s of timeline.steps) {
+            const r: any = await page.evaluate((st) => (window as any).__anim.runStep(st, { leadMs: 0 }), s);
+            await page.evaluate((t) => (window as any).__anim.whenDone(t), r.token);
+        }
+        await page.waitForTimeout(500); // let every fired timer's self-removal callback run
+        const handles: any = await page.evaluate(() => (window as any).__anim.pendingHandles());
+        assert.equal(handles.timers, 0, `pending timers after a 4-step run: ${JSON.stringify(handles)}`);
+        assert.equal(handles.intervals, 0, 'pending intervals after a type step');
+    } finally {
+        await context.close();
+    }
 });

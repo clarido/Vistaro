@@ -50,6 +50,8 @@ export interface BootOptions {
     spotlight: boolean;
     ripple: boolean;
     subtitles: boolean;
+    /** Multiplies the automatic subtitle chip size (meta.subtitleScale, default 1). */
+    subtitleScale: number;
     /** Carried for a later phase; the runtime stores it without acting on it yet. */
     autoplay: AutoplayMode;
     /**
@@ -81,6 +83,9 @@ export function bootOptions(timeline: Timeline, opts: InjectOptions = {}, withTi
         spotlight: opts.spotlight ?? reel.spotlight,
         ripple: opts.ripple ?? reel.ripple,
         subtitles: opts.subtitles ?? reel.subtitles,
+        // isFinite matches the schema validation: an Infinity here would become "Infinitypx" in the
+        // chip's var() and silently fall back to the inherited font size.
+        subtitleScale: typeof meta.subtitleScale === 'number' && Number.isFinite(meta.subtitleScale) && meta.subtitleScale > 0 ? meta.subtitleScale : 1,
         autoplay: opts.autoplay ?? reel.autoplay,
         zoom: opts.zoom && opts.zoom > 0 ? opts.zoom : 1,
         durationMs: opts.durationMs ?? computeDurationMs(timeline),
@@ -113,7 +118,10 @@ export function stripRuntime(html: string): string {
  */
 export function buildAnimatedHtml(html: string, timeline: Timeline, opts: InjectOptions = {}): string {
     const boot = bootOptions(timeline, opts, true);
-    const block = `\n${START}\n<script>\n${runtimeSource()}\nwindow.__anim.boot(${scriptJson(boot)});\n</script>\n${END}\n`;
+    // data-anim-rerun="false": restart() re-executes classic body scripts (so a mockup's listeners
+    // survive a replay), and this block must never re-run -- a second boot would re-create the
+    // scheduler and re-snapshot the already-played state.
+    const block = `\n${START}\n<script data-anim-rerun="false">\n${runtimeSource()}\nwindow.__anim.boot(${scriptJson(boot)});\n</script>\n${END}\n`;
     let out = stripRuntime(html);
     if (/<\/body>/i.test(out)) out = out.replace(/<\/body>/i, `${block}</body>`);
     else out += block;
@@ -142,7 +150,9 @@ export function buildTourPage(html: string, timeline: Timeline, opts: InjectOpti
         drift: opts.drift ?? (timeline.meta.drift !== undefined ? !!timeline.meta.drift : false),
     }, true);
     const payload = { meta: { tailMs: timeline.meta?.tailMs }, steps: timeline.steps };
-    const block = `\n${START}\n<script>\n${runtimeSource()}\n${tourBridgeSource()}\n`
+    // data-anim-rerun="false" for the same reason as buildAnimatedHtml: a restart() must not
+    // re-create the tour scheduler.
+    const block = `\n${START}\n<script data-anim-rerun="false">\n${runtimeSource()}\n${tourBridgeSource()}\n`
         + `window.__anim.boot(${scriptJson(boot)});\nwindow.__tour.boot(${scriptJson(payload)});\n</script>\n${END}\n`;
     let out = stripRuntime(html);
     if (/<\/body>/i.test(out)) out = out.replace(/<\/body>/i, `${block}</body>`);

@@ -24,7 +24,7 @@ Written to be driven by an AI agent: you (or your agent) write the screen and th
 
 ## What you get
 
-- **Video**: MP4 (or GIF) with a moving cursor, a spotlight and a click ripple on every interaction, typing, camera pushes, screen transitions, a subtitle bar, `.vtt` subtitles, MP4 chapters per step and optional narration (OpenAI TTS or macOS `say`).
+- **Video**: MP4 (or GIF) with a moving cursor, a spotlight and a click ripple on every interaction, typing, camera pushes, screen transitions, a subtitle bar sized to the frame (~4% of its height, and it steps out of the way of the cursor and the spotlight on its own; `meta.subtitleScale` retunes it), `.vtt` subtitles, MP4 chapters per step and optional narration (OpenAI TTS or macOS `say`).
 - **Step guide**: `guide.json`, `guide.md` and `guide.html`, with a numbered frame and a crop per step, the video inline, and the measured timings.
 - **Languages**: `localize` scaffolds `locales/<code>/` with a `strings.<code>.json`; the choreography is shared, only the text changes.
 - **Batch builds**: `help.catalog.json` + `build-all` produce every guide x locale into one output tree with an `index.json`, rebuilding only what changed and flagging guides whose frames drifted.

@@ -57,9 +57,23 @@
     mac: `#anim-cli-cursor { position: fixed; top: 0; left: 0; transform: translate(50vw, 120vh); width: 28px; height: 28px; z-index: 99999; pointer-events: none; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230F172A" stroke="white" stroke-width="1.5"><path d="M4 2v20l5.83-5.83 3.96 8.5 3.65-1.7-3.96-8.5H22L4 2z"/></svg>') no-repeat; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform-origin: top left; transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }`,
     windows: `#anim-cli-cursor { position: fixed; top: 0; left: 0; transform: translate(50vw, 120vh); width: 20px; height: 20px; z-index: 99999; pointer-events: none; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" stroke="black" stroke-width="1"><path d="M2 2l20 10-8 2-2 8z"/></svg>') no-repeat; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform-origin: top left; transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }`
   };
-  var SUBTITLE_CSS = `#anim-cli-subtitle-layer { position: fixed; bottom: 40px; left: 0; right: 0; display: flex; justify-content: center; z-index: 99998; pointer-events: none; padding: 0 40px; }
-.anim-cli-sub-item { position: absolute; bottom: 0; background: rgba(20,20,20,0.75); color: white; padding: 16px 32px; border-radius: 12px; font-family: -apple-system, sans-serif; font-size: 20px; line-height: 1.4; text-align: center; max-width: 800px; box-shadow: 0 20px 40px -8px rgba(0,0,0,0.5); opacity: 0; font-weight: 500; letter-spacing: 0.3px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.15); }
-@keyframes anim-cli-subFade { 0% { opacity: 0; transform: translateY(15px) scale(0.95); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); } 10%, 90% { opacity: 1; transform: translateY(0) scale(1); animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0); } 100% { opacity: 0; transform: translateY(-10px) scale(0.95); } }`;
+  // The chip's font size and wrap width come from the layer as px custom properties set by
+  // sizeSubtitleLayer(): viewport units cannot express "a share of the recorded frame" on a
+  // scaled recording (measured: 4.2vh paints at 8.4% of the frame under --scale 2). Every other
+  // length is in em so the chip keeps its proportions at any size. Placement rules per
+  // data-place: the chip is abspos in a full-viewport layer, so "bottom" sits 40px above the
+  // frame's bottom edge and so on; reflowSubtitle() picks the attribute to keep the chip off the
+  // spotlighted target and the cursor, and :not([data-place]) keeps the never-placed default
+  // identical to the old bottom-centred chip.
+  var SUBTITLE_CSS = `#anim-cli-subtitle-layer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99998; pointer-events: none; }
+.anim-cli-sub-item { position: absolute; width: max-content; max-width: min(var(--anim-sub-max, 800px), calc(100% - 80px)); background: rgba(20,20,20,0.75); color: white; padding: 0.8em 1.6em; border-radius: 0.6em; font-family: -apple-system, sans-serif; font-size: var(--anim-sub-size, 20px); line-height: 1.4; text-align: center; box-shadow: 0 1em 2em -0.4em rgba(0,0,0,0.5); opacity: 0; font-weight: 500; letter-spacing: 0.015em; backdrop-filter: blur(0.8em); -webkit-backdrop-filter: blur(0.8em); border: 1px solid rgba(255,255,255,0.15); }
+.anim-cli-sub-item:not([data-place]), .anim-cli-sub-item[data-place="bottom"] { left: 0; right: 0; margin: 0 auto; bottom: 40px; top: auto; }
+.anim-cli-sub-item[data-place="top"] { left: 0; right: 0; margin: 0 auto; top: 40px; bottom: auto; }
+.anim-cli-sub-item[data-place="bottom-left"] { left: 40px; right: auto; margin: 0; bottom: 40px; top: auto; }
+.anim-cli-sub-item[data-place="bottom-right"] { right: 40px; left: auto; margin: 0; bottom: 40px; top: auto; }
+.anim-cli-sub-item[data-place="top-left"] { left: 40px; right: auto; margin: 0; top: 40px; bottom: auto; }
+.anim-cli-sub-item[data-place="top-right"] { right: 40px; left: auto; margin: 0; top: 40px; bottom: auto; }
+@keyframes anim-cli-subFade { 0% { opacity: 0; transform: translateY(0.75em) scale(0.95); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); } 10%, 90% { opacity: 1; transform: translateY(0) scale(1); animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0); } 100% { opacity: 0; transform: translateY(-0.5em) scale(0.95); } }`;
   var EFFECTS_CSS = `#anim-cli-highlight { position: fixed; border-radius: 10px; border: 2px solid #3B82F6; box-shadow: 0 0 0 4px rgba(59,130,246,0.18), 0 0 28px rgba(59,130,246,0.35); pointer-events: none; z-index: 99996; opacity: 0; transition: left 0.5s cubic-bezier(0.16,1,0.3,1), top 0.5s cubic-bezier(0.16,1,0.3,1), width 0.5s cubic-bezier(0.16,1,0.3,1), height 0.5s cubic-bezier(0.16,1,0.3,1); }
 #anim-cli-highlight.anim-cli-pulse { animation: anim-cli-highlightPulse 1.3s cubic-bezier(0.16,1,0.3,1) forwards; }
 #anim-cli-highlight.anim-cli-hold { opacity: 1; animation: none; }
@@ -74,15 +88,17 @@
   var state = {
     booted: false,
     ready: false,
-    opts: { cursor: 'mac', resetFocusStyles: false, drift: true, loop: false, spotlight: true, ripple: true, subtitles: true, autoplay: 'immediate', zoom: 1, timeline: null, durationMs: null, cursorPoint: null },
+    opts: { cursor: 'mac', resetFocusStyles: false, drift: true, loop: false, spotlight: true, ripple: true, subtitles: true, subtitleScale: 1, autoplay: 'immediate', zoom: 1, timeline: null, durationMs: null, cursorPoint: null },
     cursor: null,
     subtitleLayer: null,
     subtitleEl: null,
+    subtitleSizer: null,
     point: null,
     t0: null,
     currentScreen: null,
     lastSpot: null,
     snapshot: null,
+    snapshotScripts: null,
     snapshotStyle: '',
     cameraOn: false,
     playback: null,
@@ -133,6 +149,26 @@
     return document.documentElement;
   }
   function wait(ms) { return new Promise(function (r) { setTimeout(r, Math.max(0, ms || 0)); }); }
+
+  /**
+   * A timeout that removes itself from state.timers when it fires, so a long driven run (a tour
+   * replaying steps, a recording) does not accumulate thousands of spent handles. stop() still
+   * clears whatever is pending, and the fire time is exactly what setTimeout alone would give.
+   */
+  function setAnimTimeout(fn, ms) {
+    var id = setTimeout(function () {
+      var at = state.timers.indexOf(id);
+      if (at >= 0) state.timers.splice(at, 1);
+      fn();
+    }, ms);
+    state.timers.push(id);
+    return id;
+  }
+  function clearAnimInterval(id) {
+    clearInterval(id);
+    var at = state.intervals.indexOf(id);
+    if (at >= 0) state.intervals.splice(at, 1);
+  }
   function now() {
     if (state.t0 == null) state.t0 = performance.now();
     return Math.round(performance.now() - state.t0);
@@ -260,6 +296,106 @@
     if (style.textContent !== css) style.textContent = css;
   }
 
+  /**
+   * Sizes the burned-in subtitle as a share of the RECORDED FRAME, not a fixed px: the caption
+   * norm is roughly 4% of frame height, and a fixed 20px was under half of that at 1080p (which
+   * lands around 7px once a help article shows a 1920px video at a third of its width). Viewport
+   * units cannot express that share: on a scaled recording the viewport is N times larger and
+   * `:root { zoom: N }` shrinks the layout back, but vw/vh resolve against the SCALED viewport
+   * and then paint multiplied by the zoom again -- 4.2vh measured at 8.4% of the frame at
+   * --scale 2. So the size is computed here in authored pixels (real viewport / zoom) and set as
+   * px; living under the zoomed root it paints N times larger in the N-times-denser frame, the
+   * same share of the frame at any scale, exactly like every other authored constant (see the
+   * note on toOverlayPoint).
+   */
+  function sizeSubtitleLayer() {
+    var layer = state.subtitleLayer;
+    if (!layer) return;
+    var z = rootZoom();
+    var w = window.innerWidth / z;
+    var h = window.innerHeight / z;
+    // meta.subtitleScale (default 1) multiplies the automatic size: a design that finds the chip
+    // too subtle or too loud tunes it once, at the timeline level, instead of per step. isFinite,
+    // not just > 0: an Infinity that slipped past validation would emit "Infinitypx", an invalid
+    // var() substitution the chip silently inherits its parent font from.
+    var scale = typeof state.opts.subtitleScale === 'number' && Number.isFinite(state.opts.subtitleScale) && state.opts.subtitleScale > 0 ? state.opts.subtitleScale : 1;
+    // Landscape: 4.2% of frame height (2.3vw when the frame is wider than 16:9), floored at 20px
+    // for small windows, capped at 5vh so an ultrawide frame does not run away. Portrait keys on
+    // width (6vw) instead: 4.2% of a tall frame's height is huge relative to its narrow width.
+    var portrait = h >= w;
+    var font = portrait ? Math.max(20, 0.06 * w) : Math.max(20, 0.023 * w, 0.042 * h);
+    font = Math.min(font, Math.max(20, 0.05 * h));
+    // Wrap room: about 42% of the frame width (the old 800px chip on a 1920 render), widened to
+    // the taller dimension's proportion when the frame is portrait-ish, never past the layer's
+    // own 40px side gutters. Scaled with the font, still capped by the gutters.
+    var max = Math.min(w - 80, Math.max(0.42 * w, 0.75 * h) * scale);
+    layer.style.setProperty('--anim-sub-size', (Math.round(font * scale * 100) / 100) + 'px');
+    layer.style.setProperty('--anim-sub-max', Math.max(120, Math.round(max)) + 'px');
+  }
+
+  /** Rects the subtitle chip must not cover, in PAINTED px: the spotlighted target (the thing the
+   *  cue is about, held for the whole cue even after the ring's pulse fades) and the cursor.
+   *  lastSpot is set at the START of a step, before the cursor travels, so a reflow on travel
+   *  already protects the destination; spotAnchor (set by positionHighlight) is the fallback when
+   *  a highlight was placed without a step, and survives until restart(). */
+  function subtitleObstacles() {
+    var out = [];
+    var z = rootZoom();
+    var spotEl = (state.lastSpot && state.lastSpot.el && state.lastSpot.el.isConnected)
+      ? state.lastSpot.el
+      : (state.spotAnchor && state.spotAnchor.isConnected ? state.spotAnchor : null);
+    if (spotEl) {
+      var r = visibleRect(spotEl);
+      var pad = 16 * z;
+      if (r.width > 0 && r.height > 0) out.push({ left: r.left - pad, top: r.top - pad, right: r.right + pad, bottom: r.bottom + pad });
+    }
+    if (state.cursor && state.point) {
+      // The cursor sprite is 28px at its tip's top-left plus a shadow; give it air on all sides.
+      var grow = 14 * z;
+      out.push({ left: state.point.x - grow, top: state.point.y - grow, right: state.point.x + 42 * z, bottom: state.point.y + 46 * z });
+    }
+    return out;
+  }
+
+  var SUB_PLACES = ['bottom', 'top', 'bottom-left', 'bottom-right', 'top-left', 'top-right'];
+  /**
+   * Keeps the chip off the obstacles. A fresh cue is evaluated from the home position ("bottom");
+   * a mid-hold recheck (a highlight or a cursor move landing on the chip) keeps where the chip
+   * already is whenever that is clear, so a held caption does not wander between placements.
+   * When every placement overlaps something, the smallest overlap wins -- least bad, and still
+   * deterministic. Chip and obstacles are both measured painted, which stays correct under root
+   * zoom because everything scales together.
+   */
+  function reflowSubtitle(fresh) {
+    var el = state.subtitleEl;
+    if (!el || !state.opts.subtitles) return;
+    var obstacles = subtitleObstacles();
+    var current = el.getAttribute('data-place') || 'bottom';
+    var order = fresh ? SUB_PLACES.slice() : [current].concat(SUB_PLACES.filter(function (p) { return p !== current; }));
+    var z = rootZoom();
+    var best = null, bestOverlap = Infinity;
+    for (var i = 0; i < order.length; i++) {
+      el.setAttribute('data-place', order[i]);
+      // Measured through offset* on purpose: getBoundingClientRect reports the VISUAL box, which
+      // mid-fade carries the entry animation's translateY/scale (a ~0.75em bias exactly when a
+      // fresh cue is placed), while offset* are layout geometry the animation never touches. The
+      // chip's offsetParent is the fixed layer at the viewport origin, so offsets x rootZoom()
+      // are the settled painted rect.
+      var l = el.offsetLeft * z, t = el.offsetTop * z;
+      var r = { left: l, top: t, right: l + el.offsetWidth * z, bottom: t + el.offsetHeight * z };
+      var overlap = 0;
+      for (var j = 0; j < obstacles.length; j++) {
+        var o = obstacles[j];
+        var ow = Math.min(r.right, o.right) - Math.max(r.left, o.left);
+        var oh = Math.min(r.bottom, o.bottom) - Math.max(r.top, o.top);
+        if (ow > 0 && oh > 0) overlap += ow * oh;
+      }
+      if (overlap === 0) { best = order[i]; break; }
+      if (overlap < bestOverlap) { bestOverlap = overlap; best = order[i]; }
+    }
+    el.setAttribute('data-place', best);
+  }
+
   // Idempotent: creates missing overlays, removes the cursor when cursor is 'none'.
   function createOverlays() {
     var root = overlayRoot();
@@ -276,6 +412,13 @@
     if (!layer) { layer = document.createElement('div'); layer.id = 'anim-cli-subtitle-layer'; }
     if (layer.parentNode !== root) root.appendChild(layer);
     state.subtitleLayer = layer;
+    sizeSubtitleLayer();
+    if (!state.subtitleSizer) {
+      // animated.html: keep the chip proportional AND clear of the target/cursor when the viewer
+      // resizes the window -- both the chip's box and the obstacle rects move with the window.
+      state.subtitleSizer = function () { sizeSubtitleLayer(); reflowSubtitle(false); };
+      window.addEventListener('resize', state.subtitleSizer);
+    }
   }
 
   function applyDrift() {
@@ -322,6 +465,7 @@
     // state.point stays in painted space: it is the canonical coordinate the driver reports and the
     // next step measures against.
     state.point = { x: x, y: y };
+    reflowSubtitle(false);
   }
   function moveCursor(x, y, ms, easing) {
     if (!state.cursor) return;
@@ -330,6 +474,9 @@
     state.cursor.style.transition = 'transform ' + ms + 'ms ' + (easing || 'cubic-bezier(0.16, 1, 0.3, 1)');
     state.cursor.style.transform = 'translate(' + p.x + 'px, ' + p.y + 'px)';
     state.point = { x: x, y: y };
+    // The destination is known the moment travel starts: a chip that would sit under it moves
+    // before the cursor arrives, not after it has been covering the pointer for a beat.
+    reflowSubtitle(false);
   }
   /**
    * Remember where the cursor came to rest as an element plus a fraction of its box, so a camera
@@ -403,6 +550,8 @@
     h.classList.remove('anim-cli-pulse');
     void h.offsetWidth;
     h.classList.add('anim-cli-pulse');
+    // A highlight landing on a held chip (this step has no subtitle of its own) must push it away.
+    reflowSubtitle(false);
   }
   /** Keep the spotlight on `el` until releaseHighlight() (used for guide screenshots). */
   function holdHighlight(el) {
@@ -411,6 +560,7 @@
     var h = positionHighlight(el, true);
     h.classList.remove('anim-cli-pulse');
     h.classList.add('anim-cli-hold');
+    reflowSubtitle(false);
   }
   /**
    * Carry the spotlight (and the badge, when a guide capture is holding one) to `rect` over `ms`,
@@ -437,10 +587,10 @@
       c.style.top = pos.y + 'px';
     }
     if (ms > 0) {
-      state.timers.push(setTimeout(function () {
+      setAnimTimeout(function () {
         h.style.transition = '';
         if (c) c.style.transition = '';
-      }, ms + 50));
+      }, ms + 50);
     } else {
       h.style.transition = '';
       if (c) c.style.transition = '';
@@ -585,14 +735,14 @@
           setTyped(el, value.slice(0, i));
           if (onProgress && (i % 5 === 0 || i === value.length)) onProgress(i);
         } else {
-          clearInterval(intId);
+          clearAnimInterval(intId);
           resolve();
         }
       }
       tick(); // first character lands exactly at the interaction moment
       var intId = setInterval(tick, interval);
       state.intervals.push(intId);
-      if (value.length <= 1) { clearInterval(intId); resolve(); }
+      if (value.length <= 1) { clearAnimInterval(intId); resolve(); }
     });
   }
 
@@ -668,6 +818,13 @@
     // throughout the move instead of being left behind over empty background.
     if (cursorTo) moveCursor(cursorTo.x, cursorTo.y, dur * 1000, cameraEase);
     if (spotTo) glideHighlight(spotTo, dur * 1000, cameraEase);
+    // Once the pan has settled, the carried cursor/spot have their final rects: recheck the chip
+    // against where they actually landed (the framing centre moves under a push-in, so the
+    // placement taken at the step's start can be stale by the end of it). Registered through
+    // setAnimTimeout so stop()/restart() cancels it with every other pending callback instead of
+    // it firing at a page that no longer plays.
+    if (dur > 0) setAnimTimeout(function () { reflowSubtitle(false); }, dur * 1000);
+    else reflowSubtitle(false);
     return wait(dur * 1000);
   }
 
@@ -810,6 +967,9 @@
     el.style.animation = 'none';
     void el.offsetWidth;
     el.style.animation = 'anim-cli-subFade ' + Math.max(1, ms || SUBTITLE_HOLD_MS) + 'ms ease forwards';
+    // A fresh cue is placed clear of this step's target and the cursor from the start (the entry
+    // fade hides the positioning), rather than appearing over the button and jumping away.
+    reflowSubtitle(true);
   }
   function hideSubtitle() {
     if (state.subtitleEl) { state.subtitleEl.style.animation = 'none'; state.subtitleEl.style.opacity = '0'; }
@@ -880,7 +1040,7 @@
     // against the restored page: the ring re-opens on a detached node and parks in the corner,
     // and el.click() lands on a document that never asked for it. play() calls stop() before it
     // schedules anything, so registering costs the clock-driven path nothing.
-    state.timers.push(setTimeout(function () {
+    setAnimTimeout(function () {
       if (hasPoint) {
         // Re-measure at arrival: a camera move or a layout-expanding click during the
         // travel would leave the cursor, ripple and highlight on stale coordinates.
@@ -893,7 +1053,7 @@
         else highlight(spotEl);
         pressCursor(point.x, point.y, pressMs);
       }
-      state.timers.push(setTimeout(function () {
+      setAnimTimeout(function () {
         if (o.holdBeforeAct) {
           // Two-phase step: report the arrival (cursor pressed, spotlight on, nothing clicked yet) and
           // wait for act(token). Guides capture navigating clicks here, before the page goes away.
@@ -905,8 +1065,8 @@
         }
         if (point) releaseCursor(point.x, point.y);
         interact(resolve, reject);
-      }, pressMs));
-    }, travelMs));
+      }, pressMs);
+    }, travelMs);
 
     function interact(resolve, reject) {
       var actualMs = now();
@@ -1131,11 +1291,26 @@
   /**
    * Clone <body>'s children while the page is still in its authored state. The overlays live under
    * <html> (see overlayRoot), so a body snapshot never captures the cursor, spotlight or badge.
+   * Scripts are remembered separately: cloneNode keeps attributes but not addEventListener wiring,
+   * and a re-appended script element never re-executes, so restart() re-runs them (see rerunScripts).
    */
   function snapshot() {
     var kids = [];
-    for (var i = 0; i < document.body.children.length; i++) kids.push(document.body.children[i].cloneNode(true));
+    var scripts = [];
+    for (var i = 0; i < document.body.children.length; i++) {
+      var node = document.body.children[i];
+      kids.push(node.cloneNode(true));
+      // Scripts at ANY depth: a mockup that keeps its wiring inside a screen section (AGENTS.md
+      // blesses several screens as sections in one file) loses those listeners on restart just as
+      // surely as a top-level one. Collected depth-first per child, i.e. in authored order.
+      if (node.tagName === 'SCRIPT') scripts.push(node);
+      else if (node.querySelectorAll) {
+        var nested = node.querySelectorAll('script');
+        for (var j = 0; j < nested.length; j++) scripts.push(nested[j]);
+      }
+    }
     state.snapshot = kids;
+    state.snapshotScripts = scripts;
     state.snapshotStyle = document.body.getAttribute('style') || '';
   }
 
@@ -1147,9 +1322,39 @@
   }
 
   /**
+   * Re-execute the snapshot's classic <body> scripts after a restart. Without this, a mockup whose
+   * steps rely on page-side handlers (addEventListener) silently stopped working after the first
+   * seek or loop: the cloned DOM keeps the markup and loses the wiring. Each script runs in a
+   * FRESH node (a re-appended clone never executes); inline sources are wrapped in try/catch so one
+   * failing script cannot kill the restore; module/importmap/JSON scripts cannot be re-run and are
+   * skipped; data-anim-rerun="false" opts a script out. A script that appended DOM at load will
+   * append it again (the snapshot already contains its first output): guard it or opt it out.
+   */
+  function rerunScripts() {
+    var scripts = state.snapshotScripts || [];
+    for (var i = 0; i < scripts.length; i++) {
+      var s = scripts[i];
+      if (s.getAttribute && s.getAttribute('data-anim-rerun') === 'false') continue;
+      // Belt for pages built before the marker existed: the injected runtime block re-running
+      // would re-create the scheduler and re-snapshot played state.
+      if (!s.src && s.textContent && s.textContent.indexOf('window.__anim.boot(') >= 0) continue;
+      var type = (s.getAttribute('type') || '').toLowerCase();
+      if (type && type !== 'text/javascript' && type !== 'application/javascript') continue;
+      var fresh = document.createElement('script');
+      for (var a = 0; a < s.attributes.length; a++) fresh.setAttribute(s.attributes[a].name, s.attributes[a].value);
+      fresh.async = false; // keep re-execution in authored order (matters for external scripts)
+      if (!s.src) {
+        fresh.textContent = 'try {\n' + s.textContent + '\n} catch (e) { try { console.warn("[anim-cli] re-running an inline script failed:", e); } catch (_) {} }';
+      }
+      document.body.appendChild(fresh);
+    }
+  }
+
+  /**
    * Put the page back to its authored state so the timeline can run again. Replaying is not enough:
    * typing writes into fields, fadeIn sets inline opacity, transitionScreen hides siblings, camera
-   * leaves a transform on <body>, and an `animate` step leaves its WAAPI end state behind.
+   * leaves a transform on <body>, an `animate` step leaves its WAAPI end state behind, and classic
+   * scripts' event listeners do not survive cloneNode -- rerunScripts() re-establishes the wiring.
    */
   function restart() {
     if (!state.snapshot) return false;
@@ -1161,6 +1366,7 @@
     else document.body.removeAttribute('style');
     document.body.style.transformOrigin = 'center center';
     applyDrift();
+    rerunScripts();
     state.currentScreen = null;
     state.lastSpot = null;
     state.spotAnchor = null;
@@ -1262,6 +1468,9 @@
       return { ready: state.ready, point: state.point, opts: state.opts, cursor: !!state.cursor,
         t0: state.t0, timeOrigin: performance.timeOrigin, inFlight: Object.keys(state.completions).length };
     },
+    /** Debug/test only: pending runtime handles. Not a public API; exists so a test can assert
+     *  self-removal keeps the arrays from growing across a long driven run. */
+    pendingHandles: function () { return { timers: state.timers.length, intervals: state.intervals.length }; },
     moveCursor: moveCursor,
     highlightBox: function () { var h = document.getElementById('anim-cli-highlight'); return h ? rectOf(h) : null; },
     cursorAnchor: function () { var a = state.cursorAnchor; return a && a.el && a.el.isConnected ? { fx: a.fx, fy: a.fy, rect: rectOf(a.el) } : null; },

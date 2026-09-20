@@ -150,6 +150,8 @@ export interface TimelineMeta {
     url?: string;
     locale?: string;
     tailMs?: number;
+    /** Multiplies the automatic subtitle chip size (font and wrap width); 1 is the default. */
+    subtitleScale?: number;
     cursor?: 'mac' | 'windows' | 'none';
     resetFocusStyles?: boolean;
     drift?: boolean;
@@ -285,6 +287,24 @@ export function parseTime(t: unknown): number {
 export function formatTime(ms: number): string {
     if (!Number.isFinite(ms)) return '?';
     return (ms / 1000).toFixed(ms % 1000 === 0 ? 1 : 2).replace(/0+$/, '').replace(/\.$/, '.0') + 's';
+}
+
+/**
+ * CLI `--tail`: a bare number is milliseconds (the flag's documented unit); a string with an
+ * explicit unit ("2500ms", "2.5s") is accepted too, on the timeline's own time grammar. NaN when
+ * the value is neither -- a partial parse like "2sX" or a bare float with stray text must not
+ * silently mean something else.
+ */
+export function parseTailMs(v: string): number {
+    const s = String(v).trim();
+    if (/^\d+(\.\d+)?$/.test(s)) return Math.round(parseFloat(s));
+    return parseTime(s);
+}
+
+/** CLI `--duration`: a bare number of seconds, optionally fractional. NaN for anything else (units included). */
+export function parseDurationS(v: string): number {
+    const s = String(v).trim();
+    return /^\d+(\.\d+)?$/.test(s) ? parseFloat(s) : NaN;
 }
 
 function pad2(n: number): string { return n < 10 ? '0' + n : String(n); }
@@ -565,6 +585,16 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
     // behaviour, so both are errors rather than warnings.
     if (meta.kind !== undefined && !TIMELINE_KINDS.includes(meta.kind)) {
         issues.push({ level: 'error', field: 'kind', message: `meta.kind must be ${TIMELINE_KINDS.map(k => `"${k}"`).join(' or ')} (got ${JSON.stringify(meta.kind)})` });
+    }
+    // A negative tail can undercut the last step's own interaction, clipping the payoff while
+    // chapters/cues are clamped to the shortened length; refuse it rather than clamp silently.
+    if (meta.tailMs !== undefined && (typeof meta.tailMs !== 'number' || !Number.isFinite(meta.tailMs) || meta.tailMs < 0)) {
+        issues.push({ level: 'error', field: 'tailMs', message: `meta.tailMs must be a non-negative number of milliseconds (got ${JSON.stringify(meta.tailMs)})` });
+    }
+    // A bad subtitleScale would silently fall back to 1 inside the runtime: report it here, where
+    // the config can be fixed, instead of rendering a video at a size nobody asked for.
+    if (meta.subtitleScale !== undefined && (typeof meta.subtitleScale !== 'number' || !Number.isFinite(meta.subtitleScale) || meta.subtitleScale <= 0)) {
+        issues.push({ level: 'error', field: 'subtitleScale', message: `meta.subtitleScale must be a positive number multiplying the automatic subtitle size (got ${JSON.stringify(meta.subtitleScale)})` });
     }
     if (meta.reel !== undefined) {
         if (!meta.reel || typeof meta.reel !== 'object' || Array.isArray(meta.reel)) {

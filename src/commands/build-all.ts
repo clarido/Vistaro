@@ -40,7 +40,7 @@ interface StepRun { cmd: string[]; status: number | null; stdout: string; stderr
  * Bumping it invalidates every cached key, so the next `--changed-only` run is a full rebuild.
  * That is the point: it is the cheapest way to say "what this tool emits is not what it emitted".
  */
-export const OUTPUT_REVISION = 1;
+export const OUTPUT_REVISION = 6;
 
 /**
  * What --changed-only compares: the sources of the locale dir, the effective render settings that
@@ -55,7 +55,12 @@ export function buildKeyFor(contentHash: string, settings: EffectiveSettings, re
         // kind, device and scale all change what is produced: leaving any of them out would make
         // --changed-only skip a row that should rebuild, which looks exactly like success.
         kind: settings.kind, device: settings.device, scale: settings.scale,
-        record: record ? { url: record.url, ignoreHttpsErrors: !!record.ignoreHttpsErrors, storageState: !!record.storageState } : undefined,
+        // Flat, not nested: JSON.stringify's key-array replacer filters keys at EVERY depth, so a
+        // nested record object serialized as {} and the record target never reached the hash. The
+        // undefined fields stringify drops keep rows without a record byte-identical to before.
+        recordUrl: record?.url,
+        recordIgnoresHttpsErrors: record ? !!record.ignoreHttpsErrors : undefined,
+        recordHasStorageState: record ? !!record.storageState : undefined,
     };
     return 'sha256:' + createHash('sha256').update(JSON.stringify(facts, Object.keys(facts).sort())).digest('hex');
 }
@@ -333,8 +338,10 @@ export async function buildAllCommand(catalogFile: string | undefined, options: 
             for (const [want, file] of [['webm', videoFile.replace(/\.mp4$/, '.webm')], ['poster', videoFile.replace(/\.mp4$/, '.poster.png')]] as const) {
                 if (outputs.includes(want as any) && !fs.existsSync(file)) error = `${path.relative(catalogDir, file)} is missing`;
             }
-            if (outputs.includes('embed') && !fs.existsSync(path.join(srcDir, `embed${embedSuffix}.html`))) error = `embed${embedSuffix}.html missing in ${path.relative(catalogDir, srcDir)}`;
         }
+        // Any row asking for the embed output ran `build --embed` (record rows are refused at catalog
+        // read), so a missing embed page means the build step failed to do its job.
+        if (!error && outputs.includes('embed') && !fs.existsSync(path.join(srcDir, `embed${embedSuffix}.html`))) error = `embed${embedSuffix}.html missing in ${path.relative(catalogDir, srcDir)}`;
         if (!error && outputs.includes('gif') && !fs.existsSync(gifFile)) error = `${path.relative(catalogDir, gifFile)} is missing`;
         entry.ms = Date.now() - started;
         if (error) {
@@ -347,8 +354,10 @@ export async function buildAllCommand(catalogFile: string | undefined, options: 
         }
         entry.status = 'ok';
         entry.builtAt = new Date().toISOString();
-        if (reel && outputs.includes('embed')) {
-            // `build --embed` writes beside the source; the published tree wants its own copy.
+        if (outputs.includes('embed')) {
+            // `build --embed` writes beside the source; the published tree wants its own copy. This
+            // is not reel-only: a GUIDE with the embed output used to have its pair built and then
+            // left unpublished in the source directory.
             for (const name of [`embed${embedSuffix}.html`, `embed${embedSuffix}.snippet.html`]) {
                 const from = path.join(srcDir, name);
                 if (fs.existsSync(from)) fs.copyFileSync(from, path.join(outDir, name));

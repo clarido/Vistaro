@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
     parseTimeline, parseTime, validateTimeline, computeDurationMs, subtitleWindows, leadMsFor,
     formatIssue, hasErrors, DEFAULT_CPS, typingDurationMs, applyDevice, isReel, reelOptions,
+    parseTailMs, parseDurationS,
 } from '../src/engine/schema';
 
 test('parseTime accepts seconds strings, ms strings and numbers', () => {
@@ -14,6 +15,36 @@ test('parseTime accepts seconds strings, ms strings and numbers', () => {
     assert.equal(parseTime(2.5), 2500);
     assert.ok(Number.isNaN(parseTime('soon')));
     assert.ok(Number.isNaN(parseTime(undefined)));
+});
+
+test('parseTailMs: a bare number is milliseconds, explicit units accepted, partial parses refused', () => {
+    assert.equal(parseTailMs('2500'), 2500, 'bare stays milliseconds (the flag\'s documented unit)');
+    assert.equal(parseTailMs('2.5s'), 2500);
+    assert.equal(parseTailMs('2500ms'), 2500);
+    // "2sX" and friends must not half-parse into a silently wrong tail.
+    for (const bad of ['2sX', 'soon', '']) assert.ok(Number.isNaN(parseTailMs(bad)), bad);
+});
+
+test('parseDurationS: bare seconds only; units and garbage are refused', () => {
+    assert.equal(parseDurationS('12'), 12);
+    assert.equal(parseDurationS('12.5'), 12.5);
+    for (const bad of ['12s', '1200ms', '12x', 'soon', '']) assert.ok(Number.isNaN(parseDurationS(bad)), bad);
+});
+
+test('meta.tailMs must be a non-negative number', () => {
+    const errs = (raw: any) => validateTimeline(parseTimeline(raw)).filter(i => i.level === 'error').map(i => i.message);
+    assert.ok(errs({ meta: { tailMs: -1000 }, steps: [] }).some(m => /meta\.tailMs must be a non-negative/.test(m)), 'a negative tail can undercut the last step');
+    assert.ok(errs({ meta: { tailMs: '2s' }, steps: [] }).some(m => /meta\.tailMs must be a non-negative/.test(m)), 'a unit string is not a number of ms');
+    assert.deepEqual(errs({ meta: { tailMs: 0 }, steps: [] }), []);
+});
+
+test('meta.subtitleScale must be a positive number (0 and strings are errors, not silent 1)', () => {
+    const errs = (raw: any) => validateTimeline(parseTimeline(raw)).filter(i => i.level === 'error').map(i => i.message);
+    assert.ok(errs({ meta: { subtitleScale: 0 }, steps: [] }).some(m => /meta\.subtitleScale must be a positive/.test(m)), 'zero would zero the chip');
+    assert.ok(errs({ meta: { subtitleScale: 'big' }, steps: [] }).some(m => /meta\.subtitleScale must be a positive/.test(m)), 'a string is not a scale');
+    assert.ok(errs({ meta: { subtitleScale: Infinity }, steps: [] }).some(m => /meta\.subtitleScale must be a positive/.test(m)), 'Infinity would emit "Infinitypx"');
+    assert.deepEqual(errs({ meta: { subtitleScale: 1.5 }, steps: [] }), [], 'a positive number is accepted');
+    assert.deepEqual(errs({ meta: {}, steps: [] }), [], 'absent means the default 1');
 });
 
 test('bare array (legacy) and object form normalize to the same steps', () => {
