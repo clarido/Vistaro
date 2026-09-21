@@ -286,6 +286,8 @@ test('tour builds a shell plus one page per scenario, and records an event per s
     assert.equal(variant.page, 'scenarios/basic/index-desktop.html');
     assert.equal(variant.steps.length, 9, 'every step travels, hidden or not');
     assert.equal(variant.stepCount, 9, 'all nine are titled in the fixture');
+    // 1-based authored indexes like guide.json and the manifest, not 0-based array positions.
+    assert.deepEqual(variant.steps.map((s: any) => s.index), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
     const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
     assert.equal(ev.command, 'tour');
@@ -380,6 +382,12 @@ test('a step that cannot run reports an error instead of hanging the tour', { sk
         await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'goto', index: 3 });
         await page.waitForFunction(() => (window as any).__msgs.some((m: any) => m.type === 'error'), null, { timeout: 20000 });
 
+        // The error REPLACES the state message for its turn: a state right after it used to make
+        // the shell's paint() overwrite the caption before anyone could read what went wrong.
+        await page.waitForTimeout(250);
+        const last = await page.evaluate(() => (window as any).__msgs[(window as any).__msgs.length - 1]);
+        assert.equal(last.type, 'error', 'nothing follows the error');
+
         const state = await page.evaluate(() => (window as any).__tour.state());
         assert.equal(state.playing, false, 'playback stops rather than pretending to continue');
         await context.close();
@@ -388,7 +396,332 @@ test('a step that cannot run reports an error instead of hanging the tour', { sk
     }
 });
 
+test('a play arriving during a seek replay resumes AT the seeked step, not past it', { skip }, async () => {
+    // goto(n) then play() back-to-back: play lands while the instant replay is still running (or in
+    // one of the gaps between its steps, where inFlight is false). Taking the advance(index + 1)
+    // branch there abandoned the seek half-done and played n+1, skipping the step asked for.
+    const out = path.join(work, 'seekplay-out');
+    const file = writeCatalog('seekplay', { outputDir: out, scenarios: [basicScenario()] });
+    assert.equal(cli(['tour', file]).status, 0);
+    let browser: Browser | undefined;
+    try {
+        browser = await chromium.launch({ headless: true });
+        const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+        const page = await context.newPage();
+        await page.addInitScript(() => {
+            (window as any).__states = [];
+            window.addEventListener('message', (e: any) => {
+                if (e.data && e.data.source === 'anim-tour' && e.data.type === 'state') (window as any).__states.push({ index: e.data.index, playing: e.data.playing });
+            });
+        });
+        await page.goto(fileUrl(path.join(out, 'scenarios', 'basic', 'index-desktop.html')));
+        await page.waitForFunction(() => (window as any).__tour && (window as any).__tour.state().total === 9, null, { timeout: 15000 });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'goto', index: 3 });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'play' });
+        // However the interleaving lands, step 3 must at some point be the one PLAYING; the bug
+        // jumped straight to 4 (or re-seeked to a stale index) without ever playing 3.
+        await page.waitForFunction(() => (window as any).__states.some((s: any) => s.index === 3 && s.playing), null, { timeout: 20000 });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'pause' });
+        await context.close();
+    } finally {
+        if (browser) await browser.close();
+    }
+});
+
+test('pause during a camera pan resumes by replaying the step, not skipping past it', { skip }, async () => {
+    // A camera step completes through a timer __anim.stop() cannot cancel (the CSS transition
+    // keeps painting to its end), so its completion resolves AFTER the pause and clears inFlight:
+    // the next play used to take the advance(index + 1) branch and skip the step -- the replay
+    // contract held for type steps only. pausedMidStep arms the replay whatever the completion
+    // of the interrupted step does.
+    const dir = path.join(work, 'pan');
+    fs.cpSync(fixture, dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { title: 'Pan', drift: false }, steps: [
+        { id: 'open', time: 0.2, action: 'click', target: '#btn', title: 'Open' },
+        { id: 'pan', time: 1.0, action: 'camera', target: '#field', scale: 1.4, duration: 2, title: 'Pan' },
+        { id: 'after', time: 4.0, action: 'highlight', target: '#note', title: 'After' },
+    ] }));
+    const out = path.join(work, 'pan-out');
+    const file = writeCatalog('pan', { outputDir: out, scenarios: [{ slug: 'pan', dir, label: 'Pan' }] });
+    assert.equal(cli(['tour', file]).status, 0);
+    let browser: Browser | undefined;
+    try {
+        browser = await chromium.launch({ headless: true });
+        const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+        const page = await context.newPage();
+        await page.addInitScript(() => {
+            (window as any).__states = [];
+            window.addEventListener('message', (e: any) => {
+                if (e.data && e.data.source === 'anim-tour' && e.data.type === 'state') (window as any).__states.push({ index: e.data.index, playing: e.data.playing });
+            });
+        });
+        await page.goto(fileUrl(path.join(out, 'scenarios', 'pan', 'index-desktop.html')));
+        await page.waitForFunction(() => (window as any).__tour && (window as any).__tour.state().total === 3, null, { timeout: 15000 });
+        // Seek to the pan and START it: goto alone plays the destination but reports playing:false
+        // (only an explicit play turns the flag on), so the play is what makes the first playing
+        // state exist. The second one can then only come from the resume, which is what is tested.
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'goto', index: 1 });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'play' });
+        await page.waitForFunction(() => (window as any).__states.some((s: any) => s.index === 1 && s.playing), null, { timeout: 20000 });
+        // The state is emitted BEFORE the step runs, and the step's own lead (950ms) precedes the
+        // interaction: pausing at ~1.5s lands after the pan has STARTED (interaction ~0.95s, pan
+        // 2s) -- the window where its completion will outlive the pause and clear inFlight.
+        await page.waitForTimeout(1500);
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'pause' });
+        // Well past the pan's settle (lead 950ms + pan 2s from the step's start): the resume must
+        // land after the completion has cleared inFlight, which is exactly the window where the
+        // missing replay flag used to skip the step.
+        await page.waitForTimeout(2600);
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'play' });
+        await page.waitForFunction(() => (window as any).__states.filter((s: any) => s.index === 1 && s.playing).length >= 2, null, { timeout: 20000 });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'pause' });
+        await context.close();
+    } finally {
+        if (browser) await browser.close();
+    }
+});
+
 // --- embedding ---------------------------------------------------------------------------------
+
+test('play while playing is a no-op; pause stops the in-flight step and resume replays it', { skip }, async () => {
+    // A slow type step (~4s) gives a wide mid-flight window to fire the duplicate play and the
+    // pause into. The duplicate play used to orphan the typing step and start the next one on top
+    // of it; the pause used to leave the typing and the interaction running behind a "paused" UI.
+    const dir = path.join(work, 'reentry'); fs.cpSync(fixture, dir, { recursive: true });
+    const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'anim.config.json'), 'utf8'));
+    cfg.steps = [
+        { id: 'fill', time: '0.2s', action: 'type', target: '#field', value: 'x'.repeat(20), cps: 5, title: 'Fill' },
+        { id: 'after', time: '6s', action: 'highlight', target: '#btn', title: 'After' },
+    ];
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(cfg), 'utf8');
+    const out = path.join(work, 'reentry-out');
+    const file = writeCatalog('reentry', { outputDir: out, scenarios: [{ slug: 'reentry', dir }] });
+    const r = cli(['tour', file]);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+
+    let browser: Browser | undefined;
+    try {
+        browser = await chromium.launch({ headless: true });
+        const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+        const page = await context.newPage();
+        await page.goto(fileUrl(path.join(out, 'scenarios', 'reentry', 'index-desktop.html')));
+        await page.waitForFunction(() => (window as any).__tour && (window as any).__tour.state().total === 2, null, { timeout: 15000 });
+        const send = (type: string) => page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type });
+        const value = () => page.evaluate(() => (document.getElementById('field') as HTMLInputElement).value);
+
+        await send('play');
+        await page.waitForFunction(() => (document.getElementById('field') as HTMLInputElement).value.length > 0, null, { timeout: 15000 });
+        // The duplicate play must not advance: the next step would start while the typing runs.
+        await send('play');
+        await page.waitForTimeout(500);
+        assert.equal(await page.evaluate(() => (window as any).__tour.state().index), 0, 'still on the typing step');
+        assert.ok((await value()).length > 1, 'and it is still typing');
+
+        // Pause mid-typing: the runtime's own timers stop, so the text freezes.
+        await send('pause');
+        await page.waitForFunction(() => (window as any).__tour.state().playing === false, null, { timeout: 5000 });
+        const frozen = (await value()).length;
+        assert.ok(frozen > 0 && frozen < 20, `paused mid-type at ${frozen} chars`);
+        await page.waitForTimeout(900);
+        assert.equal((await value()).length, frozen, 'the typing stopped, not merely the dwell timer');
+        assert.equal(await page.evaluate(() => (window as any).__tour.state().playing), false);
+
+        // Resume replays the interrupted step from its beginning rather than skipping past it.
+        await send('play');
+        await page.waitForFunction(() => (window as any).__tour.state().playing === true, null, { timeout: 5000 });
+        await page.waitForFunction(() => (document.getElementById('field') as HTMLInputElement).value === '', null, { timeout: 5000 }).catch(() => {});
+        await page.waitForFunction(() => (document.getElementById('field') as HTMLInputElement).value === 'x'.repeat(20), null, { timeout: 20000 });
+        assert.equal(await page.evaluate(() => (window as any).__tour.state().index), 0, 'the interrupted step replays');
+        await context.close();
+    } finally {
+        if (browser) await browser.close();
+    }
+});
+
+test('a scenario with no steps still answers: ready then end, and every command replies end', { skip }, async () => {
+    // An empty timeline used to leave the protocol silent: enabled controls that do nothing,
+    // forever, and an autoplaying embed whose veil never lifted.
+    const dir = path.join(work, 'emptysteps'); fs.cpSync(fixture, dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { title: 'Empty' }, steps: [] }), 'utf8');
+    const out = path.join(work, 'empty-out');
+    const file = writeCatalog('empty', { outputDir: out, scenarios: [{ slug: 'empty', dir }] });
+    const r = cli(['tour', file]);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+
+    let browser: Browser | undefined;
+    try {
+        browser = await chromium.launch({ headless: true });
+        const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+        const page = await context.newPage();
+        await page.addInitScript(() => {
+            (window as any).__msgs = [];
+            window.addEventListener('message', (e: any) => { if (e.data && e.data.source === 'anim-tour') (window as any).__msgs.push(e.data); });
+        });
+        await page.goto(fileUrl(path.join(out, 'scenarios', 'empty', 'index-desktop.html')));
+        await page.waitForFunction(() => (window as any).__msgs.some((m: any) => m.type === 'ready'), null, { timeout: 15000 });
+        const endsAtBoot = await page.evaluate(() => (window as any).__msgs.filter((m: any) => m.type === 'end').length);
+        assert.ok(endsAtBoot >= 1, 'an empty scenario announces its end as soon as it is ready');
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'play' });
+        await page.waitForFunction((n) => (window as any).__msgs.filter((m: any) => m.type === 'end').length > n, endsAtBoot, { timeout: 5000 });
+        await context.close();
+    } finally {
+        if (browser) await browser.close();
+    }
+});
+
+test('a failed tours.json fetch is not cached forever: a later element retries it', { skip }, async () => {
+    const out = path.join(work, 'evict-out');
+    const file = writeCatalog('evict', { outputDir: out, scenarios: [basicScenario()] });
+    assert.equal(cli(['tour', file, '--embed']).status, 0);
+
+    // The server 404s tours.json until told otherwise, and counts the attempts made by the HOST
+    // page (by Referer: the embed page's own iframe fetches tours.json too, and would mask the
+    // very thing under test).
+    let toursJsonOk = false;
+    let hostFetches = 0;
+    const server = http.createServer((req, res) => {
+        const rel = decodeURIComponent((req.url || '/').split('?')[0]).replace(/^\/+/, '') || 'index.html';
+        if (rel === 'tours.json' && /host\.html$/.test(req.headers.referer || '')) {
+            hostFetches++;
+            if (!toursJsonOk) { res.writeHead(404); res.end(); return; }
+        }
+        const full = path.join(out, rel);
+        if (!full.startsWith(out) || !fs.existsSync(full) || fs.statSync(full).isDirectory()) { res.writeHead(404); res.end(); return; }
+        const type = full.endsWith('.js') ? 'text/javascript' : full.endsWith('.json') ? 'application/json' : 'text/html';
+        res.writeHead(200, { 'content-type': type });
+        res.end(fs.readFileSync(full));
+    });
+    await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+    const port = (server.address() as any).port;
+
+    fs.writeFileSync(path.join(out, 'host.html'), `<!doctype html><meta charset="utf-8"><title>host</title>
+<div id="one"><anim-tour src="./" scenario="basic"></anim-tour></div>
+<div id="two"></div>
+<script type="module" src="anim-tour.js"></script>`, 'utf8');
+
+    let browser: Browser | undefined;
+    try {
+        browser = await chromium.launch({ headless: true });
+        const page = await (await browser.newContext({ viewport: { width: 1000, height: 800 } })).newPage();
+        await page.goto(`http://127.0.0.1:${port}/host.html`);
+        // First element: tours.json 404s, so the manifest is null and the element falls back to the
+        // wanted device. That null must not be CACHED, or the second element below never retries.
+        await page.waitForFunction(() => !!document.querySelector('#one iframe')!.getAttribute('src'), null, { timeout: 15000 });
+        // hostFetches is a Node-side counter (the server owns it); poll it from here rather than
+        // through a page predicate, which cannot see Node closures.
+        const waitHostFetches = async (n: number, ms: number) => {
+            const deadline = Date.now() + ms;
+            while (hostFetches < n && Date.now() < deadline) await new Promise(r => setTimeout(r, 50));
+            return hostFetches;
+        };
+        assert.equal(await waitHostFetches(1, 15000), 1, 'the host page made exactly one attempt');
+
+        toursJsonOk = true;
+        // A NEW element for the same root must fetch the manifest again, not inherit the failure.
+        await page.evaluate(() => {
+            const el = document.createElement('anim-tour');
+            el.setAttribute('src', './');
+            el.setAttribute('scenario', 'basic');
+            document.getElementById('two')!.appendChild(el);
+        });
+        assert.ok((await waitHostFetches(2, 15000)) >= 2, 'the new element retried the manifest');
+    } finally {
+        if (browser) await browser.close();
+        await new Promise<void>(r => server.close(() => r()));
+    }
+});
+
+test('commands sent before ready queue in order (goto then play), and an unknown scenario fires tourerror', { skip }, async () => {
+    const out = path.join(work, 'queue-out');
+    const file = writeCatalog('queue', { outputDir: out, scenarios: [basicScenario()] });
+    assert.equal(cli(['tour', file, '--embed']).status, 0);
+    const server = await serve(out);
+    let browser: Browser | undefined;
+    try {
+        browser = await chromium.launch({ headless: true });
+        const page = await (await browser.newContext({ viewport: { width: 1000, height: 800 } })).newPage();
+        // The element wiring lives in the PAGE (not in an evaluate callback: inner functions there
+        // hit the tsx __name hazard), so __make can be called and commanded in one synchronous go
+        // while the frame is still loading -- before it reports ready.
+        fs.writeFileSync(path.join(out, 'host.html'), `<!doctype html><meta charset="utf-8"><title>host</title>
+<div id="one"></div>
+<script type="module" src="anim-tour.js"></script>
+<script>
+  window.__ev = [];
+  window.__make = function (scenario) {
+    var el = document.createElement('anim-tour');
+    el.setAttribute('src', './');
+    el.setAttribute('scenario', scenario);
+    el.setAttribute('autoplay', 'none');
+    ['tourstep', 'tourend', 'tourerror'].forEach(function (n) {
+      el.addEventListener(n, function (e) { window.__ev.push({ n: n, detail: e.detail }); });
+    });
+    document.getElementById('one').appendChild(el);
+    return el;
+  };
+</script>`, 'utf8');
+        await page.goto(`http://127.0.0.1:${server.port}/host.html`);
+        await page.waitForFunction(() => typeof (window as any).__make === 'function' && !!customElements.get('anim-tour'), null, { timeout: 15000 });
+        // goto(1) then play(), both before the frame reports ready: a single-slot queue used to
+        // lose the goto to last-write-wins and play from step 0.
+        await page.evaluate(() => { const el = (window as any).__make('basic'); el.goto(1); el.play(); });
+        await page.waitForFunction(() => (window as any).__ev.some((e: any) => e.n === 'tourstep'), null, { timeout: 20000 });
+        const first = await page.evaluate(() => (window as any).__ev.find((e: any) => e.n === 'tourstep'));
+        assert.equal(first.detail.index, 1, 'the queued goto landed before the play, so playback starts at step 1');
+
+        // An unknown scenario is a misconfiguration that must surface, not a silent 404 frame.
+        await page.evaluate(() => { (window as any).__make('draft-responce'); });   // typo
+        await page.waitForFunction(() => (window as any).__ev.some((e: any) => e.n === 'tourerror'), null, { timeout: 15000 });
+        const err = await page.evaluate(() => (window as any).__ev.find((e: any) => e.n === 'tourerror'));
+        assert.match(err.detail.message, /is not in .*tours\.json/);
+    } finally {
+        if (browser) await browser.close();
+        await server.close();
+    }
+});
+
+test('Space activates a focused rail card instead of hijacking playback; a play clicked during load is not lost', { skip }, async () => {
+    const out = path.join(work, 'shell-out');
+    const other = path.join(work, 'shell2'); fs.cpSync(fixture, other, { recursive: true });
+    const file = writeCatalog('shell', { outputDir: out, scenarios: [basicScenario(), { slug: 'second', dir: other, label: 'Second' }] });
+    assert.equal(cli(['tour', file]).status, 0);
+
+    // The scenario page loads slowly (500ms), so the big play button is clickable while the frame
+    // is still loading: the click must queue rather than be posted into a document with no listener.
+    const server = http.createServer((req, res) => {
+        const rel = decodeURIComponent((req.url || '/').split('?')[0]).replace(/^\/+/, '') || 'index.html';
+        const full = path.join(out, rel);
+        if (!full.startsWith(out) || !fs.existsSync(full) || fs.statSync(full).isDirectory()) { res.writeHead(404); res.end(); return; }
+        const type = full.endsWith('.js') ? 'text/javascript' : full.endsWith('.css') ? 'text/css' : full.endsWith('.json') ? 'application/json' : 'text/html';
+        setTimeout(() => { res.writeHead(200, { 'content-type': type }); res.end(fs.readFileSync(full)); }, rel.startsWith('scenarios/') ? 500 : 0);
+    });
+    await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+    const port = (server.address() as any).port;
+
+    let browser: Browser | undefined;
+    try {
+        browser = await chromium.launch({ headless: true });
+        const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
+        await page.goto(`http://127.0.0.1:${port}/index.html`);
+        // While the (slow) scenario iframe is still loading, click the big play button once.
+        await page.waitForSelector('#play-big');
+        await page.click('#play-big');
+        await page.waitForFunction(() => document.body.classList.contains('is-playing'), null, { timeout: 20000 });
+        await page.click('#btn-play');   // pause, so the Space assertion below starts from a stopped tour
+        await page.waitForFunction(() => !document.body.classList.contains('is-playing'), null, { timeout: 10000 });
+
+        // Space on a focused rail card activates the card; it must not toggle tour playback.
+        await page.focus('.card[data-slug="second"]');
+        const before = await page.evaluate(() => location.hash);
+        await page.keyboard.press('Space');
+        await page.waitForFunction(() => location.hash === '#second', null, { timeout: 10000 });
+        assert.notEqual(before, '#second', 'the card was selected by Space');
+        assert.equal(await page.evaluate(() => document.body.classList.contains('is-playing')), false, 'and the tour did not start playing behind it');
+    } finally {
+        if (browser) await browser.close();
+        await new Promise<void>(r => server.close(() => r()));
+    }
+});
 
 test('--embed writes a page per device, the custom element and a snippet; a plain build writes none', () => {
     const out = path.join(work, 'embed-out');

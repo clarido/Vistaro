@@ -379,9 +379,13 @@
     else if (d.type === 'end') { playing = false; starting = false; syncButtons(); showNext(); toHost('end', {}); }
     else if (d.type === 'error') {
       playing = false;
+      // The failing turn's index arrives with the error (a seek-replay failure reports the
+      // destination): adopt it, or the ticks stay lit on the pre-seek chapter while the caption
+      // tells a different story.
+      if (typeof d.index === 'number' && d.index >= 0) index = d.index;
       el('cap-body').textContent = fmt(S.stepError, { m: d.message });
       syncButtons();
-      toHost('error', { message: d.message });
+      toHost('error', { message: d.message, index: d.index });
     }
   });
 

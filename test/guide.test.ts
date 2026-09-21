@@ -58,7 +58,7 @@ before(() => {
 });
 after(() => { if (work) fs.rmSync(work, { recursive: true, force: true }); });
 
-test('isGuideStep skips guide:false and target-less wait/camera/scroll; cropBox clamps', () => {
+test('isGuideStep skips guide:false and target-less wait/camera/scroll; cropBox clamps and intersects', () => {
     const tl = parseTimeline([
         { time: 0, action: 'wait' },
         { time: 1, action: 'click', target: '#a' },
@@ -70,6 +70,10 @@ test('isGuideStep skips guide:false and target-less wait/camera/scroll; cropBox 
     assert.deepEqual(tl.steps.map(isGuideStep), [false, true, false, true, false, true]);
     assert.deepEqual(cropBox({ x: 10, y: 20, width: 100, height: 50 }, 30, { width: 300, height: 200 }), { x: 0, y: 0, width: 140, height: 100 });
     assert.deepEqual(cropBox({ x: 250, y: 150, width: 100, height: 100 }, 20, { width: 300, height: 200 }), { x: 230, y: 130, width: 70, height: 70 });
+    // A rect with no intersection with the viewport is no crop at all: per-edge clamping used to
+    // mask the empty intersection as a 1x1 clip located outside the image, which the screenshot rejects.
+    assert.equal(cropBox({ x: 400, y: 250, width: 100, height: 100 }, 20, { width: 300, height: 200 }), null, 'entirely right of/below the viewport');
+    assert.equal(cropBox({ x: -150, y: 20, width: 100, height: 50 }, 20, { width: 300, height: 200 }), null, 'entirely left of the viewport');
 });
 
 test('renderMarkdown/renderHtml produce the documented structure', () => {
@@ -174,7 +178,7 @@ test('guide <dir> without a video: screenshots, crops, callouts, guide.json/.md/
     }
     assert.deepEqual(pngSize(path.join(dir, 'guide', click.image!)), { width: 2560, height: 1600 });
     const crop = pngSize(path.join(dir, 'guide', click.crop!));
-    const expected = cropBox(click.rect!, 120, { width: 1280, height: 800 });
+    const expected = cropBox(click.rect!, 120, { width: 1280, height: 800 })!;
     assert.ok(Math.abs(crop.width - expected.width * 2) <= 2 && Math.abs(crop.height - expected.height * 2) <= 2, `crop ${JSON.stringify(crop)} vs ${JSON.stringify(expected)}`);
     assert.ok(crop.width < 2560);
     const caret = g.steps.find(s => s.id === 'caret')!;
@@ -286,6 +290,46 @@ test('export --guide --clips: video block, chapters, poster, clips wired into gu
     assert.equal(again.status, 0, again.stderr + again.stdout);
     assert.match(again.stdout, /Using video .*out\.mp4/);
     assert.match(again.stderr, /exported from different sources/);
+});
+
+test('an "only" gap keeps guide lookups correct: narration maps by authored index, clips cut, no crash; guide --device resolves the timeline', { skip }, () => {
+    // A device-resolved timeline keeps AUTHORED indexes (1,3,4 here), so positional steps[c.index - 1]
+    // lookups used to misattribute narration and crash on the last captured step.
+    const dir = path.join(work, 'gap'); fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'index.html'), `<!doctype html><html><head><meta charset="utf-8"><style>
+      body { margin: 0; font: 16px sans-serif; background: #fff; padding: 40px; }
+      button { padding: 12px 20px; font-size: 16px; }
+      input { padding: 10px; font-size: 16px; }
+    </style></head><body>
+      <button id="btn">Go</button>
+      <input id="field">
+    </body></html>`);
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { title: 'Gap', cursor: 'mac', drift: false }, steps: [
+        { id: 'open', time: 0.5, action: 'click', target: '#btn', title: 'Open', narration: 'Open it now.' },
+        { id: 'phone', time: 1.5, action: 'highlight', target: '#btn', title: 'Phone only', only: 'mobile' },
+        { id: 'type', time: 2.5, action: 'type', target: '#field', value: 'Hello world', title: 'Type' },
+        { id: 'last', time: 5, action: 'highlight', target: '#btn', title: 'Done', narration: 'All done.' },
+    ] }));
+    const out = path.join(work, 'gap-out.mp4');
+    const guideDir = path.join(work, 'gap-guide');
+    const r = cli(['export', dir, '-o', out, '--guide', '--guide-dir', guideDir, '--clips', 'mp4', '--device', 'desktop', '--width', '800', '--height', '600']);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    const g: GuideJson = JSON.parse(fs.readFileSync(path.join(guideDir, 'guide.json'), 'utf8'));
+    assert.deepEqual(g.steps.map(s => s.index), [1, 3, 4], 'the mobile-only step is resolved away, indexes keep their authored numbering');
+    assert.equal(g.steps.find(s => s.id === 'phone'), undefined);
+    // Narration attaches to the right step THROUGH the gap; the positional lookup used to give the
+    // step after the gap the missing step's text and throw on the last one.
+    assert.equal(g.steps.find(s => s.id === 'open')!.narration, 'Open it now.');
+    assert.equal(g.steps.find(s => s.id === 'type')!.narration, undefined);
+    assert.equal(g.steps.find(s => s.id === 'last')!.narration, 'All done.');
+    // Clips are cut for every captured step across the gap.
+    for (const s of g.steps) assert.ok(s.clip && fs.existsSync(path.join(guideDir, s.clip)), `${s.id}: ${s.clip}`);
+    // The standalone `guide` command resolves the device too (used to capture the desktop
+    // choreography whatever --device said, disagreeing with the video it links).
+    const g2 = cli(['guide', dir, '--device', 'desktop', '-o', path.join(work, 'gap-guide2'), '--width', '800', '--height', '600']);
+    assert.equal(g2.status, 0, g2.stderr + g2.stdout);
+    const g2json: GuideJson = JSON.parse(fs.readFileSync(path.join(work, 'gap-guide2', 'guide.json'), 'utf8'));
+    assert.deepEqual(g2json.steps.map(s => s.id), ['open', 'type', 'last'], 'guide --device desktop drops the mobile-only step');
 });
 
 test('guide marks never capture mid-transition: whenSettled outlasts a 3s CSS fade, a held spotlight snaps (K-3)', { skip }, async () => {

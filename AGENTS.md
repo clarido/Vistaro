@@ -445,7 +445,7 @@ Build animated.html from index.html + anim.config.json (no LLM, no API key)
 |---|---|
 | `-c, --cursor <style>` | Cursor style: mac, windows, none (default: meta.cursor or mac) |
 | `--device <type>` | Which device's timeline to bake in (resolves "only"/"mobile"/"desktop" steps): desktop or mobile (default: `desktop`) |
-| `--embed` | Also write embed.html (a framable, self-contained clip) and embed.snippet.html (the parent-side iframe snippet) |
+| `--embed` | Also write embed-<device>.html (a framable, self-contained clip) and embed-<device>.snippet.html (the parent-side iframe snippet) |
 | `-l, --loop` | Loop the animation endlessly when opened in a browser |
 | `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--locale <code>` | Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json |
@@ -526,7 +526,7 @@ Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narra
 
 | Option | Description |
 |---|---|
-| `-d, --duration <seconds>` | Override the export length in seconds (default: computed from the timeline; 5 without a config) |
+| `-d, --duration <seconds>` | Override the export length in seconds (a bare number, e.g. 12 or 12.5; default: computed from the timeline; 5 without a config) |
 | `-o, --output <file>` | Output video file path (.mp4 or .gif) (default: `output.mp4`) |
 | `-w, --width <pixels>` | Width of the exported video in pixels |
 | `-H, --height <pixels>` | Height of the exported video in pixels |
@@ -539,7 +539,7 @@ Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narra
 | `--no-subtitles` | Do not write <output>.vtt |
 | `--no-chapters` | Do not embed MP4 chapters for titled steps |
 | `--clips <format>` | Also cut one clip per step next to the video: mp4 or gif |
-| `--tail <ms>` | Hold after the last step (overrides meta.tailMs, default 2500) |
+| `--tail <ms>` | Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs, default 2500 |
 | `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--guide` | Also write the step-by-step guide (guide.json, guide.md, guide.html, assets/) after the video |
 | `--guide-dir <dir>` | Guide output directory (default: <output_dir>/guide) |
@@ -570,7 +570,7 @@ Record the timeline against a live page (URL) instead of a local mockup: real na
 | `--allow-reset` | Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this) |
 | `--fail-fast` | Abandon the recording at the first waitFor timeout instead of recording the rest against the wrong page state |
 | `-o, --output <file>` | Output video file path (.mp4 or .gif) (default: `output.mp4`) |
-| `-d, --duration <seconds>` | Override the recording length in seconds (default: computed from the timeline) |
+| `-d, --duration <seconds>` | Override the recording length in seconds (a bare number, e.g. 12 or 12.5; default: computed from the timeline) |
 | `-w, --width <pixels>` | Width of the recorded video in pixels |
 | `-H, --height <pixels>` | Height of the recorded video in pixels |
 | `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
@@ -580,7 +580,7 @@ Record the timeline against a live page (URL) instead of a local mockup: real na
 | `--no-subtitles` | Do not write <output>.vtt |
 | `--no-chapters` | Do not embed MP4 chapters |
 | `--clips <format>` | Also cut one clip per step: mp4 or gif |
-| `--tail <ms>` | Hold after the last step (overrides meta.tailMs) |
+| `--tail <ms>` | Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs |
 | `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--guide` | Also capture the step guide against the live page (re-navigates, replays in step mode) |
 | `--guide-dir <dir>` | Guide output directory (default: <output_dir>/guide) |

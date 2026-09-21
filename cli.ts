@@ -152,7 +152,7 @@ RECORD OF WHAT WAS DONE:
     .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
     .option('-c, --cursor <style>', 'Cursor style: mac, windows, none (default: meta.cursor or mac)')
     .option('--device <type>', 'Which device\'s timeline to bake in (resolves "only"/"mobile"/"desktop" steps): desktop or mobile', 'desktop')
-    .option('--embed', 'Also write embed.html (a framable, self-contained clip) and embed.snippet.html (the parent-side iframe snippet)')
+    .option('--embed', 'Also write embed-<device>.html (a framable, self-contained clip) and embed-<device>.snippet.html (the parent-side iframe snippet)')
     .option('-l, --loop', 'Loop the animation endlessly when opened in a browser')
     .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
@@ -206,7 +206,7 @@ RECORD OF WHAT WAS DONE:
     .command('export')
     .description('Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narration and step guide); the length comes from the timeline')
     .argument('<output_dir>', 'Directory containing index.html + anim.config.json (or a legacy animated.html)')
-    .option('-d, --duration <seconds>', 'Override the export length in seconds (default: computed from the timeline; 5 without a config)')
+    .option('-d, --duration <seconds>', 'Override the export length in seconds (a bare number, e.g. 12 or 12.5; default: computed from the timeline; 5 without a config)')
     .option('-o, --output <file>', 'Output video file path (.mp4 or .gif)', 'output.mp4')
     .option('-w, --width <pixels>', 'Width of the exported video in pixels')
     .option('-H, --height <pixels>', 'Height of the exported video in pixels')
@@ -219,7 +219,7 @@ RECORD OF WHAT WAS DONE:
     .option('--no-subtitles', 'Do not write <output>.vtt')
     .option('--no-chapters', 'Do not embed MP4 chapters for titled steps')
     .option('--clips <format>', 'Also cut one clip per step next to the video: mp4 or gif')
-    .option('--tail <ms>', 'Hold after the last step (overrides meta.tailMs, default 2500)')
+    .option('--tail <ms>', 'Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs, default 2500')
     .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--guide', 'Also write the step-by-step guide (guide.json, guide.md, guide.html, assets/) after the video')
     .option('--guide-dir <dir>', 'Guide output directory (default: <output_dir>/guide)')
@@ -241,7 +241,7 @@ RECORD OF WHAT WAS DONE:
     .option('--allow-reset', 'Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this)')
     .option('--fail-fast', 'Abandon the recording at the first waitFor timeout instead of recording the rest against the wrong page state')
     .option('-o, --output <file>', 'Output video file path (.mp4 or .gif)', 'output.mp4')
-    .option('-d, --duration <seconds>', 'Override the recording length in seconds (default: computed from the timeline)')
+    .option('-d, --duration <seconds>', 'Override the recording length in seconds (a bare number, e.g. 12 or 12.5; default: computed from the timeline)')
     .option('-w, --width <pixels>', 'Width of the recorded video in pixels')
     .option('-H, --height <pixels>', 'Height of the recorded video in pixels')
     .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
@@ -251,7 +251,7 @@ RECORD OF WHAT WAS DONE:
     .option('--no-subtitles', 'Do not write <output>.vtt')
     .option('--no-chapters', 'Do not embed MP4 chapters')
     .option('--clips <format>', 'Also cut one clip per step: mp4 or gif')
-    .option('--tail <ms>', 'Hold after the last step (overrides meta.tailMs)')
+    .option('--tail <ms>', 'Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs')
     .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--guide', 'Also capture the step guide against the live page (re-navigates, replays in step mode)')
     .option('--guide-dir <dir>', 'Guide output directory (default: <output_dir>/guide)')
@@ -379,7 +379,9 @@ Catalog shape:
     "product":  { "name": "Clarido", "tagline": "...", "accent": "#2f6bff" },
     "rail":     { "title": "What would you like to see?", "subtitle": "..." },
     "groups":   [{ "id": "writing", "label": "Writing" }],
-    "defaults": { "width": 1920, "height": 1080 },
+    "strings":  { "stepNofM": "Étape {n} sur {total}", "nextScenario": "Scénario suivant : {label}" },
+    "theme":    { "accent": "#2563EB", "canvas": "#0d0f14", "radius": "14px", "font": "Georgia, serif" },
+    "defaults": { "width": 1920, "height": 1080, "locale": "fr" },
     "scenarios": [
       { "slug": "draft-response", "dir": "demo", "label": "Draft a response", "blurb": "...", "group": "writing" },
       { "slug": "export-word", "dir": "demo", "config": "demo/scenarios/export-word.json", "label": "Export to Word" }
@@ -390,6 +392,15 @@ Catalog shape:
   <dir>/anim.config.json, which is how several scenarios share one screen: the same index.html,
   a different choreography. Every scenario page is the mockup with the runtime and the tour
   scheduler injected -- nothing is recorded, so a scenario weighs what its HTML weighs.
+
+  "defaults.locale" and "strings" give the shell its voice: they set <html lang>, the page title
+  and every chrome string (step eyebrow, transport labels and aria-labels, rest copy, error
+  messages, the next-scenario offer). English is the built-in fallback, so a catalog may override
+  one key or all of them; unknown keys warn in the console. "theme" repaints the chrome with the
+  caller's colours: each key is one design token -- accent, ink, muted, line, paper, ground,
+  canvas, radius, font -- applied as a CSS custom property; values go in verbatim, contrast is
+  the caller's. Locale, strings and theme are baked into the built page, so first paint and the
+  failure path are already in the catalog's language and on its brand.
 `)
 
   program

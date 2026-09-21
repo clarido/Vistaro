@@ -198,6 +198,36 @@ test('localize scaffolds locales/<code>/ with copies, base + target strings, man
     fs.rmSync(work, { recursive: true, force: true });
 });
 
+test('localize prunes keys whose step is gone instead of keeping them forever', () => {
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-localize-prune-'));
+    try {
+        const dir = path.join(work, 'guide');
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, 'index.html'), '<html><body><button id="a">A</button></body></html>');
+        const cfg: any = { meta: { title: 'T', locale: 'en' }, steps: [
+            { id: 'keep', time: 0, action: 'click', target: '#a', title: 'Keep me' },
+            { id: 'gone', time: 2, action: 'click', target: '#a', title: 'Delete me' },
+        ] };
+        fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(cfg));
+        assert.equal(cli(['localize', dir, 'fr']).status, 0);
+        const fr = path.join(dir, 'locales', 'fr', 'strings.fr.json');
+        const t = readStrings(fr);
+        t['steps.keep.title'] = 'Garde';
+        t['steps.gone.title'] = 'Supprime';
+        writeStrings(fr, t);
+        cfg.steps = cfg.steps.slice(0, 1);
+        fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(cfg));
+        const again = cli(['localize', dir, 'fr']);
+        assert.equal(again.status, 0, again.stderr);
+        const merged = readStrings(fr);
+        assert.equal(merged['steps.keep.title'], 'Garde', 'a surviving translation is kept');
+        assert.ok(!('steps.gone.title' in merged), 'the orphaned key is pruned, so a re-added id cannot resurrect it');
+        assert.match(again.stderr, /Pruned 1 key\(s\)[^.]*steps\.gone\.title/);
+    } finally {
+        fs.rmSync(work, { recursive: true, force: true });
+    }
+});
+
 test('strings edge cases: invalid JSON names the strings file, dotted ids, locale code validation, legacy baseLocale ignored', () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-strings-edge-'));
     fs.writeFileSync(path.join(d, 'anim.config.json'), JSON.stringify({ meta: { locale: 'en' }, steps: [{ id: 'a.b', time: 0, action: 'wait', subtitle: 'Hi' }, { time: 1, action: 'wait', subtitle: 'Auto id' }] }));

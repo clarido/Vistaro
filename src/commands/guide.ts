@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Browser, Page } from 'playwright';
-import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, leadMsFor, emulateMobileFor, cliConfigPath, configStem } from '../engine/schema';
+import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, leadMsFor, emulateMobileFor, cliConfigPath, configStem, deviceKind } from '../engine/schema';
 import { ensureRuntime, StepResult, LiveOptions } from '../engine/driver';
 import { launchPage, fileUrl, resolveViewport, ViewportOptions, newDrivenPage, assertReachable, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
@@ -154,7 +154,15 @@ export async function buildGuide(browser: Browser, dir: string, timeline: Timeli
             for (const c of capture.steps) {
                 const existing = video.clipFiles?.get(c.index);
                 if (existing && existing.toLowerCase().endsWith('.' + ext)) { clipByIndex.set(c.index, existing); continue; }
-                const i = c.index - 1;
+                // Captured indexes keep their AUTHORED numbering, which a device-resolved timeline
+                // can leave non-contiguous (a dropped "only" step): find the step by index, never by
+                // position. The prev/next neighbours stay positional in the RESOLVED array, because
+                // that is what the video pass used for the cursor lead the clip must start at.
+                const i = steps.findIndex(s => s.index === c.index);
+                if (i === -1) {
+                    (opts.warn ?? console.error)(`warning  captured step ${c.index} matches no step in the timeline; no clip cut for it`);
+                    continue; // capture/timeline divergence: no clip rather than a wrong one
+                }
                 const s = steps[i];
                 const start = Math.max(0, actualOf(s) - leadMsFor(s, steps[i - 1]));
                 if (start >= video.durationMs) continue;
@@ -179,11 +187,13 @@ export async function buildGuide(browser: Browser, dir: string, timeline: Timeli
     const manifest = readManifest(dir);
     // The locale loadTimeline resolved (--locale > manifest.locale > meta.locale).
     const locale = timeline.locale || opts.locale || 'en';
+    // Same non-contiguous-index rule as the clip loop: narration attaches by authored index.
+    const stepByIndex = new Map<number, Step>(timeline.steps.map(s => [s.index, s]));
     const toStep = (c: CapturedStep): GuideStepJson => {
         const s: GuideStepJson = {
             index: c.index, number: c.number, id: c.id, action: c.action, target: c.target,
             scheduledMs: c.scheduledMs, actualMs: video?.actualMs.get(c.index) ?? c.scheduledMs, capturedAt: c.capturedAt,
-            title: c.title, subtitle: c.subtitle, narration: narrationOf(timeline.steps[c.index - 1]), note: c.note,
+            title: c.title, subtitle: c.subtitle, narration: narrationOf(stepByIndex.get(c.index)), note: c.note,
             image: c.image ? rel(c.image) : undefined, crop: c.crop ? rel(c.crop) : undefined, rect: c.rect ?? null, targetRect: c.targetRect, callout: c.callout ?? null,
         };
         const clip = clipByIndex.get(c.index);
@@ -222,7 +232,10 @@ export async function guideCommand(dir: string, options: GuideOptions = {}): Pro
     try {
         const configAbs = cliConfigPath(options.config);
         const configRel = configAbs ? relPosix(path.resolve(dir), configAbs) : undefined;
-        const timeline = loadTimeline(dir, { locale: options.locale, config: configAbs });
+        // Device resolution like every sibling command (build/check/preview/export): without it,
+        // --device changed the viewport but captured the desktop choreography -- a guide disagreeing
+        // with the video it links (extra steps numbered, mobile overrides inert).
+        const timeline = loadTimeline(dir, { locale: options.locale, device: deviceKind(options.device), config: configAbs });
         const issues = validateTimeline(timeline, { guide: true, live: !!videoFromManifest(dir, configRel)?.url });
         for (const issue of issues) console.error(formatIssue(issue));
         if (hasErrors(issues) && !options.force) throw new Error('fix the validation errors above or pass --force');

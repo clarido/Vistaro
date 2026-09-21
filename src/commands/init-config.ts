@@ -50,7 +50,15 @@ export function initConfigCommand(dir: string, options: { force?: boolean; kind?
         console.error(`Error: ${target} already exists (use --force to overwrite).`);
         process.exit(1);
     }
-    const reel = options.kind === 'reel';
+    // Anything but the two known profiles must refuse: a typo (--kind reels) used to fall through
+    // to the guide scaffold with exit 0, and the mismatch only surfaced after authoring against
+    // the wrong template.
+    const kind = options.kind || 'guide';
+    if (kind !== 'guide' && kind !== 'reel') {
+        console.error(`Error: unknown --kind "${options.kind}" (use guide or reel).`);
+        process.exit(1);
+    }
+    const reel = kind === 'reel';
     fs.writeFileSync(target, JSON.stringify(reel ? REEL_SCAFFOLD : CONFIG_SCAFFOLD, null, 2) + '\n');
     console.log(`Created ${target}${reel ? ' (reel profile: silent, looping, no guide)' : ''}`);
     console.log('Edit the steps to match the element selectors in your index.html, then:');

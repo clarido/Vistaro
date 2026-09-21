@@ -34,7 +34,8 @@ export function ttsEngine(): 'openai' | 'say' {
 }
 
 /** Effective narration text of a step: `narration`, falling back to `subtitle`. */
-export function narrationOf(step: Step): string | undefined {
+export function narrationOf(step: Step | undefined): string | undefined {
+    if (!step) return undefined;
     if (typeof step.narration === 'string' && step.narration.trim()) return step.narration.trim();
     if (typeof step.subtitle === 'string' && step.subtitle.trim()) return step.subtitle.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     return undefined;
@@ -60,24 +61,50 @@ function saySpeech(text: string, voice: string | undefined, outFile: string): vo
     execFileSync('say', [...args, '-o', outFile], { input: text, stdio: ['pipe', 'ignore', 'ignore'], timeout: SAY_TIMEOUT_MS });
 }
 
+/** Injectable engines/runners, so tests can exercise the failure paths without a real TTS. */
+export interface SynthRunners {
+    /** Overrides ttsEngine() (the environment otherwise decides). */
+    engine?: 'openai' | 'say';
+    openai?: (text: string, voice: string, outFile: string) => Promise<void>;
+    say?: (text: string, voice: string | undefined, outFile: string) => void;
+}
+
+let synthTmpSeq = 0;
+
 /**
- * Synthesize `text` into `outFile` (extension decides nothing; the engine picks mp3 or aiff and
+ * Synthesize `text` into `outBase` (extension decides nothing; the engine picks mp3 or aiff and
  * returns the real path). Falls back from OpenAI to `say` on API errors, as the original export did.
+ * Each clip is written to a temp sibling and renamed into place on success: synthesis killed
+ * mid-write (the 60s `say` bound) must not leave a truncated file where the cache would treat it
+ * as a valid hit forever.
  */
-export async function synthesize(text: string, voice: VoiceOptions, outBase: string): Promise<string> {
-    const engine = ttsEngine();
+export async function synthesize(text: string, voice: VoiceOptions, outBase: string, runners: SynthRunners = {}): Promise<string> {
+    const engine = runners.engine ?? ttsEngine();
+    const tmp = (ext: string) => `${outBase}.tmp-${process.pid}-${++synthTmpSeq}${ext}`;
     if (engine === 'openai') {
         const file = outBase + '.mp3';
+        const t = tmp('');
         try {
-            await openaiSpeech(text, voice.openai || 'alloy', file);
+            await (runners.openai ?? openaiSpeech)(text, voice.openai || 'alloy', t);
+            fs.renameSync(t, file);
             return file;
         } catch (e: any) {
-            if (process.platform !== 'darwin') throw e;
+            try { fs.unlinkSync(t); } catch { /* nothing was written */ }
+            // A forced engine never falls back: tests (and callers overriding the engine) asked for
+            // this one, not for whatever the platform would pick next.
+            if (process.platform !== 'darwin' || runners.engine) throw e;
             console.error(`${e.message}\nFalling back to native macOS 'say'...`);
         }
     }
     const file = outBase + '.aiff';
-    saySpeech(text, voice.say, file);
+    const t = tmp('.aiff'); // `say` picks its output format from the extension
+    try {
+        (runners.say ?? saySpeech)(text, voice.say, t);
+        fs.renameSync(t, file);
+    } catch (e) {
+        try { fs.unlinkSync(t); } catch { /* nothing was written */ }
+        throw e;
+    }
     return file;
 }
 

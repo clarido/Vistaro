@@ -101,11 +101,26 @@ export async function generateContent(
             system: systemPrompt,
             messages: [{ role: 'user', content }]
         });
-
-        const block = msg.content[0];
-        if (block.type !== 'text') throw new Error('Unexpected response type: ' + block.type);
-        return block.text;
+        return textFromClaudeResponse(msg);
     }
 
     throw new Error('Unsupported provider: ' + config.provider);
+}
+
+/**
+ * The text of a Claude messages response. Every text block is joined (the SDK may split a long
+ * answer, and taking only content[0] silently truncated it mid-JSON), an empty response is a
+ * readable error rather than a TypeError on undefined, and a stop reason that means the answer was
+ * cut short (max_tokens, tool_use) is reported instead of returning a partial answer as success.
+ * Exported for tests; the gemini branch already concatenates through response.text().
+ */
+export function textFromClaudeResponse(msg: any): string {
+    const blocks: any[] = Array.isArray(msg?.content) ? msg.content : [];
+    const text = blocks.filter(b => b && b.type === 'text').map(b => String(b.text ?? '')).join('');
+    const stop = msg?.stop_reason;
+    if (stop && stop !== 'end_turn' && stop !== 'stop_sequence') {
+        throw new Error(`claude stopped early (stop_reason "${stop}"); the answer is incomplete -- raise max_tokens or shorten the prompt`);
+    }
+    if (!text.trim()) throw new Error(`claude response contained no text (${blocks.length} block(s), stop_reason ${JSON.stringify(stop)})`);
+    return text;
 }

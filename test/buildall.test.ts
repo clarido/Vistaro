@@ -70,10 +70,11 @@ test('readCatalog validates shape, dirs, slugs, locales, outputs, settings types
     assert.deepEqual(effectiveSettings(c.guides[0], c.defaults).outputs, ['guide'], 'video is not an extra');
     assert.deepEqual(effectiveSettings({ slug: 'x', dir: 'x' }, {}).outputs, ['guide'], 'guide is the default extra');
     assert.deepEqual(effectiveSettings({ slug: 'x', dir: 'x', crop: false, width: 800 }, { crop: 60, width: 640, height: 400 }), { width: 800, height: 400, theme: undefined, crop: false, narration: false, hideCursor: false, outputs: ['guide'], device: undefined, scale: undefined, kind: 'guide' }, 'guide values win over defaults, crop/hideCursor per guide');
-    fs.writeFileSync(path.join(d, 'bad.json'), JSON.stringify({ outputDir: '', defaults: { width: '1280', theme: 'sepia', outputs: 'guide', crop: -1 }, guides: [{ slug: 'Bad Slug', dir: 'missing' }, { slug: 'g1', dir: 'g1', locales: ['nope-dir-name'], outputs: ['pdf'], narration: 'yes', hideCursor: 1, height: 0 }, { slug: 'g1', dir: 'g1', record: {} }, { slug: 'g2', dir: 'g1', record: { url: 'http://x', storageState: 'nope.json' } }] }));
+    fs.writeFileSync(path.join(d, 'bad.json'), JSON.stringify({ outputDir: '', defaults: { width: '1280', theme: 'sepia', outputs: 'guide', crop: -1 }, guides: [{ slug: 'Bad Slug', dir: 'missing' }, { slug: 'g1', dir: 'g1', locales: ['nope-dir-name'], outputs: ['pdf'], narration: 'yes', hideCursor: 1, height: 0 }, { slug: 'g1', dir: 'g1', record: {} }, { slug: 'g2', dir: 'g1', record: { url: 'http://x', storageState: 'nope.json' } }, { slug: 'g3', dir: 'g1', record: { url: 'http://x' }, outputs: ['embed'] }] }));
     assert.throws(() => readCatalog(path.join(d, 'bad.json')), (e: any) => {
         for (const needle of ['"outputDir" must be', 'lowercase-kebab', 'has no anim.config.json', 'not a locale code', 'unknown output "pdf"', 'duplicate slug "g1"', '"record" needs a "url"',
-            'defaults: "width" must be a positive integer', 'defaults: "theme" must be "light" or "dark"', 'defaults: "outputs" must be an array', 'defaults: "crop" must be a padding', 'guides[1]: "narration" must be true or false', 'guides[1]: "hideCursor" must be true or false', 'guides[1]: "height" must be a positive integer', 'record.storageState', 'does not exist']) assert.ok(e.message.includes(needle), `${needle} in: ${e.message}`);
+            'defaults: "width" must be a positive integer', 'defaults: "theme" must be "light" or "dark"', 'defaults: "outputs" must be an array', 'defaults: "crop" must be a padding', 'guides[1]: "narration" must be true or false', 'guides[1]: "hideCursor" must be true or false', 'guides[1]: "height" must be a positive integer', 'record.storageState', 'does not exist',
+            'output "embed" cannot be combined with "record"']) assert.ok(e.message.includes(needle), `${needle} in: ${e.message}`);
         return true;
     });
     assert.throws(() => readCatalog(path.join(d, 'none.json')), /catalog not found/);
@@ -114,9 +115,26 @@ test('readCatalog validates shape, dirs, slugs, locales, outputs, settings types
     assert.notEqual(k1, buildKeyFor('sha256:a', { ...st, width: 641 }, undefined, 'tool@1'));
     assert.notEqual(k1, buildKeyFor('sha256:a', st, undefined, 'tool@2'));
     assert.notEqual(k1, buildKeyFor('sha256:a', st, { url: 'http://x' }, 'tool@1'));
+    // The record target's VALUE is part of the key, not just its presence: as a nested object under
+    // the key-array replacer it serialized to {} and a changed record.url kept skipping its row as
+    // "unchanged" -- the worst kind of failure, because it reads exactly like success.
+    const kr = buildKeyFor('sha256:a', st, { url: 'http://x' }, 'tool@1');
+    assert.notEqual(kr, buildKeyFor('sha256:a', st, { url: 'http://y' }, 'tool@1'));
+    assert.notEqual(kr, buildKeyFor('sha256:a', st, { url: 'http://x', storageState: 'auth.json' }, 'tool@1'));
+    assert.notEqual(kr, buildKeyFor('sha256:a', st, { url: 'http://x', ignoreHttpsErrors: true }, 'tool@1'));
     // A change that alters the produced bytes without touching any input above -- an encode setting,
     // a filter graph, the injected runtime -- is only visible to --changed-only through this.
     assert.notEqual(k1, buildKeyFor('sha256:a', st, undefined, 'tool@1', OUTPUT_REVISION + 1));
+});
+
+test('init-config refuses an unknown --kind instead of silently scaffolding the guide profile', () => {
+    const d = path.join(work, 'kind-typo');
+    const r = cli(['init-config', d, '--kind', 'reels']);
+    assert.equal(r.status, 1, r.stderr + r.stdout);
+    assert.match(r.stderr, /unknown --kind "reels"/);
+    assert.ok(!fs.existsSync(path.join(d, 'anim.config.json')), 'nothing scaffolded for a typo');
+    assert.equal(cli(['init-config', d, '--kind', 'reel']).status, 0);
+    assert.match(fs.readFileSync(path.join(d, 'anim.config.json'), 'utf8'), /"kind": "reel"/);
 });
 
 test('mergeIndexEntries keeps untouched entries, replaces touched ones, drops entries no longer in the catalog', () => {

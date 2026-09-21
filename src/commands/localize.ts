@@ -121,7 +121,14 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
         for (const k of Object.keys(baseStrings)) seed[k] = seedStrings?.[k] ?? baseStrings[k];
         if (fs.existsSync(targetStringsFile) && !options.force) {
             const existing = readStrings(targetStringsFile);
-            writeStrings(targetStringsFile, { ...seed, ...existing });
+            // The translator's value wins for keys that still exist, and keys whose step or field is
+            // gone from the timeline are pruned rather than kept forever: a kept key silently
+            // resurrects an outdated translation if a step of the same id is ever re-added.
+            const merged: StringMap = {};
+            for (const k of Object.keys(seed)) merged[k] = existing[k] ?? seed[k];
+            const pruned = Object.keys(existing).filter(k => !Object.hasOwn(seed, k));
+            writeStrings(targetStringsFile, merged);
+            if (pruned.length) console.error(`Pruned ${pruned.length} key(s) with no step or field in the timeline anymore: ${pruned.slice(0, 4).join(', ')}${pruned.length > 4 ? ', …' : ''}`);
             kept.push(path.basename(targetStringsFile) + ' (merged)');
         } else {
             if (fs.existsSync(targetStringsFile)) overwritten.push(path.basename(targetStringsFile) + ' (translations lost)');

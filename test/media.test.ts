@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseTimeline } from '../src/engine/schema';
 import { subtitleCues, buildVtt, vttTime } from '../src/media/vtt';
 import { chaptersFor, ffmetadata } from '../src/media/chapters';
-import { cacheKey, narrationOf, narrationOverruns } from '../src/media/tts';
+import { cacheKey, narrationOf, narrationOverruns, synthesize } from '../src/media/tts';
 import { encodeGif, describeAsset, run } from '../src/media/ffmpeg';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -70,6 +70,39 @@ test('narrationOverruns reports exact milliseconds', () => {
     assert.equal(w.length, 2);
     assert.match(w[0], /step 1 \(2500ms\) overruns step 2 at 2000ms by 500ms/);
     assert.match(w[1], /step 4 \(3000ms\) runs 700ms past the end/);
+});
+
+test('escaped entities decode once, not twice: &amp;lt; keeps its literal text', () => {
+    const esc = parseTimeline([
+        { time: 0, action: 'wait', subtitle: 'A &amp;lt;tag&amp;gt; stays escaped text' },
+        { time: 2, action: 'wait', subtitle: 'Fish &amp; chips' },
+        { time: 4, action: 'wait', subtitle: 'Use &lt;b&gt;bold&lt;/b&gt; once' },
+    ]);
+    const [a, b, c] = subtitleCues(esc);
+    // Decoding &amp; first used to turn &amp;lt; into a real < (double-decoded into cue markup).
+    assert.equal(a.text, 'A &lt;tag&gt; stays escaped text');
+    assert.equal(b.text, 'Fish & chips');
+    assert.equal(c.text, 'Use <b>bold</b> once', 'a single, intended escape still decodes');
+});
+
+test('synthesize writes through a temp file: a failed run leaves nothing for the cache to poison itself with', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-tts-'));
+    try {
+        const base = path.join(dir, 'clip');
+        const boom = async () => { throw new Error('tts exploded'); };
+        await assert.rejects(synthesize('hello', {}, base, { engine: 'openai', openai: boom }), /tts exploded/);
+        assert.equal(fs.readdirSync(dir).length, 0, 'no final file, no temp sibling');
+        // A `say` killed mid-write (its 60s bound) is the real-world version of the same thing.
+        const halfSay = (_t: string, _v: string | undefined, out: string) => { fs.writeFileSync(out, 'truncated'); throw new Error('killed'); };
+        await assert.rejects(synthesize('hello', {}, base, { engine: 'say', say: halfSay }), /killed/);
+        assert.equal(fs.readdirSync(dir).length, 0, 'a half-written clip is deleted, not left where the cache would trust it');
+        const okSay = (_t: string, _v: string | undefined, out: string) => { fs.writeFileSync(out, 'audio'); };
+        const file = await synthesize('hello', {}, base, { engine: 'say', say: okSay });
+        assert.equal(file, base + '.aiff');
+        assert.deepEqual(fs.readdirSync(dir), ['clip.aiff'], 'the final name only; the temp is renamed away');
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
 });
 
 

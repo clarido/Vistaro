@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { recordEvent } from '../manifest';
-import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS, deviceKind, reelOptions, intrinsicDurationMs, parseTime, emulateMobileFor, resolveConfigPath, cliConfigPath, configStem } from '../engine/schema';
+import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS, deviceKind, reelOptions, intrinsicDurationMs, parseTime, parseTailMs, parseDurationS, emulateMobileFor, resolveConfigPath, cliConfigPath, configStem } from '../engine/schema';
 import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions, RunAbortedError, errorMessage } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions, resolveViewport, closeWithWatchdog, closeBrowser, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
@@ -166,8 +166,8 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             console.error('--force: exporting despite validation errors; failing steps are skipped.');
         }
         if (options.tail !== undefined) {
-            const tail = parseFloat(options.tail);
-            if (!Number.isFinite(tail) || tail < 0) throw new Error(`invalid --tail "${options.tail}" (milliseconds)`);
+            const tail = parseTailMs(options.tail);
+            if (!Number.isFinite(tail) || tail < 0) throw new Error(`invalid --tail "${options.tail}" (milliseconds: 2500, or an explicit unit such as "2.5s")`);
             timeline.meta.tailMs = tail;
         }
     }
@@ -176,8 +176,8 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     let durationMs: number;
     let autoDuration = false;
     if (options.duration !== undefined) {
-        const s = parseFloat(options.duration);
-        if (!Number.isFinite(s) || s <= 0) throw new Error(`invalid duration "${options.duration}". Must be a positive number of seconds.`);
+        const s = parseDurationS(options.duration);
+        if (!Number.isFinite(s) || s <= 0) throw new Error(`invalid duration "${options.duration}". Must be a positive number of seconds (a bare number, e.g. 12 or 12.5).`);
         durationMs = Math.round(s * 1000);
     } else if (timeline) {
         durationMs = computeDurationMs(timeline);
@@ -263,6 +263,9 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     let t0Wall = 0;
     // Set once this run's manifest event is written, so an abort after it cannot write a second.
     let eventRecorded = false;
+    // Set once THIS run actually encoded the output: an aborted run must not claim an earlier
+    // run's file at the same path as its own output in the manifest.
+    let encodedOutput = false;
     let loadWall = 0;
     let closeWall = 0;
     try {
@@ -367,7 +370,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         recordEvent(outputDir, {
             ...baseEvent(),
             aborted: message,
-            output: fs.existsSync(out) ? relPosix(path.resolve(outputDir), out) : undefined,
+            output: encodedOutput && fs.existsSync(out) ? relPosix(path.resolve(outputDir), out) : undefined,
         });
     }
 
@@ -410,9 +413,11 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     if (isGif) {
         console.log('Optimizing frames for high-quality GIF export...');
         encodeGif(webmFile, outputFile, { startMs: startOffsetMs, durationMs, ...gifOptions });
+        encodedOutput = true;
     } else if (ext === 'webm') {
         console.log(`Encoding WebM: ${outputFile}...`);
         encodeWebm(webmFile, outputFile, { startMs: startOffsetMs, durationMs });
+        encodedOutput = true;
     } else {
         // Subtitles (.vtt next to the video). A reel carries its words in the page around it.
         if (driven && !reel && options.subtitles !== false) {
@@ -454,6 +459,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         }
         console.log(`Converting to MP4: ${outputFile}...`);
         encodeMp4({ input: webmFile, output: outputFile, audio, chaptersFile, startMs: startOffsetMs, durationMs, muted: reel });
+        encodedOutput = true;
 
         // A reel ships in every form a homepage needs: WebM beside the MP4, a poster to show before
         // playback, and a GIF for the places that take neither.

@@ -283,6 +283,15 @@ export function readCatalog(file: string, warn: (m: string) => void = () => {}):
             locales = resolved;
         }
         validateSettings(g, where, errors, m => warn(`${name}: ${m}`));
+        // `embed` needs a local mockup (`build --embed` writes beside index.html); a record row
+        // skips the build step entirely, so its embed page could never exist and the row would fail
+        // every run at the artifact assert. Refused here, at catalog read, where the fix is obvious.
+        if (g.record) {
+            const outputs = g.outputs ?? raw.defaults?.outputs ?? (g.kind === 'reel' ? DEFAULT_REEL_OUTPUTS : DEFAULT_OUTPUTS);
+            if (Array.isArray(outputs) && outputs.includes('embed')) {
+                errors.push(`${where} (${g.slug}): output "embed" cannot be combined with "record" -- there is no local index.html to build an embed from`);
+            }
+        }
         let record = g.record;
         if (record !== undefined) {
             if (!record || typeof record !== 'object' || typeof record.url !== 'string' || !record.url) errors.push(`${where}: "record" needs a "url"`);

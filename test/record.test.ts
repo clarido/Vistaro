@@ -397,6 +397,14 @@ test('record: a timed-out waitFor is reported as a warning naming the step, sepa
     assert.deepEqual(ab.timedOutSteps, [3]);
     assert.equal(ab.steps.length, 3, 'it stopped scheduling at the timed-out step');
     assert.ok(Number.isFinite(ab.steps[0].actualMs), 'the steps it did run are recorded');
+    // An earlier run's file sitting at the same -o path must not be claimed either: the manifest
+    // would attribute an unrelated video to a recording that never reached the encode.
+    fs.writeFileSync(out, 'bytes of an earlier export');
+    const f2 = await cli(['record', dir, '-o', out, '--fail-fast', '--width', '1280', '--height', '800']);
+    assert.equal(f2.status, 1);
+    const ab2 = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    assert.equal(ab2.output, undefined, "a stale file at -o is not this aborted run's output");
+    assert.equal(fs.readFileSync(out, 'utf8'), 'bytes of an earlier export', 'and the file was never touched');
 });
 
 test('record --guide: a step that succeeded in the recording but fails on the guide replay is diagnosed as a state difference; --reset-cmd makes the two passes identical', { skip }, async () => {

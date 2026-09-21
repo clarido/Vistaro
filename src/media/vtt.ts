@@ -19,7 +19,9 @@ export function vttTime(ms: number): string {
 }
 
 function plainText(html: string): string {
-    return html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+    // &amp; LAST: decoded first it would turn &amp;lt; into &lt; and then into a literal <,
+    // double-decoding text the author escaped to show as-is (and cue markup in the player).
+    return html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim();
 }
 
 /**

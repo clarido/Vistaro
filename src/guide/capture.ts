@@ -103,13 +103,17 @@ export function stepFileBase(index: number): string {
     return `step-${String(index).padStart(2, '0')}`;
 }
 
-/** Clip rectangle for the crop: rect + padding, clamped to the viewport (CSS px). */
-export function cropBox(rect: Box, pad: number, viewport: { width: number; height: number }): Box {
+/** Clip rectangle for the crop: rect + padding, intersected with the viewport (CSS px). Null when nothing of it survives. */
+export function cropBox(rect: Box, pad: number, viewport: { width: number; height: number }): Box | null {
     const x = Math.max(0, Math.floor(rect.x - pad));
     const y = Math.max(0, Math.floor(rect.y - pad));
     const right = Math.min(viewport.width, Math.ceil(rect.x + rect.width + pad));
     const bottom = Math.min(viewport.height, Math.ceil(rect.y + rect.height + pad));
-    return { x, y, width: Math.max(1, right - x), height: Math.max(1, bottom - y) };
+    // Per-edge clamping is not an intersection test: a rect entirely right of or below the viewport
+    // yields x > right, and a Math.max(1, ...) width would mask that as a 1x1 clip located outside
+    // the image -- which the screenshot then rejects.
+    if (right - x <= 0 || bottom - y <= 0) return null;
+    return { x, y, width: right - x, height: bottom - y };
 }
 
 
@@ -159,9 +163,12 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
             // a subtitle burned into the cover image would also leak the previous locale's text.
             await page.evaluate((o) => (window as any).__anim.beginCapture(o), { hideCursor: !!opts.hideCursor });
             if (!poster && opts.poster !== false) {
-                poster = path.join(opts.assetsDir, 'poster.png');
+                // Assigned only after the screenshot resolves: a path set before an awaited shot that
+                // throws would suppress the retake a later step owes (poster stays truthy forever).
+                const posterPath = path.join(opts.assetsDir, 'poster.png');
                 await page.evaluate(() => (window as any).__anim.nextFrames(2));
-                await page.screenshot({ path: poster, type: 'png' });
+                await page.screenshot({ path: posterPath, type: 'png' });
+                poster = posterPath;
             }
             // Badge + spotlight for every guide step with a resolvable target ("notice this" is a real
             // instruction for the reader): cursor actions on the box runStep used, other actions on the
@@ -190,10 +197,12 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
             entry.crop = undefined;
             if (pad !== false && rect && rect.width > 0 && rect.height > 0) {
                 const clip = cropBox(rect, pad, opts.viewport);
-                // A crop that is the whole frame (e.g. fadeIn body) adds nothing.
-                if (clip.width < opts.viewport.width || clip.height < opts.viewport.height) {
-                    entry.crop = base + '.crop.png';
-                    await page.screenshot({ path: entry.crop, type: 'png', clip });
+                // A crop that is the whole frame (e.g. fadeIn body) adds nothing; a rect with no
+                // intersection with the viewport gets no crop at all, not one the screenshot refuses.
+                if (clip && (clip.width < opts.viewport.width || clip.height < opts.viewport.height)) {
+                    const cropPath = base + '.crop.png';
+                    await page.screenshot({ path: cropPath, type: 'png', clip });
+                    entry.crop = cropPath;
                 }
             }
         } catch (e: any) {
@@ -213,7 +222,10 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
             }
             if (!recovered) {
                 entry.error = entry.error ? `${entry.error}; ${errorMessage(e)}` : `capture: ${errorMessage(e)}`;
+                // Belt for the paths that were assigned before this try threw: guide.json must never
+                // reference a file that was never (fully) written.
                 if (entry.image && !fs.existsSync(entry.image)) entry.image = undefined;
+                if (entry.crop && !fs.existsSync(entry.crop)) entry.crop = undefined;
             }
         } finally {
             await page.evaluate(() => (window as any).__anim.endCapture()).catch(() => {});

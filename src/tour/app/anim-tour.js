@@ -114,21 +114,18 @@ class AnimTour extends HTMLElement {
     }
 
     /**
-     * Which device pages this scenario actually HAS. A tour whose screen is not responsive ships
-     * desktop-only (see the tour docs), and asking a phone-shaped host for a mobile page that was
-     * never built frames a 404 -- a blank box, on the device where it is least likely to be noticed.
-     * tours.json is the same manifest the full shell reads, and it is fetched once per root.
+     * The tours.json manifest for a root, fetched once per page. Only a SUCCESSFUL fetch is cached:
+     * a failure cached as null used to disable the device fallback for every embed of that root for
+     * the rest of the session (one transient 502 at first load, then 404 frames on every phone).
      */
-    async _builtDevices(root, scenario) {
+    async _manifest(root) {
         AnimTour._manifests = AnimTour._manifests || {};
         if (!AnimTour._manifests[root]) {
             AnimTour._manifests[root] = fetch(root + 'tours.json')
                 .then(r => (r.ok ? r.json() : Promise.reject(new Error('tours.json: HTTP ' + r.status))))
-                .catch(() => null);
+                .catch(e => { delete AnimTour._manifests[root]; return null; });
         }
-        const data = await AnimTour._manifests[root];
-        const entry = data && (data.scenarios || []).find(s => s.slug === scenario);
-        return entry && entry.devices && entry.devices.length ? entry.devices : null;
+        return AnimTour._manifests[root];
     }
 
     async _load() {
@@ -144,10 +141,20 @@ class AnimTour extends HTMLElement {
         const gen = (this._gen = (this._gen || 0) + 1);
         const root = this._root;
         const want = this._wantedDevice();
+        const data = await this._manifest(root);
+        if (gen !== this._gen || !this._frame) return;
+        // A manifest that LOADED but does not know the slug is a misconfiguration, not a network
+        // hiccup: say so and fire tourerror rather than framing a 404 (a blank box with no surface).
+        const entry = data && (data.scenarios || []).find(s => s.slug === scenario);
+        if (data && !entry) {
+            const message = `<anim-tour> scenario "${scenario}" is not in ${root}tours.json`;
+            console.error(message);
+            this.dispatchEvent(new CustomEvent('tourerror', { detail: { message, scenario }, bubbles: true }));
+            return;
+        }
         // If the manifest cannot be read we still load: the requested device is the best guess, and
         // a tour that renders is better than one that waited for a file it will never get.
-        const built = await this._builtDevices(root, scenario);
-        if (gen !== this._gen || !this._frame) return;
+        const built = entry && entry.devices && entry.devices.length ? entry.devices : null;
         const device = !built ? want : (built.includes(want) ? want : built[0]);
         // Autoplay is not carried in the URL: the page's own data-autoplay is baked at build time,
         // and one mechanism that always wins beats two that can disagree. The element asks for play
@@ -168,10 +175,11 @@ class AnimTour extends HTMLElement {
 
     _send(type, extra) {
         // Before `ready` there is nothing listening -- the frame is still about:blank, and
-        // postMessage into it succeeds and goes nowhere. An author wiring a "Watch the demo" button
-        // to play() would otherwise get silence, permanently, because the lazy loader means the
-        // frame may not even have started loading yet.
-        if (!this._ready) { this._pending = { type, extra }; this._load(); return; }
+        // postMessage into it succeeds and goes nowhere. Commands QUEUE (an array, not a single
+        // slot: a goto followed by play used to lose the goto to last-write-wins). An author wiring
+        // a "Watch the demo" button to play() would otherwise get silence, permanently, because the
+        // lazy loader means the frame may not even have started loading yet.
+        if (!this._ready) { (this._pending = this._pending || []).push({ type, extra }); this._load(); return; }
         if (!this._frame || !this._frame.contentWindow) return;
         this._frame.contentWindow.postMessage({ source: 'anim-tour-host', type, ...extra }, '*');
     }
@@ -186,13 +194,15 @@ class AnimTour extends HTMLElement {
         }
         if (d.type === 'ready') {
             this._ready = true;
-            const pending = this._pending;
+            const pending = this._pending || [];
             this._pending = undefined;
             const mode = this._autoplay;
             // The frame usually finishes loading well after the visibility observer first fired,
             // so the decision to play is taken here rather than when the element scrolled in.
-            if (pending) this._send(pending.type, pending.extra);
-            else if (mode === 'immediate' || (mode === 'inview' && this._onScreen)) this._send('play');
+            // The queued commands go first, in order (goto then play), and autoplay only applies
+            // when the host queued nothing of its own.
+            for (const p of pending) this._send(p.type, p.extra);
+            if (!pending.length && (mode === 'immediate' || (mode === 'inview' && this._onScreen))) this._send('play');
         }
         const map = { ready: 'tourready', step: 'tourstep', end: 'tourend', error: 'tourerror' };
         const name = map[d.type];

@@ -29,6 +29,8 @@ trace.*.json
 *.motion.json
 .temp-video/
 .cache/
+# The impeccable skill's critique working notes (design passes), not source.
+.impeccable/
 *.vtt
 
 # Generated artifacts, matched by what the tools EMIT rather than by where they emit it. These were
