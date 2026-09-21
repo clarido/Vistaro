@@ -13,6 +13,7 @@ import { guideCommand } from './src/commands/guide';
 import { recordCommand } from './src/commands/record';
 import { tourCommand } from './src/commands/tour';
 import { buildAllCommand } from './src/commands/build-all';
+import { filmstripCommand } from './src/media/filmstrip';
 
 import { toolPackage } from './src/catalog';
 
@@ -45,10 +46,14 @@ WORKFLOW (an AI agent or a person writes the screen and the timeline; no API key
   3. Build the self-playing page (no LLM):
        npx tsx cli.ts build <dir>              # writes animated.html
   4. Look at one frame per step, fix the timeline, repeat:
+       npx tsx cli.ts check <dir>            # also reports each camera step's framing as facts
+       npx tsx cli.ts check <dir> --trace     # writes trace.json (cursor/spotlight/subtitle/camera per step)
        npx tsx cli.ts preview <dir>            # writes preview.png (contact sheet)
        npx tsx cli.ts preview <dir> --step 3   # one full-size frame
+       npx tsx cli.ts preview <dir> --motion   # writes preview-motion.png (sampled during real playback)
   5. Record the video and the guide (length comes from the timeline):
        npx tsx cli.ts export <dir> -o demo.mp4 --guide --narration
+       npx tsx cli.ts filmstrip demo.mp4 --diff demo.motion.json   # review the exported clip without watching it
   6. Other languages reuse the same choreography:
        npx tsx cli.ts localize <dir> fr        # <dir>/locales/fr/ + strings.fr.json
        npx tsx cli.ts export <dir>/locales/fr -o demo-fr.mp4 --guide
@@ -169,6 +174,7 @@ RECORD OF WHAT WAS DONE:
     .option('--allow-reset', 'Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this)')
     .option('--guide', 'Validate as a guide: a numbered step without a "title" is an error, not a warning')
     .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
+    .option('--trace', 'Record per-step overlay geometry (cursor, spotlight, subtitle chip, camera window) to <dir>/trace.json during the browser pass')
     .option('--json', 'Print the issues as JSON on stdout')
     .option('--locale <code>', 'Locale code (e.g. en, fr)')
     .option('-w, --width <pixels>', 'Viewport width for the browser pass')
@@ -182,6 +188,7 @@ RECORD OF WHAT WAS DONE:
     .description('Render one labelled frame per step to <output_dir>/preview.png (or a single full-size frame with --step N)')
     .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
     .option('-s, --step <n>', 'Write only step N (1-based) at full resolution to preview-step-N.png')
+    .option('--motion', 'Sample a real playback pass into preview-motion.png instead: mid-travel framing, cursor glide and typing as they actually play')
     .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--scale <n>', 'Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width')
     .option('--at <when>', 'Capture point per step: "auto" (like the guide: clicks at the interaction, typing/camera/fades at completion), "interaction", or "end"', 'auto')
@@ -278,6 +285,18 @@ RECORD OF WHAT WAS DONE:
     .option('--device <type>', 'Device viewport constraints: desktop or mobile', 'desktop')
     .option('-t, --theme <mode>', 'Color scheme mode: light or dark', 'light')
     .action((dir, opts) => guideCommand(dir, opts));
+
+  program
+    .command('filmstrip')
+    .description('Turn an exported video into one labelled contact strip (and optional --diff motion facts): review the clip without watching it')
+    .argument('<video>', 'Video file to sample (e.g. demo.mp4)')
+    .option('-o, --output <file>', 'Output strip PNG path (default: <video>.strip.png beside it)')
+    .option('--fps <n>', 'Samples per second to extract (default: 2, lowered automatically when the video is long)')
+    .option('--columns <n>', 'Tiles per row in the strip (default: 6)')
+    .option('--cell-width <px>', 'Tile width in px (default: 480)')
+    .option('--max-tiles <n>', 'Upper bound on tiles before the sample rate drops (default: 48)')
+    .option('--diff <file>', 'Also write pairwise frame-diff motion facts as JSON: what moved, when, where')
+    .action((video, opts) => filmstripCommand(video, opts));
 
   program
     .command('build-all')

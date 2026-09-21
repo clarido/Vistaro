@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadTimeline, validateTimeline, formatIssue, hasErrors, formatTime, Step, captureAtFor, deviceKind, emulateMobileFor, isReel, reelOptions, cliConfigPath, configStem } from '../engine/schema';
+import { loadTimeline, validateTimeline, formatIssue, hasErrors, formatTime, Step, captureAtFor, deviceKind, emulateMobileFor, isReel, reelOptions, cliConfigPath, configStem, computeDurationMs } from '../engine/schema';
 import { runTimeline, ensureRuntime } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions, resolveViewport } from '../browser';
 import { renderContactSheet, SheetFrame } from '../media/contactSheet';
@@ -9,6 +9,8 @@ export interface PreviewOptions extends ViewportOptions {
     step?: string | number;
     /** 'auto' (default, per action like the guide), 'interaction' (+300ms), or 'end' (after the step completed). */
     at?: string;
+    /** Sample a real playback pass into preview-motion.png instead of one labelled frame per step. */
+    motion?: boolean;
     output?: string;
     cursor?: string;
     locale?: string;
@@ -62,6 +64,11 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
         console.error(`Error: --step must be between 1 and ${timeline.steps.length}.`);
         process.exit(1);
     }
+    if (options.motion && only !== undefined) {
+        // Refused rather than ignored: a --step that silently writes nothing looks like a bug in the pass.
+        console.error(`Error: --step N picks a frame from the step pass; drop it (or drop --motion) -- the motion pass samples the whole playback.`);
+        process.exit(1);
+    }
 
     // A reel must preview under exactly the conditions it exports under, or the read-the-PNG loop
     // an author iterates against disagrees with the artifact they ship.
@@ -72,6 +79,33 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
     try {
         await page.goto(fileUrl(htmlPath), { waitUntil: 'load' });
         await ensureRuntime(page, timeline, { cursor: options.cursor, drift: false, zoom: resolveViewport(options).scale });
+        // --motion replaces the step pass with a real playback pass, sampled on the wall clock:
+        // the step sheet shows endpoints (each step's interaction or completion), this one shows
+        // the travel between them -- the camera mid-pan, the cursor gliding, the typing as it
+        // lands. play() is the same scheduler the exported video runs under, so what the tiles
+        // show is what the video does, subtitles and all.
+        if (options.motion) {
+            const durationMs = computeDurationMs(timeline);
+            await page.evaluate((tl) => { (window as any).__anim.play(tl, {}); }, timeline);
+            const shots: SheetFrame[] = [];
+            const started = Date.now();
+            // Enough cadence to catch a 0.3s camera pan, few enough tiles to keep the sheet readable.
+            const interval = Math.max(240, durationMs / 40);
+            while (Date.now() - started < durationMs) {
+                const png = await page.screenshot({ type: 'png' });
+                // Stamped after the capture returns: the tile's content is that moment, not the
+                // moment the screenshot was asked for.
+                const elapsed = ((Date.now() - started) / 1000).toFixed(1);
+                shots.push({ label: `t=${elapsed}s`, png });
+                await page.waitForTimeout(interval);
+            }
+            const title = `${timeline.meta.title || path.basename(path.resolve(dir))} — motion pass, ${shots.length} samples`;
+            const sheet = await renderContactSheet(browser, shots, { title, columns: 4, cellWidth: 640 });
+            const out = options.output ? path.resolve(options.output) : path.join(dir, stem ? `preview.${stem}.motion.png` : 'preview-motion.png');
+            fs.writeFileSync(out, sheet);
+            console.log(`Wrote ${out} (${shots.length} frames sampled during playback; the default pass writes one labelled frame per step instead).`);
+            return;
+        }
         const steps = only !== undefined ? { ...timeline, steps: timeline.steps.slice(0, only) } : timeline;
         await runTimeline(page, steps, {
             mode: 'step',

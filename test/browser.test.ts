@@ -977,6 +977,40 @@ test('camera xOffset/yOffset nudge the framing after the centre is solved', { sk
     assert.match(text, /step 1 .*target div#chart .* \(\d+% visible/);
 });
 
+test('check --trace records per-step cursor, spotlight, subtitle and camera geometry', { skip }, () => {
+    const dir = path.join(work, 'trace-basic');
+    fs.cpSync(fixture, dir, { recursive: true });
+    const r = cli(['check', dir, '--trace']);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const traceFile = path.join(dir, 'trace.json');
+    assert.ok(fs.existsSync(traceFile), 'trace.json written beside the config');
+    const trace = JSON.parse(fs.readFileSync(traceFile, 'utf8'));
+    assert.equal(trace.steps.length, 9, 'one record per step');
+    assert.ok(trace.steps.every((s: any) => s.cursor === null || Number.isFinite(s.cursor.x)), 'cursor records are points or null');
+    const zoom = trace.steps.find((s: any) => s.id === 'zoom');
+    assert.ok(zoom && zoom.camera && zoom.camera.scale === 1.3 && zoom.camera.window.w > 0, `the camera step records its window: ${JSON.stringify(zoom)}`);
+    const open = trace.steps.find((s: any) => s.id === 'open');
+    assert.ok(open && open.cursor && open.spotlight, `a click step records cursor and spotlight: ${JSON.stringify(open)}`);
+    // A plain run writes no trace at all.
+    const plain = path.join(work, 'trace-plain');
+    fs.cpSync(fixture, plain, { recursive: true });
+    cli(['check', plain]);
+    assert.ok(!fs.existsSync(path.join(plain, 'trace.json')), 'no --trace, no file');
+});
+
+test('preview --motion samples a real playback pass into preview-motion.png', { skip }, () => {
+    const dir = path.join(work, 'motion-basic');
+    fs.cpSync(fixture, dir, { recursive: true });
+    const r = cli(['preview', dir, '--motion', '--width', '1280', '--height', '800']);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    const out = path.join(dir, 'preview-motion.png');
+    assert.ok(fs.existsSync(out));
+    assert.ok(fs.statSync(out).size > 10000, `the sheet carries real tiles: ${fs.statSync(out).size} bytes`);
+    assert.match(r.stdout, /frames sampled during playback/);
+    // The step sheet is this pass's complement, not its replacement on disk: motion writes its own file.
+    assert.ok(!fs.existsSync(path.join(dir, 'preview.png')), 'the step sheet is not written by the motion pass');
+});
+
 test('the spotlight is clamped to what a clipping ancestor lets through, and never collapses', { skip }, async () => {
     // The ring frames what the reader can see. An element taller than its clipping container was
     // ringed well outside the app window, pointing at pixels the frame does not contain.

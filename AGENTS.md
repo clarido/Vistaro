@@ -19,10 +19,10 @@ Every command below prints what it wrote; `npx tsx cli.ts --help` and `npx tsx c
 
 1. **Write the screen.** Put a faithful mockup of the UI in `<dir>/index.html` (inline CSS, real element ids/classes; when the user pasted screenshots, reproduce each one; several screens can live in one file as sections you fade between). Media files referenced from `index.html` go next to it.
 2. **Write the timeline.** `npx tsx cli.ts init-config <dir>` scaffolds `<dir>/anim.config.json` in object form; edit it to match your selectors. Give every step an explicit `id` (translations and guide frames attach to it) and every numbered step a `title` (its heading in the guide); keep a guide to about ten numbered steps and hide choreography with `"guide": false`.
-3. **Check.** `npx tsx cli.ts check <dir>` validates the schema and timing statically, then replays the timeline in a headless browser and probes every target right before its step (missing, hidden, 0x0, clipped, off-screen), naming the first match when a selector matches several. Fix errors; read the warnings. A `camera` step also reports its framing as facts -- the window, what is in frame, what is cut by the frame edge, content coverage -- with the structured report on the step's info issue in `--json`, and warns when the zoomed window is mostly background: a zoom in the wrong place reads as text, not as something you need eyes on a video for. An `animate` step that reveals its target from `opacity 0`/`scale 0` warns when the element is not pre-hidden in CSS (it would sit visible until the step's time), and a subtitle chip that cannot dodge the target and the cursor warns too.
+3. **Check.** `npx tsx cli.ts check <dir>` validates the schema and timing statically, then replays the timeline in a headless browser and probes every target right before its step (missing, hidden, 0x0, clipped, off-screen), naming the first match when a selector matches several. Fix errors; read the warnings. A `camera` step also reports its framing as facts -- the window, what is in frame, what is cut by the frame edge, content coverage -- with the structured report on the step's info issue in `--json`, and warns when the zoomed window is mostly background: a zoom in the wrong place reads as text, not as something you need eyes on a video for. An `animate` step that reveals its target from `opacity 0`/`scale 0` warns when the element is not pre-hidden in CSS (it would sit visible until the step's time), and a subtitle chip that cannot dodge the target and the cursor warns too. `--trace` writes `<dir>/trace.json`: one record per step with the cursor point, the spotlight box, the placed subtitle chip and the active camera window in authored px, so "where did everything sit when this step ran" is a file you read (two known approximations: the chip record keeps its last text until the next cue even while it fades out, and the spotlight box carries the few-px pulse drift this manual documents; on a live page a record whose geometry is all null marks a step that ran across a navigation).
 4. **Build.** `npx tsx cli.ts build <dir>` writes `<dir>/animated.html`, a self-playing page with the cursor, spotlight, ripple, camera and subtitles injected, for humans to open in a browser (run `build` again after editing `index.html`; it is a generated file, not tracked). `export` does not read it: with an `anim.config.json` present it always records `index.html` with the runtime injected, so the video can never disagree with `check`/`preview`.
-5. **Preview and iterate.** `npx tsx cli.ts preview <dir>` writes `<dir>/preview.png`, one labelled frame per step (`--step N` writes a single full-size `preview-step-N.png`). **Read the PNG** with your image tool, fix the timeline (a badly placed camera, a subtitle that overlaps, a step that fires too early), and repeat 3 to 5 until the frames look right.
-6. **Export.** `npx tsx cli.ts export <dir> -o demo.mp4 --guide --narration` records the video (length computed from the timeline plus `meta.tailMs`), writes `demo.vtt`, embeds chapters for titled steps, mixes the narration, then captures the guide into `<dir>/guide/`. `--clips mp4` also cuts one clip per step; `--clips gif` keeps the master's full size on purpose, which is about 1.9 MB per 2 seconds at 1920x1080, so pick `mp4` unless a clip has to be a GIF. A `.gif` output skips audio, chapters and subtitles.
+5. **Preview and iterate.** `npx tsx cli.ts preview <dir>` writes `<dir>/preview.png`, one labelled frame per step (`--step N` writes a single full-size `preview-step-N.png`). **Read the PNG** with your image tool, fix the timeline (a badly placed camera, a subtitle that overlaps, a step that fires too early), and repeat 3 to 5 until the frames look right. The step sheet shows endpoints; when the *travel* is the question (a camera mid-pan, the cursor's glide, typing as it lands), `preview <dir> --motion` samples a real playback pass into `preview-motion.png` instead -- the same scheduler the exported video runs under, subtitles and all.
+6. **Export.** `npx tsx cli.ts export <dir> -o demo.mp4 --guide --narration` records the video (length computed from the timeline plus `meta.tailMs`), writes `demo.vtt`, embeds chapters for titled steps, mixes the narration, then captures the guide into `<dir>/guide/`. `--clips mp4` also cuts one clip per step; `--clips gif` keeps the master's full size on purpose, which is about 1.9 MB per 2 seconds at 1920x1080, so pick `mp4` unless a clip has to be a GIF. A `.gif` output skips audio, chapters and subtitles. To review the exported artifact without watching it: `npx tsx cli.ts filmstrip demo.mp4` writes `demo.strip.png`, the whole clip as one labelled grid of samples (`--diff demo.motion.json` adds what-moved-when-where as JSON, per interval, with each change's bounding box in frame fractions) -- the encode-level check that page-side previews cannot give, and the only way to notice *unintended* motion, since nothing that was never authored shows up in any authored-intent check.
 7. **Localize.** `npx tsx cli.ts localize <dir> fr` scaffolds `<dir>/locales/fr/` and a pre-filled `strings.fr.json`; translate the strings and the visible text of the copied `index.html`, then `check`, `build`, `export` that directory. See [Localization](#localization).
 8. **Build everything.** Describe the guides once in `help.catalog.json` and run `npx tsx cli.ts build-all --changed-only --diff`. See [Catalog and build-all](#catalog-and-build-all).
 
@@ -367,7 +367,7 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 <!-- cli-reference:start -->
 Generated from `cli.ts` by `npm run docs`; do not edit by hand. `npx tsx cli.ts <command> --help` prints the same, plus the usage guide (`--help`) and the catalog schema (`build-all --help`).
 
-[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
+[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
 
 ### `init-config`
 
@@ -476,6 +476,7 @@ Validate anim.config.json: schema, timing, strings, and (unless --static/--live)
 | `--allow-reset` | Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this) |
 | `--guide` | Validate as a guide: a numbered step without a "title" is an error, not a warning |
 | `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
+| `--trace` | Record per-step overlay geometry (cursor, spotlight, subtitle chip, camera window) to <dir>/trace.json during the browser pass |
 | `--json` | Print the issues as JSON on stdout |
 | `--locale <code>` | Locale code (e.g. en, fr) |
 | `-w, --width <pixels>` | Viewport width for the browser pass |
@@ -498,6 +499,7 @@ Render one labelled frame per step to <output_dir>/preview.png (or a single full
 | Option | Description |
 |---|---|
 | `-s, --step <n>` | Write only step N (1-based) at full resolution to preview-step-N.png |
+| `--motion` | Sample a real playback pass into preview-motion.png instead: mid-travel framing, cursor glide and typing as they actually play |
 | `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--scale <n>` | Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width |
 | `--at <when>` | Capture point per step: "auto" (like the guide: clicks at the interaction, typing/camera/fades at completion), "interaction", or "end" (default: `auto`) |
@@ -620,6 +622,27 @@ Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) fro
 | `-H, --height <pixels>` | Viewport height in pixels |
 | `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
 | `-t, --theme <mode>` | Color scheme mode: light or dark (default: `light`) |
+
+### `filmstrip`
+
+```bash
+npx tsx cli.ts filmstrip <video> [options]
+```
+
+Turn an exported video into one labelled contact strip (and optional --diff motion facts): review the clip without watching it
+
+| Argument | Description |
+|---|---|
+| `<video>` | Video file to sample (e.g. demo.mp4) |
+
+| Option | Description |
+|---|---|
+| `-o, --output <file>` | Output strip PNG path (default: <video>.strip.png beside it) |
+| `--fps <n>` | Samples per second to extract (default: 2, lowered automatically when the video is long) |
+| `--columns <n>` | Tiles per row in the strip (default: 6) |
+| `--cell-width <px>` | Tile width in px (default: 480) |
+| `--max-tiles <n>` | Upper bound on tiles before the sample rate drops (default: 48) |
+| `--diff <file>` | Also write pairwise frame-diff motion facts as JSON: what moved, when, where |
 
 ### `build-all`
 

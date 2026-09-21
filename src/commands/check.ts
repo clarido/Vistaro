@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
-import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue, deviceKind, emulateMobileFor, cliConfigPath, resolveConfigPath, FramingReport } from '../engine/schema';
+import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue, deviceKind, emulateMobileFor, cliConfigPath, resolveConfigPath, configStem, FramingReport } from '../engine/schema';
 import { runTimeline, ensureRuntime, LiveOptions } from '../engine/driver';
 import { bootOptions } from '../engine/inject';
 import { launchPage, fileUrl, ViewportOptions, assertReachable, sanitizeUrl, resolveViewport } from '../browser';
@@ -27,6 +27,27 @@ export interface CheckOptions extends ViewportOptions {
     locale?: string;
     /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
     config?: string;
+    /** --trace: record per-step overlay geometry to <dir>/trace.json during the browser pass. */
+    trace?: boolean;
+}
+
+/** One line of trace.json: what the step did, and where the runtime's furniture sat right after
+ *  it (cursor point, spotlight box, placed subtitle chip, active camera window -- authored px).
+ *  Motion as data: an author answers "did the cursor cross the chip" by reading, not watching. */
+export interface TraceRecord {
+    index: number;
+    id: string;
+    action: string;
+    target?: string;
+    /** Measured interaction moment (null in the JSON when the step failed before interacting; NaN
+     *  serializes as null, so the file's type is null there). */
+    actualMs: number;
+    completedMs?: number;
+    error?: string;
+    cursor: { x: number; y: number } | null;
+    spotlight: { x: number; y: number; w: number; h: number } | null;
+    subtitle: { x: number; y: number; w: number; h: number; place: string } | null;
+    camera: { scale: number; window: { x: number; y: number; w: number; h: number } } | null;
 }
 
 /** Sub-pixel layout rounding routinely puts an element a pixel over an edge; below this it is noise. */
@@ -71,7 +92,7 @@ const issueFor = (step: Step, level: Issue['level'], message: string, field = 't
  * right before the step runs (missing, hidden, 0x0, clipped, off-screen), then let the step run so
  * targets revealed by earlier steps are checked in the state they will really be in.
  */
-function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Issue[], reelTimeline = false) {
+function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Issue[], reelTimeline = false, trace?: TraceRecord[]) {
     // Steps whose target is already statically wrong would only produce a duplicate browser error.
     const staticTargetErrors = new Set(staticIssues.filter(i => i.level === 'error' && i.field === 'target').map(i => i.step));
     const reportedMissing = new Set<number>();
@@ -247,10 +268,26 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} is outside the viewport when this step runs (add a "scroll" step first)`));
             }
         },
-        afterStep: async (step: Step, result: { error?: string }) => {
+        afterStep: async (step: Step, result: { error?: string; completedMs?: number; actualMs: number }) => {
             // A missing target was already reported by the probe above; don't list it twice.
             if (result.error && !reportedMissing.has(step.index) && !staticTargetErrors.has(step.index)) {
                 issues.push(issueFor(step, 'error', `step failed in the browser: ${result.error}`, 'action'));
+            }
+            // --trace: one record per step, gathered right where the step ran so the geometry is
+            // the state the video was in at that moment (a camera step's transform is already
+            // applied under step mode's instant execution). Failures included: a step that errored
+            // is often exactly the one whose geometry needs reading.
+            if (trace) {
+                // A record survives even when the page cannot answer (a live navigation destroyed
+                // the context mid-step): the geometry fields are null and the step keeps its row,
+                // so trace.json never silently loses steps.
+                const overlays = await page.evaluate(() => (window as any).__anim.overlayState()).catch(() => null);
+                const o = overlays || { cursor: null, spotlight: null, subtitle: null, camera: null };
+                trace.push({
+                    index: step.index, id: step.id, action: step.action, target: step.target,
+                    actualMs: result.actualMs, completedMs: result.completedMs, error: result.error,
+                    cursor: o.cursor, spotlight: o.spotlight, subtitle: o.subtitle, camera: o.camera,
+                });
             }
             if (result.error) return;
             // A camera step re-frames the page, and a wrong framing (the selector resolved to the
@@ -291,7 +328,7 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
 }
 
 /** Run the timeline in a headless page (step mode, instant) and probe each target right before its step. */
-export async function browserCheck(dir: string, timeline: Timeline, opts: ViewportOptions, staticIssues: Issue[] = []): Promise<Issue[]> {
+export async function browserCheck(dir: string, timeline: Timeline, opts: ViewportOptions, staticIssues: Issue[] = [], trace?: TraceRecord[]): Promise<Issue[]> {
     const issues: Issue[] = [];
     const htmlPath = path.resolve(dir, 'index.html');
     if (!fs.existsSync(htmlPath)) {
@@ -338,7 +375,7 @@ export async function browserCheck(dir: string, timeline: Timeline, opts: Viewpo
                 issues.push({ level: 'warning', field: 'viewport', message: `every max-width media query (${[...new Set(tooNarrow)].sort((a, b) => a - b).map(w => w + 'px').join(', ')}) is below the ${layoutWidth}px width this reel lays out at, so the mobile layout will not apply: raise the breakpoint above the widest viewport it is recorded at (viewport x --scale)` });
             }
         }
-        await runTimeline(page, timeline, { mode: 'step', instant: true, settleMs: 0, ...probeHooks(page, 'index.html', issues, staticIssues, isReel(timeline)) });
+        await runTimeline(page, timeline, { mode: 'step', instant: true, settleMs: 0, ...probeHooks(page, 'index.html', issues, staticIssues, isReel(timeline), trace) });
     } finally {
         await launched.close();
     }
@@ -353,7 +390,7 @@ export async function browserCheck(dir: string, timeline: Timeline, opts: Viewpo
  * seconds here instead of a full recording. A timeline that writes data needs `meta.reset`/`--reset-cmd`
  * before `record`, exactly as it does between the recording and the guide replay.
  */
-export async function liveCheck(timeline: Timeline, url: string, opts: CheckOptions, staticIssues: Issue[] = []): Promise<Issue[]> {
+export async function liveCheck(timeline: Timeline, url: string, opts: CheckOptions, staticIssues: Issue[] = [], trace?: TraceRecord[]): Promise<Issue[]> {
     const issues: Issue[] = [];
     // Cheapest and most local checks first: a refused `meta.reset` should not cost a network round
     // trip, and nothing here may reach stdout -- `check --json` must still print one JSON document.
@@ -379,7 +416,7 @@ export async function liveCheck(timeline: Timeline, url: string, opts: CheckOpti
         await page.goto(url, { waitUntil: 'load', timeout: 30000 });
         await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
         await ensureRuntime(page, timeline, { drift: timeline.meta.drift === true });
-        await runTimeline(page, timeline, { mode: 'step', instant: true, settleMs: 0, live, ...probeHooks(page, 'the page', issues, staticIssues, isReel(timeline)) });
+        await runTimeline(page, timeline, { mode: 'step', instant: true, settleMs: 0, live, ...probeHooks(page, 'the page', issues, staticIssues, isReel(timeline), trace) });
     } finally {
         await launched.close();
     }
@@ -423,6 +460,8 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
             if (ids.length) issues.push({ level: 'warning', field: 'id', message: `${ids.length} localized step(s) use auto-generated ids (${ids.slice(0, 4).join(', ')}${ids.length > 4 ? ', …' : ''}); give them explicit "id"s so inserting a step does not re-attach their translations` });
         }
         const timingErrors = hasErrors(issues.filter(i => i.field === 'time' || i.field === 'action'));
+        // Filled by the browser/live pass when --trace asked for it.
+        const trace: TraceRecord[] | undefined = options.trace ? [] : undefined;
         if (options.live) {
             // The probe runs the timeline for real against the app (clicks, keystrokes, saves), so it
             // is opt-in per invocation: an explicit --url. A bare --live stays the static pass it has
@@ -439,13 +478,21 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
             } else {
                 kind = 'static + live probe';
                 log(`Probing ${sanitizeUrl(url)}${options.storageState ? ` with storage state ${options.storageState}` : ''}...`);
-                issues.push(...await liveCheck(timeline, url, options, issues));
+                issues.push(...await liveCheck(timeline, url, options, issues, trace));
             }
         } else if (!options.static && !timingErrors) {
-            issues.push(...await browserCheck(dir, timeline, options, issues));
+            issues.push(...await browserCheck(dir, timeline, options, issues, trace));
         } else if (!options.static) {
             kind = 'static';
             note = 'Browser pass skipped until the timing/action errors above are fixed.';
+        }
+        if (trace && trace.length) {
+            const stem = configStem(dir, cliConfigPath(options.config));
+            const out = path.join(dir, stem ? `trace.${stem}.json` : 'trace.json');
+            fs.writeFileSync(out, JSON.stringify({ generatedAt: new Date().toISOString(), source: { dir: path.basename(path.resolve(dir)), config: path.basename(timeline.configFile ?? 'anim.config.json') }, steps: trace }, null, 2) + '\n');
+            log(`Wrote ${out} (${trace.length} step records: cursor, spotlight, subtitle and camera geometry per step).`);
+        } else if (options.trace) {
+            log('No trace written: the browser pass did not run (fix the errors above, or drop --static).');
         }
     }
     const rank = { error: 0, warning: 1, info: 2 };

@@ -22,6 +22,11 @@ preview.png
 preview.*.png
 preview-*.png
 preview-step-*.png
+# check --trace and filmstrip write beside their source with derived stems, like the previews.
+trace.json
+trace.*.json
+*.strip.png
+*.motion.json
 .temp-video/
 .cache/
 *.vtt

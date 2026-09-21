@@ -81,7 +81,7 @@ Paste your screenshots into the agent's chat and ask for the demo:
 
 > *"Here are the three screens of our onboarding. Recreate them, write a timeline that walks through signing up, and export the video with a guide, in English and French."*
 
-The agent writes `index.html` and `anim.config.json`, runs `check`, `build` and `preview` (it reads the PNG and fixes the timeline), exports with `--guide`, then `localize`s and exports each language. Motion never has to be watched to be reviewed: `check` reports each `camera` step's framing as facts -- the window, what is in frame, what is cut by the frame edge -- so a zoom aimed at the wrong element reads as text, and the agent fixes it like any other finding. The workflow and every file format are in [AGENTS.md](AGENTS.md).
+The agent writes `index.html` and `anim.config.json`, runs `check`, `build` and `preview` (it reads the PNG and fixes the timeline), exports with `--guide`, then `localize`s and exports each language. Motion never has to be watched to be reviewed: `check` reports each `camera` step's framing as facts -- the window, what is in frame, what is cut by the frame edge -- so a zoom aimed at the wrong element reads as text, and the agent fixes it like any other finding. `preview --motion` samples a real playback pass into one sheet, `check --trace` records per-step cursor/spotlight/subtitle/camera geometry, and `filmstrip` turns the exported MP4 into a labelled strip with optional what-moved-when facts. The workflow and every file format are in [AGENTS.md](AGENTS.md).
 
 ### Other languages
 
@@ -127,7 +127,7 @@ Contributing: `npm test` runs the suite (serial, with browser tests; `SKIP_BROWS
 <!-- cli-reference:start -->
 Generated from `cli.ts` by `npm run docs`; do not edit by hand. `npx tsx cli.ts <command> --help` prints the same, plus the usage guide (`--help`) and the catalog schema (`build-all --help`).
 
-[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
+[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
 
 ### `init-config`
 
@@ -236,6 +236,7 @@ Validate anim.config.json: schema, timing, strings, and (unless --static/--live)
 | `--allow-reset` | Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this) |
 | `--guide` | Validate as a guide: a numbered step without a "title" is an error, not a warning |
 | `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
+| `--trace` | Record per-step overlay geometry (cursor, spotlight, subtitle chip, camera window) to <dir>/trace.json during the browser pass |
 | `--json` | Print the issues as JSON on stdout |
 | `--locale <code>` | Locale code (e.g. en, fr) |
 | `-w, --width <pixels>` | Viewport width for the browser pass |
@@ -258,6 +259,7 @@ Render one labelled frame per step to <output_dir>/preview.png (or a single full
 | Option | Description |
 |---|---|
 | `-s, --step <n>` | Write only step N (1-based) at full resolution to preview-step-N.png |
+| `--motion` | Sample a real playback pass into preview-motion.png instead: mid-travel framing, cursor glide and typing as they actually play |
 | `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--scale <n>` | Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width |
 | `--at <when>` | Capture point per step: "auto" (like the guide: clicks at the interaction, typing/camera/fades at completion), "interaction", or "end" (default: `auto`) |
@@ -380,6 +382,27 @@ Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) fro
 | `-H, --height <pixels>` | Viewport height in pixels |
 | `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
 | `-t, --theme <mode>` | Color scheme mode: light or dark (default: `light`) |
+
+### `filmstrip`
+
+```bash
+npx tsx cli.ts filmstrip <video> [options]
+```
+
+Turn an exported video into one labelled contact strip (and optional --diff motion facts): review the clip without watching it
+
+| Argument | Description |
+|---|---|
+| `<video>` | Video file to sample (e.g. demo.mp4) |
+
+| Option | Description |
+|---|---|
+| `-o, --output <file>` | Output strip PNG path (default: <video>.strip.png beside it) |
+| `--fps <n>` | Samples per second to extract (default: 2, lowered automatically when the video is long) |
+| `--columns <n>` | Tiles per row in the strip (default: 6) |
+| `--cell-width <px>` | Tile width in px (default: 480) |
+| `--max-tiles <n>` | Upper bound on tiles before the sample rate drops (default: 48) |
+| `--diff <file>` | Also write pairwise frame-diff motion facts as JSON: what moved, when, where |
 
 ### `build-all`
 

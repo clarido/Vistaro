@@ -494,6 +494,35 @@
     return hits;
   }
 
+  /**
+   * Where the runtime's own furniture sits right now, in the page's authored px: the cursor point,
+   * the spotlight box, the placed subtitle chip, and the active camera window. check --trace
+   * records one of these per step (interaction and completion), which turns "where did everything
+   * move" into data an author can read instead of motion they have to watch. Rects are null when
+   * the piece is absent; the camera object only exists under an active camera step.
+   */
+  function overlayState() {
+    var z = rootZoom();
+    var out = { cursor: null, spotlight: null, subtitle: null, camera: null };
+    if (state.point) out.cursor = { x: Math.round(state.point.x / z), y: Math.round(state.point.y / z) };
+    var h = document.getElementById('anim-cli-highlight');
+    if (h) {
+      var hr = h.getBoundingClientRect();
+      if (hr.width > 0 && hr.height > 0) out.spotlight = { x: Math.round(hr.left / z), y: Math.round(hr.top / z), w: Math.round(hr.width / z), h: Math.round(hr.height / z) };
+    }
+    var chip = state.subtitleEl;
+    if (chip && (chip.textContent || '').trim()) {
+      out.subtitle = { x: Math.round(chip.offsetLeft), y: Math.round(chip.offsetTop), w: Math.round(chip.offsetWidth), h: Math.round(chip.offsetHeight), place: chip.getAttribute('data-place') || 'bottom' };
+    }
+    if (state.cameraWindow) {
+      out.camera = {
+        scale: Math.round(state.cameraWindow.scale * 100) / 100,
+        window: { x: Math.round(state.cameraWindow.x), y: Math.round(state.cameraWindow.y), w: Math.round(state.cameraWindow.w), h: Math.round(state.cameraWindow.h) }
+      };
+    }
+    return out;
+  }
+
 
   // --- boot: styles + overlays ----------------------------------------------------
   // Idempotent: a second boot with a different cursor swaps the cursor CSS.
@@ -976,8 +1005,8 @@
     // xOffset/yOffset nudge the framing once its centre is solved -- the target's centre, an
     // authored x/y point, or the resting centre of a bare push: the focus point moves right/down
     // by the offset, matching the cursor-point offsets of the same name on click/type steps. The
-    // centre moving by +d means d comes OFF the translate, so it composes with every way a centre
-    // can be chosen. Authored units, like x/y themselves.
+    // centre moving by +d means d comes OFF the translate, so it is applied to the solved values
+    // and composes with every way a centre can be chosen. Authored units, like x/y themselves.
     var dx = step.xOffset != null ? (parseFloat(step.xOffset) || 0) : 0;
     var dy = step.yOffset != null ? (parseFloat(step.yOffset) || 0) : 0;
     var scale = step.scale || 1;
@@ -1751,6 +1780,8 @@
     subtitleCollisions: subtitleCollisions,
     /** Whether el or an ancestor is scaled to nothing (a CSS scale(0) pre-hide). */
     transformHidden: transformHidden,
+    /** Where the cursor/spotlight/subtitle/camera sit right now, in authored px (check --trace). */
+    overlayState: overlayState,
     describeEl: describeEl,
     selectorOf: selectorOf,
     highlight: highlight,
