@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
-import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue, deviceKind, emulateMobileFor, cliConfigPath, resolveConfigPath } from '../engine/schema';
+import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue, deviceKind, emulateMobileFor, cliConfigPath, resolveConfigPath, FramingReport } from '../engine/schema';
 import { runTimeline, ensureRuntime, LiveOptions } from '../engine/driver';
 import { bootOptions } from '../engine/inject';
 import { launchPage, fileUrl, ViewportOptions, assertReachable, sanitizeUrl, resolveViewport } from '../browser';
@@ -36,6 +36,12 @@ interface TargetProbe {
     error?: string;
     count: number;
     rendered?: boolean;
+    /** tag#id/class "text snippet" of the first match, so a report can say WHICH element a selector resolved to. */
+    descriptor?: string;
+    /** el or an ancestor is scaled to nothing (a CSS scale(0) pre-hide is invisible without opacity). */
+    transformHidden?: boolean;
+    /** Faintest computed opacity on the self -> documentElement chain, 0 to 1. */
+    effectiveOpacity?: number;
     /** Rect-level cropping (px): outside the viewport, and outside the worst clipping ancestor.
      *  Absent on the early-return paths (bad selector, no match), which never reach the measurement. */
     outsideViewport?: number;
@@ -83,9 +89,24 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 const rendered = typeof (el as any).checkVisibility === 'function'
                     ? (el as any).checkVisibility({ visibilityProperty: true })
                     : cs.display !== 'none' && cs.visibility !== 'hidden';
-                const anim = (window as any).__anim;
-                const anchor = anim.anchorOf(el);
-                const ar = anchor.getBoundingClientRect();
+                var anim = (window as any).__anim;
+                var anchor = anim.anchorOf(el);
+                var ar = anchor.getBoundingClientRect();
+                // The faintest opacity on the chain self -> documentElement, and whether any
+                // transform on that chain collapses the element away: a card pre-hidden by a
+                // wrapper's opacity 0 or by scale(0) -- its own or an ancestor's -- is as
+                // invisible as one hiding itself, and the reveal warning below must not call it
+                // visible. The transform test lives in the runtime (anim.transformHidden): a
+                // NON-collapsed transform (the translate(-50%, -50%) centering idiom) hides
+                // nothing and must not suppress the warning.
+                var effOpacity = parseFloat(cs.opacity);
+                if (!Number.isFinite(effOpacity) || effOpacity < 0) effOpacity = 1;
+                var opAnc = el.parentElement;
+                while (opAnc && opAnc !== document.documentElement && effOpacity > 0) {
+                    var op = parseFloat(getComputedStyle(opAnc).opacity);
+                    if (Number.isFinite(op) && op >= 0 && op < effOpacity) effOpacity = op;
+                    opAnc = opAnc.parentElement;
+                }
                 // No inner function declarations here: tsx/esbuild would wrap them in a `__name`
                 // helper that does not exist inside the page (the callback is serialized by Playwright).
                 // The runtime scrolls a clipped target into view before interacting; mirror that here
@@ -131,6 +152,9 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 }
                 return {
                     count: all.length, width: r.width, height: r.height, rendered, clipped,
+                    descriptor: typeof anim.describeEl === 'function' ? anim.describeEl(el) : el.tagName.toLowerCase(),
+                    transformHidden: typeof anim.transformHidden === 'function' ? !!anim.transformHidden(el) : false,
+                    effectiveOpacity: effOpacity,
                     outsideViewport: Math.round(outsideViewport), clipOverflow: Math.round(clipOverflow), clippedBy, cameraActive,
                     visibleFraction: rr.width && rr.height
                         ? (Math.max(0, vr2 - vl) * Math.max(0, vb - vt)) / (rr.width * rr.height) : 0,
@@ -152,7 +176,9 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
             }
             const animatesAll = step.action === 'animate' && !!step.all;
             if (probe.count > 1 && !animatesAll) {
-                issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} matches ${probe.count} elements; the first one is used`));
+                // Naming the first match is the point: "which one is used" is exactly the fact an
+                // author needs when the selector resolved to the wrong element of the set.
+                issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} matches ${probe.count} elements; the first one is used: ${probe.descriptor}`));
             }
             // `animate` with `all` runs once per match, so the real count sets the step's length; the
             // authored `count` only feeds the static estimate that `export` records against.
@@ -165,6 +191,21 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                     issues.push(issueFor(step, 'warning', `${probe.count} elements match ${JSON.stringify(step.target)} but "count" says ${step.count}: the step runs ${overrunMs}ms longer than the timeline estimates (set "count" to ${probe.count})`, 'count'));
                 } else if (typeof step.count === 'number' && probe.count < step.count) {
                     issues.push(issueFor(step, 'info', `${probe.count} elements match ${JSON.stringify(step.target)} but "count" says ${step.count}: the estimate is longer than the step needs`, 'count'));
+                }
+            }
+            // Reel constraint (AGENTS.md "Authoring a reel" #2): an element animated in from a hidden
+            // `from` state must already be hidden in CSS, because the first keyframe applies when the
+            // step runs, not at page load. Probed immediately before the step, so an earlier reveal
+            // followed by a re-hide (a pulse) is judged in the state the page is really in. Hidden is
+            // hidden however it was achieved: a wrapper's opacity 0 and the element's own scale(0)
+            // are both invisible now, and neither will flash.
+            if (step.action === 'animate' && step.from && typeof step.from === 'object') {
+                const fromOpacity0 = step.from.opacity === 0 || step.from.opacity === '0';
+                const fromScale0 = step.from.scale === 0 || step.from.scale === '0' || step.from.scaleX === 0 || step.from.scaleX === '0' || step.from.scaleY === 0 || step.from.scaleY === '0';
+                const visibleNow = probe.rendered !== false && (probe.effectiveOpacity ?? 1) > 0.05 && !probe.transformHidden;
+                if ((fromOpacity0 || fromScale0) && visibleNow) {
+                    const hiddenState = fromScale0 ? 'scale 0' : 'opacity 0';
+                    issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} (${probe.descriptor}) is fully visible right now, but this step animates it from ${hiddenState}: it stays on screen until ${step.time ?? '?'} and then pops out and back in. Pre-hide it in CSS (${hiddenState}) -- the "from" state applies when the step runs, not at page load`, 'from'));
                 }
             }
             // A reel has no cursor, so none of the cursor-action checks below fire for it and its
@@ -206,10 +247,44 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} is outside the viewport when this step runs (add a "scroll" step first)`));
             }
         },
-        afterStep: (step: Step, result: { error?: string }) => {
+        afterStep: async (step: Step, result: { error?: string }) => {
             // A missing target was already reported by the probe above; don't list it twice.
             if (result.error && !reportedMissing.has(step.index) && !staticTargetErrors.has(step.index)) {
                 issues.push(issueFor(step, 'error', `step failed in the browser: ${result.error}`, 'action'));
+            }
+            if (result.error) return;
+            // A camera step re-frames the page, and a wrong framing (the selector resolved to the
+            // wrong element, a push onto mostly background) is invisible to every check above: the
+            // page is not broken, it is just aimed wrong. So the camera step reports what the viewer
+            // ends up looking at as FACTS -- window, what is in frame, what is cut, how much of the
+            // window is content -- which an author diffs against the timeline's intent as text.
+            if (step.action === 'camera') {
+                const report: FramingReport | null = await page.evaluate((sel: string | null) => (window as any).__anim.framingReport(sel), step.target ?? null);
+                if (report) {
+                    const w = report.window;
+                    const parts = [`framing after the move: scale ${report.scale}, window ${w.w}x${w.h} at (${w.x}, ${w.y})`];
+                    if (report.target) parts.push(`target ${report.target.name} (${Math.round(report.target.visibleFraction * 100)}% visible, ${Math.round(report.target.windowCoverage * 100)}% of the window)`);
+                    if (report.inFrame.length) parts.push(`in frame: ${report.inFrame.map(f => `${f.name} ${Math.round(f.coverage * 100)}%`).join(', ')}`);
+                    if (report.sliced.length) parts.push(`cut by the frame edge: ${report.sliced.map(s => `${s.name} (${s.by})`).join(', ')}`);
+                    parts.push(`content coverage ${Math.round(report.contentCoverage * 100)}%`);
+                    const info = issueFor(step, 'info', parts.join(' · '), 'camera');
+                    info.framing = report;
+                    issues.push(info);
+                    // A push-in that frames mostly background is the one framing that is suspicious
+                    // on its own: content was around (the page has it) and the window missed it.
+                    // Deliberate empty framing exists, so this is a warning, never an error.
+                    if (report.scale > 1.05 && report.contentCoverage < 0.15) {
+                        issues.push(issueFor(step, 'warning', `the zoomed window is ${Math.round((1 - report.contentCoverage) * 100)}% background (content coverage ${Math.round(report.contentCoverage * 100)}%): check that the camera target is the element to show and that its selector resolved where intended`, 'camera'));
+                    }
+                }
+            }
+            // The chip dodges the spotlighted target and the cursor on its own; a collision here
+            // means every placement overlapped and the least-bad one was taken (a crowded frame).
+            if (typeof step.subtitle === 'string' && step.subtitle.trim()) {
+                const hits: { what: string; areaPx: number }[] | null = await page.evaluate(() => (window as any).__anim.subtitleCollisions());
+                if (hits && hits.length) {
+                    issues.push(issueFor(step, 'warning', `the subtitle chip covers the ${hits[0].what} at this step: every placement collides, so the least-bad one was taken (shorten the subtitle, lower meta.subtitleScale, or reframe the step)`, 'subtitle'));
+                }
             }
         },
     };

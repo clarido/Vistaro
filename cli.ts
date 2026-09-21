@@ -157,7 +157,7 @@ RECORD OF WHAT WAS DONE:
 
   program
     .command('check')
-    .description('Validate anim.config.json: schema, timing, strings, and (unless --static/--live) every target selector in a headless browser')
+    .description('Validate anim.config.json: schema, timing, strings, and (unless --static/--live) every target selector in a headless browser; each camera step also reports its framing as facts (window, what is in frame, what is cut)')
     .argument('<output_dir>', 'Directory containing anim.config.json (and index.html unless --live)')
     .option('--static', 'Schema and timing checks only, no browser')
     .option('--scale <n>', 'Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width')

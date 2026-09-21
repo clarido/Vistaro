@@ -248,6 +248,26 @@ export interface Timeline {
     configFile?: string;
 }
 
+/** Framing facts attached to a `camera` step's info issue by the browser pass (see framingReport
+ *  in runtime.js; the shape is duplicated there because the runtime cannot import this file). */
+export interface FramingReport {
+    scale: number;
+    window: { x: number; y: number; w: number; h: number };
+    target?: {
+        selector: string;
+        name: string;
+        rect: { x: number; y: number; w: number; h: number };
+        /** Share of the target itself that is inside the frame, 0 to 1. */
+        visibleFraction: number;
+        /** Share of the frame the target covers, 0 to 1. */
+        windowCoverage: number;
+    } | null;
+    inFrame: { name: string; coverage: number }[];
+    sliced: { name: string; by: string }[];
+    /** Share of the frame covered by content rather than background, 0 to 1. */
+    contentCoverage: number;
+}
+
 export interface Issue {
     /** info = nothing wrong, but worth knowing (e.g. which ancestor carries the spotlight for a 0x0 target). */
     level: 'error' | 'warning' | 'info';
@@ -262,6 +282,8 @@ export interface Issue {
     target?: string;
     /** Selector of the sized ancestor the spotlight uses when the target itself is 0x0. */
     highlightFallback?: string;
+    /** Camera framing facts, on the info issue a `camera` step's report lands on (check --json). */
+    framing?: FramingReport;
 }
 
 export interface SubtitleWindow {

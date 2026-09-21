@@ -464,7 +464,10 @@ test('check: clean fixture exits 0; broken copy lists every error with step/time
     assert.match(ok.stdout, /OK:/);
     assert.match(ok.stdout, /info {3}\s+step 9 .*spotlight uses its sized ancestor #log/);
     const okJson = JSON.parse(cli(['check', path.join(work, 'basic'), '--json']).stdout);
-    assert.deepEqual(okJson.map((i: any) => [i.level, i.step, i.highlightFallback]), [['info', 9, '#log']]);
+    // Camera steps now also emit a framing-facts info issue (asserted in its own test below); the
+    // spotlight fallback stays the only other info on this fixture.
+    assert.deepEqual(okJson.filter((i: any) => !i.framing).map((i: any) => [i.level, i.step, i.highlightFallback]), [['info', 9, '#log']]);
+    assert.equal(okJson.filter((i: any) => i.framing).length, 2, 'both camera steps report their framing');
 
     const broken = path.join(work, 'broken');
     fs.cpSync(fixture, broken, { recursive: true });
@@ -818,6 +821,139 @@ test('a reel says the crop never reaches the video, and a camera push is not rep
         ],
     }), '-w', '1280', '-H', '800']);
     assert.ok(!(pushed.stdout + pushed.stderr).includes('extends'), `no partial-overflow warning under a camera:\n${pushed.stdout}${pushed.stderr}`);
+});
+
+// A page built for framing math: three named columns across a 1600px body, so a 1280x800 viewport
+// at scale 2 leaves a 640x400 window. The body is deliberately WIDER than the viewport: its box
+// centre (800) is not the viewport's (640), which is exactly the case the camera's centring used
+// to miss (transform-origin is the body box's centre, not the viewport's).
+const FRAMING_PAGE = `<!doctype html><meta charset="utf-8"><style>
+ body { margin: 0; font: 14px sans-serif; width: 1600px; height: 800px; }
+ #side { position: absolute; left: 0; top: 0; width: 280px; height: 800px; background: #eee; }
+ #chart { position: absolute; left: 280px; top: 0; width: 720px; height: 800px; background: #dfd; }
+ #chart h2 { margin: 20px; font-size: 18px; }
+ #panel { position: absolute; left: 1000px; top: 0; width: 600px; height: 800px; background: #fdd; }
+</style>
+<div id="side"><p>Side column</p></div>
+<div id="chart"><h2>Chart</h2><p>Chart body</p></div>
+<div id="panel"><p>Panel</p></div>`;
+
+const writeFraming = (name: string, html: string, config: any) => {
+    const dir = path.join(work, name);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'index.html'), html);
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(config));
+    return dir;
+};
+
+test('check reports camera framing as facts, and the structured report rides --json', { skip }, () => {
+    // #chart's centre (640,400) is exactly the viewport's centre; a scale-2 push must leave a
+    // 640x400 window centred on it, i.e. at (320, 200). The window coordinate is the regression
+    // assertion for the centring fix: the old translate landed it at (400, 200) on this page.
+    const dir = writeFraming('framing-centred', FRAMING_PAGE, {
+        meta: { title: 'Framing' },
+        steps: [
+            { id: 'push', time: 0.3, action: 'camera', target: '#chart', scale: 2, duration: 0.3 },
+            { id: 'wider', time: 1.0, action: 'camera', target: '#chart', scale: 1.1, duration: 0.3 },
+        ],
+    });
+    const r = cli(['check', dir, '-w', '1280', '-H', '800']);
+    const text = r.stdout + r.stderr;
+    assert.equal(r.status, 0, text);
+    assert.match(text, /step 1 .*framing after the move: scale 2, window 640x400 at \(320, 200\)/);
+    // The 640x400 window sits INSIDE the 720x800 chart: the chart covers all of the window, the
+    // window shows less than half of the chart. Both facts in one line.
+    assert.match(text, /step 1 .*target div#chart .* \(\d+% visible, 100% of the window\)/);
+    assert.match(text, /step 1 .*content coverage 100%/);
+    // The gentler push frames the neighbours too, and says where it cuts through them.
+    assert.match(text, /step 2 .*cut by the frame edge: .*#side.*\(left \d+px\), .*#panel.*\(right \d+px\)/);
+    // Nothing is wrong with either framing, so nothing escalates past info.
+    assert.ok(!text.includes('background'), `a framed push is not reported as background:\n${text}`);
+
+    // The same facts, structured, on the info issue for machine consumers.
+    const j = JSON.parse(cli(['check', dir, '-w', '1280', '-H', '800', '--json']).stdout);
+    const framings = j.filter((i: any) => i.framing);
+    assert.equal(framings.length, 2, `one framing report per camera step:\n${JSON.stringify(j, null, 2)}`);
+    assert.equal(framings[0].framing.scale, 2);
+    assert.deepEqual(framings[0].framing.window, { x: 320, y: 200, w: 640, h: 400 });
+    assert.ok(framings[0].framing.inFrame.some((f: any) => f.name.startsWith('div#chart')), `chart named in frame:\n${JSON.stringify(framings[0].framing)}`);
+});
+
+test('check warns when a zoom frames mostly background (the "wrong place" smell)', { skip }, () => {
+    const config = {
+        meta: { title: 'Empty' },
+        steps: [{ id: 'zoom', time: 0.3, action: 'camera', target: '#btn', scale: 2, duration: 0.3 }],
+    };
+    const islands = writeFraming('framing-empty', `<!doctype html><meta charset="utf-8"><style>body { margin: 0; font: 14px sans-serif; }</style>
+<button id="btn" style="position:absolute;left:600px;top:380px;width:80px;height:30px">Save</button>
+<div id="far" style="position:absolute;left:20px;top:20px;width:200px;height:60px">Elsewhere</div>`, config);
+    const r = cli(['check', islands, '-w', '1280', '-H', '800']);
+    const text = r.stdout + r.stderr;
+    // A warning, never an error: framing onto empty space can be deliberate.
+    assert.equal(r.status, 0, text);
+    assert.match(text, /step 1 .*zoomed window is 9\d% background/);
+    assert.match(text, /check that the camera target is the element to show/);
+
+    // The common mockup shape wraps the blocks in a full-viewport container. A wrapper that paints
+    // nothing is layout, not content: it must not make an empty corner read as full. vw/vh keep the
+    // wrapper a real full box even under the camera's transform on <body> (which becomes the
+    // containing block for its absolutely-positioned children).
+    const wrapped = writeFraming('framing-wrapped', `<!doctype html><meta charset="utf-8"><style>body { margin: 0; font: 14px sans-serif; }
+ #app { position: absolute; inset: 0; width: 100vw; height: 100vh; display: flex; }</style>
+<div id="app">
+  <button id="btn" style="position:absolute;left:600px;top:380px;width:80px;height:30px">Save</button>
+  <div id="far" style="position:absolute;left:20px;top:20px;width:200px;height:60px">Elsewhere</div>
+</div>`, config);
+    const w = cli(['check', wrapped, '-w', '1280', '-H', '800']);
+    assert.match(w.stdout + w.stderr, /step 1 .*zoomed window is 9\d% background/);
+});
+
+test('check warns when an animate reveal is not pre-hidden in CSS, and stays quiet when it is', { skip }, () => {
+    // The reel authoring trap: `from` applies when the step runs, not at page load, so an element
+    // that is not pre-hidden sits fully visible until the step's time and then pops out and back.
+    // `how` picks the page's shape: '' shows the trap; the others are legitimate pre-hides.
+    const page = (how: string) => `<!doctype html><meta charset="utf-8"><style>body { margin: 0; font: 16px sans-serif; }
+ #wrap { ${how === 'wrap' ? 'opacity: 0;' : ''}${how === 'wraptransform' ? 'transform: scale(0);' : ''} }
+ #card { position: absolute; left: 50%; top: 50%; width: 400px; height: 200px; background: #eee; padding: 20px;
+   transform: translate(-50%, -50%);${how === 'own' ? ' opacity: 0;' : ''}${how === 'transform' ? ' transform: scale(0);' : ''} }
+</style><div id="wrap"><div id="card"><h2>Card</h2><p>Content</p></div></div>`;
+    const config = { meta: { title: 'Reveal' }, steps: [{ id: 'show', time: 0.6, action: 'animate', target: '#card', from: { opacity: 0 }, to: { opacity: 1 } }] };
+    const bad = cli(['check', writeFraming('reveal-visible', page(''), config), '-w', '1280', '-H', '800']);
+    assert.match(bad.stdout + bad.stderr, /step 1 .*is fully visible right now, but this step animates it from opacity 0/);
+    assert.match(bad.stdout + bad.stderr, /Pre-hide it in CSS \(opacity 0\)/);
+    // Hidden is hidden however it was achieved: the card's own opacity, a wrapper's opacity or a
+    // collapsed scale(0) (the card's or a wrapper's) -- none of them flash, so none of them warn.
+    // The centered card carries translate(-50%, -50%), which hides nothing: the trap still warns
+    // through it, and only a transform that actually collapses the element silences the warning.
+    for (const how of ['own', 'wrap', 'transform', 'wraptransform'] as const) {
+        const good = cli(['check', writeFraming(`reveal-${how}`, page(how), config), '-w', '1280', '-H', '800']);
+        const goodText = good.stdout + good.stderr;
+        assert.ok(!goodText.includes('Pre-hide'), `pre-hidden via ${how} is quiet:\n${goodText}`);
+    }
+});
+
+test('check warns when the subtitle chip has nowhere left to dodge', { skip }, () => {
+    // A target covering the whole frame leaves the chip no clear placement: reflowSubtitle takes
+    // the least-bad one, and that fact is exactly what an author needs to hear about.
+    const dir = writeFraming('subtitle-crowded', `<!doctype html><meta charset="utf-8"><style>body { margin: 0; font: 14px sans-serif; }
+ #all { position: absolute; inset: 0; background: #eee; }</style>
+<div id="all">Everything</div>`, {
+        meta: { title: 'Crowded', cursor: 'none' },
+        steps: [{ id: 'h', time: 0.3, action: 'highlight', target: '#all', subtitle: 'A chip with nowhere to go.' }],
+    });
+    const r = cli(['check', dir, '-w', '1280', '-H', '720']);
+    assert.match(r.stdout + r.stderr, /step 1 .*subtitle chip covers the spotlight target/);
+});
+
+test('a multi-match warning names the element the selector resolved to', { skip }, () => {
+    const dir = writeFraming('multi-match', `<!doctype html><meta charset="utf-8"><style>body { margin: 0; font: 14px sans-serif; }
+ .row { width: 300px; height: 40px; margin: 10px; background: #eee; }</style>
+<div class="row">First row</div><div class="row">Second row</div>`, {
+        meta: { title: 'Multi' },
+        steps: [{ id: 'c', time: 0.3, action: 'click', target: '.row' }],
+    });
+    const r = cli(['check', dir, '-w', '1280', '-H', '800']);
+    assert.match(r.stdout + r.stderr, /matches 2 elements; the first one is used: div\.row "First row"/);
 });
 
 test('the spotlight is clamped to what a clipping ancestor lets through, and never collapses', { skip }, async () => {

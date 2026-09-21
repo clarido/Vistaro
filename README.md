@@ -81,7 +81,7 @@ Paste your screenshots into the agent's chat and ask for the demo:
 
 > *"Here are the three screens of our onboarding. Recreate them, write a timeline that walks through signing up, and export the video with a guide, in English and French."*
 
-The agent writes `index.html` and `anim.config.json`, runs `check`, `build` and `preview` (it reads the PNG and fixes the timeline), exports with `--guide`, then `localize`s and exports each language. The workflow and every file format are in [AGENTS.md](AGENTS.md).
+The agent writes `index.html` and `anim.config.json`, runs `check`, `build` and `preview` (it reads the PNG and fixes the timeline), exports with `--guide`, then `localize`s and exports each language. Motion never has to be watched to be reviewed: `check` reports each `camera` step's framing as facts -- the window, what is in frame, what is cut by the frame edge -- so a zoom aimed at the wrong element reads as text, and the agent fixes it like any other finding. The workflow and every file format are in [AGENTS.md](AGENTS.md).
 
 ### Other languages
 
@@ -218,7 +218,7 @@ Build animated.html from index.html + anim.config.json (no LLM, no API key)
 npx tsx cli.ts check <output_dir> [options]
 ```
 
-Validate anim.config.json: schema, timing, strings, and (unless --static/--live) every target selector in a headless browser
+Validate anim.config.json: schema, timing, strings, and (unless --static/--live) every target selector in a headless browser; each camera step also reports its framing as facts (window, what is in frame, what is cut)
 
 | Argument | Description |
 |---|---|

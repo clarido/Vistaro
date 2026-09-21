@@ -101,6 +101,9 @@
     snapshotScripts: null,
     snapshotStyle: '',
     cameraOn: false,
+    /** Window (page coordinates) the active camera transform leaves inside the viewport, set by
+     *  camera() and read by framingReport(); null when no camera move has reframed the page. */
+    cameraWindow: null,
     playback: null,
     timers: [],
     intervals: [],
@@ -276,6 +279,222 @@
     return false;
   }
 
+  /**
+   * Compact identity of an element for reports: tag#id, tag.class or the bare tag, plus a short
+   * text snippet. Reports are read by an author (often an agent) diffing them against the
+   * timeline's intent, so the name and the snippet are what make "this selector resolved to the
+   * wrong element" legible as text.
+   */
+  function describeEl(el) {
+    var tag = el.tagName.toLowerCase();
+    var name = el.id ? tag + '#' + el.id : (el.classList && el.classList.length ? tag + '.' + el.classList[0] : tag);
+    var text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (text.length > 24) text = text.slice(0, 24) + '…';
+    return name + (text ? ' "' + text + '"' : '');
+  }
+
+  /**
+   * Whether `el` or any ancestor is scaled to nothing: a CSS scale(0) pre-hide anywhere on the
+   * chain hides the element as surely as opacity 0, while any other transform (the standard
+   * translate(-50%, -50%) centering idiom) hides nothing. Used by check's reveal warning.
+   */
+  function transformHidden(el) {
+    var n = el;
+    while (n && n.nodeType === 1) {
+      var t = getComputedStyle(n).transform;
+      if (t && t !== 'none') {
+        try {
+          var m = new DOMMatrix(t);
+          if (Math.hypot(m.a, m.b) < 0.01 && Math.hypot(m.c, m.d) < 0.01) return true;
+        } catch (e) { /* unparsable transform: treat as visible */ }
+      }
+      if (n === document.documentElement) break;
+      n = n.parentElement;
+    }
+    return false;
+  }
+
+  /** Tags that count as nameable content even with no id and no class. */
+  var FRAMING_LANDMARKS = 'h1,h2,h3,h4,h5,h6,p,li,button,a,img,svg,canvas,video,table,input,textarea,select,label';
+
+  /**
+   * The facts a `camera` step leaves the viewer looking at, measured in the settled state: which
+   * named elements are in frame and how much of the window they cover, which are cut by its edge,
+   * how much of the window is content rather than background, and where the step's own target
+   * landed. This is what lets an author notice "the zoom is in the wrong place" without watching
+   * the video: compared against the timeline's intent, the report is a text diff. Rects and the
+   * window are reported in the page's authored px (painted / rootZoom); coverage fractions are
+   * scale-free. Returns null unless a camera step has reframed the page.
+   */
+  function framingReport(targetSel) {
+    if (!state.cameraOn || !state.cameraWindow) return null;
+    var z = rootZoom();
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var vpArea = vw * vh;
+    var skipTags = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, BR: 1, HR: 1, META: 1, LINK: 1, TITLE: 1 };
+    var all = document.body.querySelectorAll('*');
+    // On a very large DOM the per-element getComputedStyle pass gets costly; id'd elements and
+    // landmark tags still identify the page, so class-named elements are the ones dropped.
+    var heavy = all.length > 4000;
+    var targetEl = null;
+    if (targetSel) { try { targetEl = document.querySelector(targetSel); } catch (e) { targetEl = null; } }
+    var named = [];
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (skipTags[el.tagName]) continue;
+      if (el.id && el.id.indexOf('anim-cli-') === 0) continue;
+      var isLandmark = !!(el.matches && el.matches(FRAMING_LANDMARKS));
+      var isNamed = !!el.id || (el.classList && el.classList.length > 0);
+      if (heavy && !el.id && !isLandmark) continue;
+      if (!isNamed && !isLandmark) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) continue;
+      var cs = getComputedStyle(el);
+      if (cs.display === 'none') continue;
+      // Visible NOW, through the whole ancestor chain: reel cards legitimately sit at opacity 0
+      // until their reveal, and invisible content is not "in frame" even when its box intersects
+      // the window. checkVisibility's option names were renamed mid-spec; pass both spellings and
+      // let unknown keys fall on the floor.
+      var vis = false;
+      if (typeof el.checkVisibility === 'function') {
+        vis = el.checkVisibility({ opacityProperty: true, visibilityProperty: true, checkOpacity: true, checkVisibilityCSS: true });
+      } else {
+        vis = cs.visibility !== 'hidden' && parseFloat(cs.opacity) !== 0;
+      }
+      // Whether the element paints anything of its own (a background colour or image). A wrapper
+      // that paints nothing is layout, not content: on the common mockup shape -- a transparent
+      // #app spanning the viewport around the real blocks -- its box would otherwise cover the
+      // whole window and content coverage could never drop, deafening the background warning
+      // exactly where a push onto an empty corner should trip it. Transparent spelled the modern
+      // way (color(srgb ... / 0), oklch(... / 0)) serializes with a slash alpha, hence the second
+      // pattern alongside the legacy comma form.
+      var bg = cs.backgroundColor;
+      var transparentBg = bg === 'transparent' || /rgba\([^)]*,\s*0\)$/.test(bg) || /\/\s*0\)$/.test(bg);
+      var paints = cs.backgroundImage !== 'none' || !transparentBg;
+      var ix = Math.min(r.right, vw) - Math.max(r.left, 0);
+      var iy = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+      named.push({ el: el, r: r, area: r.width * r.height, inter: Math.max(0, ix) * Math.max(0, iy), paints: paints, vis: vis, layout: false });
+    }
+    // "Contains named content", visible or not (a reel's cards are named and pre-hidden): one
+    // ancestor-marking pass instead of a contains() scan per element.
+    var hasNamedDesc = new Map();
+    for (var n0 = 0; n0 < named.length; n0++) {
+      for (var pa = named[n0].el.parentElement; pa && pa.nodeType === 1; pa = pa.parentElement) {
+        if (!hasNamedDesc.has(pa)) hasNamedDesc.set(pa, true);
+      }
+    }
+    // A non-painting wrapper of named content is layout, not content: it is not a list entry, not
+    // a coverage contributor and not a slice; its children are measured directly.
+    for (var n1 = 0; n1 < named.length; n1++) named[n1].layout = !named[n1].paints && hasNamedDesc.has(named[n1].el);
+    // The set the top-level test walks: visible, non-layout elements.
+    var allSet = [];
+    for (var n2 = 0; n2 < named.length; n2++) if (named[n2].vis && !named[n2].layout) allSet.push(named[n2].el);
+    named.sort(function (a, b) { return b.inter - a.inter; });
+    // In-frame list: the largest blocks first, skipping anything nested inside an already-listed
+    // element (a card says more than its heading, and both is noise) and layout-only wrappers.
+    var inSet = [];
+    var inFrame = [];
+    for (var j = 0; j < named.length && inFrame.length < 8; j++) {
+      if (named[j].inter <= 0) break;
+      if (!named[j].vis || named[j].layout) continue;
+      var nested = false;
+      for (var k = 0; k < inSet.length; k++) if (inSet[k].contains(named[j].el)) { nested = true; break; }
+      if (nested) continue;
+      inSet.push(named[j].el);
+      inFrame.push({ name: describeEl(named[j].el), coverage: Math.round(named[j].inter / vpArea * 100) / 100 });
+    }
+    // Content coverage: the top-level visible elements' intersections summed, capped at 1.
+    // Siblings rarely overlap, so the sum tracks the union closely enough to tell content from
+    // background. Layout wrappers contribute nothing themselves -- their children are summed.
+    var cover = 0;
+    for (var c = 0; c < named.length; c++) {
+      var ce = named[c];
+      if (ce.inter <= 0 || !ce.vis || ce.layout) continue;
+      var topLevel = true;
+      for (var p = ce.el.parentElement; p && p !== document.documentElement; p = p.parentElement) {
+        if (allSet.indexOf(p) >= 0) { topLevel = false; break; }
+      }
+      if (topLevel) cover += ce.inter;
+    }
+    cover = Math.min(1, cover / vpArea);
+    // Sliced: named content crossing a viewport edge. The page-spanning canvas and non-painting
+    // wrappers are skipped (they are always cut by a push-in and say nothing), so is the step's own
+    // target (its visibility is its own line) and its descendants (they share its edges), and so is
+    // a child whose ancestor is already listed: one name for one edge is the whole point of the
+    // list. The canvas test compares AUTHORED sizes (painted area / scale^2 against the authored
+    // viewport), so a deep push-in does not start hiding half-page content as "canvas".
+    var s2 = state.cameraWindow.scale * state.cameraWindow.scale;
+    var minCut = 8 * z;
+    var sliced = [];
+    var slicedPicked = [];
+    if (targetEl) slicedPicked.push(targetEl);
+    for (var m = 0; m < named.length && sliced.length < 5; m++) {
+      var it = named[m];
+      if (it.inter <= 0 || !it.vis || it.layout) continue;
+      if (it.area > vpArea * 2 * s2) continue;
+      var nestedCut = false;
+      for (var sc = 0; sc < slicedPicked.length; sc++) if (slicedPicked[sc].contains(it.el)) { nestedCut = true; break; }
+      if (nestedCut) continue;
+      var sides = [['left', -it.r.left], ['right', it.r.right - vw], ['top', -it.r.top], ['bottom', it.r.bottom - vh]];
+      var worstSide = null, worstPx = minCut;
+      for (var q = 0; q < 4; q++) if (sides[q][1] > worstPx) { worstSide = sides[q][0]; worstPx = sides[q][1]; }
+      if (worstSide) {
+        slicedPicked.push(it.el);
+        sliced.push({ name: describeEl(it.el), by: worstSide + ' ' + Math.round(worstPx / z) + 'px' });
+      }
+    }
+    var target = null;
+    if (targetEl) {
+      var tr = targetEl.getBoundingClientRect();
+      var tix = Math.max(0, Math.min(tr.right, vw) - Math.max(tr.left, 0));
+      var tiy = Math.max(0, Math.min(tr.bottom, vh) - Math.max(tr.top, 0));
+      var tInter = tix * tiy;
+      var tArea = tr.width * tr.height;
+      target = {
+        selector: targetSel,
+        name: describeEl(targetEl),
+        rect: { x: Math.round(tr.left / z), y: Math.round(tr.top / z), w: Math.round(tr.width / z), h: Math.round(tr.height / z) },
+        visibleFraction: tArea > 0 ? Math.round(tInter / tArea * 100) / 100 : 0,
+        windowCoverage: Math.round(tInter / vpArea * 100) / 100
+      };
+    }
+    return {
+      scale: Math.round(state.cameraWindow.scale * 100) / 100,
+      window: { x: Math.round(state.cameraWindow.x), y: Math.round(state.cameraWindow.y), w: Math.round(state.cameraWindow.w), h: Math.round(state.cameraWindow.h) },
+      target: target,
+      inFrame: inFrame,
+      sliced: sliced,
+      contentCoverage: Math.round(cover * 100) / 100
+    };
+  }
+
+  /**
+   * Whether the placed subtitle chip currently covers something it must not (the spotlighted
+   * target, the cursor). reflowSubtitle() picks the least-overlapping placement when none is
+   * clear, so a collision here means every placement collided: the frame is crowded at this
+   * moment. Returns null when no chip is showing, else [{ what, areaPx }] worst-first.
+   */
+  function subtitleCollisions() {
+    var el = state.subtitleEl;
+    if (!el || !state.opts.subtitles) return null;
+    var text = el.textContent || '';
+    if (!text.trim()) return null;
+    var obstacles = subtitleObstacles();
+    var z = rootZoom();
+    var l = el.offsetLeft * z, t = el.offsetTop * z;
+    var box = { left: l, top: t, right: l + el.offsetWidth * z, bottom: t + el.offsetHeight * z };
+    var hits = [];
+    for (var i = 0; i < obstacles.length; i++) {
+      var o = obstacles[i];
+      var ow = Math.min(box.right, o.right) - Math.max(box.left, o.left);
+      var oh = Math.min(box.bottom, o.bottom) - Math.max(box.top, o.top);
+      if (ow > 0 && oh > 0) hits.push({ what: o.what || 'target', areaPx: Math.round(ow * oh) });
+    }
+    hits.sort(function (a, b) { return b.areaPx - a.areaPx; });
+    return hits;
+  }
+
+
   // --- boot: styles + overlays ----------------------------------------------------
   // Idempotent: a second boot with a different cursor swaps the cursor CSS.
   function installStyles() {
@@ -337,7 +556,8 @@
    *  cue is about, held for the whole cue even after the ring's pulse fades) and the cursor.
    *  lastSpot is set at the START of a step, before the cursor travels, so a reflow on travel
    *  already protects the destination; spotAnchor (set by positionHighlight) is the fallback when
-   *  a highlight was placed without a step, and survives until restart(). */
+   *  a highlight was placed without a step, and survives until restart(). Each box carries a
+   *  `what` label for subtitleCollisions(); reflowSubtitle() only reads the edges. */
   function subtitleObstacles() {
     var out = [];
     var z = rootZoom();
@@ -347,12 +567,12 @@
     if (spotEl) {
       var r = visibleRect(spotEl);
       var pad = 16 * z;
-      if (r.width > 0 && r.height > 0) out.push({ left: r.left - pad, top: r.top - pad, right: r.right + pad, bottom: r.bottom + pad });
+      if (r.width > 0 && r.height > 0) out.push({ what: 'spotlight target', left: r.left - pad, top: r.top - pad, right: r.right + pad, bottom: r.bottom + pad });
     }
     if (state.cursor && state.point) {
       // The cursor sprite is 28px at its tip's top-left plus a shadow; give it air on all sides.
       var grow = 14 * z;
-      out.push({ left: state.point.x - grow, top: state.point.y - grow, right: state.point.x + 42 * z, bottom: state.point.y + 46 * z });
+      out.push({ what: 'cursor', left: state.point.x - grow, top: state.point.y - grow, right: state.point.x + 42 * z, bottom: state.point.y + 46 * z });
     }
     return out;
   }
@@ -764,6 +984,9 @@
         stage.style.transition = 'none';
         stage.style.transform = 'none';
         var r = el.getBoundingClientRect();
+        // The body's own box in the same (untransformed) state: the transform origin is its
+        // centre, and the translate below has to account for where that centre actually is.
+        var bb = stage.getBoundingClientRect();
         stage.style.transform = current === 'none' ? '' : current;
         void stage.offsetWidth;
         stage.style.transition = prevTransition;
@@ -774,10 +997,19 @@
         // thrown across the frame. Only the translate converts; the scale factor is dimensionless,
         // and an authored step.x/step.y is already in the page's own units.
         var z = rootZoom();
-        var cx = (r.left + r.width / 2 - window.innerWidth / 2) / z;
-        var cy = (r.top + r.height / 2 - window.innerHeight / 2) / z;
-        x = (-cx) + 'px';
-        y = (-cy) + 'px';
+        // `transform-origin: center center` is the centre of the BODY box, which is the viewport's
+        // centre only when the two coincide. The old shortcut (translate = viewportCentre - target)
+        // silently assumed they do: on a mockup wider or taller than the viewport -- a wide
+        // dashboard, a page longer than the frame -- a zoom onto a target sitting at the viewport's
+        // centre still landed off it, by (bodyCentre - viewportCentre) * (1 - scale). This is the
+        // exact inverse map instead: the translate that puts the target's centre on the viewport's
+        // centre under scale(S) about the body box's centre. At scale 1 it collapses to the same
+        // plain pan as before, so pans and pull-backs are unchanged.
+        var vx = window.innerWidth / 2 / z, vy = window.innerHeight / 2 / z;
+        var bx = (bb.left + bb.width / 2) / z, by = (bb.top + bb.height / 2) / z;
+        var px = (r.left + r.width / 2) / z, py = (r.top + r.height / 2) / z;
+        x = ((vx - bx) / scale + bx - px) + 'px';
+        y = ((vy - by) / scale + by - py) + 'px';
       }
     }
     var dur = instant ? 0 : (step.duration != null ? step.duration : DEFAULT_CAMERA_S);
@@ -788,25 +1020,47 @@
     // with transitions off, not computed, so transform-origin, a body box that is not the viewport
     // and compounding camera moves are all handled by the browser. Cursor, spotlight and badge are
     // all fixed-position overlays outside the transformed stage, so all three have to be carried.
+    // The same dance yields the window the transform leaves inside the viewport (state.cameraWindow,
+    // read by framingReport): a uniform scale about any origin maps the body box linearly onto its
+    // transformed box, so the viewport rect maps straight back through the two measured boxes --
+    // measured rather than re-derived for exactly the reasons above.
     var cursorTo = null;
     var spotTo = null;
     var anchor = state.cursorAnchor;
     var spot = state.spotAnchor;
     var moveCursorToo = !!(state.cursor && anchor && anchor.el && anchor.el.isConnected);
     var moveSpotToo = !!(spot && spot.isConnected && document.getElementById('anim-cli-highlight'));
-    if (moveCursorToo || moveSpotToo) {
+    {
       var beforeTransform = stage.style.transform;
       var beforeTransition = stage.style.transition;
       stage.style.transition = 'none';
       stage.style.transform = finalTransform;
+      void stage.offsetWidth;
+      var tBox = stage.getBoundingClientRect();
       if (moveCursorToo) {
         var ar = anchor.el.getBoundingClientRect();
         cursorTo = { x: ar.left + anchor.fx * ar.width, y: ar.top + anchor.fy * ar.height };
       }
       if (moveSpotToo) spotTo = visibleRect(spot);
+      stage.style.transform = 'none';
+      void stage.offsetWidth;
+      var uBox = stage.getBoundingClientRect();
       stage.style.transform = beforeTransform;
       void stage.offsetWidth;
       stage.style.transition = beforeTransition;
+      // The uniform scale comes from the width ratio; the height may be 0 on a body that holds
+      // only absolutely-positioned content, and the map is still exact from the box anchors.
+      if (tBox.width > 0 && uBox.width > 0) {
+        var s = tBox.width / uBox.width;
+        var zw = rootZoom();
+        var wl = uBox.left + (0 - tBox.left) / s;
+        var wt = uBox.top + (0 - tBox.top) / s;
+        var wr = uBox.left + (window.innerWidth - tBox.left) / s;
+        var wb = uBox.top + (window.innerHeight - tBox.top) / s;
+        state.cameraWindow = { x: wl / zw, y: wt / zw, w: (wr - wl) / zw, h: (wb - wt) / zw, scale: s };
+      } else {
+        state.cameraWindow = null;
+      }
     }
 
     var cameraEase = easingOf(step, CAMERA_EASING);
@@ -1371,6 +1625,7 @@
     state.lastSpot = null;
     state.spotAnchor = null;
     state.cameraOn = false;
+    state.cameraWindow = null;
     state.cursorAnchor = null;
     state.completions = {};
     state.holds = {};
@@ -1479,6 +1734,13 @@
     isClipped: isClipped,
     /** Whether a `camera` step has reframed the page: under one, "outside the viewport" is by design. */
     cameraActive: function () { return !!state.cameraOn; },
+    /** Framing facts for the active camera (see framingReport); null when no camera is active. */
+    framingReport: framingReport,
+    /** Whether the placed subtitle chip covers the target/cursor anyway (see subtitleCollisions). */
+    subtitleCollisions: subtitleCollisions,
+    /** Whether el or an ancestor is scaled to nothing (a CSS scale(0) pre-hide). */
+    transformHidden: transformHidden,
+    describeEl: describeEl,
     selectorOf: selectorOf,
     highlight: highlight,
     holdHighlight: holdHighlight,
