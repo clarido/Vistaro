@@ -956,6 +956,27 @@ test('a multi-match warning names the element the selector resolved to', { skip 
     assert.match(r.stdout + r.stderr, /matches 2 elements; the first one is used: div\.row "First row"/);
 });
 
+test('camera xOffset/yOffset nudge the framing after the centre is solved', { skip }, () => {
+    // #chart's centre is the viewport's centre on this 1600px body, so a scale-2 push centres a
+    // 640x400 window at (320, 200). The offsets move the focus right 100 / up 50 -- the window
+    // travels with it -- and apply equally to a bare push with no target and no x/y, whose centre
+    // rests on the BODY box's centre (window at (400, 200) before the nudge).
+    const dir = writeFraming('framing-offset', FRAMING_PAGE, {
+        meta: { title: 'Offset' },
+        steps: [
+            { id: 'push', time: 0.3, action: 'camera', target: '#chart', scale: 2, duration: 0.3, xOffset: 100, yOffset: -50 },
+            { id: 'bare', time: 1.0, action: 'camera', scale: 2, duration: 0.3, xOffset: 100 },
+        ],
+    });
+    const r = cli(['check', dir, '-w', '1280', '-H', '800']);
+    const text = r.stdout + r.stderr;
+    assert.equal(r.status, 0, text);
+    assert.match(text, /step 1 .*window 640x400 at \(420, 150\)/);
+    assert.match(text, /step 2 .*window 640x400 at \(500, 200\)/);
+    // The nudged window still frames the chart's right part: the target line says how much of it.
+    assert.match(text, /step 1 .*target div#chart .* \(\d+% visible/);
+});
+
 test('the spotlight is clamped to what a clipping ancestor lets through, and never collapses', { skip }, async () => {
     // The ring frames what the reader can see. An element taller than its clipping container was
     // ringed well outside the app window, pointing at pixels the frame does not contain.

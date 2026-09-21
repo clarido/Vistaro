@@ -973,6 +973,13 @@
     // A bare number here would produce an invalid unitless translate() and drop the whole transform.
     if (typeof x === 'number') x = x + 'px';
     if (typeof y === 'number') y = y + 'px';
+    // xOffset/yOffset nudge the framing once its centre is solved -- the target's centre, an
+    // authored x/y point, or the resting centre of a bare push: the focus point moves right/down
+    // by the offset, matching the cursor-point offsets of the same name on click/type steps. The
+    // centre moving by +d means d comes OFF the translate, so it composes with every way a centre
+    // can be chosen. Authored units, like x/y themselves.
+    var dx = step.xOffset != null ? (parseFloat(step.xOffset) || 0) : 0;
+    var dy = step.yOffset != null ? (parseFloat(step.yOffset) || 0) : 0;
     var scale = step.scale || 1;
     if (step.target) {
       var el = document.querySelector(step.target);
@@ -1012,8 +1019,12 @@
         y = ((vy - by) / scale + by - py) + 'px';
       }
     }
+    // xOffset/yOffset as their own translate term: authored x/y values pass through verbatim
+    // (a unit-bearing "50%" stays meaningful), and the nudge composes after them instead of being
+    // parseFloat'd into the solved numbers.
     var dur = instant ? 0 : (step.duration != null ? step.duration : DEFAULT_CAMERA_S);
-    var finalTransform = 'scale(' + scale + ') translate(' + x + ', ' + y + ')';
+    var finalTransform = 'scale(' + scale + ') translate(' + x + ', ' + y + ')'
+      + ((dx || dy) ? ' translate(' + (-dx) + 'px, ' + (-dy) + 'px)' : '');
     stage.style.transformOrigin = 'center center';
 
     // Where the overlays' anchor elements end up under the final transform: measured by applying it
