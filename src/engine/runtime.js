@@ -65,6 +65,13 @@
   // frame's bottom edge and so on; reflowSubtitle() picks the attribute to keep the chip off the
   // spotlighted target and the cursor, and :not([data-place]) keeps the never-placed default
   // identical to the old bottom-centred chip.
+  //
+  // The stadium variant (a reel with subtitles on, see subtitleStyle) is the same chip drawn as a
+  // flat capsule: the glass recipe -- 75% charcoal, backdrop blur, hairline border, deep shadow --
+  // merges with an app's own dark cards and stacks four decorative systems under the biggest text
+  // in the frame. A reel's caption is the voiceover of a muted autoplay clip, so it drops the
+  // decoration, goes near-opaque (separation by construction, nothing showing through), takes the
+  // stadium radius apps use for badges, and is sized by its own law in sizeSubtitleLayer().
   var SUBTITLE_CSS = `#anim-cli-subtitle-layer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99998; pointer-events: none; }
 .anim-cli-sub-item { position: absolute; width: max-content; max-width: min(var(--anim-sub-max, 800px), calc(100% - 80px)); background: rgba(20,20,20,0.75); color: white; padding: 0.8em 1.6em; border-radius: 0.6em; font-family: -apple-system, sans-serif; font-size: var(--anim-sub-size, 20px); line-height: 1.4; text-align: center; box-shadow: 0 1em 2em -0.4em rgba(0,0,0,0.5); opacity: 0; font-weight: 500; letter-spacing: 0.015em; backdrop-filter: blur(0.8em); -webkit-backdrop-filter: blur(0.8em); border: 1px solid rgba(255,255,255,0.15); }
 .anim-cli-sub-item:not([data-place]), .anim-cli-sub-item[data-place="bottom"] { left: 0; right: 0; margin: 0 auto; bottom: 40px; top: auto; }
@@ -73,6 +80,7 @@
 .anim-cli-sub-item[data-place="bottom-right"] { right: 40px; left: auto; margin: 0; bottom: 40px; top: auto; }
 .anim-cli-sub-item[data-place="top-left"] { left: 40px; right: auto; margin: 0; top: 40px; bottom: auto; }
 .anim-cli-sub-item[data-place="top-right"] { right: 40px; left: auto; margin: 0; top: 40px; bottom: auto; }
+#anim-cli-subtitle-layer.anim-cli-sub-stadium .anim-cli-sub-item { background: rgba(15,18,24,0.92); border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; border-radius: 999em; padding: 0.5em 1.4em; font-weight: 600; letter-spacing: 0.01em; }
 @keyframes anim-cli-subFade { 0% { opacity: 0; transform: translateY(0.75em) scale(0.95); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); } 10%, 90% { opacity: 1; transform: translateY(0) scale(1); animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0); } 100% { opacity: 0; transform: translateY(-0.5em) scale(0.95); } }`;
   var EFFECTS_CSS = `#anim-cli-highlight { position: fixed; border-radius: 10px; border: 2px solid #3B82F6; box-shadow: 0 0 0 4px rgba(59,130,246,0.18), 0 0 28px rgba(59,130,246,0.35); pointer-events: none; z-index: 99996; opacity: 0; transition: left 0.5s cubic-bezier(0.16,1,0.3,1), top 0.5s cubic-bezier(0.16,1,0.3,1), width 0.5s cubic-bezier(0.16,1,0.3,1), height 0.5s cubic-bezier(0.16,1,0.3,1); }
 #anim-cli-highlight.anim-cli-pulse { animation: anim-cli-highlightPulse 1.3s cubic-bezier(0.16,1,0.3,1) forwards; }
@@ -88,11 +96,17 @@
   var state = {
     booted: false,
     ready: false,
-    opts: { cursor: 'mac', resetFocusStyles: false, drift: true, loop: false, spotlight: true, ripple: true, subtitles: true, subtitleScale: 1, autoplay: 'immediate', zoom: 1, timeline: null, durationMs: null, cursorPoint: null },
+    opts: { cursor: 'mac', resetFocusStyles: false, drift: true, loop: false, spotlight: true, ripple: true, subtitles: true, subtitleScale: 1, subtitleStyle: 'glass', autoplay: 'immediate', zoom: 1, timeline: null, durationMs: null, cursorPoint: null },
     cursor: null,
     subtitleLayer: null,
     subtitleEl: null,
+    /** Placement pinned by the running cue's step ("subtitlePlace"), or null: while set, reflowSubtitle() does not move the chip. */
+    subtitlePin: null,
     subtitleSizer: null,
+    /** Layout epoch: bumped whenever page content can have moved (step start, camera settle, resize,
+     *  restart). framedContentObstacles() memoizes its scan boxes for the current epoch. */
+    framingEpoch: 0,
+    framingCache: { epoch: -1, boxes: null },
     point: null,
     t0: null,
     currentScreen: null,
@@ -318,26 +332,18 @@
   var FRAMING_LANDMARKS = 'h1,h2,h3,h4,h5,h6,p,li,button,a,img,svg,canvas,video,table,input,textarea,select,label';
 
   /**
-   * The facts a `camera` step leaves the viewer looking at, measured in the settled state: which
-   * named elements are in frame and how much of the window they cover, which are cut by its edge,
-   * how much of the window is content rather than background, and where the step's own target
-   * landed. This is what lets an author notice "the zoom is in the wrong place" without watching
-   * the video: compared against the timeline's intent, the report is a text diff. Rects and the
-   * window are reported in the page's authored px (painted / rootZoom); coverage fractions are
-   * scale-free. Returns null unless a camera step has reframed the page.
+   * The shared element scan behind framingReport() and the subtitle's camera obstacle: every named
+   * (id'd or classed) or landmark element with its painted rect, visibility, whether it paints
+   * anything of its own, its viewport intersection and the layout-wrapper flag -- sorted by that
+   * intersection, biggest first. `allSet` is the visible, non-layout set the coverage walk uses.
    */
-  function framingReport(targetSel) {
-    if (!state.cameraOn || !state.cameraWindow) return null;
-    var z = rootZoom();
+  function framingScan() {
     var vw = window.innerWidth, vh = window.innerHeight;
-    var vpArea = vw * vh;
     var skipTags = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, BR: 1, HR: 1, META: 1, LINK: 1, TITLE: 1 };
     var all = document.body.querySelectorAll('*');
     // On a very large DOM the per-element getComputedStyle pass gets costly; id'd elements and
     // landmark tags still identify the page, so class-named elements are the ones dropped.
     var heavy = all.length > 4000;
-    var targetEl = null;
-    if (targetSel) { try { targetEl = document.querySelector(targetSel); } catch (e) { targetEl = null; } }
     var named = [];
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
@@ -390,6 +396,28 @@
     var allSet = [];
     for (var n2 = 0; n2 < named.length; n2++) if (named[n2].vis && !named[n2].layout) allSet.push(named[n2].el);
     named.sort(function (a, b) { return b.inter - a.inter; });
+    return { named: named, allSet: allSet };
+  }
+
+  /**
+   * The facts a `camera` step leaves the viewer looking at, measured in the settled state: which
+   * named elements are in frame and how much of the window they cover, which are cut by its edge,
+   * how much of the window is content rather than background, and where the step's own target
+   * landed. This is what lets an author notice "the zoom is in the wrong place" without watching
+   * the video: compared against the timeline's intent, the report is a text diff. Rects and the
+   * window are reported in the page's authored px (painted / rootZoom); coverage fractions are
+   * scale-free. Returns null unless a camera step has reframed the page.
+   */
+  function framingReport(targetSel) {
+    if (!state.cameraOn || !state.cameraWindow) return null;
+    var z = rootZoom();
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var vpArea = vw * vh;
+    var targetEl = null;
+    if (targetSel) { try { targetEl = document.querySelector(targetSel); } catch (e) { targetEl = null; } }
+    var scan = framingScan();
+    var named = scan.named;
+    var allSet = scan.allSet;
     // In-frame list: the largest blocks first, skipping anything nested inside an already-listed
     // element (a card says more than its heading, and both is noise) and layout-only wrappers.
     var inSet = [];
@@ -470,9 +498,10 @@
 
   /**
    * Whether the placed subtitle chip currently covers something it must not (the spotlighted
-   * target, the cursor). reflowSubtitle() picks the least-overlapping placement when none is
-   * clear, so a collision here means every placement collided: the frame is crowded at this
-   * moment. Returns null when no chip is showing, else [{ what, areaPx }] worst-first.
+   * target, the cursor, the content a camera push framed). reflowSubtitle() picks the
+   * least-overlapping placement when none is clear, so a collision here means every placement
+   * collided -- or that the cue is pinned where it is by "subtitlePlace": the frame is crowded
+   * at this moment. Returns null when no chip is showing, else [{ what, areaPx }] worst-first.
    */
   function subtitleCollisions() {
     var el = state.subtitleEl;
@@ -571,22 +600,37 @@
     // for small windows, capped at 5vh so an ultrawide frame does not run away. Portrait keys on
     // width (6vw) instead: 4.2% of a tall frame's height is huge relative to its narrow width.
     var portrait = h >= w;
-    var font = portrait ? Math.max(20, 0.06 * w) : Math.max(20, 0.023 * w, 0.042 * h);
-    font = Math.min(font, Math.max(20, 0.05 * h));
-    // Wrap room: about 42% of the frame width (the old 800px chip on a 1920 render), widened to
-    // the taller dimension's proportion when the frame is portrait-ish, never past the layer's
-    // own 40px side gutters. Scaled with the font, still capped by the gutters.
-    var max = Math.min(w - 80, Math.max(0.42 * w, 0.75 * h) * scale);
+    var font, wrapBase;
+    if (state.opts.subtitleStyle === 'stadium') {
+      // A reel is watched muted and autoplaying, usually at a fraction of its recording width in a
+      // feed or an embed: burned captions there run 5-8% of frame height, and the glass law's 4.2%
+      // measured 9.4px on a 400px-wide embed. 5% of height (2.8vw on wider-than-16:9 frames),
+      // capped at 6vh; portrait keys on width (7.5vw) for the same reason as the glass law. The
+      // wrap is one-line-first (58% of width): a real sentence should sit on one line rather than
+      // double the chip's height at the glass chip's 42%.
+      font = portrait ? Math.max(20, 0.075 * w) : Math.max(20, 0.028 * w, 0.05 * h);
+      font = Math.min(font, Math.max(20, 0.06 * h));
+      wrapBase = 0.58 * w;
+    } else {
+      font = portrait ? Math.max(20, 0.06 * w) : Math.max(20, 0.023 * w, 0.042 * h);
+      font = Math.min(font, Math.max(20, 0.05 * h));
+      // Wrap room: about 42% of the frame width (the old 800px chip on a 1920 render), widened to
+      // the taller dimension's proportion when the frame is portrait-ish.
+      wrapBase = Math.max(0.42 * w, 0.75 * h);
+    }
+    // Never past the layer's own 40px side gutters, and scaled with meta.subtitleScale.
+    var max = Math.min(w - 80, wrapBase * scale);
     layer.style.setProperty('--anim-sub-size', (Math.round(font * scale * 100) / 100) + 'px');
     layer.style.setProperty('--anim-sub-max', Math.max(120, Math.round(max)) + 'px');
   }
 
   /** Rects the subtitle chip must not cover, in PAINTED px: the spotlighted target (the thing the
-   *  cue is about, held for the whole cue even after the ring's pulse fades) and the cursor.
-   *  lastSpot is set at the START of a step, before the cursor travels, so a reflow on travel
-   *  already protects the destination; spotAnchor (set by positionHighlight) is the fallback when
-   *  a highlight was placed without a step, and survives until restart(). Each box carries a
-   *  `what` label for subtitleCollisions(); reflowSubtitle() only reads the edges. */
+   *  cue is about, held for the whole cue even after the ring's pulse fades), the cursor, and --
+   *  while a camera push-in is showing -- the content that push framed. lastSpot is set at the
+   *  START of a step, before the cursor travels, so a reflow on travel already protects the
+   *  destination; spotAnchor (set by positionHighlight) is the fallback when a highlight was
+   *  placed without a step, and survives until restart(). Each box carries a `what` label for
+   *  subtitleCollisions(); reflowSubtitle() only reads the edges. */
   function subtitleObstacles() {
     var out = [];
     var z = rootZoom();
@@ -603,6 +647,47 @@
       var grow = 14 * z;
       out.push({ what: 'cursor', left: state.point.x - grow, top: state.point.y - grow, right: state.point.x + 42 * z, bottom: state.point.y + 46 * z });
     }
+    var framed = framedContentObstacles();
+    if (framed.length) out = out.concat(framed);
+    return out;
+  }
+
+  /**
+   * While a camera push-in (scale > 1) is showing, the content it framed joins the obstacle list.
+   * The push exists to put that content on screen, and the camera step's own target ends up
+   * centred -- safe by construction -- while everything around it slides toward the frame edges,
+   * straight under the chip's bottom home (measured on a real reel: a 1.25x push delivered its
+   * checklist rows into the chip's band). Same selection framingReport calls "in frame": visible,
+   * non-layout, top-level content boxes, clipped to the viewport and padded like the spotlight
+   * obstacle. A pull-back (scale ~1) shows the whole page again -- the ordinary no-camera case
+   * the two classic obstacles already cover -- so it adds nothing. Capped at 12 boxes; a framed
+   * region is rarely more than a handful of cards.
+   */
+  function framedContentObstacles() {
+    if (!state.cameraOn || !state.cameraWindow || !(state.cameraWindow.scale > 1.001)) return [];
+    // One full-document scan per layout epoch, not per reflow: the dodge rechecks on every cursor
+    // travel and highlight while a push-in is held, and the scan (querySelectorAll('*') plus a
+    // computed-style pass per named element) would otherwise force a synchronous layout pass
+    // several times per step inside a real-time recording, where a hitch drops frames. Content
+    // only moves when the page does -- a camera settle, a resize, a restart, or the start of
+    // another step -- and each of those bumps state.framingEpoch; the mid-hold rechecks that
+    // matter (cursor, highlight) do not, and reuse the same boxes.
+    if (state.framingCache.epoch === state.framingEpoch && state.framingCache.boxes) return state.framingCache.boxes;
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var pad = 16 * rootZoom();
+    var scan = framingScan();
+    var picked = [];
+    var out = [];
+    for (var i = 0; i < scan.named.length && out.length < 12; i++) {
+      var it = scan.named[i];
+      if (it.inter <= 0 || !it.vis || it.layout) continue;
+      var nested = false;
+      for (var k = 0; k < picked.length; k++) if (picked[k].contains(it.el)) { nested = true; break; }
+      if (nested) continue;
+      picked.push(it.el);
+      out.push({ what: 'framed content', left: Math.max(0, it.r.left) - pad, top: Math.max(0, it.r.top) - pad, right: Math.min(vw, it.r.right) + pad, bottom: Math.min(vh, it.r.bottom) + pad });
+    }
+    state.framingCache = { epoch: state.framingEpoch, boxes: out };
     return out;
   }
 
@@ -618,6 +703,10 @@
   function reflowSubtitle(fresh) {
     var el = state.subtitleEl;
     if (!el || !state.opts.subtitles) return;
+    // A pinned cue stays where its step put it, mid-hold rechecks included: the pin is the author
+    // overriding the dodge on purpose. subtitleCollisions() still reports what the pin covers, so
+    // check can warn about a bad one.
+    if (state.subtitlePin) { el.setAttribute('data-place', state.subtitlePin); return; }
     var obstacles = subtitleObstacles();
     var current = el.getAttribute('data-place') || 'bottom';
     var order = fresh ? SUB_PLACES.slice() : [current].concat(SUB_PLACES.filter(function (p) { return p !== current; }));
@@ -660,12 +749,13 @@
     var layer = document.getElementById('anim-cli-subtitle-layer');
     if (!layer) { layer = document.createElement('div'); layer.id = 'anim-cli-subtitle-layer'; }
     if (layer.parentNode !== root) root.appendChild(layer);
+    layer.className = state.opts.subtitleStyle === 'stadium' ? 'anim-cli-sub-stadium' : '';
     state.subtitleLayer = layer;
     sizeSubtitleLayer();
     if (!state.subtitleSizer) {
       // animated.html: keep the chip proportional AND clear of the target/cursor when the viewer
       // resizes the window -- both the chip's box and the obstacle rects move with the window.
-      state.subtitleSizer = function () { sizeSubtitleLayer(); reflowSubtitle(false); };
+      state.subtitleSizer = function () { state.framingEpoch++; sizeSubtitleLayer(); reflowSubtitle(false); };
       window.addEventListener('resize', state.subtitleSizer);
     }
   }
@@ -1102,6 +1192,9 @@
         state.cameraWindow = null;
       }
     }
+    // The settled transform is a new layout epoch for the framed-content obstacles (this bump also
+    // matters mid-pass: the step started the move, the settle finishes it).
+    state.framingEpoch++;
 
     var cameraEase = easingOf(step, CAMERA_EASING);
     state.cameraOn = true;
@@ -1247,7 +1340,7 @@
     return typeof step.duration === 'number' && step.duration >= 0 ? Math.round(step.duration * 1000) : undefined;
   }
 
-  function showSubtitle(text, ms) {
+  function showSubtitle(text, ms, place) {
     if (!state.opts.subtitles) return;
     if (!state.subtitleLayer) return;
     var el = state.subtitleEl;
@@ -1257,6 +1350,10 @@
       state.subtitleLayer.appendChild(el);
       state.subtitleEl = el;
     }
+    // A step's "subtitlePlace" pins its cue for as long as it runs: the author knows the
+    // composition (a camera push framing low content) and takes the cue out of the automatic
+    // dodge. An unknown value is ignored -- schema validated it -- leaving the dodge in charge.
+    state.subtitlePin = place && SUB_PLACES.indexOf(place) >= 0 ? place : null;
     el.innerHTML = text;
     el.style.animation = 'none';
     void el.offsetWidth;
@@ -1266,6 +1363,7 @@
     reflowSubtitle(true);
   }
   function hideSubtitle() {
+    state.subtitlePin = null;
     if (state.subtitleEl) { state.subtitleEl.style.animation = 'none'; state.subtitleEl.style.opacity = '0'; }
   }
 
@@ -1287,6 +1385,9 @@
   }
 
   function runStepReady(step, o, resolve, reject) {
+    // A new step may move content (scroll, animate, camera, a click that swaps screens): the
+    // framed-content obstacle boxes from the previous epoch are stale from here on.
+    state.framingEpoch++;
     var action = ALIASES[step.action] || step.action;
     var instant = !!o.instant;
     var leadMs = instant ? 0 : (typeof o.leadMs === 'number' ? Math.max(0, o.leadMs) : DEFAULT_LEAD_MS);
@@ -1377,7 +1478,7 @@
         point: point,
         token: token
       };
-      if (step.subtitle) showSubtitle(step.subtitle, step.subtitleMs);
+      if (step.subtitle) showSubtitle(step.subtitle, step.subtitleMs, step.subtitlePlace);
       var done = Promise.resolve();
       try {
         switch (action) {
@@ -1666,6 +1767,7 @@
     state.spotAnchor = null;
     state.cameraOn = false;
     state.cameraWindow = null;
+    state.framingEpoch++;
     state.cursorAnchor = null;
     state.completions = {};
     state.holds = {};
@@ -1776,7 +1878,7 @@
     cameraActive: function () { return !!state.cameraOn; },
     /** Framing facts for the active camera (see framingReport); null when no camera is active. */
     framingReport: framingReport,
-    /** Whether the placed subtitle chip covers the target/cursor anyway (see subtitleCollisions). */
+    /** Whether the placed subtitle chip covers an obstacle anyway (target, cursor, framed content; see subtitleCollisions). */
     subtitleCollisions: subtitleCollisions,
     /** Whether el or an ancestor is scaled to nothing (a CSS scale(0) pre-hide). */
     transformHidden: transformHidden,

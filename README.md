@@ -24,12 +24,12 @@ Written to be driven by an AI agent: you (or your agent) write the screen and th
 
 ## What you get
 
-- **Video**: MP4 (or GIF) with a moving cursor, a spotlight and a click ripple on every interaction, typing, camera pushes, screen transitions, a subtitle bar sized to the frame (~4% of its height, and it steps out of the way of the cursor and the spotlight on its own; `meta.subtitleScale` retunes it), `.vtt` subtitles, MP4 chapters per step and optional narration (OpenAI TTS or macOS `say`).
+- **Video**: MP4 (or GIF) with a moving cursor, a spotlight and a click ripple on every interaction, typing, camera pushes, screen transitions, a subtitle bar sized to the frame (~4% of its height, and it steps out of the way of the cursor, the spotlight and the content a camera zoom framed, on its own; `meta.subtitleScale` retunes it, a step's `subtitlePlace` pins it), `.vtt` subtitles, MP4 chapters per step and optional narration (OpenAI TTS or macOS `say`).
 - **Step guide**: `guide.json`, `guide.md` and `guide.html`, with a numbered frame and a crop per step, the video inline, and the measured timings.
 - **Languages**: `localize` scaffolds `locales/<code>/` with a `strings.<code>.json`; the choreography is shared, only the text changes.
 - **Batch builds**: `help.catalog.json` + `build-all` produce every guide x locale into one output tree with an `index.json`, rebuilding only what changed and flagging guides whose frames drifted.
 - **Live pages**: `record` drives a real app, with real navigations, asynchronous waits and a saved login, from the same timeline.
-- **Marketing reels**: the same engine with `"kind": "reel"` in the timeline. The guide chrome (spotlight, ripple, subtitle bar) switches off, the clip is silent, and `export` ships an MP4, a WebM, a poster and a GIF. `build --embed` adds a self-contained `embed-<device>.html` that plays when scrolled into view and loops, plus the parent-side snippet that drives it. One responsive mockup renders at both desktop and phone shapes, with per-device overrides in the timeline.
+- **Marketing reels**: the same engine with `"kind": "reel"` in the timeline. The guide chrome (spotlight, ripple, subtitle bar) switches off, the clip is silent, and `export` ships an MP4, a WebM, a poster and a GIF. Switch subtitles back on with `"reel": { "subtitles": true }` and they draw as a flat stadium bar -- near-opaque capsule, type at 5% of the frame -- the voiceover of a muted autoplay clip, not the help video's glass chip. `build --embed` adds a self-contained `embed-<device>.html` that plays when scrolled into view and loops, plus the parent-side snippet that drives it. One responsive mockup renders at both desktop and phone shapes, with per-device overrides in the timeline.
 
 A step in the generated `guide.md` looks like this, cropped to the element the reader has to click:
 

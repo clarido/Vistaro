@@ -108,6 +108,8 @@ export const DEFAULT_ANIMATE_DURATION_S = 0.6;
 export const DEFAULT_TAIL_MS = 2500;
 export const SUBTITLE_HOLD_MS = 4000;
 export const SUBTITLE_MIN_MS = 1000;
+/** Where a cue's chip may sit; mirrored as SUB_PLACES in src/engine/runtime.js (test/constants.test.ts asserts equality). */
+export const SUBTITLE_PLACES: readonly string[] = ['bottom', 'top', 'bottom-left', 'bottom-right', 'top-left', 'top-right'];
 
 /**
  * Output profile. `guide` (the default) is documentation: spotlight, ripple, subtitle bar and the
@@ -184,6 +186,12 @@ export interface Step {
     subtitle?: string | null;
     /** Display window for `subtitle`, derived by subtitleWindows(). Present only when subtitle is set. */
     subtitleMs?: number;
+    /**
+     * Pin this step's cue to one placement ("top", "bottom-left", ...), taking it out of the
+     * automatic dodge for as long as the cue runs. For a composition the author knows: a camera
+     * push framing low content, a target that sits bottom-centre for the whole video.
+     */
+    subtitlePlace?: string;
     narration?: string;
     note?: string;
     translatable?: boolean;
@@ -698,6 +706,13 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
         }
         if (s.captureAt !== undefined && s.captureAt !== 'interaction' && s.captureAt !== 'completion') {
             issues.push(issueFor(s, 'error', '"captureAt" must be "interaction" or "completion"', 'captureAt'));
+        }
+        if (s.subtitlePlace !== undefined) {
+            if (typeof s.subtitlePlace !== 'string' || !SUBTITLE_PLACES.includes(s.subtitlePlace)) {
+                issues.push(issueFor(s, 'error', `"subtitlePlace" must be one of ${SUBTITLE_PLACES.map(p => `"${p}"`).join(', ')} (got ${JSON.stringify(s.subtitlePlace)})`, 'subtitlePlace'));
+            } else if (!s.subtitle) {
+                issues.push(issueFor(s, 'warning', '"subtitlePlace" pins this step\'s own cue but the step has no "subtitle"; it does nothing', 'subtitlePlace'));
+            }
         }
         if (s.waitFor !== undefined && typeof s.waitFor !== 'string' && typeof s.waitFor !== 'number') {
             issues.push(issueFor(s, 'error', '"waitFor" must be a selector string or a number of milliseconds', 'waitFor'));

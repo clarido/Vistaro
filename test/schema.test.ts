@@ -47,6 +47,19 @@ test('meta.subtitleScale must be a positive number (0 and strings are errors, no
     assert.deepEqual(errs({ meta: {}, steps: [] }), [], 'absent means the default 1');
 });
 
+test('subtitlePlace accepts the six placements, errors on others, warns when the step has no subtitle', () => {
+    const issues = (raw: any) => validateTimeline(parseTimeline(raw));
+    const errs = (raw: any) => issues(raw).filter(i => i.level === 'error').map(i => i.message);
+    const warns = (raw: any) => issues(raw).filter(i => i.level === 'warning').map(i => i.message);
+    const good = { meta: {}, steps: [{ id: 'a', time: 0, action: 'wait', subtitle: 'Watch.', subtitlePlace: 'top' }] };
+    assert.deepEqual(errs(good), [], 'a known placement on a step with a subtitle is accepted');
+    assert.deepEqual(warns(good), []);
+    assert.ok(errs({ meta: {}, steps: [{ id: 'a', time: 0, action: 'wait', subtitle: 'Watch.', subtitlePlace: 'middle' }] })
+        .some(m => /"subtitlePlace" must be one of/.test(m)), 'an unknown placement is refused before the runtime could ignore it');
+    assert.ok(warns({ meta: {}, steps: [{ id: 'a', time: 0, action: 'wait', subtitlePlace: 'top' }] })
+        .some(m => /"subtitlePlace" pins this step's own cue but the step has no "subtitle"/.test(m)), 'a pin without a cue does nothing');
+});
+
 test('bare array (legacy) and object form normalize to the same steps', () => {
     const legacy = parseTimeline([
         { time: '0s', action: 'fadeIn', target: 'body', subtitle: 'Hi' },

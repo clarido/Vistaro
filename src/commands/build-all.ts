@@ -40,7 +40,7 @@ interface StepRun { cmd: string[]; status: number | null; stdout: string; stderr
  * Bumping it invalidates every cached key, so the next `--changed-only` run is a full rebuild.
  * That is the point: it is the cheapest way to say "what this tool emits is not what it emitted".
  */
-export const OUTPUT_REVISION = 8;
+export const OUTPUT_REVISION = 9;
 
 /**
  * What --changed-only compares: the sources of the locale dir, the effective render settings that

@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Page } from 'playwright';
-import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue, deviceKind, emulateMobileFor, cliConfigPath, resolveConfigPath, configStem, FramingReport } from '../engine/schema';
+import { Issue, Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, CURSOR_ACTIONS, TARGET_REQUIRED, issueFor as schemaIssue, deviceKind, emulateMobileFor, cliConfigPath, resolveConfigPath, configStem, FramingReport, SUBTITLE_PLACES } from '../engine/schema';
 import { runTimeline, ensureRuntime, LiveOptions } from '../engine/driver';
 import { bootOptions } from '../engine/inject';
 import { launchPage, fileUrl, ViewportOptions, assertReachable, sanitizeUrl, resolveViewport } from '../browser';
@@ -315,12 +315,19 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                     }
                 }
             }
-            // The chip dodges the spotlighted target and the cursor on its own; a collision here
-            // means every placement overlapped and the least-bad one was taken (a crowded frame).
+            // The chip dodges the spotlighted target, the cursor and the camera's framed content on
+            // its own; a collision here means every placement overlapped and the least-bad one was
+            // taken (a crowded frame) -- unless the step pinned the cue, in which case the pin won.
             if (typeof step.subtitle === 'string' && step.subtitle.trim()) {
                 const hits: { what: string; areaPx: number }[] | null = await page.evaluate(() => (window as any).__anim.subtitleCollisions());
                 if (hits && hits.length) {
-                    issues.push(issueFor(step, 'warning', `the subtitle chip covers the ${hits[0].what} at this step: every placement collides, so the least-bad one was taken (shorten the subtitle, lower meta.subtitleScale, or reframe the step)`, 'subtitle'));
+                    // The browser pass runs even with schema errors, so an invalid place value (which
+                    // the runtime ignores) must not claim the pin won; the dodge ran in that case.
+                    const pinned = typeof step.subtitlePlace === 'string' && SUBTITLE_PLACES.includes(step.subtitlePlace);
+                    const advice = pinned
+                        ? `the cue is pinned there by subtitlePlace, so the automatic dodge did not run (move the pin, shorten the subtitle, or lower meta.subtitleScale)`
+                        : `every placement collides, so the least-bad one was taken (shorten the subtitle, lower meta.subtitleScale, reframe the step, or pin the cue elsewhere with subtitlePlace)`;
+                    issues.push(issueFor(step, 'warning', `the subtitle chip covers the ${hits[0].what} at this step: ${advice}`, 'subtitle'));
                 }
             }
         },

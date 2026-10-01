@@ -229,6 +229,116 @@ test('subtitle chip dodges the spotlighted target and the cursor', { skip }, asy
     await context.close();
 });
 
+test('a reel draws the stadium bar: near-opaque capsule, 5% of frame height, one-line-first wrap', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 810 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    await page.setContent(`<!doctype html><html><head></head><body style="margin:0"><p>Clarido</p></body></html>`);
+    const tl = parseTimeline({ meta: { kind: 'reel', reel: { subtitles: true } }, steps: [] });
+    await ensureRuntime(page, tl, { drift: false });
+    // Short enough that ONE line holds in any metric font stack CI may resolve sans-serif to
+    // (DejaVu bold runs ~10% wider than SF; a 38-char sentence was within 4% of the wrap bound).
+    await page.evaluate(() => (window as any).__anim.showSubtitle('Clarido prépare la soumission.'));
+    const styles = await page.evaluate(() => {
+        const layer = document.getElementById('anim-cli-subtitle-layer')!;
+        const chip = document.querySelector('.anim-cli-sub-item') as HTMLDivElement;
+        const cs = getComputedStyle(chip);
+        const lines = Math.round((chip.offsetHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / parseFloat(cs.lineHeight));
+        return {
+            cls: layer.className,
+            bg: cs.backgroundColor,
+            radiusPx: parseFloat(cs.borderRadius),
+            shadow: cs.boxShadow,
+            blur: cs.backdropFilter,
+            weight: cs.fontWeight,
+            fs: parseFloat(cs.fontSize),
+            max: parseFloat(getComputedStyle(layer).getPropertyValue('--anim-sub-max')),
+            lines: lines,
+        };
+    });
+    assert.equal(styles.cls, 'anim-cli-sub-stadium', 'the layer carries the reel style class');
+    assert.equal(styles.bg, 'rgba(15, 18, 24, 0.92)', 'near-opaque: separation by construction, nothing showing through');
+    assert.equal(styles.shadow, 'none');
+    assert.equal(styles.blur, 'none', 'no backdrop blur to dither in the GIF or merge with dark cards');
+    assert.equal(styles.weight, '600');
+    assert.ok(Math.abs(styles.fs - 40.5) < 0.5, `reel font 5% of 810 = 40.5px, got ${styles.fs}`);
+    assert.ok(Math.abs(styles.radiusPx - 999 * styles.fs) < 5, `stadium radius 999em = ${999 * styles.fs}px, got ${styles.radiusPx}`);
+    assert.ok(Math.abs(styles.max - 0.58 * 1440) < 4, `one-line-first wrap 58% of width = 835px, got ${styles.max}`);
+    assert.equal(styles.lines, 1, 'the 40-char payoff cue sits on one line instead of the glass chip\'s two');
+    await context.close();
+});
+
+test('a camera push makes the chip dodge the content it framed; a pull-back lets it come home', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    // The camera centring law puts the step's target mid-frame; content around it slides toward
+    // the frame edges. Targeting the TOP of a card column leaves the upper frame background and
+    // pushes the column through the whole lower frame -- under the chip's bottom home.
+    const cards = Array.from({ length: 8 }, () => `<div style="height:100px; margin:0 20px 16px; background:#fff; border:1px solid #dde;"></div>`).join('');
+    await page.setContent(`<!doctype html><html><head></head><body style="margin:0">
+        <div style="height:400px"></div>
+        <div id="cards" style="width:900px; margin:0 auto; background:#eef2f7; padding:20px 0;">
+            <div id="first" style="height:100px; margin:0 20px 16px; background:#fff; border:1px solid #dde;"></div>${cards}
+        </div>
+    </body></html>`);
+    const tl = parseTimeline({ meta: { cursor: 'none' }, steps: [] });
+    await ensureRuntime(page, tl, { drift: false, cursor: 'none' });
+    // runStep's driven guard requires a started clock; ensureRuntime only boots.
+    await page.evaluate(() => (window as any).__anim.start());
+    const placeOf = () => document.querySelector('.anim-cli-sub-item')!.getAttribute('data-place');
+    // No camera yet: the cue sits at its home position over the un-pushed column.
+    await page.evaluate(() => (window as any).__anim.showSubtitle('Les pièces à joindre.'));
+    assert.equal(await page.evaluate(placeOf), 'bottom');
+    // The 1.3x push onto the top of the column frames content across the lower frame: the cue
+    // must leave the bottom band for the free top band.
+    await page.evaluate(() => (window as any).__anim.runStep({ index: 1, id: 'zoom', time: 1, action: 'camera', target: '#first', scale: 1.3, duration: 0 }, { instant: true }));
+    await page.waitForTimeout(50);
+    assert.equal(await page.evaluate(placeOf), 'top', 'the chip dodges the framed content, not just the centred target');
+    // A pull-back shows the whole page again (a held chip would keep its clear top spot by
+    // design), so prove the framed obstacle is gone with a FRESH cue, which always re-evaluates
+    // from the bottom home: nothing may block it there any more.
+    await page.evaluate(() => (window as any).__anim.runStep({ index: 2, id: 'back', time: 2, action: 'camera', target: '#first', scale: 1, duration: 0 }, { instant: true }));
+    await page.waitForTimeout(50);
+    await page.evaluate(() => (window as any).__anim.showSubtitle('Repartons du bas.'));
+    assert.equal(await page.evaluate(placeOf), 'bottom', 'after a pull-back a fresh cue sits home again');
+    await context.close();
+});
+
+test('subtitlePlace pins the cue where the author put it; the collision is still reported', { skip }, async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    const page = await context.newPage();
+    const cards = Array.from({ length: 8 }, () => `<div style="height:100px; margin:0 20px 16px; background:#fff; border:1px solid #dde;"></div>`).join('');
+    await page.setContent(`<!doctype html><html><head></head><body style="margin:0">
+        <div style="height:400px"></div>
+        <div id="cards" style="width:900px; margin:0 auto; background:#eef2f7; padding:20px 0;">
+            <div id="first" style="height:100px; margin:0 20px 16px; background:#fff; border:1px solid #dde;"></div>${cards}
+        </div>
+    </body></html>`);
+    const tl = parseTimeline({ meta: { cursor: 'none' }, steps: [] });
+    await ensureRuntime(page, tl, { drift: false, cursor: 'none' });
+    await page.evaluate(() => (window as any).__anim.start());
+    const placeOf = () => document.querySelector('.anim-cli-sub-item')!.getAttribute('data-place');
+    await page.evaluate(() => (window as any).__anim.runStep({ index: 1, id: 'zoom', time: 1, action: 'camera', target: '#first', scale: 1.3, duration: 0 }, { instant: true }));
+    await page.waitForTimeout(50);
+    // The pin overrides the dodge even where the dodge would move: the author knows the composition.
+    await page.evaluate(() => (window as any).__anim.showSubtitle('Pinned en bas.', 4000, 'bottom'));
+    assert.equal(await page.evaluate(placeOf), 'bottom', 'the pin keeps the bottom despite the framed content');
+    // A mid-hold recheck (a highlight landing) must not move a pinned cue either.
+    await page.evaluate(() => (window as any).__anim.highlight(document.getElementById('first')));
+    assert.equal(await page.evaluate(placeOf), 'bottom');
+    // And check still sees the truth: the pinned chip covers the framed content.
+    const hits: { what: string }[] | null = await page.evaluate(() => (window as any).__anim.subtitleCollisions());
+    assert.ok(hits && hits.some(h => h.what === 'framed content'), `collisions name the framed content, got ${JSON.stringify(hits)}`);
+    // The next cue, unpinned, dodges again; an unknown place value is ignored, not fatal.
+    await page.evaluate(() => (window as any).__anim.showSubtitle('Libre.'));
+    assert.equal(await page.evaluate(placeOf), 'top');
+    await page.evaluate(() => (window as any).__anim.showSubtitle('Ignoré.', 4000, 'middle'));
+    assert.equal(await page.evaluate(placeOf), 'top', 'an unvalidated place falls back to the dodge, not an error');
+    await context.close();
+});
+
 test('meta.subtitleScale multiplies the automatic subtitle size', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });

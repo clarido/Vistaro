@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseTimeline } from '../src/engine/schema';
-import { buildAnimatedHtml, runtimeSource, stripRuntime, scriptJson } from '../src/engine/inject';
+import { buildAnimatedHtml, bootOptions, runtimeSource, stripRuntime, scriptJson } from '../src/engine/inject';
 
 const fixture = path.join(__dirname, 'fixtures', 'basic');
 
@@ -49,4 +49,17 @@ test('meta.cursor is the default, CLI cursor overrides it, no </body> appends', 
     const out = buildAnimatedHtml('<p>no body tag</p>', tl);
     assert.ok(out.startsWith('<p>no body tag</p>'));
     assert.ok(out.includes('window.__anim.boot('));
+});
+
+test('subtitleStyle resolves from the profile: stadium for a reel, glass for a guide', () => {
+    // A reel's caption is the voiceover of a muted clip (flat stadium bar); a guide keeps the
+    // glass chip, including when a reel re-enables subtitles through meta.reel.
+    assert.equal(bootOptions(parseTimeline({ meta: {}, steps: [] })).subtitleStyle, 'glass');
+    assert.equal(bootOptions(parseTimeline({ meta: { kind: 'guide' }, steps: [] })).subtitleStyle, 'glass');
+    assert.equal(bootOptions(parseTimeline({ meta: { kind: 'reel' }, steps: [] })).subtitleStyle, 'stadium');
+    assert.equal(bootOptions(parseTimeline({ meta: { kind: 'reel', reel: { subtitles: true } }, steps: [] })).subtitleStyle, 'stadium');
+    // The built page carries it into the boot call, so build and export cannot disagree.
+    const built = buildAnimatedHtml('<html><body></body></html>', parseTimeline({ meta: { kind: 'reel' }, steps: [] }));
+    assert.ok(built.includes('"subtitleStyle":"stadium"'));
+    assert.ok(buildAnimatedHtml('<html><body></body></html>', parseTimeline({ meta: {}, steps: [] })).includes('"subtitleStyle":"glass"'));
 });

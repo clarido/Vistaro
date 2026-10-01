@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Timeline, computeDurationMs, reelOptions, AutoplayMode, DEFAULT_CPS } from './schema';
+import { Timeline, computeDurationMs, reelOptions, isReel, AutoplayMode, DEFAULT_CPS } from './schema';
 
 /** Absolute path of the plain-JS browser runtime, read from disk and injected as text. */
 export const RUNTIME_PATH = path.join(__dirname, 'runtime.js');
@@ -41,6 +41,10 @@ export interface InjectOptions {
     durationMs?: number;
 }
 
+/** How the burned-in subtitle chip is drawn: the guide's translucent glass pill or the reel's
+ *  flat stadium bar (bigger type, wider wrap, nothing decorative). Resolved from meta.kind. */
+export type SubtitleStyle = 'glass' | 'stadium';
+
 export interface BootOptions {
     cursor: CursorStyle;
     loop: boolean;
@@ -52,6 +56,7 @@ export interface BootOptions {
     subtitles: boolean;
     /** Multiplies the automatic subtitle chip size (meta.subtitleScale, default 1). */
     subtitleScale: number;
+    subtitleStyle: SubtitleStyle;
     /** Carried for a later phase; the runtime stores it without acting on it yet. */
     autoplay: AutoplayMode;
     /**
@@ -86,6 +91,8 @@ export function bootOptions(timeline: Timeline, opts: InjectOptions = {}, withTi
         // isFinite matches the schema validation: an Infinity here would become "Infinitypx" in the
         // chip's var() and silently fall back to the inherited font size.
         subtitleScale: typeof meta.subtitleScale === 'number' && Number.isFinite(meta.subtitleScale) && meta.subtitleScale > 0 ? meta.subtitleScale : 1,
+        // A reel's caption is the voiceover: the flat stadium bar. Guides keep the glass chip.
+        subtitleStyle: isReel(timeline) ? 'stadium' : 'glass',
         autoplay: opts.autoplay ?? reel.autoplay,
         zoom: opts.zoom && opts.zoom > 0 ? opts.zoom : 1,
         durationMs: opts.durationMs ?? computeDurationMs(timeline),

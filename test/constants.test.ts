@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { runtimeSource } from '../src/engine/inject';
-import { DEFAULT_LEAD_MS, DEFAULT_CPS, DEFAULT_CAMERA_DURATION_S, DEFAULT_FADE_MS, DEFAULT_SCROLL_MS, DEFAULT_TAIL_MS, SUBTITLE_HOLD_MS, DEFAULT_ANIMATE_DURATION_S, EASING_NAMES } from '../src/engine/schema';
+import { DEFAULT_LEAD_MS, DEFAULT_CPS, DEFAULT_CAMERA_DURATION_S, DEFAULT_FADE_MS, DEFAULT_SCROLL_MS, DEFAULT_TAIL_MS, SUBTITLE_HOLD_MS, DEFAULT_ANIMATE_DURATION_S, EASING_NAMES, SUBTITLE_PLACES } from '../src/engine/schema';
 
 /** runtime.js is plain JS and cannot import schema.ts; its literals must not drift. */
 function literal(name: string): number {
@@ -27,4 +27,12 @@ test('runtime.js EASINGS holds exactly the names schema.ts validates against', (
     assert.ok(block, 'runtime.js defines EASINGS');
     const names = [...block![1].matchAll(/^\s*([A-Za-z]+):/gm)].map(m => m[1]);
     assert.deepEqual(names.sort(), [...EASING_NAMES].sort());
+});
+
+test('runtime.js SUB_PLACES equals the SUBTITLE_PLACES schema.ts validates against', () => {
+    // The dodge order and the accepted "subtitlePlace" values must be the same six placements.
+    const block = /var SUB_PLACES = \[([\s\S]*?)\];/.exec(runtimeSource());
+    assert.ok(block, 'runtime.js defines SUB_PLACES');
+    const places = [...block![1].matchAll(/'([^']+)'/g)].map(m => m[1]);
+    assert.deepEqual(places, [...SUBTITLE_PLACES]);
 });
