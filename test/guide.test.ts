@@ -55,6 +55,14 @@ before(() => {
     if (skip) return;
     work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-guide-'));
     fs.cpSync(fixture, path.join(work, 'basic'), { recursive: true });
+    // The fixture doubles as the `verify` contract's target (`cli.ts verify test/fixtures/basic`
+    // writes verify.* and an export event into it), so a working tree can carry those artifacts.
+    // A copy that still carries them is not "a directory without a video": prune what the tools
+    // emit so every test below sees the authored fixture (verify.json joined .gitignore's list;
+    // the manifest is tracked in real demo dirs but not in fixtures).
+    for (const f of ['anim.manifest.json', 'verify.json', 'verify.mp4', 'verify.vtt', 'verify.strip.png']) {
+        fs.rmSync(path.join(work, 'basic', f), { force: true });
+    }
 });
 after(() => { if (work) fs.rmSync(work, { recursive: true, force: true }); });
 

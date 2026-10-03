@@ -1,0 +1,152 @@
+{
+  "history": [
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "win",
+          "actualMs": 4,
+          "completedMs": 590
+        },
+        {
+          "index": 2,
+          "id": "lines",
+          "actualMs": 408,
+          "completedMs": 1611
+        },
+        {
+          "index": 3,
+          "id": "cmd1",
+          "actualMs": 2206,
+          "completedMs": 2628
+        },
+        {
+          "index": 4,
+          "id": "ok1",
+          "actualMs": 2809,
+          "completedMs": 3276
+        },
+        {
+          "index": 5,
+          "id": "cmd2",
+          "actualMs": 3708,
+          "completedMs": 4146
+        },
+        {
+          "index": 6,
+          "id": "arts",
+          "actualMs": 4507,
+          "completedMs": 5546
+        },
+        {
+          "index": 7,
+          "id": "push",
+          "actualMs": 6008,
+          "completedMs": 7513
+        },
+        {
+          "index": 8,
+          "id": "ci",
+          "actualMs": 7108,
+          "completedMs": 7670
+        },
+        {
+          "index": 9,
+          "id": "pull",
+          "actualMs": 8808,
+          "completedMs": 10011
+        }
+      ],
+      "duration": 11.011,
+      "output": "../../assets/reel.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:5d3455de87564160395bff3a5f030adb26e8134b919399a72c0b6071c40395c0",
+      "timestamp": "2026-10-03T03:19:53.452Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-10-03T03:19:59.126Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "win",
+          "actualMs": 3,
+          "completedMs": 539
+        },
+        {
+          "index": 2,
+          "id": "lines",
+          "actualMs": 409,
+          "completedMs": 1652
+        },
+        {
+          "index": 3,
+          "id": "cmd1",
+          "actualMs": 2206,
+          "completedMs": 2592
+        },
+        {
+          "index": 4,
+          "id": "ok1",
+          "actualMs": 2807,
+          "completedMs": 3258
+        },
+        {
+          "index": 5,
+          "id": "cmd2",
+          "actualMs": 3703,
+          "completedMs": 4158
+        },
+        {
+          "index": 6,
+          "id": "arts",
+          "actualMs": 4505,
+          "completedMs": 5606
+        },
+        {
+          "index": 7,
+          "id": "ci",
+          "actualMs": 6005,
+          "completedMs": 6586
+        }
+      ],
+      "duration": 7.586,
+      "output": "../../assets/reel.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:ac437d1ff758b4f359a547f12dfcfef73ff006c08f4179b963fa6575e8be4137",
+      "timestamp": "2026-10-03T12:22:45.363Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-10-03T12:22:46.150Z"
+    }
+  ]
+}

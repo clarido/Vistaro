@@ -14,6 +14,7 @@ import { AddressInfo } from 'net';
  *   GET  /hang-link    page with a link to /hang, which never responds (navigation timeout checks)
  *   GET  /own-anim     page that defines its own window.__anim (foreign runtime detection)
  *   GET  /controlled   the React-style controlled input from test/fixtures/controlled (value tracker)
+ *   GET  /learn        plain form targets with no data-help (#id, class, bare-tag buttons) for `record --learn`
  *   GET  /once         a Save button that works once per server process (a non-idempotent step);
  *                      POST /once/save marks it used, GET /once/reset clears it (reset-hook checks)
  * Every response is delayed by `respDelayMs` (server latency simulation). Targets use data-help="...".
@@ -91,6 +92,25 @@ export function startLiveApp(opts: { listDelayMs?: number; respDelayMs?: number 
             return;
         }
         if (url.pathname === '/controlled') { send(200, controlledHtml); return; }
+        if (url.pathname === '/learn') {
+            // For `record --learn`: targets deliberately carry NO data-help, so the learned
+            // selectors have to fall back through #id ("who"), tag.class ("send") and the bare-tag
+            // positional fallback (the choice buttons -- which also match several elements).
+            send(200, page('Learn', `
+<main>
+  <h1>Feedback</h1>
+  <form onsubmit="return false">
+    <input id="who" type="text" placeholder="Your name">
+    <textarea class="note" rows="2" placeholder="Anything else"></textarea>
+    <button class="send" type="button">Send</button>
+  </form>
+  <ul class="choices">
+    <li><button type="button">First choice</button></li>
+    <li><button type="button">Second choice</button></li>
+  </ul>
+</main>`));
+            return;
+        }
         if (url.pathname === '/once/reset') { onceSaved = false; send(200, page('Reset', '<main><p data-help="reset-done">reset</p></main>')); return; }
         if (req.method === 'POST' && url.pathname === '/once/save') { onceSaved = true; send(200, '<p>saved</p>'); return; }
         if (url.pathname === '/once') {

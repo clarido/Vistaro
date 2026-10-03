@@ -127,7 +127,7 @@ Contributing: `npm test` runs the suite (serial, with browser tests; `SKIP_BROWS
 <!-- cli-reference:start -->
 Generated from `cli.ts` by `npm run docs`; do not edit by hand. `npx tsx cli.ts <command> --help` prints the same, plus the usage guide (`--help`) and the catalog schema (`build-all --help`).
 
-[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
+[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`verify`](#verify) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
 
 ### `init-config`
 
@@ -349,6 +349,7 @@ Record the timeline against a live page (URL) instead of a local mockup: real na
 | `--hide-cursor` | Guide: hide the fake cursor in step screenshots |
 | `--force` | Record even if the timeline has validation errors; step failures then do not fail the command |
 | `--locale <code>` | Locale code for this output (e.g. en, fr) |
+| `--learn <file>` | (experimental) Write the interactions the recording performed as a draft anim.config.json to <file> (plus <file>.notes.md): steps in observed order, ids step-01..., times in ms, targets re-resolved to the stablest selector (data-help > #id > tag.class > :nth-of-type); no titles -- add them before building a guide; exits 1 when nothing was captured |
 
 ### `guide`
 
@@ -403,6 +404,28 @@ Turn an exported video into one labelled contact strip (and optional --diff moti
 | `--cell-width <px>` | Tile width in px (default: 480) |
 | `--max-tiles <n>` | Upper bound on tiles before the sample rate drops (default: 48) |
 | `--diff <file>` | Also write pairwise frame-diff motion facts as JSON: what moved, when, where |
+
+### `verify`
+
+```bash
+npx tsx cli.ts verify <output_dir> [options]
+```
+
+Build and audit a demo in one command: run the export pipeline (verify.mp4 + verify.vtt beside it), then the filmstrip pass (verify.strip.png), and write verify.json (ok, durationMs, steps, chapters, issues); exit 1 when any step failed
+
+| Argument | Description |
+|---|---|
+| `<output_dir>` | Directory containing index.html and anim.config.json |
+
+| Option | Description |
+|---|---|
+| `-w, --width <pixels>` | Viewport width in pixels |
+| `-H, --height <pixels>` | Viewport height in pixels |
+| `--device <type>` | Device viewport constraints: desktop or mobile (default: `desktop`) |
+| `--scale <n>` | Pixel density for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width |
+| `-t, --theme <mode>` | Color scheme mode for Playwright: light or dark (default: `light`) |
+| `--locale <code>` | Locale code (e.g. en, fr) |
+| `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 
 ### `build-all`
 

@@ -14,6 +14,7 @@ import { recordCommand } from './src/commands/record';
 import { tourCommand } from './src/commands/tour';
 import { buildAllCommand } from './src/commands/build-all';
 import { filmstripCommand } from './src/media/filmstrip';
+import { verifyCommand } from './src/commands/verify';
 
 import { toolPackage } from './src/catalog';
 
@@ -54,6 +55,8 @@ WORKFLOW (an AI agent or a person writes the screen and the timeline; no API key
   5. Record the video and the guide (length comes from the timeline):
        npx tsx cli.ts export <dir> -o demo.mp4 --guide --narration
        npx tsx cli.ts filmstrip demo.mp4 --diff demo.motion.json   # review the exported clip without watching it
+     Or build AND audit in one command (the one an agent runs):
+       npx tsx cli.ts verify <dir>             # verify.mp4 + .vtt + verify.strip.png + verify.json (exit 1 on a failed step)
   6. Other languages reuse the same choreography:
        npx tsx cli.ts localize <dir> fr        # <dir>/locales/fr/ + strings.fr.json
        npx tsx cli.ts export <dir>/locales/fr -o demo-fr.mp4 --guide
@@ -260,6 +263,7 @@ RECORD OF WHAT WAS DONE:
     .option('--hide-cursor', 'Guide: hide the fake cursor in step screenshots')
     .option('--force', 'Record even if the timeline has validation errors; step failures then do not fail the command')
     .option('--locale <code>', 'Locale code for this output (e.g. en, fr)')
+    .option('--learn <file>', '(experimental) Write the interactions the recording performed as a draft anim.config.json to <file> (plus <file>.notes.md): steps in observed order, ids step-01..., times in ms, targets re-resolved to the stablest selector (data-help > #id > tag.class > :nth-of-type); no titles -- add them before building a guide; exits 1 when nothing was captured')
     .action((dir, opts) => recordCommand(dir, opts));
 
   program
@@ -297,6 +301,19 @@ RECORD OF WHAT WAS DONE:
     .option('--max-tiles <n>', 'Upper bound on tiles before the sample rate drops (default: 48)')
     .option('--diff <file>', 'Also write pairwise frame-diff motion facts as JSON: what moved, when, where')
     .action((video, opts) => filmstripCommand(video, opts));
+
+  program
+    .command('verify')
+    .description('Build and audit a demo in one command: run the export pipeline (verify.mp4 + verify.vtt beside it), then the filmstrip pass (verify.strip.png), and write verify.json (ok, durationMs, steps, chapters, issues); exit 1 when any step failed')
+    .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
+    .option('-w, --width <pixels>', 'Viewport width in pixels')
+    .option('-H, --height <pixels>', 'Viewport height in pixels')
+    .option('--device <type>', 'Device viewport constraints: desktop or mobile (default: `desktop`)')
+    .option('--scale <n>', 'Pixel density for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width')
+    .option('-t, --theme <mode>', 'Color scheme mode for Playwright: light or dark (default: `light`)')
+    .option('--locale <code>', 'Locale code (e.g. en, fr)')
+    .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
+    .action((dir, opts) => verifyCommand(dir, opts));
 
   program
     .command('build-all')

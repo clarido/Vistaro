@@ -12,6 +12,7 @@ import { hashGuideDir, relPosix, displayPath } from '../catalog';
 import { subtitleCues, buildVtt } from '../media/vtt';
 import { chaptersFor, ffmetadata } from '../media/chapters';
 import { runResetCommand, resolveResetCommand } from '../reset';
+import { learnCollector, writeLearnDraft, LearnSummary } from './learn';
 
 export interface ExportOptions extends ViewportOptions {
     /** Seconds; overrides the computed timeline length. Required when there is no anim.config.json (default 5). */
@@ -42,6 +43,8 @@ export interface ExportOptions extends ViewportOptions {
     failFast?: boolean;
     /** Allow `meta.reset` from anim.config.json to run (a shell command out of a file). */
     allowReset?: boolean;
+    /** `record --learn <file>`: write the interactions the recording performed as a draft timeline. Set by the record command only; `export` never passes it. */
+    learn?: string;
 }
 
 /** Output containers `export`/`record` can write; anything else is refused before the browser starts. */
@@ -84,6 +87,8 @@ export interface ExportSummary {
     failedGuideSteps: number;
     /** --force: step failures are reported but do not fail the command. */
     force?: boolean;
+    /** `--learn`: the draft timeline written from the observed interactions; `steps: 0` when nothing was captured (nothing written). */
+    learn?: LearnSummary;
 }
 
 /** Shared by export and record: the success line, or the failure summary + exit code 1. */
@@ -209,6 +214,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     }
     if (options.guide && !driven) throw new Error('--guide needs anim.config.json (guide steps come from the timeline)');
     if (options.guide && timeline && isReel(timeline)) throw new Error('--guide: the timeline is kind: "reel" and guides are not produced for reels (a reel is a silent marketing clip with no numbered steps); drop --guide, or set meta.kind to "guide"');
+    if (options.learn && !session) throw new Error('--learn is a `record` flag: there is nothing to learn from a local mockup the timeline already describes');
 
     // Fail fast (before a long recording) on things we can check now.
     const voice: VoiceOptions = {};
@@ -259,6 +265,8 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         if (session) await p.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
     };
     let results: StepResult[] = [];
+    // --learn (record): observes the recording pass; written out in encodeAndFinish.
+    let learn: ReturnType<typeof learnCollector> | undefined;
     const runState: RunState = { t0Wall: 0, shiftMs: 0, lastPoint: null, navigations: 0 };
     let t0Wall = 0;
     // Set once this run's manifest event is written, so an abort after it cannot write a second.
@@ -284,7 +292,9 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             if (!session) firstPaintWall = await readFirstPaint(page);
             const transformed = await page.evaluate(() => getComputedStyle(document.documentElement).transform !== 'none').catch(() => false);
             if (transformed) console.error('warning  the page transforms <html>; cursor/highlight overlays are positioned on <html> and will be offset (known limitation)');
-            results = await runTimeline(page, timeline!, { mode: 'timed', live, state: runState, failFast: !!options.failFast && !!live });
+            // --learn: watch the recording pass; the hook only observes (it can add warnings, never errors).
+            learn = session && options.learn ? learnCollector(page, m => console.error(`warning  ${m}`)) : undefined;
+            results = await runTimeline(page, timeline!, { mode: 'timed', live, state: runState, failFast: !!options.failFast && !!live, afterStep: learn?.afterStep });
             t0Wall = runState.t0Wall;
             if (runState.navigations) console.log(`Survived ${runState.navigations} navigation${runState.navigations > 1 ? 's' : ''}; runtime re-booted each time.`);
             // waitFor delays pushed every later step: the recording must be that much longer too. A
@@ -515,6 +525,20 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         console.error(`warning  encoded length is ${measured}ms, expected ${durationMs}ms`);
     }
 
+    // --learn (record): post-process the observed interactions into a draft timeline + note, before
+    // the guide pass and the manifest event so both can name it. Nothing captured -> nothing
+    // written; the record command reports it and exits 1.
+    if (learn) {
+        const captured = learn.captured.length;
+        learn.info.url = session!.url;
+        if (captured === 0) {
+            summary.learn = { steps: 0 };
+        } else {
+            console.log(`Writing the learned draft timeline (${captured} interaction(s))...`);
+            summary.learn = writeLearnDraft(path.resolve(options.learn!), learn.captured, learn.info);
+        }
+    }
+
     // Pass 2: guide capture on a fresh page in the same browser (no video, no drift).
     let guideDir: string | undefined;
     if (options.guide) {
@@ -570,6 +594,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         // undefined against "anim.config.json", finds no video, and silently writes a guide with
         // no clips and no chapters.
         config: configStem(outputDir, cliConfigPath(options.config)) ? relPosix(path.resolve(outputDir), configPath) : undefined,
+        learn: summary.learn?.output ? relToDir(summary.learn.output) : undefined,
     });
     eventRecorded = true;
     return summary;

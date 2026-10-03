@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demoforge — Product demos as code</title>
+<meta name="description" content="Product demos as code: versioned with your repo, reviewed in the pull request, rebuilt in CI when the UI changes. One timeline compiles to demo videos, help guides, marketing reels, interactive tours and every locale.">
+<meta property="og:title" content="Demoforge — Product demos as code">
+<meta property="og:description" content="Two text files in your repo compile to demo videos with subtitles and chapters, step-by-step help guides, looping marketing reels and interactive tours — in every language, regenerated whenever the UI changes.">
+<meta property="og:image" content="assets/reel.poster.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23F97316'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #05070D;
+    --panel: #0B101B;
+    --panel2: #0E1522;
+    --line: #1D2739;
+    --line-soft: #141C2C;
+    --ink: #E8EDF7;
+    --muted: #8B95AB;
+    --faint: #7A869E;
+    --accent: #F97316;
+    --accent-hi: #FB923C;
+    --accent-soft: rgba(249, 115, 22, .12);
+    --good: #34D399;
+    --key: #7DD3FC;
+    --str: #FDBA74;
+    --num: #C4B5FD;
+    --pun: #64748B;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: rgba(249, 115, 22, .35); }
+
+  a { color: inherit; text-decoration: none; }
+
+  .container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+
+  section { padding: 96px 0; }
+  @media (max-width: 720px) { section { padding: 64px 0; } }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  section[tabindex="-1"]:focus { outline: none; }
+
+  h2 {
+    font-size: clamp(26px, 4vw, 38px);
+    font-weight: 700;
+    letter-spacing: -.022em;
+    line-height: 1.15;
+    margin: 0 0 14px;
+  }
+
+  .section-lead { color: var(--muted); font-size: 17px; max-width: 640px; margin: 0; }
+
+  .section-head { margin-bottom: 48px; }
+
+  /* ---------- nav ---------- */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(5, 7, 13, .82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .nav-inner { display: flex; align-items: center; gap: 28px; height: 62px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -.01em; }
+  .logo svg { width: 24px; height: 24px; flex: none; }
+  .nav-links { display: flex; gap: 24px; margin-left: 8px; }
+  .nav-links a { color: var(--muted); font-size: 14.5px; font-weight: 500; transition: color .15s; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .nav-cta .gh { color: var(--muted); font-size: 14.5px; font-weight: 500; display: flex; align-items: center; gap: 7px; }
+  .nav-cta .gh:hover { color: var(--ink); }
+  .nav-cta .gh svg { width: 17px; height: 17px; }
+  .nav-links .mobile-cta { display: none; }
+  .burger { display: none; background: none; border: 0; color: var(--ink); padding: 8px; cursor: pointer; }
+  .burger svg { width: 22px; height: 22px; display: block; }
+
+  @media (max-width: 860px) {
+    .nav-links, .nav-cta .gh span { display: none; }
+    .burger { display: block; margin-left: auto; }
+    .nav-cta { margin-left: 0; }
+    .nav-cta .btn { display: none; }
+    .nav-links.open {
+      display: flex;
+      position: absolute;
+      top: 62px; left: 0; right: 0;
+      flex-direction: column;
+      gap: 0;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 8px 24px 16px;
+    }
+    .nav-links.open a { padding: 12px 0; border-bottom: 1px solid var(--line-soft); font-size: 16px; }
+    .nav-links.open a:last-child { border-bottom: 0; }
+    .nav-links.open .mobile-cta { display: block; color: var(--accent); font-weight: 600; }
+  }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 12px 22px;
+    transition: transform .12s, background .15s, border-color .15s;
+    cursor: pointer;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: #140700; }
+  .btn-primary:hover { background: var(--accent-hi); }
+  .btn-ghost { border: 1px solid var(--line); color: var(--ink); background: rgba(11, 16, 27, .5); }
+  .btn-ghost:hover { border-color: var(--faint); }
+  .btn-sm { padding: 8px 16px; font-size: 14px; border-radius: 8px; }
+  .btn svg { width: 16px; height: 16px; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    position: relative;
+    padding: 88px 0 72px;
+    background:
+      radial-gradient(900px 460px at 50% -120px, rgba(249, 115, 22, .13), transparent 65%),
+      linear-gradient(rgba(232, 237, 247, .022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232, 237, 247, .022) 1px, transparent 1px);
+    background-size: auto, 56px 56px, 56px 56px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .hero-inner { text-align: center; max-width: 880px; margin: 0 auto; }
+  .hero h1 {
+    font-size: clamp(32px, 5.4vw, 56px);
+    font-weight: 700;
+    letter-spacing: -.03em;
+    line-height: 1.2;
+    margin: 18px 0 22px;
+  }
+  .hero h1 .dim { color: var(--muted); }
+  .hero .sub {
+    color: var(--muted);
+    font-size: clamp(15.5px, 1.6vw, 18px);
+    line-height: 1.65;
+    max-width: 760px;
+    margin: 0 auto 34px;
+  }
+  .hero .sub b { color: var(--ink); font-weight: 600; }
+  .hero-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .hero-note { margin-top: 18px; font: 500 12.5px/1.6 var(--mono); color: var(--faint); }
+  .hero-note i { font-style: normal; color: var(--faint); padding: 0 7px; }
+
+  /* ---------- reel embed ---------- */
+  .reel-wrap { max-width: 1120px; margin: 64px auto 0; padding: 0 24px; }
+  .reel-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    font: 500 12.5px/1.5 var(--mono);
+    color: var(--muted);
+  }
+  .reel-chip .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(52, 211, 153, .18); }
+  .anim-embed {
+    position: relative;
+    width: 100%;
+    max-width: 1120px;
+    padding-top: 56.25%;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, .45);
+    background: var(--panel);
+  }
+  .anim-embed-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .anim-embed-frame:focus-visible { outline-offset: -2px; }
+  .reel-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .anim-embed.is-playing .reel-poster { display: none; }
+  .reel-toggle {
+    position: absolute; top: 14px; right: 14px; z-index: 3;
+    display: inline-flex; align-items: center; gap: 7px;
+    background: rgba(5, 7, 13, .78);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink);
+    font: 600 11.5px/1 var(--mono);
+    letter-spacing: .08em;
+    padding: 8px 13px;
+    cursor: pointer;
+  }
+  .reel-toggle:hover { border-color: var(--faint); }
+  .reel-toggle svg { width: 10px; height: 10px; }
+  .reel-fallback { display: none; position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+  .reel-fallback img { display: block; width: 100%; height: auto; }
+  .reel-fallback .tag {
+    position: absolute; left: 14px; bottom: 14px;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(5, 7, 13, .82);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink);
+    font: 600 11.5px/1 var(--mono);
+    letter-spacing: .08em;
+    padding: 9px 14px;
+  }
+  .reel-fallback .tag svg { width: 10px; height: 10px; color: var(--accent); }
+  @media (max-width: 560px) {
+    .anim-embed { display: none; }
+    .reel-fallback { display: block; }
+  }
+  .reel-caption { margin-top: 14px; text-align: center; color: var(--faint); font-size: 13.5px; }
+  .reel-caption code { font: 500 12px/1 var(--mono); color: var(--muted); background: var(--panel2); border: 1px solid var(--line-soft); padding: 3px 7px; border-radius: 6px; }
+
+  /* ---------- code + terminal blocks ---------- */
+  .codeblock {
+    background: #070B12;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    font: 400 13px/1.7 var(--mono);
+  }
+  .codeblock .cb-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    color: var(--faint);
+    font-size: 11.5px;
+    letter-spacing: .04em;
+  }
+  .codeblock .cb-bar .cb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+  .codeblock pre {
+    margin: 0;
+    padding: 16px 18px;
+    overflow-x: auto;
+    color: #C9D3E4;
+  }
+  .codeblock .k { color: var(--key); }
+  .codeblock .s { color: var(--str); }
+  .codeblock .n { color: var(--num); }
+  .codeblock .p { color: var(--pun); }
+  .codeblock .c { color: var(--faint); }
+  .codeblock .ok { color: var(--good); }
+  .codeblock .cmd { color: var(--ink); }
+  .codeblock .pr { color: var(--faint); }
+
+  /* ---------- how it works ---------- */
+  .how { border-bottom: 1px solid var(--line-soft); }
+  .how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .how-step { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .how-step .codeblock { max-width: 100%; }
+  .how-num {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font: 700 12px/1 var(--mono);
+    color: var(--accent);
+    letter-spacing: .14em;
+  }
+  .how-num::after { content: ""; height: 1px; flex: 1; background: var(--line); }
+  .how-step h3 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: -.01em; }
+  .how-step p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.65; }
+  .how-step p code { font: 500 12.5px/1 var(--mono); color: var(--str); background: var(--panel2); padding: 2px 6px; border-radius: 5px; border: 1px solid var(--line-soft); }
+  .how-step .codeblock { flex: 1; }
+  @media (max-width: 960px) { .how-grid { grid-template-columns: 1fr; } }
+
+  .shot {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+  .shot img { display: block; width: 100%; height: auto; }
+  .shot figcaption {
+    padding: 10px 14px;
+    border-top: 1px solid var(--line-soft);
+    color: var(--faint);
+    font: 400 12px/1.5 var(--mono);
+  }
+
+  /* ---------- review band ---------- */
+  .review { border-bottom: 1px solid var(--line-soft); background: linear-gradient(180deg, rgba(249, 115, 22, .035), transparent 30%); }
+  .review-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 48px; align-items: center; }
+  .review-list { list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
+  .review-list li { display: flex; gap: 14px; align-items: flex-start; }
+  .review-list code {
+    flex: none;
+    font: 600 12.5px/1 var(--mono);
+    color: var(--key);
+    background: rgba(125, 211, 252, .08);
+    border: 1px solid rgba(125, 211, 252, .18);
+    padding: 7px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+  .review-list span { color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+  .review-list b { color: var(--ink); font-weight: 600; }
+  @media (max-width: 960px) { .review-grid { grid-template-columns: 1fr; gap: 32px; } }
+
+  /* ---------- what you get ---------- */
+  .outputs { border-bottom: 1px solid var(--line-soft); }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 960px) { .grid-3 { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .grid-3 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color .15s, transform .15s;
+  }
+  .card:hover { border-color: #2A3A55; transform: translateY(-2px); }
+  .card-icon { color: var(--accent); margin-bottom: 2px; }
+  .card-icon svg { width: 22px; height: 22px; }
+  .card h3 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+  .card p code { font: 500 12px/1 var(--mono); color: var(--str); }
+  .card .chip {
+    margin-top: auto;
+    padding-top: 12px;
+  }
+  .card .chip code {
+    font: 600 12px/1.6 var(--mono);
+    color: var(--muted);
+    background: var(--panel2);
+    border: 1px solid var(--line-soft);
+    padding: 6px 10px;
+    border-radius: 7px;
+  }
+
+  /* ---------- pricing ---------- */
+  .pricing { border-bottom: 1px solid var(--line-soft); }
+  .price-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; align-items: stretch; }
+  @media (max-width: 1020px) { .price-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 900px) { .price-grid { grid-template-columns: 1fr; } }
+  .price {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 26px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .price.is-pop { border-color: rgba(249, 115, 22, .55); background: linear-gradient(180deg, rgba(249, 115, 22, .07), var(--panel) 42%); }
+  .pop-tag {
+    position: absolute;
+    top: 14px; right: 14px;
+    background: var(--accent);
+    color: #140700;
+    font: 700 11px/1 var(--mono);
+    letter-spacing: .1em;
+    padding: 6px 10px;
+    border-radius: 999px;
+  }
+  .price h3 { margin: 0 0 4px; font-size: 16px; font-weight: 650; }
+  .price .amount { display: flex; align-items: baseline; gap: 6px; margin: 8px 0 4px; }
+  .price .amount b { font-size: 34px; font-weight: 700; letter-spacing: -.03em; }
+  .price .amount span { color: var(--faint); font-size: 13.5px; }
+  .price .who { color: var(--faint); font-size: 13px; margin: 0 0 16px; min-height: 38px; }
+  .price ul { list-style: none; margin: 0 0 24px; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+  .price li { position: relative; padding-left: 22px; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+  .price li::before { content: "✓"; position: absolute; left: 0; top: 0; color: var(--good); font-weight: 700; font-size: 13px; }
+  .price li b { color: var(--ink); font-weight: 600; }
+  .price .btn { margin-top: auto; justify-content: center; }
+  .price-note { margin-top: 26px; text-align: center; color: var(--faint); font: 400 13px/1.7 var(--mono); }
+
+  /* ---------- FAQ ---------- */
+  .faq { border-bottom: 1px solid var(--line-soft); }
+  .faq-list { max-width: 800px; margin: 0 auto; }
+  .faq-list details {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .faq-list details[open] { border-color: #2A3A55; }
+  .faq-list summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 22px;
+    font-weight: 600;
+    font-size: 15.5px;
+  }
+  .faq-list summary::-webkit-details-marker { display: none; }
+  .faq-list summary::after {
+    content: "+";
+    font: 400 20px/1 var(--mono);
+    color: var(--accent);
+    flex: none;
+    transition: transform .15s;
+  }
+  .faq-list details[open] summary::after { transform: rotate(45deg); }
+  .faq-list .a { padding: 0 22px 20px; color: var(--muted); font-size: 14.5px; line-height: 1.7; }
+  .faq-list .a b { color: var(--ink); font-weight: 600; }
+  .faq-list .a code { font: 500 12.5px/1 var(--mono); color: var(--str); background: var(--panel2); padding: 2px 6px; border-radius: 5px; border: 1px solid var(--line-soft); }
+
+  /* ---------- final CTA ---------- */
+  .endcta { text-align: center; padding: 110px 0; background: radial-gradient(700px 320px at 50% 118%, rgba(249, 115, 22, .12), transparent 65%); }
+  .endcta h2 { max-width: 640px; margin-left: auto; margin-right: auto; }
+  .endcta p { color: var(--muted); max-width: 540px; margin: 0 auto 32px; }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line-soft); padding: 56px 0 40px; background: #04060A; }
+  .foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 36px; margin-bottom: 44px; }
+  @media (max-width: 860px) { .foot-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 520px) { .foot-grid { grid-template-columns: 1fr; } }
+  .foot-brand p { color: var(--faint); font-size: 13.5px; line-height: 1.65; max-width: 300px; margin: 12px 0 0; }
+  .foot-col h3 { margin: 0 0 14px; font: 700 11.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+  .foot-col a { display: block; color: var(--muted); font-size: 14px; padding: 5px 0; }
+  .foot-col a:hover { color: var(--ink); }
+  .foot-bottom {
+    border-top: 1px solid var(--line-soft);
+    padding-top: 24px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    color: var(--faint);
+    font-size: 13px;
+  }
+  .foot-bottom code { font: 500 12px/1 var(--mono); color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ======================= NAV ======================= -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="logo" href="#top" aria-label="Demoforge home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#F97316"/></svg>
+      Demoforge
+    </a>
+    <nav class="nav-links" id="navLinks">
+      <a href="#how">How it works</a>
+      <a href="#outputs">What you get</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+      <a class="mobile-cta" href="#how">Get started free</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="gh" href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener" aria-label="Demoforge on GitHub">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>GitHub</span>
+      </a>
+      <a class="btn btn-primary btn-sm" href="#how">Get started</a>
+      <button class="burger" id="burger" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ======================= HERO ======================= -->
+<section class="hero" id="top">
+  <div class="container hero-inner">
+    <h1>Product demos as code: <span class="dim">versioned with your repo, reviewed in the pull request, rebuilt in CI when the UI changes.</span></h1>
+    <p class="sub">
+      Demoforge compiles your product demo from <b>two text files in the repo</b> — a screen and a
+      timeline. When the UI changes, the demo regenerates: no re-recording, no stale video. One source
+      becomes <b>video, guide, reel, tour — in every locale</b>, and your coding agent can write and
+      review it end to end.
+    </p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="#how">Get started free</a>
+      <a class="btn btn-ghost" href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+    <div class="hero-note">free OSS CLI<i>·</i>no API key needed<i>·</i>Node 20+<i>·</i>ffmpeg bundled</div>
+  </div>
+
+  <!-- The hero clip: real Demoforge output, embedded with the page the CLI itself generates. -->
+  <div class="reel-wrap">
+    <div class="reel-chip"><span class="pulse"></span> THIS CLIP IS DEMOFORGE OUTPUT — GENERATED AND EMBEDDED BY THE CLI ITSELF</div>
+    <div class="anim-embed" id="reelEmbed">
+      <img class="reel-poster" src="assets/reel.poster.webp" alt="The reel's payoff frame: the Demoforge timeline and the artifacts it compiled" loading="lazy">
+      <iframe
+        class="anim-embed-frame"
+        src="src/reel/embed-desktop.html"
+        title="Write the timeline, get the demos"
+        loading="lazy"
+      ></iframe>
+      <button class="reel-toggle" id="reelToggle" type="button" aria-pressed="false" aria-label="Play the clip"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><span>PLAY CLIP</span></button>
+    </div>
+    <a class="reel-fallback" href="assets/reel.mp4" aria-label="Watch the hero clip — 8 seconds, MP4, 2.3 MB">
+      <img src="assets/reel.poster.webp" alt="" loading="lazy">
+      <span class="tag"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>WATCH THE CLIP · 8 s · MP4</span>
+    </a>
+    <p class="reel-caption">One timeline, <code>website/src/reel/anim.config.json</code> in this repo — compiled by <code>npx tsx cli.ts export</code> to the MP4 above, a WebM, a poster and a GIF in one pass.</p>
+  </div>
+</section>
+
+<!-- ======================= HOW IT WORKS ======================= -->
+<section class="how" id="how" tabindex="-1">
+  <div class="container">
+    <div class="section-head">
+      <h2>Two text files in. Every demo artifact out.</h2>
+      <p class="section-lead">A screen and a timeline — that is the whole source format. The compiler does the cursor, the spotlight, the camera, the subtitles, the guides and the locales.</p>
+    </div>
+
+    <div class="how-grid">
+      <div class="how-step">
+        <span class="how-num">STEP 1</span>
+        <h3>Describe the screen and the timeline</h3>
+        <p><code>index.html</code> is the UI, <code>anim.config.json</code> is the choreography — clicks, typing, highlights, camera pushes, each with an explicit time. Both are reviewable in a pull request. This timeline is real repo content:</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>anim.config.json</div>
+<pre>{ <span class="k">"meta"</span><span class="p">:</span> { <span class="k">"title"</span><span class="p">:</span> <span class="s">"Draft a proposal response"</span> },
+  <span class="k">"steps"</span><span class="p">:</span> [
+    { <span class="k">"id"</span><span class="p">:</span> <span class="s">"progress"</span><span class="p">,</span> <span class="k">"time"</span><span class="p">:</span> <span class="s">"2.2s"</span><span class="p">,</span>
+      <span class="k">"action"</span><span class="p">:</span> <span class="s">"highlight"</span><span class="p">,</span> <span class="k">"target"</span><span class="p">:</span> <span class="s">".section-count"</span><span class="p">,</span>
+      <span class="k">"title"</span><span class="p">:</span> <span class="s">"Check what is left"</span> },
+    { <span class="k">"id"</span><span class="p">:</span> <span class="s">"draft"</span><span class="p">,</span> <span class="k">"time"</span><span class="p">:</span> <span class="s">"6.4s"</span><span class="p">,</span> <span class="k">"action"</span><span class="p">:</span> <span class="s">"type"</span><span class="p">,</span>
+      <span class="k">"target"</span><span class="p">:</span> <span class="s">"#editor-type-target"</span><span class="p">,</span>
+      <span class="k">"value"</span><span class="p">:</span> <span class="s">"We will ensure rigorous compliance…"</span><span class="p">},</span>
+    { <span class="k">"id"</span><span class="p">:</span> <span class="s">"zoom"</span><span class="p">,</span> <span class="k">"time"</span><span class="p">:</span> <span class="s">"9.6s"</span><span class="p">,</span> <span class="k">"action"</span><span class="p">:</span> <span class="s">"camera"</span><span class="p">,</span>
+      <span class="k">"target"</span><span class="p">:</span> <span class="s">"#text-editor"</span><span class="p">,</span> <span class="k">"scale"</span><span class="p">:</span> <span class="n">1.18</span> } ] }</pre>
+        </div>
+      </div>
+
+      <div class="how-step">
+        <span class="how-num">STEP 2</span>
+        <h3>Let the CLI check its own work</h3>
+        <p><code>check</code> replays the timeline in a headless browser and probes every target right before its step — missing, hidden, 0×0, clipped, off-screen — then reports each camera push's framing as facts. A coding agent fixes a badly aimed zoom like any other lint finding. Real output from this repo:</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> <span class="cmd">npx tsx cli.ts check demo</span>
+<span class="c">·</span> step 5 (6.4s type): target is 0x0
+  <span class="c">(empty caret); the spotlight uses its
+  sized ancestor #text-editor</span>
+<span class="c">·</span> step 6 (9.6s camera): scale <span class="n">1.18</span> ·
+  window 1627x915 · target <span class="ok">100% visible</span>
+<span class="ok">OK</span>  9 steps · 0 errors · 1 warning · 3 info</pre>
+        </div>
+      </div>
+
+      <div class="how-step">
+        <span class="how-num">STEP 3</span>
+        <h3>Compile every output from the same source</h3>
+        <p>One command records the video with subtitles and chapters and captures the step guide. Same timeline, other commands: a tour site, a looping reel, a French build. The frame on the right is a captured guide step, untouched:</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> <span class="cmd">npx tsx cli.ts export . -o demo.mp4 --guide</span>
+<span class="pr">$</span> <span class="cmd">npx tsx cli.ts build . --embed --device desktop</span>
+<span class="pr">$</span> <span class="cmd">npx tsx cli.ts tour</span>
+<span class="pr">$</span> <span class="cmd">npx tsx cli.ts localize . fr</span>
+<span class="pr">$</span> <span class="cmd">npx tsx cli.ts build-all --changed-only --diff</span>
+<span class="c"># every command prints what it wrote</span></pre>
+        </div>
+        <figure class="shot" style="margin:0;">
+          <img src="assets/guide-step.png" alt="A guide step frame captured by Demoforge: the Clarido app with a spotlight ring and numbered badge on the Export button" loading="lazy">
+          <figcaption>demo/guide/assets/step-08.png — a real captured guide frame from this repo</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= REVIEW LIKE CODE ======================= -->
+<section class="review" id="review" tabindex="-1">
+  <div class="container">
+    <div class="review-grid">
+      <div>
+        <h2>Your agent can review the demo, so you don't have to watch it.</h2>
+        <p class="section-lead">Motion is auditable as text and images. The whole review surface — target probes, camera framing, overlay geometry, frame diffs — is JSON and PNGs a coding agent (or a tired human) can read without pressing play.</p>
+        <ul class="review-list">
+          <li><code>check --json</code><span><b>Issues as structured data</b> — every probe and camera-framing fact, ready for a bot to act on.</span></li>
+          <li><code>check --trace</code><span><b>Per-step overlay geometry</b> — cursor point, spotlight box, subtitle chip and camera window in authored px.</span></li>
+          <li><code>preview --motion</code><span><b>A real playback pass, sampled</b> — mid-travel framing, cursor glide and typing as they actually play.</span></li>
+          <li><code>filmstrip --diff</code><span><b>The encode-level check</b> — the MP4 as a labelled strip plus what-moved-when-where facts, so unintended motion has nowhere to hide.</span></li>
+        </ul>
+      </div>
+      <figure class="shot" style="margin:0;">
+        <img src="assets/demo-filmstrip.png" alt="A contact strip of the whole demo video: 42 labelled frames showing the cursor, spotlight, subtitles and camera moves" loading="lazy">
+        <figcaption>demo/demo.strip.png — an entire exported video as one labelled strip, from `filmstrip demo.mp4`</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= WHAT YOU GET ======================= -->
+<section class="outputs" id="outputs" tabindex="-1">
+  <div class="container">
+    <div class="section-head">
+      <h2>One timeline. Every artifact your product team keeps asking for.</h2>
+      <p class="section-lead">Each of these is a first-class compiler target — not a plugin, not an export hack. All of them ship in the free CLI.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3V9z" fill="currentColor" stroke="none"/></svg></div>
+        <h3>Demo videos</h3>
+        <p>MP4 with <code>.vtt</code> subtitles, chapter markers for every titled step, and optional narration synthesized with macOS <code>say</code> or OpenAI TTS and mixed in at each step's time.</p>
+        <div class="chip"><code>npx tsx cli.ts export -o demo.mp4</code></div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg></div>
+        <h3>Help guide sites</h3>
+        <p>Scribe-style guides as <code>guide.json</code>, <code>.md</code> and <code>.html</code> with numbered, spotlighted step frames and crops. Publishing a guide is copying a folder.</p>
+        <div class="chip"><code>npx tsx cli.ts export --guide</code></div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 7-6 2-2 6-6-15z"/></svg></div>
+        <h3>Marketing reels</h3>
+        <p>Silent looping product clips: MP4, WebM, poster and GIF in one export, plus a self-contained embed page that plays when scrolled into view. This page's hero is one.</p>
+        <div class="chip"><code>npx tsx cli.ts build . --embed</code></div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+        <h3>Interactive tours</h3>
+        <p>A self-contained tour site: a rail of scenarios and a canvas that plays them step by step, with play/pause and per-step seeking. Nothing is captured or encoded — it weighs what its HTML weighs.</p>
+        <div class="chip"><code>npx tsx cli.ts tour</code></div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg></div>
+        <h3>Localization</h3>
+        <p>The choreography is shared, so a French build is a strings file, not a re-shoot. Number and currency formats localize too — <code>$2.4M</code> becomes <code>2,4 M$</code> — because a translated American product reads as one.</p>
+        <div class="chip"><code>npx tsx cli.ts localize . fr</code></div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></div>
+        <h3>CI rebuilds</h3>
+        <p>A content-hash build key per guide × locale. <code>--changed-only</code> rebuilds only what changed and <code>--diff</code> compares frames pixel by pixel, marking guides stale above the threshold.</p>
+        <div class="chip"><code>npx tsx cli.ts build-all --changed-only --diff</code></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= PRICING ======================= -->
+<section class="pricing" id="pricing" tabindex="-1">
+  <div class="container">
+    <div class="section-head">
+      <h2>Free where the work is local. Paid only where a server is genuinely needed.</h2>
+      <p class="section-lead">The CLI is the free tier — unlimited, no watermark — because it is also the distribution engine. The cloud sells hosting, PR previews, the agent API and locale management. Flat per workspace, not per seat.</p>
+    </div>
+
+    <div class="price-grid">
+      <div class="price">
+        <h3>Free <span style="color:var(--faint);font-weight:500;">(OSS CLI)</span></h3>
+        <div class="amount"><b>$0</b><span>forever</span></div>
+        <p class="who">Every developer, every agent.</p>
+        <ul>
+          <li><b>Everything local and unlimited</b> — check, build, preview, export, tour, localize</li>
+          <li>All output types: video, guide, reel, tour</li>
+          <li>No watermark, no API key</li>
+          <li>Batch <b>build-all</b> with pixel diffs</li>
+          <li>ISC-licensed source</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener">Use it now</a>
+      </div>
+
+      <div class="price is-pop">
+        <span class="pop-tag">MOST POPULAR</span>
+        <h3>Builder</h3>
+        <div class="amount"><b>$29</b><span>/mo per workspace</span></div>
+        <p class="who">Solo devs and founders.</p>
+        <ul>
+          <li><b>3 seats</b></li>
+          <li><b>500 cloud build-minutes</b>/mo</li>
+          <li><b>25 hosted</b> tour/guide/reel embeds with analytics</li>
+          <li>GitHub <b>PR-preview builds</b> with stale-frame diff report</li>
+          <li>Agent HTTP API, <b>2,000 calls</b>/mo</li>
+          <li><b>5 managed locales</b></li>
+        </ul>
+        <a class="btn btn-primary" href="mailto:sales@demoforge.dev?subject=Builder%20plan%20waitlist">Start Builder</a>
+      </div>
+
+      <div class="price">
+        <h3>Team</h3>
+        <div class="amount"><b>$99</b><span>/mo per workspace</span></div>
+        <p class="who">Product, docs and DevRel teams.</p>
+        <ul>
+          <li><b>15 seats</b></li>
+          <li><b>2,500 build-minutes</b>/mo</li>
+          <li><b>100 hosted embeds</b>, 12-month analytics retention</li>
+          <li><b>25,000 API calls</b>/mo</li>
+          <li>Unlimited managed locales + <b>translation memory</b></li>
+          <li><b>Custom embed domain</b></li>
+        </ul>
+        <a class="btn btn-ghost" href="mailto:sales@demoforge.dev?subject=Team%20plan%20waitlist">Start Team</a>
+      </div>
+
+      <div class="price">
+        <h3>Enterprise</h3>
+        <div class="amount"><b>Custom</b></div>
+        <p class="who">Orgs with a security review.</p>
+        <ul>
+          <li><b>SSO/SAML</b> and audit log</li>
+          <li><b>Self-hosted build runners</b> — unreleased UI never leaves your VPC</li>
+          <li><b>SLA, DPA</b>, private preview domains</li>
+          <li>Dedicated support</li>
+        </ul>
+        <a class="btn btn-ghost" href="mailto:sales@demoforge.dev">Talk to us</a>
+      </div>
+    </div>
+
+    <p class="price-note">Overage: $0.10/build-minute · $1/hosted embed/mo · $5 per extra 1k API calls. Hard caps — no surprise bills.</p>
+  </div>
+</section>
+
+<!-- ======================= FAQ ======================= -->
+<section class="faq" id="faq" tabindex="-1">
+  <div class="container">
+    <div class="section-head" style="text-align:center;">
+      <h2>Honest questions, straight answers.</h2>
+    </div>
+
+    <div class="faq-list">
+      <details>
+        <summary>How is this different from Arcade, Supademo, Storylane, Navattic, Scribe or Tango?</summary>
+        <div class="a">
+          Those tools <b>capture pixels</b> — through a browser extension or a recorder — into a GUI project. A capture is a dead end that rots on contact with the sprint: when the UI changes, someone re-records. A Demoforge demo is <b>source</b>: two text files that regenerate, diff pixel-by-pixel in CI, and compile to video, guide, reel, tour and every locale from one timeline. It is also the only one of the bunch your coding agent can drive end to end — the entire review surface is text and JSON. A capture vendor can bolt on a code export, but the pipeline (build keys, frame diffs, agent review, locale compilation) <b>is</b> the product; copying it means becoming a different product. If your team wants zero code and a GUI editor, those tools are honest alternatives — we built this for the teams they can't serve.
+        </div>
+      </details>
+
+      <details>
+        <summary>Does it need an API key — or any LLM at all?</summary>
+        <div class="a">
+          No. The whole pipeline — <code>check</code>, <code>build</code>, <code>preview</code>, <code>export</code>, <code>record</code>, <code>guide</code>, <code>tour</code>, <code>localize</code>, <code>build-all</code> — runs locally and headless with <b>no key and no secrets</b>, which is why it runs in CI as-is. The only LLM-powered commands are optional conveniences: <code>extract</code> (screenshot → HTML via a vision model) and <code>animate</code> (prompt → timeline). A coding agent skips both and writes the timeline itself — this website's hero reel was made exactly that way.
+        </div>
+      </details>
+
+      <details>
+        <summary>What does "rebuilt in CI when the UI changes" mean concretely?</summary>
+        <div class="a">
+          Every build records a <b>content-hash build key</b> (sources + referenced media + render settings + tool revision) into a manifest. <code>build-all --changed-only</code> skips any guide × locale whose key is unchanged and whose video still exists, so a CI run costs seconds when nothing moved. <code>--diff</code> keeps the previous step frames, compares them pixel by pixel and marks a guide <b>stale</b> above a threshold (default 2%), writing the diff images next to them. A UI change shows up as a diff report on the pull request — not as a stale video a customer finds first.
+        </div>
+      </details>
+
+      <details>
+        <summary>Can it drive our real app, not just a mockup?</summary>
+        <div class="a">
+          Yes. <code>record</code> runs the same timeline against a live URL: real navigations, <code>waitFor</code> gates, Playwright storage state for sign-in, and re-injection of the runtime after each navigation. Every target is probed before its step, and a reset hook (<code>--reset-cmd</code>) puts the app back into its starting state between passes, because a timeline that saves data is not idempotent. <code>check --live --url …</code> is the cheap half of that loop — it replays the timeline for real and probes every selector in seconds, so a typo costs seconds instead of a recording.
+        </div>
+      </details>
+
+      <details>
+        <summary>Is the free tier actually usable, or a crippled trial?</summary>
+        <div class="a">
+          It is the whole CLI, and it is what built everything on this page: unlimited local <code>check</code>/<code>build</code>/<code>preview</code>/<code>export</code>/<code>tour</code>/<code>localize</code>, every output type, batch <code>build-all</code>, no watermark, ISC-licensed source. The paid plans exist because hosting embeds with analytics, running PR-preview builds, serving an agent HTTP API and managing locales <b>genuinely need a server</b> — that is all the cloud sells. If you never need those, the free tier is a complete workflow, forever.
+        </div>
+      </details>
+
+      <details>
+        <summary>What do I need to run it?</summary>
+        <div class="a">
+          Node 20.6+, <code>npm install</code>, and Chromium through Playwright (<code>npx playwright install chromium</code>). ffmpeg is bundled — nothing else to install. Narration uses OpenAI TTS when a key is present, otherwise macOS <code>say</code>, and is optional. The CI workflow in the repo needs no secrets at all.
+        </div>
+      </details>
+
+      <details>
+        <summary>Who is Demoforge not for?</summary>
+        <div class="a">
+          If you want to record a demo by clicking through your app once and dragging a hotspot in a GUI, a capture tool will make you faster — that is their strength and we say so. Demoforge pays off when demos are <b>engineering artifacts</b>: many outputs, many locales, frequent UI change, and a repo-and-CI workflow you want your agent to own. Writing a timeline is writing JSON; if that sentence is a dealbreaker, the GUI vendors are a better fit.
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= FINAL CTA ======================= -->
+<section class="endcta">
+  <div class="container">
+    <h2>Stop re-recording. Start compiling.</h2>
+    <p>Two text files, one command, every artifact — free and local, with your first compiled demo in under an hour.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="#how">Get started free</a>
+      <a class="btn btn-ghost" href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener">Read the manual on GitHub</a>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= FOOTER ======================= -->
+<footer>
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="logo" href="#top">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#F97316"/></svg>
+          Demoforge
+        </a>
+        <p>Product demos as code: versioned with your repo, reviewed in the pull request, rebuilt in CI when the UI changes.</p>
+      </div>
+      <div class="foot-col">
+        <h3>Product</h3>
+        <a href="#how">How it works</a>
+        <a href="#outputs">What you get</a>
+        <a href="#review">Agent review</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <div class="foot-col">
+        <h3>Resources</h3>
+        <a href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener">GitHub repository</a>
+        <a href="https://github.com/clarido/screenshot-animator/blob/main/AGENTS.md" target="_blank" rel="noopener">The agent manual (AGENTS.md)</a>
+        <a href="https://github.com/clarido/screenshot-animator/blob/main/README.md" target="_blank" rel="noopener">README</a>
+      </div>
+      <div class="foot-col">
+        <h3>Company</h3>
+        <a href="#pricing">Plans &amp; pricing</a>
+        <a href="mailto:sales@demoforge.dev">sales@demoforge.dev</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Demoforge. The CLI is ISC-licensed open source.</span>
+      <span>Every clip, frame and strip on this page is real Demoforge output from this repo. <code>website/src/reel/</code></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Mobile nav
+  (function () {
+    var burger = document.getElementById('burger');
+    var links = document.getElementById('navLinks');
+    if (!burger || !links) return;
+    burger.addEventListener('click', function () {
+      var open = links.classList.toggle('open');
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    links.addEventListener('click', function (e) {
+      if (e.target.tagName === 'A') links.classList.remove('open');
+    });
+    // A desktop -> mobile -> desktop resize leaves .open unstyled but aria-expanded
+    // stale; keep the two in step when the breakpoint is crossed.
+    if (window.matchMedia) {
+      var wide = window.matchMedia('(min-width: 861px)');
+      var syncMenu = function () {
+        if (wide.matches && links.classList.contains('open')) {
+          links.classList.remove('open');
+          burger.setAttribute('aria-expanded', 'false');
+        }
+      };
+      if (wide.addEventListener) wide.addEventListener('change', syncMenu);
+    }
+  })();
+
+  // The frame cannot see the real viewport, so the parent tells it when to play.
+  // Same protocol the CLI's own embed snippet speaks (generated by `build --embed`).
+  // The poster covers the frame until playback starts (the embed's authored static
+  // state is empty), stays put under prefers-reduced-motion, and the button gives
+  // the loop an explicit pause — scroll position is not the only control.
+  (function () {
+    var embed = document.getElementById('reelEmbed');
+    if (!embed) return;
+    var frame = embed.querySelector('.anim-embed-frame');
+    var toggle = document.getElementById('reelToggle');
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var userPaused = false;
+    var ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+    var ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+    function post(type) {
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage({ source: 'anim-cli', type: type }, '*');
+    }
+    function setPlaying(on) {
+      embed.classList.toggle('is-playing', on);
+      if (!toggle) return;
+      toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+      toggle.setAttribute('aria-label', on ? 'Pause the clip' : 'Play the clip');
+      toggle.innerHTML = on ? ICON_PAUSE + '<span>PAUSE</span>' : ICON_PLAY + '<span>PLAY CLIP</span>';
+    }
+    if (toggle) toggle.addEventListener('click', function () {
+      if (reduced.matches) {
+        // Under reduced motion the embed never plays (its authored static state is an
+        // empty stage); offer the file itself instead of un-hiding a blank frame.
+        window.open('assets/reel.mp4', '_blank', 'noopener');
+        return;
+      }
+      var playing = embed.classList.contains('is-playing');
+      userPaused = playing;
+      post(playing ? 'pause' : 'play');
+      setPlaying(!playing);
+    });
+    if (!('IntersectionObserver' in window) || !frame) return;
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          if (!userPaused && !reduced.matches) { post('play'); setPlaying(true); }
+        } else if (embed.classList.contains('is-playing')) {
+          post('pause'); setPlaying(false);
+        }
+      });
+    }, { threshold: 0.25 });
+    io.observe(embed);
+  })();
+</script>
+</body>
+</html>

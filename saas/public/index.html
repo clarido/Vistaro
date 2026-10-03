@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Demoforge — cloud builds</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14171c;
+    --panel-2: #191d24;
+    --ink: #e8eaed;
+    --muted: #8b93a1;
+    --line: #242a33;
+    --accent: #f97316;       /* forge ember */
+    --accent-ink: #1a0e04;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --err: #f87171;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 20px 28px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: .2px; }
+  header h1 .mark { color: var(--accent); }
+  header .tag { color: var(--muted); font-size: 13px; }
+  header .spacer { flex: 1; }
+  header .health { color: var(--muted); font-size: 12.5px; }
+  main { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px;
+  }
+  .keycard { text-align: center; padding: 48px 20px; }
+  .keycard p { color: var(--muted); max-width: 460px; margin: 8px auto 18px; }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input[type=password], input[type=text] {
+    background: var(--panel-2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 12px; font-size: 14px; min-width: 260px;
+  }
+  input[type=file] { color: var(--muted); font-size: 13.5px; }
+  button {
+    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px;
+    padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  button[disabled] { opacity: .5; cursor: wait; }
+  button.ghost {
+    background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 500;
+  }
+
+  .banner {
+    display: none; border: 1px solid var(--err); color: var(--err);
+    background: rgba(248,113,113,.07); border-radius: 8px; padding: 10px 14px;
+    margin-bottom: 16px; font-size: 13.5px; white-space: pre-wrap;
+  }
+  .banner.show { display: block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th {
+    text-align: left; color: var(--muted); font-weight: 500; font-size: 12px;
+    text-transform: uppercase; letter-spacing: .06em; padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td code { font-size: 12.5px; color: var(--muted); }
+  .chip {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  }
+  .chip.queued  { background: rgba(251,191,36,.12); color: var(--warn); }
+  .chip.running { background: rgba(249,115,22,.14); color: var(--accent); }
+  .chip.done    { background: rgba(52,211,153,.12); color: var(--ok); }
+  .chip.failed  { background: rgba(248,113,113,.12); color: var(--err); }
+  .links a { color: var(--accent); text-decoration: none; margin-right: 10px; font-size: 13px; }
+  .links a:hover { text-decoration: underline; }
+  .error-line { color: var(--err); font-size: 12.5px; margin-top: 4px; }
+  .muted { color: var(--muted); }
+  .empty { color: var(--muted); text-align: center; padding: 28px 0; }
+  footer { color: var(--muted); font-size: 12.5px; text-align: center; padding: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="mark">⚒</span> Demoforge</h1>
+  <span class="tag">cloud builds — your demo, compiled</span>
+  <span class="spacer"></span>
+  <span class="health" id="health"></span>
+  <button class="ghost" id="forget" title="Forget the stored API key">Log out</button>
+</header>
+
+<main>
+  <div class="banner" id="banner"></div>
+
+  <!-- API-key gate -->
+  <div class="card keycard" id="keycard">
+    <h2 style="margin:0">API key required</h2>
+    <p>Cloud builds are a paid feature. Paste the workspace API key
+       (it is kept in this browser's localStorage only).</p>
+    <div class="row" style="justify-content:center">
+      <input type="password" id="key" placeholder="dfk_…" autocomplete="off">
+      <button id="connect">Connect</button>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dash" style="display:none">
+    <div class="card">
+      <div class="row">
+        <strong style="margin-right:4px">New build</strong>
+        <span class="muted" style="font-size:13px">a zip with <code>index.html</code> + <code>anim.config.json</code> at its root</span>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <input type="file" id="file" accept=".zip,application/zip">
+        <button id="upload">Upload &amp; build</button>
+        <span class="muted" id="uploadNote" style="font-size:13px"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between; margin-bottom:6px">
+        <strong>Builds</strong>
+        <button class="ghost" id="refresh">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Build</th><th>Created</th><th>Status</th><th>Took</th><th>Artifacts</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="empty">No builds yet — upload a project zip above.</div>
+    </div>
+  </div>
+</main>
+
+<footer>MVP: serial build queue, local artifact storage, embed links are public.</footer>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const KEY_STORAGE = 'demoforge_key';
+let key = localStorage.getItem(KEY_STORAGE) || '';
+let pollTimer = null;
+
+function banner(msg) {
+  const el = $('banner');
+  el.textContent = msg || '';
+  el.classList.toggle('show', !!msg);
+}
+
+function headers() {
+  return { Authorization: 'Bearer ' + key };
+}
+
+async function api(path, opts) {
+  const res = await fetch(path, Object.assign({ headers: headers() }, opts));
+  let body = null;
+  try { body = await res.json(); } catch { /* non-JSON */ }
+  if (res.status === 401) { showKeycard(); throw new Error('unauthorized — check your API key'); }
+  if (!res.ok) throw new Error((body && body.error) || (res.status + ' ' + res.statusText));
+  return body;
+}
+
+function showKeycard() {
+  $('keycard').style.display = '';
+  $('dash').style.display = 'none';
+  stopPolling();
+}
+function showDash() {
+  $('keycard').style.display = 'none';
+  $('dash').style.display = '';
+  refreshHealth();
+  refreshJobs();
+}
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+async function refreshHealth() {
+  try {
+    const r = await fetch('/health');
+    const h = await r.json();
+    $('health').textContent =
+      'v' + h.version + ' · queue ' + (h.queue.runnerDisabled ? 'disabled' : 'depth ' + h.queue.depth) +
+      ' · billing ' + h.billing.replace('_', ' ');
+  } catch { $('health').textContent = 'server unreachable'; }
+}
+
+function fmtWhen(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+}
+function fmtMs(ms) {
+  if (ms == null) return '—';
+  return ms < 1000 ? ms + ' ms' : (ms / 1000).toFixed(1) + ' s';
+}
+
+function renderJobs(jobs) {
+  const rows = $('rows');
+  $('empty').style.display = jobs.length ? 'none' : '';
+  rows.innerHTML = '';
+  for (const j of jobs) {
+    const tr = document.createElement('tr');
+
+    const id = document.createElement('td');
+    id.innerHTML = '<code></code>';
+    id.firstChild.textContent = j.id;
+    tr.appendChild(id);
+
+    const created = document.createElement('td');
+    created.className = 'muted';
+    created.textContent = fmtWhen(j.createdAt);
+    if (j.queuePosition != null) created.textContent += ' ( #' + j.queuePosition + ' in queue)';
+    tr.appendChild(created);
+
+    const status = document.createElement('td');
+    const chip = document.createElement('span');
+    chip.className = 'chip ' + j.status;
+    chip.textContent = j.status;
+    status.appendChild(chip);
+    tr.appendChild(status);
+
+    const took = document.createElement('td');
+    took.className = 'muted';
+    took.textContent = fmtMs(j.durationMs);
+    tr.appendChild(took);
+
+    const art = document.createElement('td');
+    art.className = 'links';
+    if (j.artifacts) {
+      const labels = { video: 'video', subtitles: 'vtt', guideHtml: 'guide', poster: 'poster' };
+      for (const [k, label] of Object.entries(labels)) {
+        if (!j.artifacts[k]) continue;
+        const a = document.createElement('a');
+        a.href = j.artifacts[k];
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = label;
+        art.appendChild(a);
+      }
+      const detail = document.createElement('a');
+      detail.href = '#';
+      detail.textContent = 'json';
+      detail.onclick = (e) => { e.preventDefault(); window.open('/embed/' + j.id + '/'); };
+      // detail route needs the key; open the embed index instead
+      art.appendChild(detail);
+    } else if (j.error) {
+      const err = document.createElement('div');
+      err.className = 'error-line';
+      err.textContent = j.error;
+      art.appendChild(err);
+    } else {
+      art.className = 'muted';
+      art.textContent = '—';
+    }
+    tr.appendChild(art);
+    rows.appendChild(tr);
+  }
+}
+
+async function refreshJobs() {
+  try {
+    const data = await api('/v1/builds');
+    renderJobs(data.jobs || []);
+    const active = (data.jobs || []).some((j) => j.status === 'queued' || j.status === 'running');
+    if (active && !pollTimer) pollTimer = setInterval(refreshJobs, 3000);
+    if (!active) stopPolling();
+  } catch (e) {
+    banner(String(e.message || e));
+    stopPolling();
+  }
+}
+
+$('connect').onclick = () => {
+  key = $('key').value.trim();
+  if (!key) { banner('Enter an API key.'); return; }
+  banner('');
+  api('/v1/builds').then(() => {
+    localStorage.setItem(KEY_STORAGE, key);
+    showDash();
+  }).catch((e) => banner(String(e.message || e)));
+};
+$('key').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('connect').click(); });
+
+$('forget').onclick = () => {
+  localStorage.removeItem(KEY_STORAGE);
+  key = '';
+  $('key').value = '';
+  showKeycard();
+};
+
+$('refresh').onclick = () => { refreshHealth(); refreshJobs(); };
+
+$('upload').onclick = async () => {
+  const file = $('file').files[0];
+  if (!file) { banner('Choose a project .zip first.'); return; }
+  banner('');
+  const btn = $('upload');
+  btn.disabled = true;
+  $('uploadNote').textContent = 'uploading ' + file.name + '…';
+  try {
+    const buf = await file.arrayBuffer();
+    const created = await api('/v1/builds', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/zip' }, headers()),
+      body: buf,
+    });
+    $('uploadNote').textContent = 'queued as ' + created.id;
+    $('file').value = '';
+    refreshJobs();
+  } catch (e) {
+    banner(String(e.message || e));
+    $('uploadNote').textContent = '';
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+if (key) showDash(); else showKeycard();
+</script>
+</body>
+</html>

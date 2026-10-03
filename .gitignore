@@ -27,6 +27,8 @@ trace.json
 trace.*.json
 *.strip.png
 *.motion.json
+# `verify` writes its audit beside the video it just encoded
+verify.json
 .temp-video/
 .cache/
 # The impeccable skill's critique working notes (design passes), not source.
