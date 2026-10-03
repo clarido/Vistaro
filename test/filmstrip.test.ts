@@ -5,19 +5,10 @@ import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
 import { run } from '../src/media/ffmpeg';
+import { assertRan, CLI_TIMEOUT_MS } from './assert-ran';
 
 const root = path.resolve(__dirname, '..');
 const skip = process.env.SKIP_BROWSER === '1';
-/** Same bound and same named-failure reporting as the rest of the suite (see AGENTS.md). */
-const CLI_TIMEOUT_MS = 300000;
-
-function assertRan(res: { error?: Error; signal?: NodeJS.Signals | null }, args: string[]): void {
-    if (res.signal || res.error) {
-        const code = (res.error as NodeJS.ErrnoException | undefined)?.code;
-        const why = code === 'ETIMEDOUT' ? `did not finish within ${CLI_TIMEOUT_MS}ms and was killed` : `was killed by ${res.signal ?? code}`;
-        throw new Error(`cli ${args.join(' ')} ${why}`);
-    }
-}
 
 const cli = (args: string[]) => {
     const res = spawnSync(process.execPath, ['--import', 'tsx', 'cli.ts', ...args], { cwd: root, encoding: 'utf8', timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL', env: { ...process.env } });

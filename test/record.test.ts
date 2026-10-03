@@ -13,31 +13,27 @@ import { bootOptions } from '../src/engine/inject';
 import { probeDurationMs } from '../src/media/ffmpeg';
 import { GuideJson } from '../src/guide/render';
 import { sanitizeUrl } from '../src/browser';
+import { assertRan, CLI_TIMEOUT_MS, CliSpawnResult } from './assert-ran';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
 /** ffmpeg probes run in-process; bounded so a wedged decode fails here instead of leaning on the runner cap. */
 const FFMPEG_PROBE_TIMEOUT_MS = 120000;
-/**
- * A wedged child (a Chromium that will not close, a page stuck mid-navigation) used to hang the
- * whole suite: nothing bounded the wait, and node:test's own default timeout is Infinity. This
- * bound is per CALL, not per test, and it must stay well above the slowest healthy one -- CI runs
- * ~1.4x slower than a local machine and AGENTS.md warns the suite degrades beside other browser
- * jobs -- while staying far under the runner's own --test-timeout, so a wedge is reported here,
- * by name, rather than as the runner cancelling the whole test.
- */
-const CLI_TIMEOUT_MS = 300000;
 
 /** Async spawn: the live-app server runs in this process, so a sync spawn would block its event loop. */
-function cli(args: string[]): Promise<{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }> {
-    return new Promise((resolve) => {
+async function cli(args: string[]): Promise<CliSpawnResult> {
+    const res = await new Promise<CliSpawnResult>((resolve) => {
         const child = spawn(process.execPath, ['--import', 'tsx', 'cli.ts', ...args], { cwd: root, timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' });
         let stdout = '', stderr = '';
         child.stdout.on('data', d => { stdout += d; });
         child.stderr.on('data', d => { stderr += d; });
         // signal is carried out, or a timeout kill would be indistinguishable from a crash.
         child.on('close', (status, signal) => resolve({ status, signal, stdout, stderr }));
+        // An ENOENT emits 'error' and never 'close': resolve it too, or the awaited promise would hang.
+        child.on('error', (error) => resolve({ status: null, signal: null, stdout, stderr, error }));
     });
+    assertRan(res, args);
+    return res;
 }
 
 /** The full flow: login (form POST + redirect), async list (waitFor), SPA route change, link navigation, typing on page 3. */

@@ -7,24 +7,24 @@ import { spawn } from 'child_process';
 import { startLiveApp, LiveApp } from './fixtures/live-app/server';
 import { parseTimeline, validateTimeline } from '../src/engine/schema';
 import { writeLearnDraft, LearnedInteraction } from '../src/commands/learn';
+import { assertRan, CLI_TIMEOUT_MS, CliSpawnResult } from './assert-ran';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
-/**
- * A wedged child used to hang the whole suite (see record.test.ts): bound per CALL, well above the
- * slowest healthy recording and far under the runner's own --test-timeout, so a wedge is reported
- * here, by name, instead of as the runner cancelling the test.
- */
-const CLI_TIMEOUT_MS = 300000;
 
-function cli(args: string[]): Promise<{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }> {
-    return new Promise((resolve) => {
+async function cli(args: string[]): Promise<CliSpawnResult> {
+    const res = await new Promise<CliSpawnResult>((resolve) => {
         const child = spawn(process.execPath, ['--import', 'tsx', 'cli.ts', ...args], { cwd: root, timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' });
         let stdout = '', stderr = '';
         child.stdout.on('data', d => { stdout += d; });
         child.stderr.on('data', d => { stderr += d; });
+        // signal is carried out, or a timeout kill would be indistinguishable from a crash.
         child.on('close', (status, signal) => resolve({ status, signal, stdout, stderr }));
+        // An ENOENT emits 'error' and never 'close': resolve it too, or the awaited promise would hang.
+        child.on('error', (error) => resolve({ status: null, signal: null, stdout, stderr, error }));
     });
+    assertRan(res, args);
+    return res;
 }
 
 let app: LiveApp;

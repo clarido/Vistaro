@@ -4,25 +4,25 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { spawn } from 'child_process';
+import { assertRan, CLI_TIMEOUT_MS, CliSpawnResult } from './assert-ran';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
 const fixture = path.join(root, 'test', 'fixtures', 'basic');
-/**
- * A wedged child used to hang the whole suite (see record.test.ts): bound per CALL, well above the
- * slowest healthy verify (an export plus a filmstrip) and far under the runner's own
- * --test-timeout, so a wedge is reported here, by name, instead of as the runner cancelling the test.
- */
-const CLI_TIMEOUT_MS = 300000;
 
-function cli(args: string[]): Promise<{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }> {
-    return new Promise((resolve) => {
+async function cli(args: string[]): Promise<CliSpawnResult> {
+    const res = await new Promise<CliSpawnResult>((resolve) => {
         const child = spawn(process.execPath, ['--import', 'tsx', 'cli.ts', ...args], { cwd: root, timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' });
         let stdout = '', stderr = '';
         child.stdout.on('data', d => { stdout += d; });
         child.stderr.on('data', d => { stderr += d; });
+        // signal is carried out, or a timeout kill would be indistinguishable from a crash.
         child.on('close', (status, signal) => resolve({ status, signal, stdout, stderr }));
+        // An ENOENT emits 'error' and never 'close': resolve it too, or the awaited promise would hang.
+        child.on('error', (error) => resolve({ status: null, signal: null, stdout, stderr, error }));
     });
+    assertRan(res, args);
+    return res;
 }
 
 interface VerifyStepRow {
