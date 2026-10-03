@@ -236,6 +236,92 @@
       "force": false,
       "output": "animated.html",
       "timestamp": "2026-10-03T16:11:39.650Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "ask",
+          "actualMs": 7,
+          "completedMs": 471
+        },
+        {
+          "index": 2,
+          "id": "win",
+          "actualMs": 566,
+          "completedMs": 1099
+        },
+        {
+          "index": 3,
+          "id": "lines",
+          "actualMs": 906,
+          "completedMs": 1882
+        },
+        {
+          "index": 4,
+          "id": "cmd1",
+          "actualMs": 1806,
+          "completedMs": 2240
+        },
+        {
+          "index": 5,
+          "id": "ok1",
+          "actualMs": 2258,
+          "completedMs": 2669
+        },
+        {
+          "index": 6,
+          "id": "cmd2",
+          "actualMs": 2854,
+          "completedMs": 3282
+        },
+        {
+          "index": 7,
+          "id": "wait",
+          "actualMs": 3356,
+          "completedMs": 3744
+        },
+        {
+          "index": 8,
+          "id": "arts",
+          "actualMs": 3506,
+          "completedMs": 4434
+        },
+        {
+          "index": 9,
+          "id": "ci",
+          "actualMs": 4459,
+          "completedMs": 4977
+        },
+        {
+          "index": 10,
+          "id": "fade",
+          "actualMs": 7105,
+          "completedMs": 7660
+        }
+      ],
+      "duration": 8.26,
+      "output": "../../assets/reel.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:c8f61bb99d064a210fbf082bbf355855ce4bef1f5d90ca4e8f0eb5cb7c11f39a",
+      "timestamp": "2026-10-03T22:02:37.473Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-10-03T22:02:38.556Z"
     }
   ]
 }

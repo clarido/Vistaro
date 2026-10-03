@@ -10,13 +10,23 @@
     "reel": {
       "loop": true,
       "autoplay": "message",
-      "poster": "5.2s"
+      "poster": "5.1s"
     }
   },
   "steps": [
     {
-      "id": "win",
+      "id": "ask",
       "time": "0s",
+      "action": "animate",
+      "target": "#ask",
+      "from": { "opacity": 0, "y": -10 },
+      "to": { "opacity": 1, "y": 0 },
+      "duration": 0.45,
+      "ease": "easeOutCubic"
+    },
+    {
+      "id": "win",
+      "time": "0.55s",
       "action": "animate",
       "target": "#app",
       "from": { "opacity": 0, "y": 14 },
@@ -26,7 +36,7 @@
     },
     {
       "id": "lines",
-      "time": "0.35s",
+      "time": "0.9s",
       "action": "animate",
       "target": ".eline",
       "all": true,
@@ -39,7 +49,7 @@
     },
     {
       "id": "cmd1",
-      "time": "1.25s",
+      "time": "1.8s",
       "action": "animate",
       "target": "#cmd1",
       "from": { "opacity": 0, "x": -8 },
@@ -49,7 +59,7 @@
     },
     {
       "id": "ok1",
-      "time": "1.7s",
+      "time": "2.25s",
       "action": "animate",
       "target": "#ok1",
       "from": { "opacity": 0, "y": 6 },
@@ -59,7 +69,7 @@
     },
     {
       "id": "cmd2",
-      "time": "2.3s",
+      "time": "2.85s",
       "action": "animate",
       "target": "#cmd2",
       "from": { "opacity": 0, "x": -8 },
@@ -69,7 +79,7 @@
     },
     {
       "id": "wait",
-      "time": "2.8s",
+      "time": "3.35s",
       "action": "animate",
       "target": ".rail-wait",
       "from": { "opacity": 1 },
@@ -79,7 +89,7 @@
     },
     {
       "id": "arts",
-      "time": "2.95s",
+      "time": "3.5s",
       "action": "animate",
       "target": ".artifact",
       "all": true,
@@ -92,7 +102,7 @@
     },
     {
       "id": "ci",
-      "time": "3.9s",
+      "time": "4.45s",
       "action": "animate",
       "target": "#cichip",
       "from": { "opacity": 0, "scale": 0.94 },
@@ -102,9 +112,9 @@
     },
     {
       "id": "fade",
-      "time": "6.9s",
+      "time": "7.1s",
       "action": "animate",
-      "target": "#app",
+      "target": "#stage",
       "from": { "opacity": 1 },
       "to": { "opacity": 0 },
       "duration": 0.5,
