@@ -41,5 +41,7 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      # npm test chains `node saas/smoke.mjs` after the node:test suite (package.json), so the
+      # SaaS HTTP contract is exercised in this step too; a separate smoke step would run it twice.
       - name: Test
         run: npm test
