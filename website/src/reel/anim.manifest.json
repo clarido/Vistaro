@@ -147,6 +147,95 @@
       "force": false,
       "output": "animated.html",
       "timestamp": "2026-10-03T12:22:46.150Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "win",
+          "actualMs": 11,
+          "completedMs": 566
+        },
+        {
+          "index": 2,
+          "id": "lines",
+          "actualMs": 370,
+          "completedMs": 1335
+        },
+        {
+          "index": 3,
+          "id": "cmd1",
+          "actualMs": 1326,
+          "completedMs": 1715
+        },
+        {
+          "index": 4,
+          "id": "ok1",
+          "actualMs": 1733,
+          "completedMs": 2160
+        },
+        {
+          "index": 5,
+          "id": "cmd2",
+          "actualMs": 2323,
+          "completedMs": 2762
+        },
+        {
+          "index": 6,
+          "id": "wait",
+          "actualMs": 2827,
+          "completedMs": 3197
+        },
+        {
+          "index": 7,
+          "id": "arts",
+          "actualMs": 2973,
+          "completedMs": 3879
+        },
+        {
+          "index": 8,
+          "id": "ci",
+          "actualMs": 3908,
+          "completedMs": 4432
+        },
+        {
+          "index": 9,
+          "id": "fade",
+          "actualMs": 6911,
+          "completedMs": 7502
+        }
+      ],
+      "duration": 8.102,
+      "output": "../../assets/reel.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:2abfd1a2df17ddc27db8f2001eee3434a2f365870994db3b910210481c1bcb86",
+      "timestamp": "2026-10-03T14:17:32.945Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-10-03T14:17:36.646Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-10-03T16:11:39.650Z"
     }
   ]
 }

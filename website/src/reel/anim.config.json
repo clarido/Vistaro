@@ -6,10 +6,11 @@
     "app": "Demoforge",
     "locale": "en",
     "cursor": "none",
-    "tailMs": 1000,
+    "tailMs": 600,
     "reel": {
       "loop": true,
-      "autoplay": "message"
+      "autoplay": "message",
+      "poster": "5.2s"
     }
   },
   "steps": [
@@ -25,20 +26,20 @@
     },
     {
       "id": "lines",
-      "time": "0.4s",
+      "time": "0.35s",
       "action": "animate",
       "target": ".eline",
       "all": true,
       "count": 15,
-      "stagger": 0.05,
+      "stagger": 0.04,
       "from": { "opacity": 0, "x": -10 },
       "to": { "opacity": 1, "x": 0 },
-      "duration": 0.4,
+      "duration": 0.35,
       "ease": "easeOutCubic"
     },
     {
       "id": "cmd1",
-      "time": "2.2s",
+      "time": "1.25s",
       "action": "animate",
       "target": "#cmd1",
       "from": { "opacity": 0, "x": -8 },
@@ -48,7 +49,7 @@
     },
     {
       "id": "ok1",
-      "time": "2.8s",
+      "time": "1.7s",
       "action": "animate",
       "target": "#ok1",
       "from": { "opacity": 0, "y": 6 },
@@ -58,7 +59,7 @@
     },
     {
       "id": "cmd2",
-      "time": "3.7s",
+      "time": "2.3s",
       "action": "animate",
       "target": "#cmd2",
       "from": { "opacity": 0, "x": -8 },
@@ -67,13 +68,23 @@
       "ease": "easeOutCubic"
     },
     {
+      "id": "wait",
+      "time": "2.8s",
+      "action": "animate",
+      "target": ".rail-wait",
+      "from": { "opacity": 1 },
+      "to": { "opacity": 0 },
+      "duration": 0.3,
+      "ease": "easeInCubic"
+    },
+    {
       "id": "arts",
-      "time": "4.5s",
+      "time": "2.95s",
       "action": "animate",
       "target": ".artifact",
       "all": true,
       "count": 4,
-      "stagger": 0.13,
+      "stagger": 0.11,
       "from": { "opacity": 0, "y": 18 },
       "to": { "opacity": 1, "y": 0 },
       "duration": 0.55,
@@ -81,13 +92,23 @@
     },
     {
       "id": "ci",
-      "time": "6s",
+      "time": "3.9s",
       "action": "animate",
       "target": "#cichip",
       "from": { "opacity": 0, "scale": 0.94 },
       "to": { "opacity": 1, "scale": 1 },
       "duration": 0.45,
       "ease": "easeOutBack"
+    },
+    {
+      "id": "fade",
+      "time": "6.9s",
+      "action": "animate",
+      "target": "#app",
+      "from": { "opacity": 1 },
+      "to": { "opacity": 0 },
+      "duration": 0.5,
+      "ease": "easeInCubic"
     }
   ]
 }
