@@ -1,0 +1,9 @@
+{
+  "meta.title": "Exporter la proposition vers Word",
+  "steps.intro.title": "Vue d'ensemble",
+  "steps.intro.subtitle": "Du plan au livrable en un clic.",
+  "steps.progress.title": "Confirmer que le brouillon est prêt",
+  "steps.progress.subtitle": "Le décompte dit ce qui manque encore.",
+  "steps.export.title": "Exporter vers Word",
+  "steps.export.subtitle": "Le .docx suit le gabarit du dossier."
+}

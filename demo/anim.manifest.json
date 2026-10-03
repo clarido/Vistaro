@@ -1,201 +1,372 @@
 {
   "history": [
     {
-      "command": "build",
-      "cursor": "mac",
-      "loop": false,
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
       "locale": "en",
-      "force": false,
-      "output": "animated.html",
-      "timestamp": "2026-09-06T22:21:25.636Z"
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "intro",
+          "actualMs": 4,
+          "completedMs": 809
+        },
+        {
+          "index": 2,
+          "id": "progress",
+          "actualMs": 2212,
+          "completedMs": 2214
+        },
+        {
+          "index": 4,
+          "id": "open-section",
+          "actualMs": 4408,
+          "completedMs": 4411
+        },
+        {
+          "index": 5,
+          "id": "draft",
+          "actualMs": 6408,
+          "completedMs": 8690
+        },
+        {
+          "index": 6,
+          "id": "zoom",
+          "actualMs": 9718,
+          "completedMs": 11324
+        },
+        {
+          "index": 7,
+          "id": "pull-back",
+          "actualMs": 11942,
+          "completedMs": 13344
+        },
+        {
+          "index": 8,
+          "id": "export",
+          "actualMs": 13411,
+          "completedMs": 13413
+        },
+        {
+          "index": 9,
+          "id": "closing",
+          "actualMs": 15405,
+          "completedMs": 18407
+        }
+      ],
+      "duration": 21.007,
+      "output": "demo.mp4",
+      "narration": false,
+      "subtitles": "demo.vtt",
+      "chapters": 6,
+      "clips": [],
+      "guide": "guide",
+      "contentHash": "sha256:fcf8bdc1ff18b1fbdbca3aeae9678b52167f36b8c843517f06312d2885c18533",
+      "timestamp": "2026-10-01T14:00:57.680Z"
+    },
+    {
+      "command": "localize",
+      "locale": "fr",
+      "targetDir": "locales/fr",
+      "timestamp": "2026-10-01T14:02:36.083Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "draft-response",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "output": "../tour-out",
+      "steps": 6,
+      "locale": "en",
+      "contentHash": "sha256:5fa6fb84cb969543d393233b950083047ee8f0dbdccca88d66e2f6f56662144e",
+      "timestamp": "2026-10-01T14:05:50.003Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "whats-left",
+      "config": "scenarios/whats-left.json",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "output": "../tour-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:4c0bab6f5ab72648f5456f4b700fa1ad14c4c0905e3b64914d552f7007ff1a08",
+      "timestamp": "2026-10-01T14:05:50.007Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "export-word",
+      "config": "scenarios/export-word.json",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "output": "../tour-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:4ac0986e4bf1782ee7d050de1fbbe3bbe364da2fdf2b18e21132a42f1bd942d6",
+      "timestamp": "2026-10-01T14:05:50.011Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "draft-response",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "output": "../tour-out",
+      "steps": 6,
+      "locale": "en",
+      "contentHash": "sha256:5fa6fb84cb969543d393233b950083047ee8f0dbdccca88d66e2f6f56662144e",
+      "timestamp": "2026-10-01T14:06:00.920Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "whats-left",
+      "config": "scenarios/whats-left.json",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "output": "../tour-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:4c0bab6f5ab72648f5456f4b700fa1ad14c4c0905e3b64914d552f7007ff1a08",
+      "timestamp": "2026-10-01T14:06:00.928Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "export-word",
+      "config": "scenarios/export-word.json",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "output": "../tour-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:4ac0986e4bf1782ee7d050de1fbbe3bbe364da2fdf2b18e21132a42f1bd942d6",
+      "timestamp": "2026-10-01T14:06:00.930Z"
     },
     {
       "command": "export",
-      "duration": 14.505,
-      "output": "demo.mp4",
       "device": "desktop",
       "theme": "light",
-      "narration": false,
-      "subtitles": "demo.vtt",
-      "chapters": 5,
-      "clips": [],
       "locale": "en",
       "driven": true,
-      "contentHash": "sha256:e2693ac136839eb7c7bb8cbba925aef0ac9f10747ef59f80fcbca1a29d0ab0bd",
+      "steps": [
+        {
+          "index": 1,
+          "id": "intro",
+          "actualMs": 2,
+          "completedMs": 803
+        },
+        {
+          "index": 2,
+          "id": "progress",
+          "actualMs": 2210,
+          "completedMs": 2211
+        },
+        {
+          "index": 4,
+          "id": "open-section",
+          "actualMs": 4411,
+          "completedMs": 4413
+        },
+        {
+          "index": 5,
+          "id": "draft",
+          "actualMs": 6406,
+          "completedMs": 8689
+        },
+        {
+          "index": 6,
+          "id": "zoom",
+          "actualMs": 9606,
+          "completedMs": 11208
+        },
+        {
+          "index": 7,
+          "id": "pull-back",
+          "actualMs": 11606,
+          "completedMs": 13009
+        },
+        {
+          "index": 8,
+          "id": "export",
+          "actualMs": 13407,
+          "completedMs": 13409
+        },
+        {
+          "index": 9,
+          "id": "closing",
+          "actualMs": 15407,
+          "completedMs": 18409
+        }
+      ],
+      "duration": 21.009,
+      "output": "demo.mp4",
+      "narration": false,
+      "subtitles": "demo.vtt",
+      "chapters": 6,
+      "clips": [],
+      "guide": "guide",
+      "contentHash": "sha256:5fa6fb84cb969543d393233b950083047ee8f0dbdccca88d66e2f6f56662144e",
+      "timestamp": "2026-10-01T14:13:11.678Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "draft-response",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "output": "../tour-out",
+      "steps": 6,
+      "locale": "en",
+      "contentHash": "sha256:5fa6fb84cb969543d393233b950083047ee8f0dbdccca88d66e2f6f56662144e",
+      "timestamp": "2026-10-01T14:13:59.167Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "whats-left",
+      "config": "scenarios/whats-left.json",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "output": "../tour-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:4c0bab6f5ab72648f5456f4b700fa1ad14c4c0905e3b64914d552f7007ff1a08",
+      "timestamp": "2026-10-01T14:13:59.172Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "export-word",
+      "config": "scenarios/export-word.json",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
+      "output": "../tour-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:4ac0986e4bf1782ee7d050de1fbbe3bbe364da2fdf2b18e21132a42f1bd942d6",
+      "timestamp": "2026-10-01T14:13:59.174Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
       "steps": [
         {
           "index": 1,
           "id": "intro",
           "actualMs": 3,
-          "completedMs": 804
+          "completedMs": 810
         },
         {
           "index": 2,
-          "id": "open-section",
-          "actualMs": 2005,
-          "completedMs": 2008
-        },
-        {
-          "index": 3,
-          "id": "focus-editor",
-          "actualMs": 4006,
-          "completedMs": 4014
+          "id": "progress",
+          "actualMs": 2210,
+          "completedMs": 2214
         },
         {
           "index": 4,
-          "id": "draft",
-          "actualMs": 5006,
-          "completedMs": 7287
+          "id": "open-section",
+          "actualMs": 4411,
+          "completedMs": 4426
         },
         {
           "index": 5,
-          "id": "zoom",
-          "actualMs": 7006,
-          "completedMs": 8507
+          "id": "draft",
+          "actualMs": 6408,
+          "completedMs": 8689
         },
         {
           "index": 6,
-          "id": "pull-back",
-          "actualMs": 8504,
-          "completedMs": 10505
+          "id": "zoom",
+          "actualMs": 9614,
+          "completedMs": 11218
         },
         {
           "index": 7,
+          "id": "pull-back",
+          "actualMs": 11610,
+          "completedMs": 13012
+        },
+        {
+          "index": 8,
+          "id": "export",
+          "actualMs": 13407,
+          "completedMs": 13411
+        },
+        {
+          "index": 9,
           "id": "closing",
-          "actualMs": 9004,
-          "completedMs": 12005
+          "actualMs": 15407,
+          "completedMs": 18408
         }
       ],
-      "timestamp": "2026-09-06T22:21:46.896Z"
-    },
-    {
-      "command": "guide",
-      "output": "guide",
-      "crop": 120,
-      "locale": "en",
-      "steps": 5,
-      "video": "demo.mp4",
-      "contentHash": "sha256:e2693ac136839eb7c7bb8cbba925aef0ac9f10747ef59f80fcbca1a29d0ab0bd",
-      "timestamp": "2026-09-06T22:22:11.797Z"
-    },
-    {
-      "command": "localize",
-      "locale": "fr",
-      "targetDir": "locales/fr",
-      "timestamp": "2026-09-07T00:30:05.413Z"
-    },
-    {
-      "command": "localize",
-      "locale": "fr",
-      "targetDir": "locales/fr",
-      "timestamp": "2026-09-07T01:01:10.936Z"
-    },
-    {
-      "command": "guide",
-      "output": "../../../../../private/tmp/claude-501/-Users-jf-Projects-test-anim-html-video/5082d8e5-218b-4ded-9a64-311380068ee8/scratchpad/guide-after",
-      "crop": 120,
-      "locale": "en",
-      "steps": 5,
-      "video": "demo.mp4",
-      "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
-      "timestamp": "2026-09-07T21:55:54.560Z"
-    },
-    {
-      "command": "guide",
-      "output": "tour",
-      "crop": false,
-      "locale": "en",
-      "steps": 5,
-      "video": "demo.mp4",
-      "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
-      "timestamp": "2026-09-09T19:08:38.389Z"
+      "duration": 21.008,
+      "output": "demo.mp4",
+      "narration": false,
+      "subtitles": "demo.vtt",
+      "chapters": 6,
+      "clips": [],
+      "guide": "guide",
+      "contentHash": "sha256:f23ab6a42b59118b4058d8d50dd9756a394b46eb256015b40ac133faad87cfa5",
+      "timestamp": "2026-10-03T13:39:24.114Z"
     },
     {
       "command": "tour",
       "scenario": "draft-response",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
       "output": "../tour-out",
-      "steps": 5,
+      "steps": 6,
       "locale": "en",
-      "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
-      "timestamp": "2026-09-09T20:14:27.016Z"
+      "contentHash": "sha256:f23ab6a42b59118b4058d8d50dd9756a394b46eb256015b40ac133faad87cfa5",
+      "timestamp": "2026-10-03T13:40:14.736Z"
     },
     {
       "command": "tour",
       "scenario": "whats-left",
       "config": "scenarios/whats-left.json",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
       "output": "../tour-out",
-      "steps": 4,
+      "steps": 3,
       "locale": "en",
-      "contentHash": "sha256:9113b01f090b20c7255e4f761f626ca181be247233168418f8994cfeb5c8217f",
-      "timestamp": "2026-09-09T20:14:27.019Z"
+      "contentHash": "sha256:424c5908eaf02101e22927650dd22ee38a473df6614e9499ac3d466a28c5cd55",
+      "timestamp": "2026-10-03T13:40:14.739Z"
     },
     {
       "command": "tour",
       "scenario": "export-word",
       "config": "scenarios/export-word.json",
+      "devices": [
+        "desktop",
+        "mobile"
+      ],
       "output": "../tour-out",
       "steps": 3,
       "locale": "en",
-      "contentHash": "sha256:fc03d69755764d47b0c43898797fc402e25d986d941fc2664ccfa63720a12493",
-      "timestamp": "2026-09-09T20:14:27.022Z"
-    },
-    {
-      "command": "tour",
-      "scenario": "draft-response",
-      "output": "../tour-out",
-      "steps": 5,
-      "locale": "en",
-      "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
-      "timestamp": "2026-09-09T20:57:07.376Z"
-    },
-    {
-      "command": "tour",
-      "scenario": "whats-left",
-      "config": "scenarios/whats-left.json",
-      "output": "../tour-out",
-      "steps": 4,
-      "locale": "en",
-      "contentHash": "sha256:9113b01f090b20c7255e4f761f626ca181be247233168418f8994cfeb5c8217f",
-      "timestamp": "2026-09-09T20:57:07.379Z"
-    },
-    {
-      "command": "tour",
-      "scenario": "export-word",
-      "config": "scenarios/export-word.json",
-      "output": "../tour-out",
-      "steps": 3,
-      "locale": "en",
-      "contentHash": "sha256:fc03d69755764d47b0c43898797fc402e25d986d941fc2664ccfa63720a12493",
-      "timestamp": "2026-09-09T20:57:07.381Z"
-    },
-    {
-      "command": "tour",
-      "scenario": "draft-response",
-      "output": "../tour-out",
-      "steps": 5,
-      "locale": "en",
-      "contentHash": "sha256:9c94cb5fa4917167670363d99c549f52e3c89459923f4bbda44e46684022751f",
-      "timestamp": "2026-09-09T21:34:35.823Z"
-    },
-    {
-      "command": "tour",
-      "scenario": "whats-left",
-      "config": "scenarios/whats-left.json",
-      "output": "../tour-out",
-      "steps": 4,
-      "locale": "en",
-      "contentHash": "sha256:9113b01f090b20c7255e4f761f626ca181be247233168418f8994cfeb5c8217f",
-      "timestamp": "2026-09-09T21:34:35.829Z"
-    },
-    {
-      "command": "tour",
-      "scenario": "export-word",
-      "config": "scenarios/export-word.json",
-      "output": "../tour-out",
-      "steps": 3,
-      "locale": "en",
-      "contentHash": "sha256:fc03d69755764d47b0c43898797fc402e25d986d941fc2664ccfa63720a12493",
-      "timestamp": "2026-09-09T21:34:35.831Z"
+      "contentHash": "sha256:9e00947c7c41a86e75ecac96a0c970a3d75dfdecf9b9cfcea7d4cb4958b6a22e",
+      "timestamp": "2026-10-03T13:40:14.742Z"
     }
   ],
   "locale": "en",

@@ -2,11 +2,18 @@
   "meta.title": "Draft a proposal response",
   "steps.intro.title": "Overview",
   "steps.intro.subtitle": "Reviewing the proposal progress.",
+  "steps.intro.note": "The outline on the left tracks what is drafted and what is left.",
+  "steps.progress.title": "Check what is left",
+  "steps.progress.subtitle": "Two of five sections are drafted.",
   "steps.open-section.title": "Open the section",
   "steps.open-section.subtitle": "Opening a specific section.",
-  "steps.focus-editor.title": "Focus the editor",
   "steps.draft.title": "Draft the response",
   "steps.draft.subtitle": "Drafting the response.",
+  "steps.draft.note": "Clarido mirrors each sentence against the tender's evaluation grid.",
   "steps.draft.value": "We will ensure rigorous compliance with all requirements.",
-  "steps.closing.title": "Closing"
+  "steps.zoom.subtitle": "The new sentence lands under the grid.",
+  "steps.export.title": "Export when ready",
+  "steps.export.subtitle": "The .docx follows the tender's template.",
+  "steps.closing.title": "Closing",
+  "steps.closing.note": "The closing statement fades in over 3 s -- the frame is captured once it settles."
 }

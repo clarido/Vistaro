@@ -1,12 +1,19 @@
 {
-  "meta.title": "Rédiger une réponse à une proposition",
-  "steps.intro.title": "Aperçu",
-  "steps.intro.subtitle": "Revue de l'avancement de la proposition.",
+  "meta.title": "Rédiger une réponse à l'appel d'offres",
+  "steps.intro.title": "Vue d'ensemble",
+  "steps.intro.subtitle": "Examen de l'avancement de la proposition.",
+  "steps.intro.note": "Le plan à gauche suit ce qui est rédigé et ce qui reste.",
+  "steps.progress.title": "Vérifier ce qui reste",
+  "steps.progress.subtitle": "Deux sections sur cinq sont rédigées.",
   "steps.open-section.title": "Ouvrir la section",
-  "steps.open-section.subtitle": "Ouverture d'une section.",
-  "steps.focus-editor.title": "Activer l'éditeur",
+  "steps.open-section.subtitle": "Ouverture d'une section précise.",
   "steps.draft.title": "Rédiger la réponse",
   "steps.draft.subtitle": "Rédaction de la réponse.",
-  "steps.draft.value": "Nous veillerons à une conformité rigoureuse à toutes les exigences.",
-  "steps.closing.title": "Conclusion"
+  "steps.draft.note": "Clarido confronte chaque phrase à la grille d'évaluation du dossier.",
+  "steps.draft.value": "Nous garantirons la conformité rigoureuse à toutes les exigences.",
+  "steps.zoom.subtitle": "La nouvelle phrase passe sous la grille.",
+  "steps.export.title": "Exporter quand c'est prêt",
+  "steps.export.subtitle": "Le .docx suit le gabarit du dossier.",
+  "steps.closing.title": "Conclusion",
+  "steps.closing.note": "La conclusion apparaît en fondu sur 3 s — l'image est capturée une fois installée."
 }

@@ -5,91 +5,205 @@
       "sourceDir": "../..",
       "locale": "fr",
       "baseLocale": "en",
-      "timestamp": "2026-09-07T00:30:05.414Z"
-    },
-    {
-      "command": "build",
-      "cursor": "mac",
-      "loop": false,
-      "locale": "en",
-      "force": false,
-      "output": "animated.html",
-      "timestamp": "2026-09-07T00:30:22.742Z"
+      "timestamp": "2026-10-01T14:02:36.084Z"
     },
     {
       "command": "export",
-      "duration": 14.507,
-      "output": "demo-fr.mp4",
       "device": "desktop",
       "theme": "light",
-      "narration": false,
-      "subtitles": "demo-fr.vtt",
-      "chapters": 5,
-      "clips": [],
-      "locale": "en",
+      "locale": "fr",
       "driven": true,
-      "contentHash": "sha256:89995fbb64c3e8618a65deb5a2c158442907f58907dacdfe062280cdb272c80d",
       "steps": [
         {
           "index": 1,
           "id": "intro",
           "actualMs": 2,
+          "completedMs": 803
+        },
+        {
+          "index": 2,
+          "id": "progress",
+          "actualMs": 2208,
+          "completedMs": 2209
+        },
+        {
+          "index": 4,
+          "id": "open-section",
+          "actualMs": 4406,
+          "completedMs": 4408
+        },
+        {
+          "index": 5,
+          "id": "draft",
+          "actualMs": 6406,
+          "completedMs": 9009
+        },
+        {
+          "index": 6,
+          "id": "zoom",
+          "actualMs": 9605,
+          "completedMs": 11207
+        },
+        {
+          "index": 7,
+          "id": "pull-back",
+          "actualMs": 11605,
+          "completedMs": 13007
+        },
+        {
+          "index": 8,
+          "id": "export",
+          "actualMs": 13406,
+          "completedMs": 13408
+        },
+        {
+          "index": 9,
+          "id": "closing",
+          "actualMs": 15405,
+          "completedMs": 18406
+        }
+      ],
+      "duration": 21.006,
+      "output": "demo-fr.mp4",
+      "narration": false,
+      "subtitles": "demo-fr.vtt",
+      "chapters": 6,
+      "clips": [],
+      "guide": "guide",
+      "contentHash": "sha256:16d8af151453277ed173014ae74b91c68d1823022e3b2ee75416b3cedd2fda2c",
+      "timestamp": "2026-10-01T14:05:25.466Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "fr",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "intro",
+          "actualMs": 4,
           "completedMs": 805
         },
         {
           "index": 2,
-          "id": "open-section",
-          "actualMs": 2006,
-          "completedMs": 2008
-        },
-        {
-          "index": 3,
-          "id": "focus-editor",
-          "actualMs": 4004,
-          "completedMs": 4013
+          "id": "progress",
+          "actualMs": 2211,
+          "completedMs": 2213
         },
         {
           "index": 4,
-          "id": "draft",
-          "actualMs": 5004,
-          "completedMs": 7687
+          "id": "open-section",
+          "actualMs": 4408,
+          "completedMs": 4410
         },
         {
           "index": 5,
-          "id": "zoom",
-          "actualMs": 7007,
-          "completedMs": 8509
+          "id": "draft",
+          "actualMs": 6404,
+          "completedMs": 9007
         },
         {
           "index": 6,
-          "id": "pull-back",
-          "actualMs": 8504,
-          "completedMs": 10504
+          "id": "zoom",
+          "actualMs": 9605,
+          "completedMs": 11208
         },
         {
           "index": 7,
+          "id": "pull-back",
+          "actualMs": 11606,
+          "completedMs": 13009
+        },
+        {
+          "index": 8,
+          "id": "export",
+          "actualMs": 13404,
+          "completedMs": 13405
+        },
+        {
+          "index": 9,
           "id": "closing",
-          "actualMs": 9005,
-          "completedMs": 12007
+          "actualMs": 15407,
+          "completedMs": 18409
         }
       ],
-      "timestamp": "2026-09-07T00:30:42.859Z"
+      "duration": 21.009,
+      "output": "demo-fr.mp4",
+      "narration": false,
+      "subtitles": "demo-fr.vtt",
+      "chapters": 6,
+      "clips": [],
+      "guide": "guide",
+      "contentHash": "sha256:16d8af151453277ed173014ae74b91c68d1823022e3b2ee75416b3cedd2fda2c",
+      "timestamp": "2026-10-01T14:13:58.362Z"
     },
     {
-      "command": "localize",
-      "sourceDir": "../..",
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
       "locale": "fr",
-      "baseLocale": "en",
-      "timestamp": "2026-09-07T01:01:10.937Z"
-    },
-    {
-      "command": "build",
-      "cursor": "mac",
-      "loop": false,
-      "locale": "fr",
-      "force": false,
-      "output": "animated.html",
-      "timestamp": "2026-09-07T01:01:12.017Z"
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "intro",
+          "actualMs": 5,
+          "completedMs": 808
+        },
+        {
+          "index": 2,
+          "id": "progress",
+          "actualMs": 2207,
+          "completedMs": 2209
+        },
+        {
+          "index": 4,
+          "id": "open-section",
+          "actualMs": 4407,
+          "completedMs": 4410
+        },
+        {
+          "index": 5,
+          "id": "draft",
+          "actualMs": 6405,
+          "completedMs": 9007
+        },
+        {
+          "index": 6,
+          "id": "zoom",
+          "actualMs": 9609,
+          "completedMs": 11212
+        },
+        {
+          "index": 7,
+          "id": "pull-back",
+          "actualMs": 11606,
+          "completedMs": 13008
+        },
+        {
+          "index": 8,
+          "id": "export",
+          "actualMs": 13406,
+          "completedMs": 13409
+        },
+        {
+          "index": 9,
+          "id": "closing",
+          "actualMs": 15406,
+          "completedMs": 18407
+        }
+      ],
+      "duration": 21.007,
+      "output": "demo-fr.mp4",
+      "narration": false,
+      "subtitles": "demo-fr.vtt",
+      "chapters": 6,
+      "clips": [],
+      "guide": "guide",
+      "contentHash": "sha256:d23bc0ec8f78f70a72fe9bfcb9c69af623189284d25bce743d10c482d12be8de",
+      "timestamp": "2026-10-03T13:40:13.825Z"
     }
   ],
   "locale": "fr",

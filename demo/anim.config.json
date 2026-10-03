@@ -5,67 +5,30 @@
     "app": "Clarido",
     "locale": "en",
     "cursor": "mac",
-    "tailMs": 2500,
-    "resetFocusStyles": true
+    "tailMs": 2600
   },
   "steps": [
-    {
-      "id": "intro",
-      "time": "0s",
-      "action": "fadeIn",
-      "target": "body",
-      "title": "Overview",
-      "subtitle": "Reviewing the proposal progress."
-    },
-    {
-      "id": "open-section",
-      "time": "2s",
-      "action": "click",
-      "target": "#item-3",
-      "title": "Open the section",
-      "subtitle": "Opening a specific section."
-    },
-    {
-      "id": "focus-editor",
-      "time": "4s",
-      "action": "click",
-      "target": "#text-editor",
-      "title": "Focus the editor"
-    },
-    {
-      "id": "draft",
-      "time": "5s",
-      "action": "type",
-      "target": "#editor-type-target",
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body",
+      "title": "Overview", "subtitle": "Reviewing the proposal progress.",
+      "note": "The outline on the left tracks what is drafted and what is left." },
+    { "id": "progress", "time": "2.2s", "action": "highlight", "target": ".section-count",
+      "title": "Check what is left", "subtitle": "Two of five sections are drafted." },
+    { "id": "reveal-section", "time": "3.9s", "action": "scroll", "target": "#item-3",
+      "guide": false, "only": "mobile" },
+    { "id": "open-section", "time": "4.4s", "action": "click", "target": "#item-3",
+      "title": "Open the section", "subtitle": "Opening a specific section." },
+    { "id": "draft", "time": "6.4s", "action": "type", "target": "#editor-type-target",
       "value": "We will ensure rigorous compliance with all requirements.",
-      "translatable": true,
-      "title": "Draft the response",
-      "subtitle": "Drafting the response."
-    },
-    {
-      "id": "zoom",
-      "time": "7s",
-      "action": "camera",
-      "scale": 1.25,
-      "x": "-65vw",
-      "y": "10vh",
-      "duration": 1.5,
-      "guide": false
-    },
-    {
-      "id": "pull-back",
-      "time": "8.5s",
-      "action": "camera",
-      "scale": 1,
-      "duration": 2,
-      "guide": false
-    },
-    {
-      "id": "closing",
-      "time": "9s",
-      "action": "fadeIn",
-      "target": "#cinematic-text",
-      "title": "Closing"
-    }
+      "translatable": true, "title": "Draft the response", "subtitle": "Drafting the response.",
+      "note": "Clarido mirrors each sentence against the tender's evaluation grid." },
+    { "id": "zoom", "time": "9.6s", "action": "camera", "target": "#text-editor", "scale": 1.15,
+      "xOffset": 30, "duration": 1.6, "guide": false,
+      "mobile": { "xOffset": 0 },
+      "subtitle": "The new sentence lands under the grid.", "subtitlePlace": "top" },
+    { "id": "pull-back", "time": "11.6s", "action": "camera", "scale": 1, "duration": 1.4, "guide": false },
+    { "id": "export", "time": "13.4s", "action": "highlight", "target": "#btn-export",
+      "title": "Export when ready", "subtitle": "The .docx follows the tender's template." },
+    { "id": "closing", "time": "15.4s", "action": "fadeIn", "target": "#cinematic-text",
+      "title": "Closing", "note": "The closing statement fades in over 3 s -- the frame is captured once it settles." }
   ]
 }

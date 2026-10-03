@@ -73,7 +73,7 @@
   // decoration, goes near-opaque (separation by construction, nothing showing through), takes the
   // stadium radius apps use for badges, and is sized by its own law in sizeSubtitleLayer().
   var SUBTITLE_CSS = `#anim-cli-subtitle-layer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99998; pointer-events: none; }
-.anim-cli-sub-item { position: absolute; width: max-content; max-width: min(var(--anim-sub-max, 800px), calc(100% - 80px)); background: rgba(20,20,20,0.75); color: white; padding: 0.8em 1.6em; border-radius: 0.6em; font-family: -apple-system, sans-serif; font-size: var(--anim-sub-size, 20px); line-height: 1.4; text-align: center; box-shadow: 0 1em 2em -0.4em rgba(0,0,0,0.5); opacity: 0; font-weight: 500; letter-spacing: 0.015em; backdrop-filter: blur(0.8em); -webkit-backdrop-filter: blur(0.8em); border: 1px solid rgba(255,255,255,0.15); }
+.anim-cli-sub-item { position: absolute; box-sizing: content-box; width: max-content; max-width: min(var(--anim-sub-max, 800px), calc(100% - 80px)); background: rgba(20,20,20,0.75); color: white; padding: 0.8em 1.6em; border-radius: 0.6em; font-family: -apple-system, sans-serif; font-size: var(--anim-sub-size, 20px); line-height: 1.4; text-align: center; box-shadow: 0 1em 2em -0.4em rgba(0,0,0,0.5); opacity: 0; font-weight: 500; letter-spacing: 0.015em; backdrop-filter: blur(0.8em); -webkit-backdrop-filter: blur(0.8em); border: 1px solid rgba(255,255,255,0.15); }
 .anim-cli-sub-item:not([data-place]), .anim-cli-sub-item[data-place="bottom"] { left: 0; right: 0; margin: 0 auto; bottom: 40px; top: auto; }
 .anim-cli-sub-item[data-place="top"] { left: 0; right: 0; margin: 0 auto; top: 40px; bottom: auto; }
 .anim-cli-sub-item[data-place="bottom-left"] { left: 40px; right: auto; margin: 0; bottom: 40px; top: auto; }
@@ -82,15 +82,15 @@
 .anim-cli-sub-item[data-place="top-right"] { right: 40px; left: auto; margin: 0; top: 40px; bottom: auto; }
 #anim-cli-subtitle-layer.anim-cli-sub-stadium .anim-cli-sub-item { background: rgba(15,18,24,0.92); border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; border-radius: 999em; padding: 0.5em 1.4em; font-weight: 600; letter-spacing: 0.01em; }
 @keyframes anim-cli-subFade { 0% { opacity: 0; transform: translateY(0.75em) scale(0.95); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); } 10%, 90% { opacity: 1; transform: translateY(0) scale(1); animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0); } 100% { opacity: 0; transform: translateY(-0.5em) scale(0.95); } }`;
-  var EFFECTS_CSS = `#anim-cli-highlight { position: fixed; border-radius: 10px; border: 2px solid #3B82F6; box-shadow: 0 0 0 4px rgba(59,130,246,0.18), 0 0 28px rgba(59,130,246,0.35); pointer-events: none; z-index: 99996; opacity: 0; transition: left 0.5s cubic-bezier(0.16,1,0.3,1), top 0.5s cubic-bezier(0.16,1,0.3,1), width 0.5s cubic-bezier(0.16,1,0.3,1), height 0.5s cubic-bezier(0.16,1,0.3,1); }
+  var EFFECTS_CSS = `#anim-cli-highlight { position: fixed; box-sizing: content-box; border-radius: 10px; border: 2px solid #3B82F6; box-shadow: 0 0 0 4px rgba(59,130,246,0.18), 0 0 28px rgba(59,130,246,0.35); pointer-events: none; z-index: 99996; opacity: 0; transition: left 0.5s cubic-bezier(0.16,1,0.3,1), top 0.5s cubic-bezier(0.16,1,0.3,1), width 0.5s cubic-bezier(0.16,1,0.3,1), height 0.5s cubic-bezier(0.16,1,0.3,1); }
 #anim-cli-highlight.anim-cli-pulse { animation: anim-cli-highlightPulse 1.3s cubic-bezier(0.16,1,0.3,1) forwards; }
 #anim-cli-highlight.anim-cli-hold { opacity: 1; animation: none; }
 @keyframes anim-cli-highlightPulse { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
-.anim-cli-ripple { position: fixed; width: 14px; height: 14px; margin-left: -7px; margin-top: -7px; border-radius: 50%; background: rgba(59,130,246,0.35); border: 2px solid rgba(59,130,246,0.65); pointer-events: none; z-index: 99997; animation: anim-cli-rippleAnim 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
+.anim-cli-ripple { position: fixed; box-sizing: content-box; width: 14px; height: 14px; margin-left: -7px; margin-top: -7px; border-radius: 50%; background: rgba(59,130,246,0.35); border: 2px solid rgba(59,130,246,0.65); pointer-events: none; z-index: 99997; animation: anim-cli-rippleAnim 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
 @keyframes anim-cli-rippleAnim { 0% { width: 14px; height: 14px; margin-left: -7px; margin-top: -7px; opacity: 0.9; } 100% { width: 80px; height: 80px; margin-left: -40px; margin-top: -40px; opacity: 0; } }`;
   // The numbered badge is guide-capture furniture, not chrome the viewer sees during playback, so it
   // is installed even when the spotlight and ripple are off.
-  var CALLOUT_CSS = `#anim-cli-callout { position: fixed; width: 32px; height: 32px; border-radius: 50%; background: #3B82F6; color: #fff; font: 600 15px/32px -apple-system, sans-serif; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; z-index: 99998; display: none; }`;
+  var CALLOUT_CSS = `#anim-cli-callout { position: fixed; box-sizing: content-box; width: 32px; height: 32px; border-radius: 50%; background: #3B82F6; color: #fff; font: 600 15px/32px -apple-system, sans-serif; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; z-index: 99998; display: none; }`;
 
   // --- state ----------------------------------------------------------------------
   var state = {
