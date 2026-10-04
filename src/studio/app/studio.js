@@ -104,6 +104,11 @@
     fileRaw: null,        // the file's own text when it failed to parse (whole-file raw mode)
     fit1x: false,         // preview: fit to pane, or authored 1x with scrolling
     previewW: 1280, previewH: 720,
+    device: 'desktop',            // the preview resolves for this device (mapping from the server)
+    devices: null,                // { desktop: {positions,total}, mobile: {...} } -- authored indices in play order
+    viewports: null,              // { desktop: {width,height}, mobile: {...} }
+    locale: null, baseLocale: 'en', locales: [],
+    stringsMap: null, stringsMtime: undefined, stringsDirty: false,
     manipMode: 'motion',  // direct manipulation: author animate to.x/to.y, or patch index.html
     mockupPatches: {},    // layout-mode patches keyed by tag#index -> {tag, index, domCount, patch}
     mockupDirty: false,
@@ -114,11 +119,39 @@
   var $ = function (id) { return document.getElementById(id); };
   var els = {};
   ['preview', 'steps', 'steps-empty', 'dir', 'kind', 'dirty', 'save', 'check', 'export', 'add-step', 'pick-concept',
-    't-prev', 't-play', 't-next', 't-pos', 't-pick', 't-fit', 't-open', 't-note', 't-mode', 'dirty-screen', 'fields', 'inspector', 'inspector-hint', 'palette', 'raw', 'raw-text', 'raw-apply',
+    't-prev', 't-play', 't-next', 't-pos', 't-pick', 't-fit', 't-open', 't-note', 't-mode', 't-device', 'locale', 'dirty-screen', 'fields', 'inspector', 'inspector-hint', 'palette', 'raw', 'raw-text', 'raw-apply',
     'issues', 'issues-title', 'issues-list', 'issues-clear', 'concept', 'toasts', 'frame-wrap']
     .forEach(function (id) { els[id] = $(id); });
 
   function steps() { return Array.isArray(S.raw?.steps) ? S.raw.steps : []; }
+  /** The steps the preview should hold: the authored set (base view) or the resolved slice for
+   *  the active device, derived from the server's positions map -- drop other-device steps and
+   *  merge this device's overrides, the same rules applyDevice enforces. */
+  function previewSteps() {
+    var authored = steps();
+    var m = S.devices && S.devices[S.device];
+    var positions = m && m.positions ? m.positions : null;
+    if (!positions) return authored;
+    var out = authored.filter(function (st, i) { return positions.indexOf(i + 1) !== -1; })
+      .map(function (st) {
+        var over = st[S.device];
+        return (over && typeof over === 'object' && !Array.isArray(over))
+          ? Object.assign({}, st, over)
+          : Object.assign({}, st);
+      });
+    if (inTranslation()) {
+      out = out.map(function (st) {
+        var copy = Object.assign({}, st);
+        STRING_FIELDS.forEach(function (f) {
+          if (f === 'value' && !st.translatable) return;
+          var key = 'steps.' + String(st.id ?? '') + '.' + f;
+          if (Object.prototype.hasOwnProperty.call(S.stringsMap, key)) copy[f] = S.stringsMap[key];
+        });
+        return copy;
+      });
+    }
+    return out;
+  }
 
   // ---------------------------------------------------------------- plumbing
   function postTour(type, extra) {
@@ -141,9 +174,12 @@
         S.current = -1;
         S.playing = false;
         updateTransport();
-        if (S.selected >= 0 && S.selected < S.total) postTour('goto', { index: S.selected });
+        if (S.selected >= 0) {
+          var pos = resolvedPos(S.selected);
+          if (pos >= 0 && pos < S.total) postTour('goto', { index: pos });
+        }
       } else if (d.type === 'state') {
-        S.current = d.index; S.playing = !!d.playing;
+        S.current = authoredAt(d.index); S.playing = !!d.playing;
         updateTransport(); markCurrent();
       } else if (d.type === 'end') {
         S.playing = false; updateTransport();
@@ -187,8 +223,71 @@
 
   function reloadPreview() {
     S.bust++;
-    els.preview.src = '/preview?b=' + S.bust;
+    els.preview.src = '/preview?b=' + S.bust + '&device=' + S.device + (S.locale && S.locale !== S.baseLocale ? '&locale=' + encodeURIComponent(S.locale) : '');
   }
+
+  /** The current device's positions, or the identity mapping when resolution is unavailable
+   *  (no config yet, or a file that will not parse -- the server sends null, not empty). */
+  function effectivePositions() {
+    var m = S.devices && S.devices[S.device];
+    if (m && m.positions) return m.positions;
+    return steps().map(function (st, i) { return i + 1; });
+  }
+
+  /** Authored index -> resolved position on the current device (or the nearest survivor). */
+  function resolvedPos(authoredIndex) {
+    var positions = effectivePositions();
+    var at = positions.indexOf(authoredIndex + 1); // authored indices are 1-based in the payload
+    if (at !== -1) return at;
+    var best = -1, bestDist = Infinity;
+    for (var i = 0; i < positions.length; i++) {
+      var d = Math.abs(positions[i] - (authoredIndex + 1));
+      if (d < bestDist) { bestDist = d; best = i; }
+    }
+    return best;
+  }
+  /** Resolved position -> authored index (for the playback marker). */
+  function authoredAt(resolvedPos_) {
+    var positions = effectivePositions();
+    var oneBased = positions[resolvedPos_];
+    return typeof oneBased === 'number' ? oneBased - 1 : -1;
+  }
+
+  function applyViewport() {
+    var vp = (S.viewports && S.viewports[S.device]) || { width: 1280, height: 720 };
+    S.previewW = vp.width; S.previewH = vp.height;
+    sizePreviewFrame();
+    fitPreview();
+  }
+
+  /** The devices mapping goes stale the moment steps are added, dropped or re-only'd: refresh it
+   *  with the timeline payload (the real resolver, server-side) whenever the timeline changes. */
+  function refreshMapping() {
+    api('GET', '/api/timeline').then(function (r) {
+      if (r.status === 200 && r.data) {
+        var changed = JSON.stringify(r.data.devices) !== JSON.stringify(S.devices);
+        S.devices = r.data.devices || S.devices;
+        renderSteps();
+        // The reload that triggered this refresh posted steps resolved with the OLD mapping
+        // (an `only` flip, a deletion); the corrected list follows the moment it is known.
+        if (changed) postStudio('reload', { steps: previewSteps(), meta: S.raw?.meta || {} });
+      }
+    }).catch(function () { /* mapping degrades to nearest-seek */ });
+  }
+
+  function updateDevice() {
+    els['t-device'].classList.toggle('is-on', S.device === 'mobile');
+    els['t-device'].textContent = S.device === 'mobile' ? 'Mobile' : 'Desktop';
+    els['t-device'].title = 'Preview resolves the timeline for ' + S.device
+      + (S.device === 'mobile' ? ' (only: mobile steps run, mobile overrides merge; 390x844 unless -w/-H)' : '');
+    applyViewport();
+    renderSteps();
+    reloadPreview();
+  }
+  els['t-device'].addEventListener('click', function () {
+    S.device = S.device === 'desktop' ? 'mobile' : 'desktop';
+    updateDevice();
+  });
 
   // ---------------------------------------------------------------- direct manipulation
   function isAnimateStep() {
@@ -255,7 +354,7 @@
     els['t-mode'].textContent = S.manipMode === 'layout' ? 'Layout' : 'Motion';
     els['t-mode'].title = S.manipMode === 'layout'
       ? 'Layout mode: drag/resize absolutely-positioned boxes -- Save patches index.html'
-      : 'Motion mode: drags author the selected animate step (to.x/to.y/to.scale); grab the cursor to nudge it';
+      : 'Motion mode: drags author the selected animate step (to.x/to.y/to.scale); Alt-drag the cursor to nudge it';
     if (S.selected >= 0) postStudio('manipulate', { enable: true, mode: S.manipMode });
   }
   els['t-mode'].addEventListener('click', function () {
@@ -296,6 +395,13 @@
         if (typeof t.mockupMtimeMs === 'number') S.mockupMtimeMs = t.mockupMtimeMs;
         S.previewW = (t.preview && t.preview.width) || 1280;
         S.previewH = (t.preview && t.preview.height) || 720;
+        S.viewports = t.viewports || null;
+        S.devices = t.devices || null;
+        S.baseLocale = t.baseLocale || 'en';
+        S.locales = t.locales || [];
+        if (t.initialDevice === 'mobile') S.device = 'mobile';
+        applyViewport();
+        renderLocaleSwitcher();
         // A file that will not parse is the moment the editor is most useful: say it, and offer
         // the whole-file raw surface (the per-step Raw tab has nothing to show with zero steps).
         if (S.raw && S.raw.__parseError) {
@@ -363,6 +469,14 @@
       flags.className = 'flags';
       if (st.guide === false) flags.appendChild(flag('\u25CB', 'hidden from the guide'));
       if (st.only) flags.appendChild(flag(String(st.only), 'device only'));
+      var dm = S.devices && S.devices[S.device];
+      if (dm && dm.positions) {
+        var onDevice = dm.positions.indexOf(i + 1) !== -1;
+        if (!onDevice) flags.appendChild(flag('\u2298', 'not played on ' + S.device + ' (only: ' + (st.only || 'other') + ')'));
+      }
+      if (st.mobile && typeof st.mobile === 'object') flags.appendChild(flag('mob', 'carries a mobile override'));
+      if (st.desktop && typeof st.desktop === 'object') flags.appendChild(flag('dsk', 'carries a desktop override'));
+      if (S.locale && S.locale !== S.baseLocale && stepUntranslated(st)) flags.appendChild(flag('\u00B7' + S.locale, 'untranslated step in ' + S.locale));
 
       var ops = document.createElement('span');
       ops.className = 'ops';
@@ -408,7 +522,10 @@
     renderInspector();
     renderRaw();
     postStudio('manipulate', { enable: S.selected >= 0, mode: S.manipMode });
-    if (seek !== false && S.total > 0) postTour('goto', { index: Math.max(0, Math.min(i, S.total - 1)) });
+    if (seek !== false && S.total > 0) {
+      var pos = resolvedPos(i);
+      if (pos >= 0) postTour('goto', { index: pos });
+    }
   }
 
   // ---------------------------------------------------------------- inspector
@@ -484,6 +601,26 @@
       input.type = f.type === 'number' ? 'number' : 'text';
       if (f.min !== undefined) input.min = String(f.min);
       if (f.step !== undefined) input.step = String(f.step);
+      var trans = inTranslation() && STRING_FIELDS.indexOf(f.k) !== -1 && !(f.k === 'value' && !step.translatable);
+      if (trans) {
+        // Translation mode: the field shows the locale's entry (or the base inline as the
+        // placeholder of the fallback) and writes the strings file, never the inline text.
+        var key = stringKeyFor(step, f.k);
+        var entry = Object.prototype.hasOwnProperty.call(S.stringsMap, key) ? S.stringsMap[key] : '';
+        input.value = entry;
+        input.placeholder = String(value ?? '');
+        input.classList.add('is-translation');
+        input.addEventListener('input', function () {
+          if (input.value === '') delete S.stringsMap[key];
+          else S.stringsMap[key] = input.value;
+          S.stringsDirty = true;
+          renderSteps(); // the untranslated chip follows
+          scheduleLive();
+        });
+        wrap.appendChild(input);
+        appendHint(wrap, f);
+        return wrap;
+      }
       input.value = value === undefined ? '' : String(value);
       if (f.type === 'target') input.placeholder = 'CSS selector \u2014 or use Pick target';
       // Numbers commit on input too (not only blur): the live hot-swap below should not wait
@@ -543,6 +680,7 @@
 
     els.fields.appendChild(groupHead('identity'));
     F_IDENTITY.forEach(function (f) { els.fields.appendChild(fieldRow(f, step)); });
+    els.fields.appendChild(fieldRow({ k: 'only', type: 'select', options: ['desktop', 'mobile'], help: 'play this step on one device only (the other device drops it)' }, step));
 
     var actionRow = fieldRow({ k: 'action', type: 'select', options: ACTIONS }, step);
     els.fields.appendChild(actionRow);
@@ -553,6 +691,25 @@
     // `target` outside its own registry entry (wait steps can still carry one).
     if (step.action === 'wait' && hasValue(step, 'target')) {
       els.fields.appendChild(fieldRow({ k: 'target', type: 'target' }, step));
+    }
+
+    // Device overrides: raw JSON per device with the same merge discipline as the raw tab.
+    var hasOverride = (step.mobile && typeof step.mobile === 'object') || (step.desktop && typeof step.desktop === 'object');
+    if (hasOverride || S.showAllFields) {
+      els.fields.appendChild(groupHead('device overrides'));
+      ['mobile', 'desktop'].forEach(function (dev) {
+        els.fields.appendChild(deviceOverrideRow(step, dev));
+      });
+      var quick = document.createElement('button');
+      quick.type = 'button';
+      quick.className = 'disclosure';
+      quick.textContent = '+ retime on mobile (a time override is the common case)';
+      quick.addEventListener('click', function () {
+        var over = Object.assign({}, step.mobile || {});
+        over.time = step.time;
+        setField('mobile', over);
+      });
+      els.fields.appendChild(quick);
     }
 
     var registry = [].concat(F_TEXT, F_CHROME, F_LIVE);
@@ -584,6 +741,151 @@
   function hasValue(step, k) {
     return step[k] !== undefined && step[k] !== false && step[k] !== '';
   }
+
+  /** One device's override object as a JSON block (the raw tab's discipline, scoped). */
+  function deviceOverrideRow(step, dev) {
+    var wrap = document.createElement('div');
+    wrap.className = 'field';
+    var fid = 'f-ov-' + dev;
+    var lab = document.createElement('label');
+    lab.setAttribute('for', fid);
+    var nm = document.createElement('span');
+    nm.className = 'fname';
+    nm.textContent = dev + ' override';
+    lab.appendChild(nm);
+    var ta = document.createElement('textarea');
+    ta.id = fid;
+    ta.spellcheck = false;
+    ta.value = step[dev] === undefined ? '' : JSON.stringify(step[dev]);
+    ta.addEventListener('change', function () {
+      var text = ta.value.trim();
+      if (text === '') { setBad(wrap, ta, null); deleteField(dev); return; }
+      try {
+        var parsed = JSON.parse(text);
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object');
+        setField(dev, parsed);
+        setBad(wrap, ta, false);
+      } catch (err) {
+        setBad(wrap, ta, true);
+      }
+    });
+    wrap.appendChild(lab);
+    wrap.appendChild(ta);
+    var h = document.createElement('span');
+    h.className = 'fhint';
+    h.textContent = 'shallow-merged into the step when rendering ' + dev + ' (time, target, duration, stagger, ease, ...) \u2014 remove with an empty value';
+    wrap.appendChild(h);
+    return wrap;
+  }
+
+  // ------------------------------------------------------------ locale (translations)
+  var STRING_FIELDS = ['title', 'subtitle', 'narration', 'note', 'value'];
+
+  function stringKeyFor(step, field) {
+    return 'steps.' + String(step?.id ?? '') + '.' + field;
+  }
+  function inTranslation() {
+    return !!S.locale && S.locale !== S.baseLocale && S.stringsMap !== null;
+  }
+  /** A step is untranslated when any non-empty inline string field lacks a strings entry. */
+  function stepUntranslated(step) {
+    if (!inTranslation()) return false;
+    return STRING_FIELDS.some(function (f) {
+      if (f === 'value' && !step.translatable) return false;
+      var inline = step[f];
+      if (inline === undefined || inline === '' || typeof inline !== 'string') return false;
+      var key = stringKeyFor(step, f);
+      return !Object.prototype.hasOwnProperty.call(S.stringsMap, key);
+    });
+  }
+  function untranslatedCount() {
+    return steps().filter(stepUntranslated).length;
+  }
+
+  function loadStrings(locale) {
+    if (S.stringsDirty && inTranslation() && locale !== S.locale) {
+      // Switching away would orphan edits that exist only in S.stringsMap.
+      if (!window.confirm('Unsaved ' + S.locale + ' translations. Save them before switching? (Cancel stays on ' + S.locale + ')')) {
+        renderLocaleSwitcher();
+        return Promise.resolve(false);
+      }
+      return saveStrings().then(function (ok) { return ok ? loadStrings(locale) : (renderLocaleSwitcher(), false); });
+    }
+    if (!locale || locale === S.baseLocale) {
+      S.locale = locale || S.baseLocale;
+      S.stringsMap = null;
+      renderSteps(); renderInspector();
+      reloadPreview();
+      summarizeTranslations();
+      return Promise.resolve(true);
+    }
+    return api('GET', '/api/strings?locale=' + encodeURIComponent(locale)).then(function (r) {
+      if (r.status !== 200) { toast('could not load strings.' + locale + ': ' + (r.data?.error || r.status), 'bad'); return false; }
+      S.locale = locale;
+      S.stringsMap = r.data.map || {};
+      S.stringsMtime = r.data.mtimeMs;
+      renderSteps(); renderInspector();
+      reloadPreview();
+      summarizeTranslations();
+      return true;
+    });
+  }
+
+  function summarizeTranslations() {
+    if (!inTranslation()) return;
+    var n = untranslatedCount();
+    if (n) setIssues([{ level: 'info', message: n + ' step(s) have missing translations in ' + S.locale + ' -- the preview falls back to their base text; type into their fields to translate', step: null }], 'Editing ' + S.locale + ' translations');
+    else setIssues([], 'Editing ' + S.locale + ' translations \u00b7 everything translated');
+  }
+
+  function renderLocaleSwitcher() {
+    var sel = els.locale;
+    sel.innerHTML = '';
+    var codes = [S.baseLocale].concat(S.locales.filter(function (c) { return c !== S.baseLocale; }));
+    codes.forEach(function (code) {
+      var opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = code === S.baseLocale ? code + ' (base)' : code;
+      sel.appendChild(opt);
+    });
+    var add = document.createElement('option');
+    add.value = '__new__';
+    add.textContent = '+ new locale\u2026';
+    sel.appendChild(add);
+    sel.value = S.locale || S.baseLocale;
+  }
+  els.locale.addEventListener('change', function () {
+    var v = els.locale.value;
+    if (v === '__new__') {
+      var code = window.prompt('Locale code (e.g. fr, pt-BR):', '');
+      if (!code || !/^[\w-]{2,16}$/.test(code)) {
+        toast('not a locale code'); renderLocaleSwitcher(); return;
+      }
+      // Scaffold the same shape `localize` writes: pre-filled with the source text.
+      var prefill = {};
+      steps().forEach(function (st) {
+        STRING_FIELDS.forEach(function (f) {
+          if (f === 'value' && !st.translatable) return;
+          if (typeof st[f] === 'string' && st[f]) prefill[stringKeyFor(st, f)] = st[f];
+        });
+      });
+      if (S.raw?.meta?.title) prefill['meta.title'] = String(S.raw.meta.title);
+      // The server validates keys against the file on disk; save first so unsaved ids exist there.
+      (S.dirty ? saveTimeline() : Promise.resolve(true)).then(function (saved) {
+        if (!saved) { renderLocaleSwitcher(); return; }
+        return api('PUT', '/api/strings', { locale: code, map: prefill }).then(function (r) {
+        if (r.status !== 200) { toast('could not create strings.' + code + ': ' + (r.data?.error || r.status), 'bad'); renderLocaleSwitcher(); return; }
+        S.locales.push(code);
+        S.stringsMtime = r.data.mtimeMs;
+        toast('strings.' + code + '.json scaffolded with the source text \u2014 translate the fields, save writes the file', 'good');
+        renderLocaleSwitcher();
+        loadStrings(code);
+        });
+      });
+      return;
+    }
+    loadStrings(v);
+  });
 
   // ---------------------------------------------------------------- editing
   function markDirty() {
@@ -619,7 +921,8 @@
     if (S.liveTimer) clearTimeout(S.liveTimer);
     S.liveTimer = setTimeout(function () {
       S.liveTimer = null;
-      postStudio('reload', { steps: steps(), meta: S.raw?.meta || {} });
+      postStudio('reload', { steps: previewSteps(), meta: S.raw?.meta || {} });
+      refreshMapping();
     }, 450);
   }
 
@@ -810,21 +1113,27 @@
   // ---------------------------------------------------------------- transport
   function updateTransport() {
     els['t-play'].innerHTML = S.playing ? '&#10074;&#10074; pause' : '&#9654; play';
-    var authored = steps();
-    var at = S.current >= 0 && S.current < authored.length ? authored[S.current] : null;
+    var shown = previewSteps();
+    var pos = S.current >= 0 ? resolvedPos(S.current) : -1;
+    var at = pos >= 0 && pos < shown.length ? shown[pos] : null;
     els['t-pos'].textContent = S.total
-      ? ((S.current >= 0 ? S.current + 1 : '\u2013') + ' / ' + S.total + (at && at.time !== undefined ? ' \u00b7 ' + at.time : ''))
+      ? ((pos >= 0 ? pos + 1 : '\u2013') + ' / ' + S.total + (at && at.time !== undefined ? ' \u00b7 ' + at.time : ''))
       : '\u2013';
   }
   els['t-play'].addEventListener('click', function () { postTour(S.playing ? 'pause' : 'play'); });
   els['t-prev'].addEventListener('click', function () { stepBy(-1); });
   els['t-next'].addEventListener('click', function () { stepBy(1); });
   function stepBy(delta) {
-    var from = S.current >= 0 ? S.current : S.selected;
-    var target = Math.max(0, Math.min(S.total - 1, from + delta));
     if (S.total <= 0) return;
+    // Transport steps in RESOLVED space (the preview's step list), then maps back to authored:
+    // adding delta to an authored index walks over dropped steps.
+    var positions = effectivePositions();
+    var from = S.current >= 0 ? positions.indexOf(S.current + 1) : (S.selected >= 0 ? resolvedPos(S.selected) : 0);
+    if (from === -1) from = 0;
+    var target = Math.max(0, Math.min(S.total - 1, from + delta));
     postTour('goto', { index: target });
-    select(target, false);
+    var auth = authoredAt(target);
+    if (auth >= 0) select(auth, false);
   }
   els['t-pick'].addEventListener('click', function () {
     if (S.selected < 0) { toast('select the step whose target you are setting'); return; }
@@ -833,11 +1142,12 @@
 
   // ---------------------------------------------------------------- save / check / export
   function save() {
-    if (!S.dirty && !S.mockupDirty && S.exists) { toast('nothing to save'); return Promise.resolve(true); }
+    if (!S.dirty && !S.mockupDirty && !S.stringsDirty && S.exists) { toast('nothing to save'); return Promise.resolve(true); }
     if (S.dirty || !S.exists) return saveTimeline().then(function (ok) {
-      return ok ? saveMockup() : false;
+      return ok ? saveMockup().then(function (ok2) { return ok2 ? saveStrings() : false; }) : false;
     });
-    return saveMockup();
+    if (S.mockupDirty) return saveMockup().then(function (ok) { return ok ? saveStrings() : false; });
+    return saveStrings();
   }
   function saveTimeline() {
     var renames = Object.keys(S.renames).map(function (from) { return { from: from, to: S.renames[from] }; });
@@ -882,12 +1192,26 @@
       return true;
     }).catch(function (e) { toast('screen patch failed: ' + e, 'bad'); return false; });
   }
+  function saveStrings() {
+    if (!S.stringsDirty) return Promise.resolve(true);
+    if (!inTranslation()) { S.stringsDirty = false; return Promise.resolve(true); } // defensive: leaving never loses the flag
+    return api('PUT', '/api/strings', { locale: S.locale, map: S.stringsMap, mtime: S.stringsMtime }).then(function (r) {
+      if (r.status === 409) { toast('strings.' + S.locale + '.json changed on disk -- reload the locale before saving over it', 'bad'); return false; }
+      if (r.status !== 200 || !r.data.ok) { toast('translations refused: ' + (r.data?.error || r.status), 'bad'); return false; }
+      S.stringsDirty = false;
+      S.stringsMtime = r.data.mtimeMs;
+      reloadPreview();
+      toast('saved ' + r.data.path + ' \u00b7 review in git', 'good');
+      summarizeTranslations();
+      return true;
+    }).catch(function (e) { toast('translations save failed: ' + e, 'bad'); return false; });
+  }
   els.save.addEventListener('click', save);
 
   els.check.addEventListener('click', function () {
     els.check.disabled = true;
     setIssues([], 'Checking\u2026');
-    api('POST', '/api/check').then(function (r) {
+    api('POST', '/api/check', { device: S.device, locale: S.locale !== S.baseLocale ? S.locale : undefined }).then(function (r) {
       els.check.disabled = false;
       if (r.status !== 200) { toast('check failed: ' + (r.data?.error || r.status), 'bad'); setIssues([], 'Ready.'); return; }
       var issues = r.data.issues || [];
@@ -902,7 +1226,7 @@
     toast('exporting\u2026 (one browser job at a time)');
     save().then(function (ok) {
       if (!ok) { els.export.disabled = false; return; } // any refused half (timeline OR screen) aborts
-      return api('POST', '/api/export').then(function (r) {
+      return api('POST', '/api/export', { device: S.device, locale: S.locale !== S.baseLocale ? S.locale : undefined }).then(function (r) {
         els.export.disabled = false;
         if (r.status !== 200) { toast('export failed: ' + (r.data?.error || r.status), 'bad'); return; }
         if (r.data.exitCode !== 0) {
@@ -989,7 +1313,7 @@
   });
 
   window.addEventListener('beforeunload', function (e) {
-    if (S.dirty || S.mockupDirty) { e.preventDefault(); e.returnValue = ''; }
+    if (S.dirty || S.mockupDirty || S.stringsDirty) { e.preventDefault(); e.returnValue = ''; }
   });
 
   function fitPreview() {

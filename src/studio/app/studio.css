@@ -89,6 +89,9 @@ h1.brand { display: flex; align-items: center; gap: 8px; margin: 0; font-weight:
 }
 .mini:hover { color: var(--ink); border-color: var(--faint); }
 .mini.is-on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+select.mini { font: 600 11px/1 var(--mono); background: var(--panel2); }
+.is-translation { border-style: dashed; }
+.is-translation::placeholder { color: var(--warn); font-style: italic; }
 
 /* ---------- steps ---------- */
 #steps-pane { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--panel); }

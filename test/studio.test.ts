@@ -62,7 +62,8 @@ let work: string;
 let server: Server;
 
 before(async () => {
-    if (skip) return;
+    // The server boots even under SKIP_BROWSER: the API-only tests below have no browser of
+    // their own, and the server itself spawns none unless check/export are called.
     work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-studio-'));
     fs.cpSync(fixture, path.join(work, 'demo'), { recursive: true });
     // A strings file with a key on the step this suite renames: the save must move the key.
@@ -311,4 +312,99 @@ test('studio mockup API: style patches land byte-clean, stale mtime and structur
     function freshMockupMtime(): number {
         return fs.statSync(path.join(work, 'demo', 'index.html')).mtimeMs;
     }
+});
+
+test('studio device support: the mapping reflects drop and overrides, the preview resolves per device', async () => {
+    // Craft a timeline with one mobile-only step and one mobile override. Snapshot BEFORE the
+    // mutation (got.raw is a reference, and the restore PUTs the snapshot, not the live object).
+    const got = await (await fetch(server.url + '/api/timeline')).json();
+    const restore = JSON.parse(JSON.stringify(got.raw));
+    const restoreMtime = async () => (await (await fetch(server.url + '/api/timeline')).json()).mtimeMs;
+    const raw = got.raw;
+    raw.steps[2].only = 'mobile';               // step 3 leaves the desktop build
+    raw.steps[3].mobile = { time: '9.9s' };     // step 4 carries a mobile override
+    try {
+    const put = await fetch(server.url + '/api/timeline', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ raw, mtime: got.mtimeMs }),
+    });
+    const putBody = await put.json();
+    assert.equal(put.status, 200, JSON.stringify(putBody));
+
+    const after = await (await fetch(server.url + '/api/timeline')).json();
+    assert.deepEqual(after.devices.desktop.positions, [1, 2, 4, 5, 6, 7, 8, 9], 'desktop drops the mobile-only step');
+    assert.deepEqual(after.devices.mobile.positions, [1, 2, 3, 4, 5, 6, 7, 8, 9], 'mobile keeps every step');
+
+    const desktop = await (await fetch(server.url + '/preview?device=desktop')).text();
+    const mobile = await (await fetch(server.url + '/preview?device=mobile')).text();
+    const stepIds = (html: string) => [...html.matchAll(/"id":"([^"]+)"/g)].map((m) => m[1]);
+    assert.ok(!stepIds(desktop).includes('name'), 'the mobile-only step is not in the desktop preview');
+    assert.ok(stepIds(mobile).includes('name'), 'it is in the mobile preview');
+    assert.match(mobile, /"timeMs":9900/, 'the mobile override merged (time 9.9s)');
+    } finally {
+        // Runs even on failure: a leaked `only` step would poison every later test.
+        const putBack = await fetch(server.url + '/api/timeline', {
+            method: 'PUT', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ raw: restore, mtime: await restoreMtime() }),
+        });
+        assert.equal(putBack.status, 200, 'fixture restore failed');
+    }
+});
+
+test('studio locale support: scaffold, translate, refuse unknown keys and stale writes', async () => { // API-only; must run last-ish: it leaves strings.fr.json in the fixture (after() removes the dir)
+    // Scaffold a new locale with the source text (the switcher's "+ new locale" flow).
+    const t = await (await fetch(server.url + '/api/timeline')).json();
+    const prefill: Record<string, string> = { 'meta.title': t.raw.meta.title, 'steps.open.title': 'Ouvrir le panneau' };
+    const created = await fetch(server.url + '/api/strings', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ locale: 'fr', map: prefill }),
+    });
+    const createdBody = await created.json();
+    assert.equal(created.status, 200, JSON.stringify(createdBody));
+    assert.match(createdBody.path, /strings\.fr\.json$/);
+
+    // GET returns the map + mtime; the locale is discoverable.
+    const listed = await (await fetch(server.url + '/api/timeline')).json();
+    assert.ok(listed.locales.includes('fr'), 'the new locale appears in the switcher list');
+    const got = await (await fetch(server.url + '/api/strings?locale=fr')).json();
+    assert.equal(got.map['steps.open.title'], 'Ouvrir le panneau');
+    assert.equal(got.map['meta.title'], 'Basic fixture');
+
+    // The preview for the locale overlays the strings.
+    const preview = await (await fetch(server.url + '/preview?device=desktop&locale=fr')).text();
+    assert.match(preview, /Ouvrir le panneau/);
+
+    // Unknown step ids and non-string values are refused with the key named.
+    const badId = await fetch(server.url + '/api/strings', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ locale: 'fr', map: { ...got.map, 'steps.ghost.title': 'x' } }),
+    });
+    assert.equal(badId.status, 422);
+    assert.match((await badId.json()).error, /steps\.ghost\.title/);
+
+    // `value` is only extractable from translatable steps; a key that breaks the rule is refused.
+    const badValue = await fetch(server.url + '/api/strings', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ locale: 'fr', map: { ...got.map, 'steps.open.value': 'typed text' } }),
+    });
+    assert.equal(badValue.status, 422, 'value key on a non-translatable step');
+    assert.match((await badValue.json()).error, /translatable/);
+
+    // A stale mtime is a 409, and the file is untouched.
+    const before = fs.readFileSync(path.join(work, 'demo', 'strings.fr.json'), 'utf8');
+    const stale = await fetch(server.url + '/api/strings', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ locale: 'fr', map: got.map, mtime: 12345 }),
+    });
+    assert.equal(stale.status, 409);
+    assert.equal(fs.readFileSync(path.join(work, 'demo', 'strings.fr.json'), 'utf8'), before);
+
+    // A real edit lands and is read back.
+    const write = await fetch(server.url + '/api/strings', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ locale: 'fr', map: { ...got.map, 'steps.open.title': 'Ouvrir le tableau' }, mtime: got.mtimeMs }),
+    });
+    assert.equal(write.status, 200);
+    const reread = await (await fetch(server.url + '/api/strings?locale=fr')).json();
+    assert.equal(reread.map['steps.open.title'], 'Ouvrir le tableau');
 });

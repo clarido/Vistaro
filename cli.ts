@@ -327,6 +327,7 @@ RECORD OF WHAT WAS DONE:
     .option('-w, --width <pixels>', 'Authored viewport width of the preview iframe (default: 1280)')
     .option('-H, --height <pixels>', 'Authored viewport height of the preview iframe (default: 720)')
     .option('--config <file>', 'Edit a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
+    .option('--device <type>', 'Initial preview device: desktop or mobile (mobile also frames the preview at 390x844)')
     .action((dir, opts) => studioCommand(dir, opts));
 
   program

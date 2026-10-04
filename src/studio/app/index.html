@@ -14,6 +14,7 @@
   <span id="dir" class="dir" title=""></span>
   <span id="kind" class="badge" hidden></span>
   <span class="spacer"></span>
+  <select id="locale" class="mini" title="Edit and preview a locale: text fields write strings.<locale>.json; the preview plays the localized timeline"></select>
   <span id="dirty-screen" class="dirty" hidden title="Layout mode moved boxes in the mockup — Save patches index.html">screen unsaved</span>
   <span id="dirty" class="dirty" hidden>unsaved</span>
   <button id="save" class="btn" type="button" title="Validate and write the timeline file (⌘S / Ctrl+S)">Save <kbd>⌘S</kbd></button>
@@ -42,7 +43,8 @@
       <button id="t-next" class="mini" type="button" title="Next step">next &#8631;</button>
       <span id="t-pos" class="t-pos" aria-live="polite">&ndash;</span>
       <span class="spacer"></span>
-      <button id="t-mode" class="mini" type="button" title="Motion mode: drags author the selected animate step (to.x/to.y/to.scale); grab the cursor to nudge it">Motion</button>
+      <button id="t-device" class="mini" type="button" title="Preview resolves the timeline for desktop">Desktop</button>
+      <button id="t-mode" class="mini" type="button" title="Motion mode: drags author the selected animate step (to.x/to.y/to.scale); Alt-drag the cursor to nudge it">Motion</button>
       <button id="t-pick" class="mini" type="button" title="Click an element in the preview to set this step's target (mouse only; the target field always accepts a typed selector)">Pick target</button>
       <button id="t-fit" class="mini" type="button" title="Toggle between fitting the preview to the pane and viewing it at authored size (1x, scrollable)">Fit</button>
       <a id="t-open" class="mini" href="/preview" target="_blank" rel="noopener" title="Open the preview page in its own tab, at full size">open &#8599;</a>

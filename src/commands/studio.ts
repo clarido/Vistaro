@@ -1,9 +1,9 @@
 import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseTimeline, validateTimeline, formatIssue, loadTimeline, hasErrors, Issue, resolveConfigPath, Timeline } from '../engine/schema';
+import { parseTimeline, validateTimeline, formatIssue, loadTimeline, hasErrors, Issue, resolveConfigPath, Timeline, applyDevice } from '../engine/schema';
 import { buildTourPage } from '../engine/inject';
-import { localizedStringsFiles, readStrings, writeStrings } from '../engine/strings';
+import { localizedStringsFiles, readStrings, writeStrings, stringsPathFor } from '../engine/strings';
 import { CONFIG_SCAFFOLD, REEL_SCAFFOLD } from './init-config';
 import { browserCheck } from './check';
 import { runExport } from './export';
@@ -35,6 +35,8 @@ import { displayPath } from '../catalog';
 export interface StudioOptions {
     port?: string;
     config?: string;
+    /** Initial preview device (desktop | mobile); also sizes the preview viewport. */
+    device?: string;
     /** The preview iframe's authored viewport (the recording size the mockup is written for). */
     width?: string;
     height?: string;
@@ -137,6 +139,58 @@ function readRawTimeline(configPath: string): { exists: boolean; raw: Record<str
     }
 }
 
+/** For each device, the authored step indices that survive resolution, in play order -- the
+ *  editor seeks through this map and never re-implements applyDevice's rules. */
+function deviceMap(raw: Record<string, unknown> | null): Record<string, { positions: number[]; total: number } | null> {
+    const out: Record<string, { positions: number[]; total: number } | null> = {};
+    for (const device of ['desktop', 'mobile'] as const) {
+        // null (not an empty resolution) when there is nothing to resolve or it will not parse:
+        // the editor falls back to the authored list instead of flagging every step "not played".
+        if (!raw) { out[device] = null; continue; }
+        try {
+            const resolved = applyDevice(parseTimeline(JSON.parse(JSON.stringify(raw))), device);
+            out[device] = { positions: resolved.steps.map(st => st.index), total: resolved.steps.length };
+        } catch {
+            out[device] = null;
+        }
+    }
+    return out;
+}
+
+/** Locale codes this demo owns, across BOTH conventions: a strings.<locale>.json beside the
+ *  config (the scenario-config style) and a locales/<locale>/ directory (the `localize` flow,
+ *  which carries a translated screen too). */
+function availableLocales(absDir: string, configFile: string): string[] {
+    const codes: string[] = [];
+    for (const file of localizedStringsFiles(configFile)) {
+        const m = /(?:^|\.)strings\.([\w-]+)\.json$/.exec(path.basename(file));
+        if (m) codes.push(m[1]);
+    }
+    const localesRoot = path.join(absDir, 'locales');
+    try {
+        for (const entry of fs.readdirSync(localesRoot, { withFileTypes: true })) {
+            if (entry.isDirectory() && /^[\w-]{2,16}$/.test(entry.name)) codes.push(entry.name);
+        }
+    } catch { /* no locales/ directory */ }
+    return [...new Set(codes)].sort();
+}
+
+/** The directory a `localize`-scaffolded locale lives in, when it is THIS config's locale home:
+ *  localize copies the default anim.config.json (never scenario configs, localize.ts:61-74), so a
+ *  stem config must fall through to the beside-config strings file even when a locales/ dir exists. */
+function localeDir(absDir: string, configFile: string, locale: string): string | null {
+    const dir = path.join(absDir, 'locales', locale);
+    return fs.existsSync(path.join(dir, path.basename(configFile))) ? dir : null;
+}
+
+/** Where a locale's strings file is: the localize directory's own copy when it exists (its
+ *  screen is translated too), else the beside-config file (the scenario convention). */
+function stringsFileFor(absDir: string, configFile: string, locale: string): string {
+    const inDir = localeDir(absDir, configFile, locale);
+    if (inDir) return stringsPathFor(path.join(inDir, path.basename(configFile)), locale);
+    return stringsPathFor(configFile, locale);
+}
+
 /** Static validation on a deep copy: the caller's raw object is never touched by the parser. */
 function staticIssues(raw: Record<string, unknown>): Issue[] {
     try {
@@ -146,12 +200,25 @@ function staticIssues(raw: Record<string, unknown>): Issue[] {
     }
 }
 
-/** `steps.<old>.*` -> `steps.<new>.*` in every strings file beside this config (any locale). */
-function applyRenames(configFile: string, renames: { from: string; to: string }[]): string[] {
+/** Every strings file this config's translations live in: beside the config (any locale, any
+ *  stem) AND inside each localize-scaffolded locales/<locale>/ directory. */
+function allStringsFiles(absDir: string, configFile: string): string[] {
+    const files = [...localizedStringsFiles(configFile)];
+    for (const locale of availableLocales(absDir, configFile)) {
+        const dir = localeDir(absDir, configFile, locale);
+        if (!dir) continue;
+        const file = stringsPathFor(path.join(dir, path.basename(configFile)), locale);
+        if (!files.includes(file)) files.push(file);
+    }
+    return files;
+}
+
+/** `steps.<old>.*` -> `steps.<new>.*` in every strings file this config's translations live in. */
+function applyRenames(absDir: string, configFile: string, renames: { from: string; to: string }[]): string[] {
     const touched: string[] = [];
     if (!renames.length) return touched;
     const prefix = (id: string) => `steps.${id}.`;
-    for (const file of localizedStringsFiles(configFile)) {
+    for (const file of allStringsFiles(absDir, configFile)) {
         let map;
         try { map = readStrings(file); } catch { continue; }
         let changed = false;
@@ -174,11 +241,11 @@ function applyRenames(configFile: string, renames: { from: string; to: string }[
 }
 
 /** Keys in the strings files that no longer name a step or meta.title -- reported, never dropped. */
-function orphanKeys(configFile: string, raw: Record<string, unknown>): string[] {
+function orphanKeys(absDir: string, configFile: string, raw: Record<string, unknown>): string[] {
     const steps = Array.isArray(raw.steps) ? raw.steps : [];
     const ids = new Set<string>(steps.map((s: any) => String(s?.id ?? '')).filter(Boolean));
     const orphans: string[] = [];
-    for (const file of localizedStringsFiles(configFile)) {
+    for (const file of allStringsFiles(absDir, configFile)) {
         let map;
         try { map = readStrings(file); } catch { continue; }
         for (const key of Object.keys(map)) {
@@ -334,6 +401,13 @@ export async function studioCommand(dir: string, options: StudioOptions = {}): P
         });
     });
 
+    /** {device, locale} off a JSON body, validated to the shapes the CLI accepts. */
+    function variantOf(body: any): { device?: 'desktop' | 'mobile'; locale?: string } {
+        const device = body?.device === 'mobile' ? 'mobile' : body?.device === 'desktop' ? 'desktop' : undefined;
+        const locale = typeof body?.locale === 'string' && /^[\w-]{2,16}$/.test(body.locale) ? body.locale : undefined;
+        return { ...(device ? { device } : {}), ...(locale ? { locale } : {}) };
+    }
+
     async function route(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
         // The server binds 127.0.0.1, but that alone does not stop a drive-by website (a
         // CORS-simple text/plain POST needs no preflight) or DNS rebinding (any Host header).
@@ -385,8 +459,22 @@ export async function studioCommand(dir: string, options: StudioOptions = {}): P
 
         if (segments[0] === 'preview' && segments.length === 1) {
             const { raw } = readRawTimeline(configFile);
-            const timeline = parseTimeline(raw ?? { meta: {}, steps: [] });
-            const page = buildTourPage(fs.readFileSync(indexHtmlPath, 'utf8'), timeline, { cursor: timeline.meta.cursor });
+            const device = url.searchParams.get('device') === 'mobile' ? 'mobile' : url.searchParams.get('device') === 'desktop' ? 'desktop' : undefined;
+            const rawLocale = url.searchParams.get('locale');
+            const locale = rawLocale && /^[\w-]{2,16}$/.test(rawLocale) ? rawLocale : undefined;
+            // With device or locale the preview resolves through loadTimeline -- the exact path
+            // export takes (strings applied, device overrides merged, other device's steps
+            // dropped). With neither, the authored timeline plays (the M1 behaviour).
+            // A `localize`-scaffolded locale is a full directory (its index.html carries the
+            // translated visible copy); preview THAT screen. Otherwise overlay the strings.
+            const localeDirectory = locale ? localeDir(absDir, configFile, locale) : null;
+            const timeline = localeDirectory
+                ? loadTimeline(localeDirectory, { device, config: configArg ? path.join(localeDirectory, path.basename(configArg)) : undefined })
+                : device || locale
+                    ? loadTimeline(absDir, { device, locale, config: configArg ?? undefined })
+                    : parseTimeline(raw ?? { meta: {}, steps: [] });
+            const screenHtml = fs.readFileSync(localeDirectory ? path.join(localeDirectory, 'index.html') : indexHtmlPath, 'utf8');
+            const page = buildTourPage(screenHtml, timeline, { cursor: timeline.meta.cursor });
             const bridge = fs.readFileSync(path.join(APP_DIR, 'studio-bridge.js'), 'utf8');
             // Anchor on the tour block's END marker, never on "</body>": the runtime's own header
             // comment contains that literal text, and a first-match splice lands the bridge in the
@@ -417,6 +505,14 @@ export async function studioCommand(dir: string, options: StudioOptions = {}): P
                 ...(mtimeMs !== undefined ? { mtimeMs } : {}),
                 mockupMtimeMs: fs.existsSync(indexHtmlPath) ? fs.statSync(indexHtmlPath).mtimeMs : undefined,
                 preview: { width: previewWidth, height: previewHeight },
+                viewports: {
+                    desktop: { width: previewWidth, height: previewHeight },
+                    mobile: options.width && options.height ? { width: previewWidth, height: previewHeight } : { width: 390, height: 844 },
+                },
+                baseLocale: String((raw as any)?.meta?.locale ?? 'en'),
+                locales: availableLocales(absDir, configFile),
+                initialDevice: options.device === 'mobile' ? 'mobile' : 'desktop',
+                devices: deviceMap(raw),
                 issues: exists ? staticIssues(raw!).map(formatIssue) : [],
             });
             return;
@@ -449,8 +545,8 @@ export async function studioCommand(dir: string, options: StudioOptions = {}): P
             const renames = Array.isArray(body?.renames)
                 ? body.renames.filter((r: any) => r && typeof r.from === 'string' && typeof r.to === 'string')
                 : [];
-            const touched = applyRenames(configFile, renames);
-            const orphans = orphanKeys(configFile, raw as Record<string, unknown>);
+            const touched = applyRenames(absDir, configFile, renames);
+            const orphans = orphanKeys(absDir, configFile, raw as Record<string, unknown>);
             json(res, 200, { ok: true, path: displayPath(configFile), mtimeMs: fs.statSync(configFile).mtimeMs, stringsFilesTouched: touched, orphanKeys: orphans });
             return;
         }
@@ -488,18 +584,31 @@ export async function studioCommand(dir: string, options: StudioOptions = {}): P
 
         // --- in-process CLI jobs (serial, behind the mutex) ---
         if (segments[1] === 'check' && req.method === 'POST') {
+            const body = await readJsonBody(req);
+            const variant = variantOf(body);
+            // The same convention split the preview honours: a localize directory IS the locale
+            // (translated screen and all); checking the base dir against --locale would validate
+            // the untranslated screen while the user believes otherwise.
+            const checkDir = variant.locale ? (localeDir(absDir, configFile, variant.locale) ?? absDir) : absDir;
+            const checkConfig = variant.locale && checkDir !== absDir
+                ? (configArg ? path.join(checkDir, path.basename(configArg)) : undefined)
+                : configArg ?? undefined;
             const issues = await runner.run(async (): Promise<Issue[]> => {
                 let timeline: Timeline | undefined;
                 const collected: Issue[] = [];
                 try {
-                    timeline = loadTimeline(absDir, { config: configArg ?? undefined });
+                    timeline = loadTimeline(checkDir, {
+                        config: checkConfig,
+                        ...(checkDir !== absDir ? {} : variant),
+                        ...(checkDir !== absDir && variant.device ? { device: variant.device } : {}),
+                    });
                 } catch (e: any) {
                     return [{ level: 'error', message: e?.message ?? String(e) }];
                 }
                 collected.push(...validateTimeline(timeline, {}));
                 if (!hasErrors(collected)) {
                     try {
-                        collected.push(...await browserCheck(absDir, timeline, {}, collected));
+                        collected.push(...await browserCheck(checkDir, timeline, variant.device ? { device: variant.device } : {}, collected));
                     } catch (e: any) {
                         collected.push({ level: 'error', message: e?.message ?? String(e) });
                     }
@@ -512,6 +621,9 @@ export async function studioCommand(dir: string, options: StudioOptions = {}): P
             return;
         }
         if (segments[1] === 'export' && req.method === 'POST') {
+            const body = await readJsonBody(req);
+            const variant = variantOf(body);
+            const exportDir = variant.locale ? (localeDir(absDir, configFile, variant.locale) ?? absDir) : absDir;
             const { raw } = readRawTimeline(configFile);
             const kind = (raw as any)?.meta?.kind;
             const base = path.join(absDir, 'studio.mp4');
@@ -520,10 +632,13 @@ export async function studioCommand(dir: string, options: StudioOptions = {}): P
                 try {
                     // Step failures do not throw (the recording completes and records them, the way
                     // `verify` reads them back); the honest exit code reads the results.
-                    const summary = await runExport(absDir, {
+                    const summary = await runExport(exportDir, {
                         output: base,
                         ...(kind !== 'reel' ? { guide: true } : {}),
-                        ...(configArg ? { config: configArg } : {}),
+                        ...(exportDir !== absDir
+                            ? (configArg ? { config: path.join(exportDir, path.basename(configArg)) } : {})
+                            : (configArg ? { config: configArg } : {})),
+                        ...(exportDir !== absDir ? (variant.device ? { device: variant.device } : {}) : variant),
                     }, tempVideoDir);
                     const failed = summary.results.filter(r => r.error);
                     return failed.length
@@ -539,6 +654,59 @@ export async function studioCommand(dir: string, options: StudioOptions = {}): P
                 ? fs.readdirSync(absDir).filter((f) => f.startsWith('studio.')).sort()
                 : [];
             json(res, 200, { exitCode: outcome.ok ? 0 : 1, artifacts, log: outcome.error ?? '' });
+            return;
+        }
+
+        // --- strings API (locale editing) ---
+        if (segments[1] === 'strings' && req.method === 'GET') {
+            const locale = String(url.searchParams.get('locale') ?? '');
+            if (!/^[\w-]{2,16}$/.test(locale)) { json(res, 400, { error: 'bad locale' }); return; }
+            const file = stringsFileFor(absDir, configFile, locale);
+            let map: Record<string, string> = {};
+            let mtimeMs: number | undefined;
+            if (fs.existsSync(file)) {
+                try { map = readStrings(file); } catch (e: any) { json(res, 422, { error: `strings file is not a flat string map: ${e?.message ?? e}` }); return; }
+                mtimeMs = fs.statSync(file).mtimeMs;
+            }
+            json(res, 200, { locale, path: displayPath(file), exists: fs.existsSync(file), map, mtimeMs });
+            return;
+        }
+        if (segments[1] === 'strings' && req.method === 'PUT') {
+            const body = await readJsonBody(req);
+            const locale = String(body?.locale ?? '');
+            if (!/^[\w-]{2,16}$/.test(locale)) { json(res, 400, { error: 'locale must be a code like fr or pt-BR' }); return; }
+            if (body?.map === null || typeof body?.map !== 'object' || Array.isArray(body?.map)) {
+                json(res, 400, { error: 'body.map must be a flat string map' }); return; }
+            // Keys must name something that exists: meta.title or steps.<id>.<field>, with `value`
+            // only on translatable steps -- the same grammar extractStrings writes.
+            const rawSteps: any[] = (readRawTimeline(configFile).raw as any)?.steps ?? [];
+            const byId = new Map<string, any>();
+            for (const st of rawSteps) { if (st?.id) byId.set(String(st.id), st); }
+            for (const [key, value] of Object.entries(body.map as Record<string, unknown>)) {
+                if (typeof value !== 'string') { json(res, 422, { error: `value of "${key}" must be a string` }); return; }
+                if (key === 'meta.title') continue;
+                const m = /^steps\.([^.]+)\.(title|subtitle|narration|note|value)$/.exec(key);
+                if (!m || !byId.has(m[1])) {
+                    json(res, 422, { error: `key "${key}" does not match any step (grammar: steps.<id>.<field>, ids: ${[...byId.keys()].join(', ') || 'none'})` });
+                    return;
+                }
+                // `value` is only extractable from translatable steps (extractStrings' rule);
+                // a key that breaks it would be silently classified unknown on every load.
+                if (m[2] === 'value' && !byId.get(m[1])?.translatable) {
+                    json(res, 422, { error: `key "${key}": step "${m[1]}" is not translatable (add "translatable": true to type its value)` });
+                    return;
+                }
+            }
+            const file = stringsFileFor(absDir, configFile, locale);
+            if (typeof body?.mtime === 'number' && fs.existsSync(file)) {
+                if (fs.statSync(file).mtimeMs !== body.mtime) {
+                    json(res, 409, { error: `strings.${locale}.json changed on disk since it was loaded; reload it before saving over it` });
+                    return;
+                }
+            }
+            fs.mkdirSync(path.dirname(file), { recursive: true });
+            writeStrings(file, body.map as Record<string, string>);
+            json(res, 200, { ok: true, path: displayPath(file), mtimeMs: fs.statSync(file).mtimeMs });
             return;
         }
 
