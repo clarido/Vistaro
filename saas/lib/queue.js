@@ -173,8 +173,6 @@ class ExportQueue {
     });
 
     const tail = jobs.tailString(output);
-    const finishedMeta = jobs.readMeta(this.dataDir, id) || meta;
-    finishedMeta.log = tail;
 
     if (exit.killReason === 'timeout') {
       this.finishFailure(id, `export timed out after ${this.timeoutMs} ms and was killed`, tail);
@@ -202,6 +200,7 @@ class ExportQueue {
     done.finishedAt = new Date().toISOString();
     done.durationMs = done.startedAt ? Date.parse(done.finishedAt) - Date.parse(done.startedAt) : null;
     done.artifacts = artifacts;
+    done.log = tail;
     jobs.writeMeta(this.dataDir, done);
     this.log(`job ${id}: done in ${done.durationMs} ms → ${artifacts.video}`);
   }

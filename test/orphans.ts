@@ -14,16 +14,33 @@
  * (AGENTS.md, Contributor notes and rule 6).
  *
  * Who wraps what:
- *   - watchOrphans(t) belongs at the top of every test that owns a Chromium in this process --
- *     the tests of the five files that call chromium.launch (browser/guide/tour/record/studio);
+ *   - watchOrphans(t) belongs at the top of every test that owns a Chromium in this process.
+ *     record.test.ts's runTimeline test, tour.test.ts's eleven browser-owning tests and
+ *     guide.test.ts's launchPage test (K-3) wrap per test exactly this way;
+ *   - browser.test.ts is a file-level owner: ONE launch in before() shared by all its tests, so
+ *     it wraps at file scope through this module's exports directly -- countOrphans() into a
+ *     baseline immediately before the launch (behind the SKIP_BROWSER early return) and
+ *     assertNoNewOrphans(baseline, ...) in after(), inside the existing `if (browser)` guard.
+ *     watchOrphans cannot be used there: a t.after registered inside before() fires before
+ *     the file-level after() hook -- before browser.close() -- so it would assert against a
+ *     still-open browser and miss close-failure orphans. The guard is what keeps a skipped
+ *     run's -1 baseline from ever reaching the oracle, and wrapping its tests individually
+ *     would buy dozens of ps exec pairs of exactly the noise the CLI-driven tests below refuse;
+ *   - guide.test.ts's export --guide --clips test does not launch in this process: its Chromium
+ *     rides in a SIGKILL-bounded `node -e` child (spawnSync, CLI_TIMEOUT_MS, killSignal SIGKILL;
+ *     the child closes its own browser). It wraps watchOrphans(t) anyway -- a deliberate
+ *     widening of the in-process wording, with real teeth: when the spawn bound fires, the
+ *     SIGKILLed child dies mid-launch and its Chromium is reparented to pid 1, the exact shape
+ *     this counter counts, invisible to every in-process wrap;
+ *   - studio.test.ts owns Chromium in this process like the others; its wrap belongs to its own
+ *     lot and is the only one still missing;
  *   - the CLI-driven browser tests (export/verify/buildall/learn) deliberately stay unwrapped:
  *     their Chromium lives inside a child CLI process whose lifecycle exitWhenDrained() and
  *     assertRan() already police, and an orphan there is not attributable to one test's cleanup
  *     -- wrapping them would buy a ps exec per test of noise;
- *   - the exception is record.test.ts's hang test, the canary's original home: it exists to prove
- *     the CLI leaves nothing behind, so it wraps through this same helper (its inline counter
- *     moved here verbatim, oracle unchanged), and the runTimeline test that drives the file's
- *     in-process browser wraps like any in-process owner.
+ *   - record.test.ts's hang test, the canary's original home, wraps through this same helper
+ *     (its inline counter moved here verbatim, oracle unchanged): it exists to prove the CLI
+ *     leaves nothing behind.
  *
  * The counter's own health is part of the contract: a count of -1 (the ps pipeline failed) must
  * be a named failure wherever it is consumed, never a vacuous "-1 new orphans" that passes on

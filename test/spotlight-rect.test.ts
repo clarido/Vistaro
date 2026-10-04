@@ -19,21 +19,21 @@ import { runtimeSource } from '../src/engine/inject';
  *   A -- one line containing both 'anim-cli-highlight' and '.getBoundingClientRect()';
  *   B -- a line binding a variable from 'anim-cli-highlight' and '.getBoundingClientRect()'
  *        called on that exact variable within the next 2 lines.
- * The receiver tightening is the point: browser.test.ts:1126-1131 is the CORRECT pattern -- the
- * comment at :1126-1127 cites the pulse, :1128 binds the ring, :1129 reads
- * parseFloat(h.style.top) -- and its window DOES contain a getBoundingClientRect (:1130, on the
+ * The receiver tightening is the point: browser.test.ts:1137-1142 is the CORRECT pattern -- the
+ * comment at :1137-1138 cites the pulse, :1139 binds the ring, :1140 reads
+ * parseFloat(h.style.top) -- and its window DOES contain a getBoundingClientRect (:1141, on the
  * step's own target). A loose "rect call near a ring binding" shape would red the one test doing
  * it right; shapes A/B classify it as nothing, and the deepEqual below proves that on the real
  * files, not just on planted snippets.
  *
  * The two known sites are the whole exemption list, each justified in its entry's comment. A
  * THIRD rect-read site reds this canary until its author either reads the inline style like
- * browser.test.ts:1126-1131, or joins EXEMPT_SITES with the precondition that makes the rect
+ * browser.test.ts:1137-1142, or joins EXEMPT_SITES with the precondition that makes the rect
  * exact. Per rule 8, the list, the two shapes and the scope are allowlists: loosening any of
  * them is a documented decision, not a test edit.
  *
  * The shape-B window (2 lines) is a RATCHET, not a tolerance, measured against the code as it
- * stands (guide.test.ts:354-355: the binding, then the rect read on the very next line). A
+ * stands (guide.test.ts:361-362: the binding, then the rect read on the very next line). A
  * legitimate reflow that pushes a real read past the window reds this canary on purpose -- fold
  * the read back into the window, or widen SHAPE_B_WINDOW_LINES as a documented decision; the red
  * reads as designed, not as flake.
@@ -92,18 +92,20 @@ function discover(files: SourceFile[]): Site[] {
 
 /** The exemption list -- the ONLY rect reads of the ring the runner glob may carry, each with the
  *  justification that makes its rect exact or its use insensitive. A third site reds the
- *  deepEqual: read the inline style like browser.test.ts:1126-1131, or join this list with the
- *  precondition that makes the rect exact. */
+ *  deepEqual: read the inline style like browser.test.ts:1137-1142, or join this list with the
+ *  precondition that makes the rect exact. (Lines re-pinned when the orphan-wrap lot's insertions
+ *  at the top of browser.test.ts and guide.test.ts shifted the sites; the sites themselves are
+ *  the same two, unchanged.) */
 const EXEMPT_SITES: Site[] = [
-    // browser.test.ts:478 -- coverage-only use: the box feeds `h.width >= log.width && h.height >=
-    // log.height` at :489, and the pulse only ever inflates the box, so every >= holds regardless
+    // browser.test.ts:489 -- coverage-only use: the box feeds `h.width >= log.width && h.height >=
+    // log.height` at :500, and the pulse only ever inflates the box, so every >= holds regardless
     // of the few-px drift the pulse adds.
-    { file: 'browser.test.ts', line: 478, shape: 'A' },
-    // guide.test.ts:355 -- a ±1px position assert at :361-362, made exact by its own asserted
-    // precondition: `m.animations === 0` at :360 on a spotlight held by
+    { file: 'browser.test.ts', line: 489, shape: 'A' },
+    // guide.test.ts:362 -- a ±1px position assert at :368-369, made exact by its own asserted
+    // precondition: `m.animations === 0` at :367 on a spotlight held by
     // runtime.js:87 `#anim-cli-highlight.anim-cli-hold { opacity: 1; animation: none; }`, so no
     // pulse is running to move the box.
-    { file: 'guide.test.ts', line: 355, shape: 'B' },
+    { file: 'guide.test.ts', line: 362, shape: 'B' },
 ];
 
 const DISCOVERY_IDENTITY = 'discovery found no rect read of the spotlight ring in test/ -- the runner glob or the shape matchers broke, or the ring id died (the runtime ratchet below)';
@@ -118,20 +120,20 @@ function assertRuntimeHasRingId(source: string): void {
 test('every rect read of the spotlight ring in test/ is one of the two exempted sites', () => {
     const sites = discover(readRunnerGlob(__dirname));
     assert.ok(sites.length >= 1, DISCOVERY_IDENTITY);
-    assert.deepEqual(sites, EXEMPT_SITES, 'a rect read of the ring reds here: read the inline style it was placed with (browser.test.ts:1126-1131), or join EXEMPT_SITES with the precondition that makes the rect exact');
+    assert.deepEqual(sites, EXEMPT_SITES, 'a rect read of the ring reds here: read the inline style it was placed with (browser.test.ts:1137-1142), or join EXEMPT_SITES with the precondition that makes the rect exact');
 });
 
 test('the two exemptions still hold the justifications their entries claim', () => {
     const byName = new Map(readRunnerGlob(__dirname).map(f => [f.name, f.text] as const));
     const browserLines = stripComments(byName.get('browser.test.ts')!).split('\n');
-    assert.match(browserLines[488], /boxAtCapture\.h\.width >= boxAtCapture\.log\.width/, 'the :478 exemption is coverage-only: a >= the pulse only helps, at :489');
-    assert.match(browserLines[1128], /parseFloat\(h\.style\.top\)/, 'the correct pattern at browser.test.ts:1126-1131 must stay an inline-style read');
+    assert.match(browserLines[499], /boxAtCapture\.h\.width >= boxAtCapture\.log\.width/, 'the :489 exemption is coverage-only: a >= the pulse only helps, at :500');
+    assert.match(browserLines[1139], /parseFloat\(h\.style\.top\)/, 'the correct pattern at browser.test.ts:1137-1142 must stay an inline-style read');
     const guideLines = stripComments(byName.get('guide.test.ts')!).split('\n');
-    assert.match(guideLines[341], /holdHighlight\(/, 'the :355 exemption reads a HELD spotlight (holdHighlight at :342)');
-    assert.match(guideLines[359], /m\.animations,\s*0/, 'the :355 exemption leans on the asserted no-animation precondition at :360');
-    const pixelAsserts = guideLines[360] + '\n' + guideLines[361];
-    assert.match(pixelAsserts, /Math\.abs\(/, 'the :355 exemption serves the ±1px asserts at :361-362');
-    assert.match(pixelAsserts, /<= 1/, 'the :355 exemption serves the ±1px asserts at :361-362');
+    assert.match(guideLines[348], /holdHighlight\(/, 'the :362 exemption reads a HELD spotlight (holdHighlight at :349)');
+    assert.match(guideLines[366], /m\.animations,\s*0/, 'the :362 exemption leans on the asserted no-animation precondition at :367');
+    const pixelAsserts = guideLines[367] + '\n' + guideLines[368];
+    assert.match(pixelAsserts, /Math\.abs\(/, 'the :362 exemption serves the ±1px asserts at :368-369');
+    assert.match(pixelAsserts, /<= 1/, 'the :362 exemption serves the ±1px asserts at :368-369');
 });
 
 test('the runtime still defines the ring id this canary scans for', () => {

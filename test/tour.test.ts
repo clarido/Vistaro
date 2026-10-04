@@ -14,6 +14,7 @@ import { readTourCatalog } from '../src/commands/tour';
 import { videoFromManifest } from '../src/commands/guide';
 import { fileUrl } from '../src/browser';
 import { assertRan, CLI_TIMEOUT_MS } from './assert-ran';
+import { watchOrphans } from './orphans';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
@@ -280,7 +281,8 @@ test('tour builds a shell plus one page per scenario, and records an event per s
 
 // --- the bridge protocol -----------------------------------------------------------------------
 
-test('the tour scheduler plays, seeks, and rewinds the page state with it', { skip }, async () => {
+test('the tour scheduler plays, seeks, and rewinds the page state with it', { skip }, async (t) => {
+    watchOrphans(t);
     const out = path.join(work, 'bridge-out');
     const file = writeCatalog('bridge', { outputDir: out, scenarios: [basicScenario()] });
     const r = cli(['tour', file]);
@@ -332,7 +334,8 @@ test('the tour scheduler plays, seeks, and rewinds the page state with it', { sk
     }
 });
 
-test('a step that cannot run reports an error instead of hanging the tour', { skip }, async () => {
+test('a step that cannot run reports an error instead of hanging the tour', { skip }, async (t) => {
+    watchOrphans(t);
     // A selector that no longer matches rejects inside the instant replay. Unreported, the seek
     // never reaches advance() and the shell waits forever with no state, no end and no error.
     const dir = path.join(work, 'broken');
@@ -378,7 +381,8 @@ test('a step that cannot run reports an error instead of hanging the tour', { sk
     }
 });
 
-test('a play arriving during a seek replay resumes AT the seeked step, not past it', { skip }, async () => {
+test('a play arriving during a seek replay resumes AT the seeked step, not past it', { skip }, async (t) => {
+    watchOrphans(t);
     // goto(n) then play() back-to-back: play lands while the instant replay is still running (or in
     // one of the gaps between its steps, where inFlight is false). Taking the advance(index + 1)
     // branch there abandoned the seek half-done and played n+1, skipping the step asked for.
@@ -410,7 +414,8 @@ test('a play arriving during a seek replay resumes AT the seeked step, not past 
     }
 });
 
-test('pause during a camera pan resumes by replaying the step, not skipping past it', { skip }, async () => {
+test('pause during a camera pan resumes by replaying the step, not skipping past it', { skip }, async (t) => {
+    watchOrphans(t);
     // A camera step completes through a timer __anim.stop() cannot cancel (the CSS transition
     // keeps painting to its end), so its completion resolves AFTER the pause and clears inFlight:
     // the next play used to take the advance(index + 1) branch and skip the step -- the replay
@@ -465,7 +470,8 @@ test('pause during a camera pan resumes by replaying the step, not skipping past
 
 // --- embedding ---------------------------------------------------------------------------------
 
-test('play while playing is a no-op; pause stops the in-flight step and resume replays it', { skip }, async () => {
+test('play while playing is a no-op; pause stops the in-flight step and resume replays it', { skip }, async (t) => {
+    watchOrphans(t);
     // A slow type step (~4s) gives a wide mid-flight window to fire the duplicate play and the
     // pause into. The duplicate play used to orphan the typing step and start the next one on top
     // of it; the pause used to leave the typing and the interaction running behind a "paused" UI.
@@ -520,7 +526,8 @@ test('play while playing is a no-op; pause stops the in-flight step and resume r
     }
 });
 
-test('a scenario with no steps still answers: ready then end, and every command replies end', { skip }, async () => {
+test('a scenario with no steps still answers: ready then end, and every command replies end', { skip }, async (t) => {
+    watchOrphans(t);
     // An empty timeline used to leave the protocol silent: enabled controls that do nothing,
     // forever, and an autoplaying embed whose veil never lifted.
     const dir = path.join(work, 'emptysteps'); fs.cpSync(fixture, dir, { recursive: true });
@@ -551,7 +558,8 @@ test('a scenario with no steps still answers: ready then end, and every command 
     }
 });
 
-test('a failed tours.json fetch is not cached forever: a later element retries it', { skip }, async () => {
+test('a failed tours.json fetch is not cached forever: a later element retries it', { skip }, async (t) => {
+    watchOrphans(t);
     const out = path.join(work, 'evict-out');
     const file = writeCatalog('evict', { outputDir: out, scenarios: [basicScenario()] });
     assert.equal(cli(['tour', file, '--embed']).status, 0);
@@ -613,7 +621,8 @@ test('a failed tours.json fetch is not cached forever: a later element retries i
     }
 });
 
-test('commands sent before ready queue in order (goto then play), and an unknown scenario fires tourerror', { skip }, async () => {
+test('commands sent before ready queue in order (goto then play), and an unknown scenario fires tourerror', { skip }, async (t) => {
+    watchOrphans(t);
     const out = path.join(work, 'queue-out');
     const file = writeCatalog('queue', { outputDir: out, scenarios: [basicScenario()] });
     assert.equal(cli(['tour', file, '--embed']).status, 0);
@@ -662,7 +671,8 @@ test('commands sent before ready queue in order (goto then play), and an unknown
     }
 });
 
-test('Space activates a focused rail card instead of hijacking playback; a play clicked during load is not lost', { skip }, async () => {
+test('Space activates a focused rail card instead of hijacking playback; a play clicked during load is not lost', { skip }, async (t) => {
+    watchOrphans(t);
     const out = path.join(work, 'shell-out');
     const other = path.join(work, 'shell2'); fs.cpSync(fixture, other, { recursive: true });
     const file = writeCatalog('shell', { outputDir: out, scenarios: [basicScenario(), { slug: 'second', dir: other, label: 'Second' }] });
@@ -822,7 +832,8 @@ async function serve(dir: string): Promise<{ port: number; close: () => Promise<
     return { port: (server.address() as any).port, close: () => new Promise<void>(r => server.close(() => r())) };
 }
 
-test('<anim-tour> loads lazily, emits its events, and survives being moved in the DOM', { skip }, async () => {
+test('<anim-tour> loads lazily, emits its events, and survives being moved in the DOM', { skip }, async (t) => {
+    watchOrphans(t);
     const out = path.join(work, 'element-out');
     const file = writeCatalog('element', { outputDir: out, scenarios: [basicScenario()] });
     assert.equal(cli(['tour', file, '--embed']).status, 0);
@@ -874,7 +885,8 @@ test('<anim-tour> loads lazily, emits its events, and survives being moved in th
     }
 });
 
-test('an embed relays to its host, takes commands from it, and reports a height that can shrink', { skip }, async () => {
+test('an embed relays to its host, takes commands from it, and reports a height that can shrink', { skip }, async (t) => {
+    watchOrphans(t);
     const out = path.join(work, 'relay-out');
     const file = writeCatalog('relay', { outputDir: out, scenarios: [basicScenario()] });
     assert.equal(cli(['tour', file, '--embed']).status, 0);

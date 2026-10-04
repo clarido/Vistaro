@@ -10,6 +10,7 @@ import { buildAnimatedHtml, runtimeSource } from '../src/engine/inject';
 import { runTimeline, ensureRuntime } from '../src/engine/driver';
 import { fileUrl } from '../src/browser';
 import { assertRan, CLI_TIMEOUT_MS } from './assert-ran';
+import { countOrphans, assertNoNewOrphans } from './orphans';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
@@ -21,6 +22,10 @@ const cli = (args: string[], env: Record<string, string> = {}) => {
 };
 
 let browser: Browser;
+// File-level orphan wrap (test/orphans.ts): this file launches ONE browser in before() and shares
+// it across every test, so the wrap is file-scope too -- a baseline before the launch, one assert
+// in after(). watchOrphans(t) cannot be used here: a t.after registered in before() fires before the file-level after() — before browser.close() — and would assert against a still-open browser.
+let orphanBaseline = -1;
 let work: string;
 let builtPath: string;
 
@@ -31,11 +36,17 @@ before(async () => {
     const r = cli(['build', path.join(work, 'basic')]);
     assert.equal(r.status, 0, r.stderr + r.stdout);
     builtPath = path.join(work, 'basic', 'animated.html');
+    orphanBaseline = countOrphans();
     browser = await chromium.launch({ headless: true });
 });
 
 after(async () => {
-    if (browser) await browser.close();
+    // Inside the guard on purpose: on SKIP_BROWSER the baseline was never captured, and
+    // assertNoNewOrphans fails a -1 baseline by name rather than pass it vacuously.
+    if (browser) {
+        await browser.close();
+        assertNoNewOrphans(orphanBaseline, 'browser.test.ts');
+    }
     if (work) fs.rmSync(work, { recursive: true, force: true });
 });
 

@@ -13,6 +13,7 @@ import { ensureRuntime } from '../src/engine/driver';
 import { listChapters } from '../src/media/ffmpeg';
 import { diffPng } from '../src/guide/diff';
 import { assertRan, CLI_TIMEOUT_MS } from './assert-ran';
+import { watchOrphans } from './orphans';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
@@ -219,7 +220,12 @@ test('a target that vanished keeps its guide entry with error, plain frame, no m
     assert.equal(g.steps[2].callout!.number, 3);
 });
 
-test('export --guide --clips: video block, chapters, poster, clips wired into guide.json; guide.html has the video', { skip }, () => {
+test('export --guide --clips: video block, chapters, poster, clips wired into guide.json; guide.html has the video', { skip }, (t) => {
+    // The Chromium this test owns rides in the SIGKILL-bounded `node -e` child below (spawnSync,
+    // killSignal SIGKILL; the child closes its own browser). If the spawn bound ever fires, the
+    // SIGKILLed child dies mid-launch and its browser is reparented to pid 1 -- exactly what the
+    // shared orphan canary counts (test/orphans.ts), a shape no in-process wrap would see.
+    watchOrphans(t);
     const dir = path.join(work, 'basic');
     const out = path.join(work, 'out.mp4');
     const r = cli(['export', dir, '-o', out, '--guide', '--guide-dir', path.join(work, 'g'), '--clips', 'mp4', '--width', '1280', '--height', '800']);
@@ -322,7 +328,8 @@ test('an "only" gap keeps guide lookups correct: narration maps by authored inde
     assert.deepEqual(g2json.steps.map(s => s.id), ['open', 'type', 'last'], 'guide --device desktop drops the mobile-only step');
 });
 
-test('guide marks never capture mid-transition: whenSettled outlasts a 3s CSS fade, a held spotlight snaps (K-3)', { skip }, async () => {
+test('guide marks never capture mid-transition: whenSettled outlasts a 3s CSS fade, a held spotlight snaps (K-3)', { skip }, async (t) => {
+    watchOrphans(t);
     // demo/index.html: #cinematic-text has `transition: all 3s`; the runtime's own completion timer
     // fires a few frames before the transition visibly ends, and the spotlight box has a 0.5s
     // position transition. Both used to leave the guide frame timing-dependent (1-2% pixel drift).

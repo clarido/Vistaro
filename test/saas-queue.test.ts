@@ -204,11 +204,18 @@ function newJob(w: World, status = 'queued'): { id: string; dir: string; meta: J
     return { id, dir, meta };
 }
 
-async function until(fn: () => boolean, what: string, timeoutMs = 15000): Promise<void> {
+// 30 s: all ten callers poll real child processes under a serial, machine-sensitive
+// suite (AGENTS.md, "browser-driven commands are sensitive to what else is running");
+// one 15 s window starved once in suite context. The 20 ms poll makes the wider window
+// free when idle, and 30 s stays far under the runner's per-test cap. The optional
+// evidence hook exists because the success test starved twice in suite context while
+// green alone in 371 ms: the next red must say WHERE the job sat (never started vs
+// running-forever), not only that a deadline passed.
+async function until(fn: () => boolean, what: string, timeoutMs = 30000, evidence?: () => string): Promise<void> {
     const deadline = Date.now() + timeoutMs;
     while (!fn()) {
         if (Date.now() > deadline) {
-            throw new Error(`timed out after ${timeoutMs} ms waiting for ${what}`);
+            throw new Error(`timed out after ${timeoutMs} ms waiting for ${what}${evidence ? `; ${evidence()}` : ''}`);
         }
         await delay(20);
     }
@@ -326,7 +333,15 @@ test('a successful export ends "done" with durationMs, the exact recorded comman
 
         const job = newJob(w);
         w.queue.enqueue(job.meta);
-        await until(() => w.jobs.readMeta(w.dataDir, job.id)?.status === 'done', 'job to finish as done');
+        await until(
+            () => w.jobs.readMeta(w.dataDir, job.id)?.status === 'done',
+            'job to finish as done',
+            30000,
+            () => {
+                const m = w.jobs.readMeta(w.dataDir, job.id);
+                return `last status: ${m?.status ?? 'no meta'}; error: ${m?.error ?? 'none'}; queue waiting: ${JSON.stringify(w.queue.waiting)}; runner logs: ${JSON.stringify(w.logs.slice(-3))}`;
+            },
+        );
 
         const meta = w.jobs.readMeta(w.dataDir, job.id)!;
         assert.equal(meta.error, undefined, 'no error on the done path');
@@ -354,11 +369,13 @@ test('a successful export ends "done" with durationMs, the exact recorded comman
         );
         assert.equal(w.queue.depth, 0, 'the queue is empty again');
         assert.equal(w.queue.position(job.id), null, 'a done job has no position');
-        // TODO(bug found, not fixed here): the CLI log tail is computed at queue.js:176-177
-        // (finishedMeta.log = tail) but the success path re-reads the meta from disk at
-        // queue.js:200 and writes that object, so a done job.json carries NO log tail —
-        // only failed jobs keep theirs (finishFailure, queue.js:221). Asserting meta.log
-        // here would go red against the unfixed lib, so the finding is only recorded.
+        // 'fake-npx: artifacts written for' is the shim's only stdout line (SUCCESS_BODY
+        // above), so this is an identity assert on the real child output: a done
+        // job.json keeps the CLI log tail exactly as every failure branch does.
+        assert.ok(
+            meta.log?.includes('fake-npx: artifacts written for'),
+            'a done job.json keeps the CLI log tail like every failure branch does (finishFailure, queue.js:221) — set done.log = tail on the success path before jobs.writeMeta (queue.js:205)',
+        );
     } finally {
         await destroyWorld(w);
     }
