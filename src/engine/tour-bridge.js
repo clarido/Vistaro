@@ -210,6 +210,16 @@
   window.__tour = {
     version: 1,
     boot: function (payload) {
+      // Boot is also the studio's hot-reload entry: a fresh timeline must not inherit the old
+      // one's playback state (playing, an armed dwell timer, a half-finished step), or the next
+      // play is a no-op and a stale timer fires into the new steps.
+      seq++;
+      playing = false;
+      index = -1;
+      inFlight = false;
+      seeking = false;
+      pausedMidStep = false;
+      clearTimer();
       steps = (payload && payload.steps) || [];
       meta = (payload && payload.meta) || {};
       try { reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { reduced = false; }

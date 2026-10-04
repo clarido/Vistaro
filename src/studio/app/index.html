@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demoforge studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="studio.css">
+</head>
+<body>
+
+<header id="top">
+  <h1 class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>studio</h1>
+  <span id="dir" class="dir" title=""></span>
+  <span id="kind" class="badge" hidden></span>
+  <span class="spacer"></span>
+  <span id="dirty-screen" class="dirty" hidden title="Layout mode moved boxes in the mockup — Save patches index.html">screen unsaved</span>
+  <span id="dirty" class="dirty" hidden>unsaved</span>
+  <button id="save" class="btn" type="button" title="Validate and write the timeline file (⌘S / Ctrl+S)">Save <kbd>⌘S</kbd></button>
+  <button id="check" class="btn" type="button" title="Run check in the directory and list its findings">Check</button>
+  <button id="export" class="btn btn-primary" type="button" title="Run export in the directory (studio.* artifacts)">Export</button>
+</header>
+
+<main id="grid">
+  <aside id="steps-pane">
+    <div class="pane-head">
+      <span>Steps</span>
+      <button id="add-step" class="mini" type="button" title="Add a step after the selection">+ step</button>
+    </div>
+    <div id="steps"></div>
+    <div id="steps-empty" hidden>
+      <p>No timeline yet.</p>
+      <button id="pick-concept" class="btn" type="button">Choose what to make&hellip;</button>
+    </div>
+  </aside>
+
+  <section id="stage">
+    <div id="frame-wrap"><iframe id="preview" title="Timeline preview" src="/preview?b=0"></iframe></div>
+    <div id="transport">
+      <button id="t-prev" class="mini" type="button" title="Previous step">&#8630; prev</button>
+      <button id="t-play" class="mini" type="button" title="Play / pause (space)">&#9654; play</button>
+      <button id="t-next" class="mini" type="button" title="Next step">next &#8631;</button>
+      <span id="t-pos" class="t-pos" aria-live="polite">&ndash;</span>
+      <span class="spacer"></span>
+      <button id="t-mode" class="mini" type="button" title="Motion mode: drags author the selected animate step (to.x/to.y/to.scale); grab the cursor to nudge it">Motion</button>
+      <button id="t-pick" class="mini" type="button" title="Click an element in the preview to set this step's target (mouse only; the target field always accepts a typed selector)">Pick target</button>
+      <button id="t-fit" class="mini" type="button" title="Toggle between fitting the preview to the pane and viewing it at authored size (1x, scrollable)">Fit</button>
+      <a id="t-open" class="mini" href="/preview" target="_blank" rel="noopener" title="Open the preview page in its own tab, at full size">open &#8599;</a>
+      <span id="t-note" class="t-note">preview at authored size, scaled to fit</span>
+    </div>
+  </section>
+
+  <aside id="side">
+    <div class="tabs">
+      <button class="tab is-active" data-tab="inspector" type="button">Step</button>
+      <button class="tab" data-tab="palette" type="button">Palette</button>
+      <button class="tab" data-tab="raw" type="button">Raw</button>
+    </div>
+    <div id="inspector" class="tab-body">
+      <p class="hint" id="inspector-hint">Select a step.</p>
+      <div id="fields"></div>
+    </div>
+    <div id="palette" class="tab-body" hidden></div>
+    <div id="raw" class="tab-body" hidden>
+      <p class="hint">The step as JSON. Everything the forms do not know survives here untouched.</p>
+      <textarea id="raw-text" spellcheck="false" aria-label="Step JSON"></textarea>
+      <button id="raw-apply" class="btn" type="button">Apply</button>
+    </div>
+  </aside>
+</main>
+
+<footer id="issues">
+  <div class="pane-head"><span id="issues-title" aria-live="polite">Ready.</span><span class="spacer"></span><button id="issues-clear" class="mini" type="button" hidden>clear</button></div>
+  <div id="issues-list"></div>
+</footer>
+
+<div id="concept" class="overlay" hidden>
+  <div class="card">
+    <h2>What are we making?</h2>
+    <p class="hint">The choice sets the scaffold, the validation and which outputs compile. It is just a starting point -- one file, one timeline, change anything later.</p>
+    <div class="choices">
+      <button class="choice" data-concept="guide" type="button">
+        <b>Product demo + guide</b>
+        <span>A narrated walkthrough with titles, subtitles and a step-by-step guide site. Compiles with <code>export --guide</code>.</span>
+      </button>
+      <button class="choice" data-concept="reel" type="button">
+        <b>Marketing reel</b>
+        <span>A silent looping clip for a homepage: motion-first, no chrome. Compiles to MP4, WebM, poster, GIF and an embed page.</span>
+      </button>
+      <button class="choice" data-concept="blank" type="button">
+        <b>Blank</b>
+        <span>An empty timeline. For when the screen is the story.</span>
+      </button>
+    </div>
+    <p class="hint foot">The studio edits <code>anim.config.json</code> in place -- save writes the file, git keeps the history, the CLI stays the engine.</p>
+  </div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<script src="studio.js"></script>
+</body>
+</html>

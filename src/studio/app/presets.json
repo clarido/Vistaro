@@ -1,0 +1,20 @@
+{
+  "reveals": [
+    { "name": "Fade up", "fields": { "from": { "opacity": 0, "y": 14 }, "to": { "opacity": 1, "y": 0 }, "duration": 0.45, "ease": "easeOutCubic" } },
+    { "name": "Fade in", "fields": { "from": { "opacity": 0 }, "to": { "opacity": 1 }, "duration": 0.4, "ease": "easeOutCubic" } },
+    { "name": "Slide in from left", "fields": { "from": { "opacity": 0, "x": -12 }, "to": { "opacity": 1, "x": 0 }, "duration": 0.35, "ease": "easeOutCubic" } },
+    { "name": "Slide in from right", "fields": { "from": { "opacity": 0, "x": 12 }, "to": { "opacity": 1, "x": 0 }, "duration": 0.35, "ease": "easeOutCubic" } },
+    { "name": "Pop in", "fields": { "from": { "opacity": 0, "scale": 0.94 }, "to": { "opacity": 1, "scale": 1 }, "duration": 0.45, "ease": "easeOutBack" } },
+    { "name": "Rise and settle", "fields": { "from": { "opacity": 0, "y": 22 }, "to": { "opacity": 1, "y": 0 }, "duration": 0.6, "ease": "easeOutExpo" } },
+    { "name": "Staggered list", "fields": { "from": { "opacity": 0, "y": 10 }, "to": { "opacity": 1, "y": 0 }, "duration": 0.35, "ease": "easeOutCubic", "all": true, "stagger": 0.08 } }
+  ],
+  "camera": [
+    { "name": "Push in 1.15\u00d7", "fields": { "scale": 1.15, "duration": 1.5, "ease": "easeInOutCubic" } },
+    { "name": "Push in 1.3\u00d7", "fields": { "scale": 1.3, "duration": 2, "ease": "easeInOutCubic" } },
+    { "name": "Pull back", "fields": { "scale": 1, "duration": 1.2, "ease": "easeInOutCubic" } }
+  ],
+  "transitions": [
+    { "name": "Fade an element in", "fields": { "action": "fadeIn", "duration": 0.8 } },
+    { "name": "Swap screens", "fields": { "action": "transitionScreen", "duration": 0.8 } }
+  ]
+}

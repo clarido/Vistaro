@@ -351,6 +351,7 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 
 ## Contributor notes
 
+- **Before changing code here, read `docs/testing-discipline.md`.** It holds the test rules every agent follows: a bug fix starts with a failing test, every rule here gets a canary, every new test gets a mutation check, and exit codes get reported. It also lists which rules below already have a canary and which don't.
 - Layout: `cli.ts` (commander, `buildProgram()`), `src/engine/` (`schema.ts` parsing/validation, `runtime.js` the in-page engine, `inject.ts` builds `animated.html`, `tour-bridge.js` the message-driven scheduler a tour page runs on, `driver.ts` drives a Playwright page), `src/commands/`, `src/guide/` (capture, render, diff), `src/media/` (ffmpeg, tts, vtt, chapters, contact sheet), `src/tour/app/` (the tour shell: generic HTML/CSS/JS copied into the output verbatim; `embed.html` is the solo-mode page template and `anim-tour.js` the custom element, both shipped only by `--embed`), `src/catalog.ts`, `src/manifest.ts`, `src/browser.ts`.
 - `runtime.js` and `tour-bridge.js` are plain browser JavaScript injected as text (no imports, must tolerate document-start injection). The bridge is the third scheduler over `runStep`: the other two are `play()` inside the runtime and `driver.ts` outside it, and neither can be seeked because both advance on a clock. The timing constants at the top of `schema.ts` are mirrored as literals there and `test/constants.test.ts` asserts they stay equal.
 - The spotlight ring pulses by scaling itself, so its measured rect is a few px off wherever it was positioned. A test that asserts where the ring landed must read its inline style, not `getBoundingClientRect()`.
@@ -368,7 +369,7 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 <!-- cli-reference:start -->
 Generated from `cli.ts` by `npm run docs`; do not edit by hand. `npx tsx cli.ts <command> --help` prints the same, plus the usage guide (`--help`) and the catalog schema (`build-all --help`).
 
-[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`verify`](#verify) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
+[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`verify`](#verify) · [`studio`](#studio) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
 
 ### `init-config`
 
@@ -667,6 +668,25 @@ Build and audit a demo in one command: run the export pipeline (verify.mp4 + ver
 | `-t, --theme <mode>` | Color scheme mode for Playwright: light or dark (default: `light`) |
 | `--locale <code>` | Locale code (e.g. en, fr) |
 | `--config <file>` | Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
+
+### `studio`
+
+```bash
+npx tsx cli.ts studio <output_dir> [options]
+```
+
+Open a local web editor over the timeline: pick what to make (demo+guide, reel, blank), edit steps with a seekable live preview, pick targets by clicking, apply effect presets, run check/export, and save anim.config.json (the editor is a view over the file, never a second source of truth)
+
+| Argument | Description |
+|---|---|
+| `<output_dir>` | Directory containing index.html (the screen to edit a timeline for) |
+
+| Option | Description |
+|---|---|
+| `-p, --port <n>` | Port to serve the editor on (default: an ephemeral one, printed on start) |
+| `-w, --width <pixels>` | Authored viewport width of the preview iframe (default: 1280) |
+| `-H, --height <pixels>` | Authored viewport height of the preview iframe (default: 720) |
+| `--config <file>` | Edit a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 
 ### `build-all`
 

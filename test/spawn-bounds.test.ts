@@ -13,7 +13,7 @@ import * as path from 'path';
  * no recursion into test/fixtures/, which spawns nothing -- and keys a CLI child on the one token
  * every CLI command carries in its spawn window (`cli.ts`, bare or via path.join(root, 'cli.ts'))
  * and no other child does: the six ffmpeg probes, the node -e probe in guide.test.ts and the saas
- * shim text in saas-queue.test.ts all lack it in their window. A 12th CLI spawn goes red until its
+ * shim text in saas-queue.test.ts all lack it in their window. A 13th CLI spawn goes red until its
  * author adds the three bounds and extends KNOWN_SITES; a rename that scans zero files fails the
  * identity assert instead of passing vacuously.
  */
@@ -71,11 +71,11 @@ function discover(files: SourceFile[]): Site[] {
     return files.flatMap(cliSpawnSites);
 }
 
-/** The 11 known CLI spawn sites, sorted; buildall.test.ts twice (its sync cli and its async
- *  cliAsync). A 12th CLI spawn must join this list -- after carrying the three bounds. */
+/** The 12 known CLI spawn sites, sorted; buildall.test.ts twice (its sync cli and its async
+ *  cliAsync). A 13th CLI spawn must join this list -- after carrying the three bounds. */
 const KNOWN_SITES = [
     'browser.test.ts', 'buildall.test.ts', 'buildall.test.ts', 'export.test.ts', 'filmstrip.test.ts',
-    'guide.test.ts', 'learn.test.ts', 'record.test.ts', 'strings.test.ts', 'tour.test.ts', 'verify.test.ts',
+    'guide.test.ts', 'learn.test.ts', 'record.test.ts', 'strings.test.ts', 'studio.test.ts', 'tour.test.ts', 'verify.test.ts',
 ];
 
 test('every CLI spawn in test/ carries the three bounds: timeout, killSignal, assertRan', () => {
