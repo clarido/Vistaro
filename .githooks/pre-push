@@ -1,0 +1,108 @@
+#!/usr/bin/env node
+/**
+ * git pre-push hook — the FAST tier only, in order:
+ *   1. npx tsc --noEmit                                (STAGE_TSC_MS)
+ *   2. npm run docs:check                              (STAGE_DOCS_MS)
+ *   3. the twelve pure text-scan canaries, ONE call    (STAGE_CANARIES_MS)
+ *      ("static scans, seconds" — docs/testing-discipline.md, rule 5's tier)
+ *
+ * NEVER the suite. The full 10–15 min serial suite (package.json's `test` script, which also
+ * chains the SaaS smoke) is the landing gate's job, not the coding loop's — CI already runs it
+ * on every push (.github/workflows/test.yml behind its push trigger). That absence is pinned
+ * mechanically: test/guardrails.test.ts asserts this script's --dry-run output names tsc,
+ * docs:check and the twelve canaries and never the full suite.
+ *
+ * BOUNDS, innermost first (AGENTS.md, «Nothing in a run may wait forever»): each stage is a
+ * spawnSync with its own timeout and killSignal SIGKILL; a killed stage reports by name
+ * ("exceeded N ms and was killed") instead of hanging the push — git applies no timeout of its
+ * own, so these are the only bounds. stdin (the ref lines git pipes to the hook) is never
+ * read: stages spawn with stdio inherit and cannot block on it. cwd is the repo root resolved
+ * from this script's own location, never the caller's.
+ *
+ * All stages run even after an earlier failure; the summary prints each stage's status with its
+ * exact re-run command; exit 1 if any failed.
+ *
+ * INSTALLATION = INERT until JF's one-liner: git only executes this after
+ *   git config core.hooksPath .githooks
+ * (repo-local). No core.hooksPath change ships with this file and package.json grows no prepare
+ * script — both pinned by test/guardrails.test.ts.
+ */
+'use strict';
+const { spawnSync } = require('node:child_process');
+const path = require('node:path');
+
+const REPO_ROOT = path.resolve(__dirname, '..');
+const STAGE_TSC_MS = 120000;
+const STAGE_DOCS_MS = 60000;
+const STAGE_CANARIES_MS = 120000;
+
+// The twelve pure text-scan canaries: the landed inventory canaries plus this lot's
+// test/guardrails.test.ts (which spawns only these two guard scripts — node, sub-second).
+const CANARIES = [
+    'test/constants.test.ts',
+    'test/docs.test.ts',
+    'test/spawn-bounds.test.ts',
+    'test/src-spawn-bounds.test.ts',
+    'test/src-async-spawn-bound.test.ts',
+    'test/cli-force-exit.test.ts',
+    'test/page-callback-purity.test.ts',
+    'test/plain-browser-js.test.ts',
+    'test/spotlight-rect.test.ts',
+    'test/serial-suite.test.ts',
+    'test/ci-workflow.test.ts',
+    'test/guardrails.test.ts',
+];
+
+const CANARY_ARGV = ['node', '--import', 'tsx', '--test', '--test-concurrency=1', ...CANARIES];
+
+const STAGES = [
+    { name: 'typecheck', argv: ['npx', 'tsc', '--noEmit'], ms: STAGE_TSC_MS },
+    { name: 'docs:check', argv: ['npm', 'run', 'docs:check'], ms: STAGE_DOCS_MS },
+    { name: 'static canaries', argv: CANARY_ARGV, ms: STAGE_CANARIES_MS },
+];
+
+// git calls the hook as `pre-push <remote> <url>`, so extra argv is safe; --dry-run prints the
+// stage commands without running them (the canary's oracle for what the tier is and is not).
+if (process.argv.includes('--dry-run')) {
+    console.log('pre-push (dry run — nothing executed):');
+    for (const stage of STAGES) {
+        console.log(`  [${stage.ms} ms] ${stage.argv.join(' ')}`);
+    }
+    process.exit(0);
+}
+
+const failures = [];
+for (const stage of STAGES) {
+    console.log(`pre-push: running ${stage.argv.join(' ')}`);
+    const started = Date.now();
+    const res = spawnSync(stage.argv[0], stage.argv.slice(1), {
+        cwd: REPO_ROOT,
+        stdio: 'inherit',
+        timeout: stage.ms,
+        killSignal: 'SIGKILL',
+    });
+    const seconds = ((Date.now() - started) / 1000).toFixed(1);
+    let line;
+    if (res.error && res.error.code === 'ETIMEDOUT') {
+        line = `pre-push: ${stage.name} exceeded ${stage.ms} ms and was killed`;
+    } else if (res.error) {
+        line = `pre-push: ${stage.name} could not start (${res.error.message})`;
+    } else if (res.status === 0) {
+        line = `pre-push: ${stage.name} — ok (${seconds}s)`;
+    } else {
+        line = `pre-push: ${stage.name} — FAILED (exit ${res.status === null ? 'null' : res.status}) in ${seconds}s`;
+    }
+    console.log(line);
+    if (res.status !== 0 || res.error) failures.push({ stage, line });
+}
+
+console.log('\npre-push summary:');
+for (const { stage, line } of failures) {
+    console.log(`  FAILED ${stage.name}: ${line}`);
+    console.log(`         re-run exactly: ${stage.argv.join(' ')}`);
+}
+if (failures.length === 0) {
+    console.log('  all 3 stages ok');
+    process.exit(0);
+}
+process.exit(1);

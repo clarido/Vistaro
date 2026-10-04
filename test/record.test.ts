@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { spawn, execSync } from 'child_process';
+import { spawn } from 'child_process';
 import { chromium, Browser } from 'playwright';
 import { startLiveApp, LiveApp } from './fixtures/live-app/server';
 import { parseTimeline } from '../src/engine/schema';
@@ -14,6 +14,7 @@ import { probeDurationMs } from '../src/media/ffmpeg';
 import { GuideJson } from '../src/guide/render';
 import { sanitizeUrl } from '../src/browser';
 import { assertRan, CLI_TIMEOUT_MS, CliSpawnResult } from './assert-ran';
+import { watchOrphans } from './orphans';
 
 const skip = process.env.SKIP_BROWSER === '1';
 const root = path.resolve(__dirname, '..');
@@ -247,22 +248,23 @@ test('record: with a slow server (400ms latency) the first changed frame still l
     }
 });
 
-test('record: a navigation that never completes is stopped, reported, exits 1, and the process ends (click and navigate paths)', { skip }, async () => {
+test('record: a navigation that never completes is stopped, reported, exits 1, and the process ends (click and navigate paths)', { skip }, async (t) => {
     const dir = writeDir('hang', { meta: { url: `${app.url}/hang-link`, cursor: 'mac', tailMs: 300 }, steps: [
         { time: 0.5, action: 'click', target: '[data-help="go-hang"]', title: 'Go' },
         { time: 1.5, action: 'highlight', target: 'h1', title: 'Never' },
     ] });
-    // Orphaned browser/ffmpeg processes (parent pid 1) before and after: the CLI must leave none behind.
-    const orphans = () => { try { return parseInt(execSync("ps -ax -o ppid,command | awk '$1==1' | grep -E 'chrom|ffmpeg' | grep -v grep | wc -l", { timeout: 30000 }).toString().trim(), 10); } catch { return -1; } };
-    const orphansBefore = orphans();
+    // Orphaned browser/ffmpeg processes (parent pid 1) before and after: the CLI must leave none
+    // behind. The shared oracle (test/orphans.ts, self-tested by the decoy in
+    // test/orphans.test.ts) asserts once in t.after, after both passes -- the counter is
+    // machine-wide, so one check there sees an orphan of either path.
+    watchOrphans(t);
     let started = Date.now();
     let r = await cli(['record', dir, '-o', path.join(work, 'hang.mp4'), '--width', '320', '--height', '200']);
     let took = Date.now() - started;
     assert.equal(r.status, 1, r.stderr + r.stdout);
     assert.match(r.stderr, /navigation did not load within \d+ms|did not finish within 15000ms/);
     assert.ok(took < 25000, `click path finished in ${took}ms (15s navigation box + launch/encode overhead)`);
-    await new Promise(res => setTimeout(res, 2000));
-    assert.ok(orphans() <= orphansBefore, `no orphaned browser/ffmpeg processes (before ${orphansBefore}, after ${orphans()})`);
+    await new Promise(res => setTimeout(res, 2000)); // let the click pass's teardown land before the navigate pass launches its browser
 
     // explicit navigate step to the hanging URL: goto times out; stopping the load must not need a JS context
     const dir2 = writeDir('hang-nav', { meta: { url: `${app.url}/hang-link`, cursor: 'mac', tailMs: 300 }, steps: [
@@ -276,8 +278,7 @@ test('record: a navigation that never completes is stopped, reported, exits 1, a
     assert.match(r.stderr, /navigate .*\/hang: .*Timeout/i);
     assert.ok(took < 25000, `navigate path finished in ${took}ms`);
     assert.ok(!/only runs under `record`/.test(r.stderr), 'no misleading static navigate warning during record');
-    await new Promise(res => setTimeout(res, 2000));
-    assert.ok(orphans() <= orphansBefore, `no orphaned browser/ffmpeg processes (before ${orphansBefore}, after ${orphans()})`);
+    await new Promise(res => setTimeout(res, 2000)); // let teardown land; the orphan check asserts once in t.after
     const ev = JSON.parse(fs.readFileSync(path.join(dir2, 'anim.manifest.json'), 'utf8')).history.at(-1);
     assert.match(ev.steps[0].error, /navigate/);
     assert.equal(ev.steps[1].error, undefined, 'the step after the abandoned navigation still runs on the stopped page');
@@ -304,7 +305,10 @@ test('sanitizeUrl strips credentials and redacts token-like query params and fra
 });
 
 
-test('runTimeline(live): cursor re-appears at its last point after a navigation; no step lost to a destroyed context', { skip }, async () => {
+test('runTimeline(live): cursor re-appears at its last point after a navigation; no step lost to a destroyed context', { skip }, async (t) => {
+    // This test drives the file's own in-process Chromium (the `browser` from before()), so it
+    // wraps the shared orphan canary like every in-process browser owner.
+    watchOrphans(t);
     const tl = parseTimeline(loginFlow(app.url));
     const driven = await newDrivenPage(browser, { width: 1280, height: 800, runtime: true });
     try {
