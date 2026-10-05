@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Demoforge — Product demos as code</title>
-<meta name="description" content="Product demos as code: versioned with your repo, reviewed in the pull request, rebuilt in CI when the UI changes. One timeline compiles to demo videos, help guides, marketing reels, interactive tours and every locale.">
+<meta name="description" content="The demo tool built for coding agents: Claude Code, Codex or Antigravity writes your demo as two text files in the repo, compiles video, guides, reels, tours and every locale, and audits its own work. Humans review the diff and tweak details.">
 <meta property="og:title" content="Demoforge — Product demos as code">
-<meta property="og:description" content="Two text files in your repo compile to demo videos with subtitles and chapters, step-by-step help guides, looping marketing reels and interactive tours, in every language, regenerated whenever the UI changes.">
+<meta property="og:description" content="Built for your coding agent, not your screen recorder: one instruction and it writes the demo as code in your repo, compiles every artifact in every locale, and regenerates whenever the UI changes. You review the diff and tweak details.">
 <meta property="og:image" content="assets/og.jpg">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
@@ -168,6 +168,8 @@
   .hero-note i { font-style: normal; color: var(--faint); padding: 0 7px; }
   .hero-quick { max-width: 620px; margin: 30px auto 0; text-align: left; }
   .hero-quick:focus { outline: none; }
+  .hero-quick-note { margin: 14px auto 0; text-align: center; color: var(--faint); font-size: 13.5px; max-width: 560px; }
+  .hero-quick-note code { font: 500 12px/1 var(--mono); color: var(--muted); background: var(--panel2); border: 1px solid var(--line-soft); padding: 2px 6px; border-radius: 5px; }
 
   /* ---------- reel embed ---------- */
   .reel-wrap { max-width: 1120px; margin: 64px auto 0; padding: 0 24px; }
@@ -478,6 +480,7 @@
   .endcta { text-align: center; padding: 110px 0; }
   .endcta h2 { max-width: 640px; margin-left: auto; margin-right: auto; }
   .endcta p { color: var(--muted); max-width: 540px; margin: 0 auto 32px; }
+  .endcta p b { color: var(--ink); font-weight: 600; }
 
   /* ---------- footer ---------- */
   footer { border-top: 1px solid var(--line-soft); padding: 56px 0 40px; background: #04060A; }
@@ -536,28 +539,28 @@
   <div class="container hero-inner">
     <h1>Product demos as code.</h1>
     <p class="sub">
-      One instruction to your coding agent, <b>create a product demo of my site</b>, and it writes
-      two text files in your repo, compiles them into <b>video, guide, reel and tour, in every
-      locale</b>, and audits its own work. When the UI changes, the demo regenerates: no
-      re-recording, no stale video.
+      Built for your coding agent, not your screen recorder. One instruction,
+      <b>create a product demo of my site</b>, and Claude Code, Codex or Antigravity writes two
+      text files in your repo and compiles them into <b>video, guide, reel and tour, in every
+      locale</b>, auditing its own work. You review the diff and tweak details; the demo
+      regenerates whenever the UI changes.
     </p>
     <div class="hero-ctas">
-      <a class="btn btn-primary" href="#quickstart">Get started</a>
+      <a class="btn btn-primary" href="#quickstart">Ask your agent</a>
       <a class="btn btn-ghost" href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener">
         <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
         View on GitHub
       </a>
     </div>
     <div class="hero-note">free OSS CLI<i>·</i>no API key needed<i>·</i>Node 20+<i>·</i>ffmpeg bundled</div>
-    <div class="codeblock hero-quick" id="quickstart" tabindex="-1" role="region" aria-label="Quickstart commands">
-      <div class="cb-bar"><span class="cb-dot"></span>quickstart · from a clone of this repo
-        <button class="cb-copy" type="button" data-copy="npm install&#10;npx playwright install chromium&#10;npx tsx cli.ts init-config demo&#10;npx tsx cli.ts export demo -o demo.mp4 --guide">copy</button>
+    <div class="codeblock hero-quick" id="quickstart" tabindex="-1" role="region" aria-label="The ask: paste this into your coding agent">
+      <div class="cb-bar"><span class="cb-dot"></span>the ask · paste into Claude Code, Codex or Antigravity
+        <button class="cb-copy" type="button" data-copy="Create a product demo of my site. Use the CLI to generate everything.">copy</button>
       </div>
-<pre><span class="pr">$</span> <span class="cmd">npm install</span>
-<span class="pr">$</span> <span class="cmd">npx playwright install chromium</span>
-<span class="pr">$</span> <span class="cmd">npx tsx cli.ts init-config demo</span>  <span class="c"># scaffold a timeline</span>
-<span class="pr">$</span> <span class="cmd">npx tsx cli.ts export demo -o demo.mp4 --guide</span></pre>
+<pre>Create a product demo of my site.
+Use the CLI to generate everything.</pre>
     </div>
+    <p class="hero-quick-note">The agent finds its manual (<code>AGENTS.md</code>) in the repo and runs everything locally: nothing to sign up for, no key to paste. Prefer to drive? The commands are below.</p>
   </div>
 
   <!-- The hero clip: real Demoforge output, embedded with the page the CLI itself generates. -->
@@ -612,8 +615,8 @@ to generate everything.</pre>
     <p class="agent-note">
       No API key, no metering: <b>the LLM is yours, the CLI is local</b>. The agent writes the screen
       and the timeline like any other code, checks its own work with <code>check --json</code> and
-      <code>verify.json</code>, and fixes a badly aimed zoom like a lint finding; you review the
-      diff, not a timeline editor.
+      <code>verify.json</code>, and fixes a badly aimed zoom like a lint finding. Your part is the
+      part humans are good at: read the diff, tweak a time or a selector, approve.
     </p>
   </div>
 </section>
@@ -630,7 +633,7 @@ to generate everything.</pre>
       <div class="how-step">
         <span class="how-num">STEP 1</span>
         <h3>Describe the screen and the timeline</h3>
-        <p><code>index.html</code> is the UI, <code>anim.config.json</code> is the choreography: clicks, typing, highlights, camera pushes, each with an explicit time. Hand-write it, or record a real flow once and let <code>record --learn</code> draft it for you. Both are reviewable in a pull request. This timeline is real repo content:</p>
+        <p><code>index.html</code> is the UI, <code>anim.config.json</code> is the choreography: clicks, typing, highlights, camera pushes, each with an explicit time. Your agent writes both and iterates on its own findings; you tweak a time or a selector like any other code change. Reviewable in a pull request, draftable from a real flow with <code>record --learn</code>. This timeline is real repo content:</p>
         <div class="codeblock">
           <div class="cb-bar"><span class="cb-dot"></span>anim.config.json</div>
 <pre>{ <span class="k">"meta"</span><span class="p">:</span> { <span class="k">"title"</span><span class="p">:</span>
@@ -921,7 +924,7 @@ demo.mp4 + demo.vtt   <span class="c">regenerated by export, never edited</span>
       <details>
         <summary>What do I need to run it?</summary>
         <div class="a">
-          Node 20.6+, <code>npm install</code>, and Chromium through Playwright (<code>npx playwright install chromium</code>). ffmpeg is bundled, nothing else to install. Narration uses OpenAI TTS when a key is present, otherwise macOS <code>say</code>, and is optional. The CI workflow in the repo needs no secrets at all.
+          If an agent drives it: a clone of this repo and the sentence in the hero; the agent handles the rest, starting with <code>npm install</code> and Chromium through Playwright (<code>npx playwright install chromium</code>). Driving it yourself is the same three steps: Node 20.6+, <code>npm install</code>, the Chromium download. ffmpeg is bundled, nothing else to install, no API key. Narration uses OpenAI TTS when a key is present, otherwise macOS <code>say</code>, and is optional. The CI workflow in the repo needs no secrets at all.
         </div>
       </details>
 
@@ -938,10 +941,10 @@ demo.mp4 + demo.vtt   <span class="c">regenerated by export, never edited</span>
 <!-- ======================= FINAL CTA ======================= -->
 <section class="endcta">
   <div class="container">
-    <h2>Ship demos from your repo.</h2>
-    <p>Two text files, one command, every artifact. Free and local, and your first compiled demo is four commands away.</p>
+    <h2>Your next demo is one sentence away.</h2>
+    <p>Tell your agent <b>create a product demo of my site</b>. The demo lands in your repo as code: every artifact compiled, every locale covered, rebuilt whenever the UI changes. Free and local.</p>
     <div class="hero-ctas">
-      <a class="btn btn-primary" href="#quickstart">Get started</a>
+      <a class="btn btn-primary" href="#quickstart">Ask your agent</a>
       <a class="btn btn-ghost" href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener">Read the manual on GitHub</a>
     </div>
   </div>
