@@ -1,0 +1,3 @@
+Les clés d'accès, la facturation et les exports du service SaaS sont maintenant vérifiés par de vrais tests, à chaque livraison du code.
+
+Lot a de la discipline de tests : tests unitaires pour saas/lib (auth, stripe, jobs, queue — 43 cas, 33 mutations menées au rouge puis rétablies) ; saas/smoke.mjs enchaîné dans « npm test » après la suite, donc couvert par CI ; docs/testing-discipline.md devient le manuel de discipline (règles 1 à 8, inventaire d'invariants vérifié ligne par ligne contre le code, phases restantes résumées à même le manuel). Revue indépendante en contexte neuf : aucun bloquant ; le shim de types inutilisé saas/lib/auth.d.ts a été retiré.

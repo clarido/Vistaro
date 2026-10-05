@@ -1,0 +1,98 @@
+node_modules/
+.env
+.DS_Store
+*.log
+
+# Output media
+*.mp4
+*.webm
+*.gif
+# A reel's poster is an `export` deliverable like the video beside it, not an authored file
+*.poster.png
+
+# Debug files
+*-debug.png
+
+# Claude Code local data
+.claude/
+
+# Generated previews. `--config` derives its own names from the timeline's stem
+# (preview.<stem>.png, preview-<stem>-step-N.png), so those need covering too.
+preview.png
+preview.*.png
+preview-*.png
+preview-step-*.png
+# check --trace and filmstrip write beside their source with derived stems, like the previews.
+trace.json
+trace.*.json
+*.strip.png
+*.motion.json
+.temp-video/
+.cache/
+# The impeccable skill's critique working notes (design passes), not source.
+.impeccable/
+*.vtt
+
+# Generated artifacts, matched by what the tools EMIT rather than by where they emit it. These were
+# once scoped to demo/ and reels/, which is exactly why they stopped working: a catalog names its own
+# outputDir and its own source tree, so every directory added later (tours/, guides/, tour-clarido-out/)
+# fell outside the scoped rules and appeared as untracked noise beside the source it came from.
+#
+# `guide/` is spelled out file by file on purpose: a bare `**/guide/` would also match this repo's own
+# src/guide/, and while already-tracked files are immune to .gitignore, a NEW file added there would be
+# silently ignored -- a trap that costs an afternoon.
+**/guide/guide.json
+**/guide/guide.md
+**/guide/guide.html
+**/guide/assets/
+# `guide --config` derives guide-<stem>/ per timeline; nothing in src/ is named that
+**/guide-*/
+# `build` regenerates these (a full copy of runtime.js each time), with or without --config
+**/animated.html
+**/animated.*.html
+# `build --embed` and `tour --embed`
+**/embed-*.html
+**/embed.html
+**/embed.snippet.html
+
+# Every output directory: reels-out, help-out, tour-out and any outputDir a catalog names itself
+# (tour-clarido-out, tour-actifs-out). The whole site is regenerated from its catalog every run.
+*-out/
+
+# Playwright storage state (session cookies) — never commit
+auth.json
+
+# `npx skills add` installs here (symlinked into .claude/skills/)
+.agents/
+skills-lock.json
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+bower_components/
+jspm_packages/
+__pycache__/
+site-packages/
+venv/
+coverage/
+htmlcov/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+cdk.out/
+*.egg-info/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）
