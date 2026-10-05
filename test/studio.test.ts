@@ -60,6 +60,11 @@ async function stopServer(server: Server | undefined, args: string[]): Promise<v
 
 let work: string;
 let server: Server;
+/** The editor URL for the server's default (boot-argument) project -- `/` alone is the picker now. */
+async function editorUrl(): Promise<string> {
+    const list = await (await fetch(server.url + '/api/projects')).json();
+    return server.url + '/?project=' + encodeURIComponent(list.defaultId);
+}
 
 before(async () => {
     // The server boots even under SKIP_BROWSER: the API-only tests below have no browser of
@@ -162,7 +167,7 @@ test('studio editor page: boots the step list, inspector and palette with no con
         const errors: string[] = [];
         page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
         page.on('pageerror', (e) => errors.push(String(e)));
-        await page.goto(server.url + '/', { waitUntil: 'networkidle' });
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
         await page.waitForTimeout(600);
         assert.equal(await page.locator('#steps .step').count(), 9, 'one row per step');
         await page.locator('#steps .step').nth(1).click();
@@ -213,7 +218,7 @@ test('studio direct manipulation: a drag on the selected element authors the ani
         const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
         const errors: string[] = [];
         page.on("pageerror", (e) => errors.push(String(e)));
-        await page.goto(server.url + '/', { waitUntil: 'networkidle' });
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
         await page.waitForTimeout(700);
 
         // Step 2 becomes an animate step via the Raw tab (the honest escape hatch).
@@ -407,4 +412,155 @@ test('studio locale support: scaffold, translate, refuse unknown keys and stale 
     assert.equal(write.status, 200);
     const reread = await (await fetch(server.url + '/api/strings?locale=fr')).json();
     assert.equal(reread.map['steps.open.title'], 'Ouvrir le tableau');
+});
+
+test('studio picker: the projects index lists scenarios and locales, and the project sandbox holds', async () => {
+    const list = await (await fetch(server.url + '/api/projects')).json();
+    const mine = list.projects.filter((p: { current: boolean }) => p.current);
+    assert.equal(mine.length, 1, 'exactly one current project');
+    assert.equal(mine[0].title, 'Basic fixture');
+    assert.equal(mine[0].kind, 'guide');
+    assert.equal(mine[0].steps, 9);
+    assert.ok(/demo$/.test(mine[0].dir), 'the fixture dir is reported');
+    assert.ok(mine[0].lastTouched, 'recency came from the manifest or mtime');
+
+    // The sandbox: a project is nameable ONLY by a registry id.
+    for (const bogus of ['deadbeef12', '../../../etc', '', 'null']) {
+        const res = await fetch(server.url + '/api/timeline?project=' + encodeURIComponent(bogus));
+        assert.equal(res.status, bogus === '' ? 200 : 404, `project=${JSON.stringify(bogus)} must not resolve`); // '' falls back to the default project
+        if (bogus === '') break;
+    }
+    const traversal = await fetch(server.url + '/preview?project=' + encodeURIComponent('../../package.json'));
+    assert.equal(traversal.status, 404, 'path-shaped ids never reach the filesystem');
+});
+
+test('studio picker: scenario stories on one screen group under the same dir', async () => {
+    // The fixture has no scenarios/ -- make one, then the index must list it beside the default.
+    const got = await (await fetch(server.url + '/api/timeline')).json();
+    fs.mkdirSync(path.join(work, 'demo', 'scenarios'), { recursive: true });
+    fs.writeFileSync(path.join(work, 'demo', 'scenarios', 'short.json'), JSON.stringify({
+        meta: { title: 'A shorter story', locale: 'en' },
+        steps: [{ id: 'one', time: '0s', action: 'click', target: '#btn' }],
+    }, null, 2) + '\n');
+    const list = await (await fetch(server.url + '/api/projects')).json();
+    const absDemo = path.join(work, 'demo');
+    const stories = list.projects.filter((p: { dir: string }) => p.dir === absDemo);
+    assert.equal(stories.length, 2, 'the default timeline and the scenario both listed');
+    assert.ok(stories.some((p: { configName: string }) => p.configName === 'short.json'), 'scenario by config name');
+    assert.ok(stories.some((p: { configName: string; current: boolean }) => p.configName === 'anim.config.json' && p.current), 'the default is flagged current');
+});
+
+test('studio stacking: Ctrl+click cycles the elements under the pointer, Esc walks to the parent', { skip }, async () => {
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+        const errors: string[] = [];
+        page.on("pageerror", (e) => errors.push(String(e)));
+        await page.goto(server.url + '/preview', { waitUntil: 'networkidle' });
+        await page.waitForTimeout(400);
+        await page.evaluate("window.postMessage({ source: 'anim-studio', type: 'manipulate', enable: true, mode: 'layout' }, location.origin)");
+        await page.evaluate(`(function () {
+          var outer = document.createElement('section');
+          outer.id = 'outer-wrap';
+          outer.style.cssText = 'position:absolute; left:200px; top:120px; width:400px; height:300px;';
+          var behind = document.createElement('div');
+          behind.id = 'box-behind';
+          behind.style.cssText = 'position:absolute; left:50px; top:40px; width:300px; height:200px;';
+          var top = document.createElement('div');
+          top.id = 'box-top';
+          top.style.cssText = 'position:absolute; left:0; top:0; width:300px; height:200px;';
+          outer.appendChild(behind); outer.appendChild(top); document.body.appendChild(outer);
+          window.__selLog = [];
+          window.addEventListener('message', function (e) { if (e.data && e.data.source === 'anim-studio' && e.data.type === 'selected') window.__selLog.push(e.data.selector); });
+        })()`);
+        await page.waitForTimeout(200);
+
+        // Plain click selects the topmost box.
+        await page.mouse.move(300, 200);
+        await page.mouse.down(); await page.mouse.up();
+        await page.waitForTimeout(200);
+        assert.equal(await lastSel(page), '#box-top', 'plain click takes the top of the stack');
+
+        // Ctrl+click at the same point cycles down through the stack (the frame covers the
+        // stack by now -- the cycle must still work through it). The fixture's own elements
+        // sit deeper in the stack; only the planted boxes' order is asserted.
+        for (const expected of ['#box-behind', '#outer-wrap']) {
+            await page.keyboard.down('Control');
+            await page.mouse.down(); await page.mouse.up();
+            await page.keyboard.up('Control');
+            await page.waitForTimeout(250);
+            assert.equal(await lastSel(page), expected, `cycle should reach ${expected}`);
+        }
+
+        // Esc walks up one ancestor at a time and deselects at the body. Start from a CHILD
+        // (select #box-behind, whose parent is #outer-wrap) and clear the log, so the first Esc
+        // must post a fresh 'selected' -- a deleted walk would leave the log empty and fail.
+        await page.evaluate("window.postMessage({ source: 'anim-studio', type: 'select', selector: '#box-behind' }, location.origin)");
+        await page.waitForTimeout(200);
+        await page.evaluate("window.__selLog = []");
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(250);
+        assert.equal(await lastSel(page), '#outer-wrap', 'Esc selects the parent');
+        await page.evaluate("window.__selLog = []");
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(250);
+        assert.equal(await page.evaluate('window.__studio.state().selected'), false, 'Esc at the body deselects');
+        assert.equal(await page.evaluate('window.__selLog.length'), 0, 'no selection is posted when deselecting');
+        assert.deepEqual(errors, []);
+
+        async function lastSel(p: import('playwright').Page): Promise<string | undefined> {
+            return p.evaluate('window.__selLog[window.__selLog.length - 1]');
+        }
+    } finally {
+        await browser.close();
+    }
+});
+
+test('studio layers panel: the tree posts, hover highlights, and a row click selects the element', { skip }, async () => {
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+        const errors: string[] = [];
+        page.on("pageerror", (e) => errors.push(String(e)));
+        await page.goto(server.url + '/preview', { waitUntil: 'networkidle' });
+        await page.waitForTimeout(400);
+        await page.evaluate("window.postMessage({ source: 'anim-studio', type: 'manipulate', enable: true, mode: 'layout' }, location.origin)");
+        // Plant a hidden child so the hidden flag has something to flag on this fixture.
+        await page.evaluate(`(function () {
+          var box = document.createElement('div');
+          box.id = 'layers-probe-box';
+          box.style.cssText = 'position:absolute; left:40px; top:40px; width:100px; height:80px;';
+          var ghost = document.createElement('span');
+          ghost.id = 'layers-probe-hidden';
+          ghost.style.cssText = 'opacity:0;';
+          ghost.textContent = 'invisible';
+          box.appendChild(ghost);
+          document.body.appendChild(box);
+        })()`);
+
+        // The tree request answers with the planted box + hidden child, with depth nesting.
+        const tree = await page.evaluate("new Promise(function (resolve) { window.addEventListener('message', function h(e) { if (e.data && e.data.type === 'layers-tree') { window.removeEventListener('message', h); resolve(e.data.nodes); } }); window.postMessage({ source: 'anim-studio', type: 'layers' }, location.origin); setTimeout(function () { resolve(null); }, 4000); })") as any[] | null;
+        assert.ok(tree, 'the layers tree came back');
+        const boxRow = tree!.find(n => n.selector === '#layers-probe-box');
+        const ghostRow = tree!.find(n => n.selector === '#layers-probe-hidden');
+        assert.ok(boxRow, 'the planted box is in the tree');
+        assert.ok(ghostRow && ghostRow.hidden === true, 'the opacity:0 child is flagged hidden');
+        assert.ok(ghostRow!.depth === boxRow!.depth + 1, 'nesting carries depth');
+
+        // select-by-selector (the panel's click) selects, through the same frame path.
+        await page.evaluate("window.__selLog = []; window.addEventListener('message', function (e) { if (e.data && e.data.source === 'anim-studio' && e.data.type === 'selected') window.__selLog.push(e.data.selector); })");
+        await page.evaluate("window.postMessage({ source: 'anim-studio', type: 'select', selector: '#layers-probe-box' }, location.origin)");
+        await page.waitForTimeout(200);
+        assert.equal(await page.evaluate('window.__selLog[window.__selLog.length - 1]'), '#layers-probe-box');
+
+        // highlight-by-selector (the panel's hover) outlines and self-clears.
+        await page.evaluate("window.postMessage({ source: 'anim-studio', type: 'highlight', selector: '#layers-probe-box' }, location.origin)");
+        await page.waitForTimeout(100);
+        assert.equal(await page.evaluate(`(function () { var el = document.querySelector('#layers-probe-box'); return el.style.outline.indexOf('dashed') !== -1; })()`), true, 'hover outline applied');
+        await page.waitForTimeout(900);
+        assert.equal(await page.evaluate(`(function () { var el = document.querySelector('#layers-probe-box'); return el.style.outline.indexOf('dashed') !== -1; })()`), false, 'and it self-clears');
+        assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+    }
 });

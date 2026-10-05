@@ -127,7 +127,7 @@ Contributing: `npm test` runs the suite (serial, with browser tests; `SKIP_BROWS
 <!-- cli-reference:start -->
 Generated from `cli.ts` by `npm run docs`; do not edit by hand. `npx tsx cli.ts <command> --help` prints the same, plus the usage guide (`--help`) and the catalog schema (`build-all --help`).
 
-[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`verify`](#verify) · [`studio`](#studio) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
+[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`verify`](#verify) · [`studio`](#studio) · [`demos`](#demos) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
 
 ### `init-config`
 
@@ -430,14 +430,14 @@ Build and audit a demo in one command: run the export pipeline (verify.mp4 + ver
 ### `studio`
 
 ```bash
-npx tsx cli.ts studio <output_dir> [options]
+npx tsx cli.ts studio [output_dir] [options]
 ```
 
-Open a local web editor over the timeline: pick what to make (demo+guide, reel, blank), edit steps with a seekable live preview, pick targets by clicking, apply effect presets, run check/export, and save anim.config.json (the editor is a view over the file, never a second source of truth)
+Open a local web editor over the timeline: with no directory it serves the project picker (every demo in the workspace, recents first); with one it opens that screen directly. Edit steps with a seekable live preview, pick targets by clicking, apply effect presets, run check/export, and save anim.config.json (the editor is a view over the file, never a second source of truth)
 
 | Argument | Description |
 |---|---|
-| `<output_dir>` | Directory containing index.html (the screen to edit a timeline for) |
+| `[output_dir]` | Directory containing index.html (the screen to edit a timeline for); omit it for the project picker |
 
 | Option | Description |
 |---|---|
@@ -446,6 +446,18 @@ Open a local web editor over the timeline: pick what to make (demo+guide, reel, 
 | `-H, --height <pixels>` | Authored viewport height of the preview iframe (default: 720) |
 | `--config <file>` | Edit a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--device <type>` | Initial preview device: desktop or mobile (mobile also frames the preview at 390x844) |
+
+### `demos`
+
+```bash
+npx tsx cli.ts demos [options]
+```
+
+List every demo project in the workspace (screens, scenario stories, catalog entries), newest first, with the studio command that opens each -- the terminal twin of the picker
+
+| Option | Description |
+|---|---|
+| `--json` | Print the scanner output as JSON (for agents and scripts) |
 
 ### `build-all`
 

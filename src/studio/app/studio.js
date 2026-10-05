@@ -113,13 +113,15 @@
     mockupPatches: {},    // layout-mode patches keyed by tag#index -> {tag, index, domCount, patch}
     mockupDirty: false,
     mockupMtimeMs: undefined,
-    selectedInfo: null    // the bridge's last 'selected' report (tag/rect/position)
+    selectedInfo: null,   // the bridge's last 'selected' report (tag/rect/position)
+    layersOpen: false,
+    selectedSelector: null
   };
 
   var $ = function (id) { return document.getElementById(id); };
   var els = {};
   ['preview', 'steps', 'steps-empty', 'dir', 'kind', 'dirty', 'save', 'check', 'export', 'add-step', 'pick-concept',
-    't-prev', 't-play', 't-next', 't-pos', 't-pick', 't-fit', 't-open', 't-note', 't-mode', 't-device', 'locale', 'dirty-screen', 'fields', 'inspector', 'inspector-hint', 'palette', 'raw', 'raw-text', 'raw-apply',
+    't-prev', 't-play', 't-next', 't-pos', 't-pick', 't-fit', 't-open', 't-note', 't-mode', 't-device', 't-layers', 'layers', 'layers-list', 'layers-close', 'locale', 'scenario', 'dirty-screen', 'fields', 'inspector', 'inspector-hint', 'palette', 'raw', 'raw-text', 'raw-apply',
     'issues', 'issues-title', 'issues-list', 'issues-clear', 'concept', 'toasts', 'frame-wrap']
     .forEach(function (id) { els[id] = $(id); });
 
@@ -195,12 +197,17 @@
         S.pickMode = !!d.on;
         els['t-pick'].classList.toggle('is-on', S.pickMode);
         els['t-pick'].textContent = S.pickMode ? 'Picking\u2026 click an element' : 'Pick target';
+      } else if (d.type === 'layers-tree') {
+        layersNodes = d.nodes || [];
+        renderLayers();
       } else if (d.type === 'selected') {
         S.selectedInfo = d;
-        if (isAnimateStep()) els['t-note'].textContent = 'drag the element \u00b7 corners scale it';
+        if (S.layersOpen) markActiveLayer(d.selector);
+        if (isAnimateStep()) els['t-note'].textContent = 'drag the element \u00b7 corners scale it \u00b7 Ctrl-click cycles stacked boxes \u00b7 Esc selects the parent';
         else if (isCursorStep()) els['t-note'].textContent = 'Alt-drag the cursor glyph to nudge it off the target';
       } else if (d.type === 'deselected') {
         S.selectedInfo = null;
+        if (S.layersOpen) markActiveLayer(null);
       } else if (d.type === 'dragged') {
         applyMotionDelta(d.dx, d.dy);
       } else if (d.type === 'resized') {
@@ -223,7 +230,7 @@
 
   function reloadPreview() {
     S.bust++;
-    els.preview.src = '/preview?b=' + S.bust + '&device=' + S.device + (S.locale && S.locale !== S.baseLocale ? '&locale=' + encodeURIComponent(S.locale) : '');
+    els.preview.src = withProject('/preview?b=' + S.bust + '&device=' + S.device + (S.locale && S.locale !== S.baseLocale ? '&locale=' + encodeURIComponent(S.locale) : ''));
   }
 
   /** The current device's positions, or the identity mapping when resolution is unavailable
@@ -375,8 +382,14 @@
   }
 
   // ---------------------------------------------------------------- fetch
+  var PROJECT = new URLSearchParams(location.search).get('project') || '';
+  function projectQuery() { return PROJECT ? 'project=' + encodeURIComponent(PROJECT) : ''; }
+  function withProject(path) {
+    return path + (path.indexOf('?') === -1 ? '?' : '&') + projectQuery();
+  }
+
   function api(method, path, body) {
-    return fetch(path, {
+    return fetch(withProject(path), {
       method: method,
       headers: body ? { 'content-type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined
@@ -388,6 +401,11 @@
   function boot() {
     Promise.all([api('GET', '/api/timeline'), fetch('presets.json').then(function (r) { return r.json(); })])
       .then(function (r) {
+        if (r[0].status !== 200) {
+          setIssues([{ level: 'error', message: 'this project could not be loaded (' + (r[0].data?.error || r[0].status) + ') -- it may have been moved or renamed since the picker listed it' }], 'Project not found');
+          fitPreview();
+          return;
+        }
         var t = r[0].data;
         S.presets = r[1];
         S.dir = t.dir; S.configPath = t.configPath; S.exists = t.exists; S.raw = t.raw;
@@ -923,6 +941,7 @@
       S.liveTimer = null;
       postStudio('reload', { steps: previewSteps(), meta: S.raw?.meta || {} });
       refreshMapping();
+      refreshLayers();
     }, 450);
   }
 
@@ -1318,12 +1337,21 @@
 
   function fitPreview() {
     var wrap = els['frame-wrap'].getBoundingClientRect();
+    var outer = document.getElementById('preview-outer');
     var scale = Math.min((wrap.width - 28) / S.previewW, (wrap.height - 28) / S.previewH, 1);
+    // The sizer carries the visual size (the grid centers it -- a normal, fitting item); the
+    // iframe inside scales about its top-left, so the visual lands exactly in the sizer box.
     if (S.fit1x) {
+      outer.classList.add('is-1x');
+      outer.style.width = S.previewW + 'px';
+      outer.style.height = S.previewH + 'px';
       els.preview.style.transform = 'none';
       els['frame-wrap'].style.overflow = 'auto';
       els['t-note'].textContent = '1\u00d7 authored size \u00b7 scroll to see it all';
     } else {
+      outer.classList.remove('is-1x');
+      outer.style.width = Math.max(1, Math.round(S.previewW * (scale > 0 ? scale : 1))) + 'px';
+      outer.style.height = Math.max(1, Math.round(S.previewH * (scale > 0 ? scale : 1))) + 'px';
       els.preview.style.transform = 'scale(' + (scale > 0 ? scale : 1) + ')';
       els['frame-wrap'].style.overflow = 'hidden';
       // Below ~0.35 the preview is decoration, not information (the tour shell's own floor);
@@ -1338,6 +1366,92 @@
   els['t-fit'].addEventListener('click', function () {
     S.fit1x = !S.fit1x;
     fitPreview();
+  });
+
+  // ---------------------------------------------------------------- layers panel
+  var layersNodes = [];
+  function toggleLayers(on) {
+    S.layersOpen = on === undefined ? !S.layersOpen : !!on;
+    els.layers.hidden = !S.layersOpen;
+    els['t-layers'].classList.toggle('is-on', S.layersOpen);
+    if (S.layersOpen) refreshLayers();
+  }
+  els['t-layers'].addEventListener('click', function () { toggleLayers(); });
+  els['layers-close'].addEventListener('click', function () { toggleLayers(false); });
+
+  function refreshLayers() {
+    if (!S.layersOpen) return;
+    postStudio('layers', {});
+    // The tree comes back as 'layers-tree' (see the message handler).
+  }
+
+  function renderLayers() {
+    els['layers-list'].innerHTML = '';
+    layersNodes.forEach(function (node, i) {
+      var row = document.createElement('div');
+      row.className = 'layer-row' + (node.hidden ? ' is-hidden' : '') + (node.selector === S.selectedSelector ? ' is-active' : '');
+      row.setAttribute('role', 'treeitem');
+      row.setAttribute('data-selector', node.selector);
+      row.style.paddingLeft = 8 + node.depth * 13 + 'px';
+      row.title = node.selector + (node.text ? ' \u2014 ' + node.text : '');
+      var name = document.createElement('span');
+      name.className = 'lname';
+      name.textContent = node.label;
+      row.appendChild(name);
+      if (node.hidden) {
+        var h = document.createElement('span');
+        h.className = 'lhidden';
+        h.textContent = 'hidden';
+        row.appendChild(h);
+      }
+      if (node.text) {
+        var t = document.createElement('span');
+        t.className = 'ltext';
+        t.textContent = node.text;
+        row.appendChild(t);
+      }
+      row.addEventListener('mouseenter', function () { postStudio('highlight', { selector: node.selector }); });
+      row.addEventListener('mouseleave', function () { postStudio('highlight', { selector: null }); });
+      row.addEventListener('click', function () {
+        postStudio('select', { selector: node.selector });
+        markActiveLayer(node.selector);
+      });
+      els['layers-list'].appendChild(row);
+    });
+  }
+  function markActiveLayer(selector) {
+    S.selectedSelector = selector || null;
+    Array.prototype.forEach.call(els['layers-list'].children, function (row) {
+      row.classList.toggle('is-active', row.getAttribute('data-selector') === selector);
+    });
+    var active = els['layers-list'].querySelector('.is-active');
+    if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** Sibling timelines on the same screen (demo's three stories): switch without restarting. */
+  function renderScenarioSwitcher() {
+    fetch(withProject('/api/projects')).then(function (r) { return r.json(); }).then(function (data) {
+      var all = data.projects || [];
+      var mine = all.filter(function (p) { return p.current; })[0];
+      if (!mine) { els.scenario.hidden = true; return; }
+      var siblings = all.filter(function (p) { return p.dir === mine.dir; });
+      if (siblings.length < 2) { els.scenario.hidden = true; return; }
+      els.scenario.innerHTML = '';
+      siblings.forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.configName !== 'anim.config.json' ? p.title : p.title + ' (main)';
+        if (p.current) opt.selected = true;
+        els.scenario.appendChild(opt);
+      });
+      els.scenario.hidden = false;
+      els.scenario.title = 'Stories sharing this screen (' + mine.dir + ')';
+    }).catch(function () { els.scenario.hidden = true; });
+  }
+  els.scenario.addEventListener('change', function () {
+    if (els.scenario.value && els.scenario.value !== PROJECT) {
+      location.search = '?project=' + encodeURIComponent(els.scenario.value);
+    }
   });
 
   // ---------------------------------------------------------------- toasts
@@ -1364,5 +1478,7 @@
   }
 
   sizePreviewFrame();
+  renderScenarioSwitcher();
+  reloadPreview(); // the first preview load goes through the project-aware URL like every later one
   boot();
 })();

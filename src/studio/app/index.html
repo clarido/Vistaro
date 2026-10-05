@@ -14,6 +14,7 @@
   <span id="dir" class="dir" title=""></span>
   <span id="kind" class="badge" hidden></span>
   <span class="spacer"></span>
+  <select id="scenario" class="mini" title="Stories sharing this screen" hidden></select>
   <select id="locale" class="mini" title="Edit and preview a locale: text fields write strings.<locale>.json; the preview plays the localized timeline"></select>
   <span id="dirty-screen" class="dirty" hidden title="Layout mode moved boxes in the mockup — Save patches index.html">screen unsaved</span>
   <span id="dirty" class="dirty" hidden>unsaved</span>
@@ -36,7 +37,13 @@
   </aside>
 
   <section id="stage">
-    <div id="frame-wrap"><iframe id="preview" title="Timeline preview" src="/preview?b=0"></iframe></div>
+    <div id="frame-wrap">
+      <div id="preview-outer"><iframe id="preview" title="Timeline preview"></iframe></div>
+    </div>
+    <div id="layers" hidden>
+      <div class="pane-head"><span>Layers</span><span class="spacer"></span><button id="layers-close" class="mini" type="button" title="Close the layers panel">&#10005;</button></div>
+      <div id="layers-list" role="tree" aria-label="Screen elements"></div>
+    </div>
     <div id="transport">
       <button id="t-prev" class="mini" type="button" title="Previous step">&#8630; prev</button>
       <button id="t-play" class="mini" type="button" title="Play / pause (space)">&#9654; play</button>
@@ -44,6 +51,7 @@
       <span id="t-pos" class="t-pos" aria-live="polite">&ndash;</span>
       <span class="spacer"></span>
       <button id="t-device" class="mini" type="button" title="Preview resolves the timeline for desktop">Desktop</button>
+      <button id="t-layers" class="mini" type="button" title="Show the screen's element tree: hover a row to light the element up, click to select it (the map when boxes stack)">Layers</button>
       <button id="t-mode" class="mini" type="button" title="Motion mode: drags author the selected animate step (to.x/to.y/to.scale); Alt-drag the cursor to nudge it">Motion</button>
       <button id="t-pick" class="mini" type="button" title="Click an element in the preview to set this step's target (mouse only; the target field always accepts a typed selector)">Pick target</button>
       <button id="t-fit" class="mini" type="button" title="Toggle between fitting the preview to the pane and viewing it at authored size (1x, scrollable)">Fit</button>

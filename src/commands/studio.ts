@@ -1,4 +1,5 @@
 import * as http from 'http';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseTimeline, validateTimeline, formatIssue, loadTimeline, hasErrors, Issue, resolveConfigPath, Timeline, applyDevice } from '../engine/schema';
@@ -31,6 +32,150 @@ import { displayPath } from '../catalog';
  * server keeps the process alive, and cli.ts's exitWhenDrained watchdog only arms after the
  * command settles, so nothing else is needed to keep the server up.
  */
+
+/** ------------------------------------------------------------------ project scanner
+ * The index of everything editable: screens (index.html + anim.config.json), the scenario
+ * timelines beside them, and anything a catalog names. This is what the picker shows, what
+ * `demos` prints, and what the editor's scenario switcher lists. */
+export interface ScannedProject {
+    /** Stable id (hash of dir+config) -- the ONLY thing requests may name a project by. */
+    id: string;
+    /** Repo-relative directory (display + the demos command's --dir). */
+    dir: string;
+    /** Absolute config path (the server's own key; never sent to the page). */
+    configFile: string;
+    /** Config basename when this is a scenario timeline (else 'anim.config.json'). */
+    configName: string;
+    title: string;
+    kind: 'guide' | 'reel';
+    /** The dir feeds a tour catalog scenario (badge in the picker). */
+    tour: boolean;
+    locales: string[];
+    devices: string[];
+    steps: number;
+    lastTouched: string | null;
+}
+
+// test/docs/saas carry fixtures and prose, not demos; website/ IS walked (the pair rule keeps
+// its marketing-site root out while website/src/reel -- the hero clip -- is a real project).
+const SCAN_SKIP = new Set(['node_modules', '.git', '.zcode', 'test', 'docs', 'saas']);
+const isOutputDir = (name: string) => name.endsWith('-out');
+
+export function scanProjects(root: string): ScannedProject[] {
+    const projects: ScannedProject[] = [];
+    const tourDirs = new Set<string>();
+    const catalogConfigs = new Set<string>(); // absolute config paths named by a catalog
+    const readJson = (file: string): any | null => {
+        try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
+    };
+
+    for (const catalogName of ['help.catalog.json', 'tour.catalog.json']) {
+        const catalog = readJson(path.join(root, catalogName));
+        if (!catalog || typeof catalog !== 'object') continue;
+        const entries = [...(Array.isArray(catalog.guides) ? catalog.guides : []), ...(Array.isArray(catalog.scenarios) ? catalog.scenarios : [])];
+        for (const entry of entries) {
+            if (!entry || typeof entry.dir !== 'string') continue;
+            const dirAbs = path.resolve(root, entry.dir);
+            if (catalogName.startsWith('tour.')) tourDirs.add(path.relative(root, dirAbs));
+            if (typeof entry.config === 'string') catalogConfigs.add(path.resolve(root, entry.config));
+        }
+    }
+
+    let dirsVisited = 0;
+    const walk = (rel: string, depth: number): void => {
+        if (depth > 4 || dirsVisited > 2000) return;
+        dirsVisited++;
+        const abs = path.join(root, rel);
+        let entries: fs.Dirent[];
+        try { entries = fs.readdirSync(abs, { withFileTypes: true }); } catch { return; }
+        for (const entry of entries) {
+            if (!entry.isDirectory()) continue;
+            if (SCAN_SKIP.has(entry.name) || entry.name === 'locales' || isOutputDir(entry.name) || entry.name.startsWith('.')) continue;
+            walk(rel ? path.join(rel, entry.name) : entry.name, depth + 1);
+        }
+        // A screen: both files at this level (the pair rule filters every output dir).
+        const hasScreen = entries.some(e => e.name === 'index.html' && e.isFile());
+        const hasDefaultConfig = entries.some(e => e.name === 'anim.config.json' && e.isFile());
+        if (!hasScreen || !hasDefaultConfig) return;
+
+        const configs: string[] = [path.join(abs, 'anim.config.json')];
+        // Scenario timelines: the scenarios/ convention + anything a catalog names in this dir.
+        const scenariosDir = path.join(abs, 'scenarios');
+        try {
+            for (const f of fs.readdirSync(scenariosDir)) {
+                if (/\.strings\./.test(f) || !f.endsWith('.json')) continue;
+                configs.push(path.join(scenariosDir, f));
+            }
+        } catch { /* no scenarios/ */ }
+        for (const cfg of catalogConfigs) {
+            if (path.dirname(cfg) === abs && !configs.includes(cfg)) configs.push(cfg);
+        }
+
+        for (const configFile of configs) {
+            const raw = readJson(configFile);
+            const meta = (raw && typeof raw === 'object' && raw.meta && typeof raw.meta === 'object') ? raw.meta : {};
+            const steps = Array.isArray(raw?.steps) ? raw.steps.length : 0;
+            // Locale flags: strings files beside THIS config + localize directories.
+            const locales = new Set<string>();
+            try {
+                for (const f of fs.readdirSync(path.dirname(configFile))) {
+                    const m = /^(?:[\\w-]+\.)?strings\.([\\w-]+)\.json$/.exec(f);
+                    if (m) locales.add(m[1]);
+                }
+            } catch { /* ignore */ }
+            const baseName = path.basename(configFile);
+            try {
+                for (const f of fs.readdirSync(path.dirname(configFile))) {
+                    const m = new RegExp('^' + baseName.replace(/\./g, '\\.') + '\\.strings\\.([\\w-]+)\\.json$').exec(f);
+                    if (m) locales.add(m[1]);
+                }
+            } catch { /* ignore */ }
+            try {
+                for (const d of fs.readdirSync(path.join(abs, 'locales'), { withFileTypes: true })) {
+                    if (d.isDirectory()) locales.add(d.name);
+                }
+            } catch { /* no locales/ */ }
+            locales.delete(String(meta.locale ?? 'en'));
+            // Devices: any only/mobile/desktop key in the steps.
+            const devices = new Set<string>();
+            for (const st of (Array.isArray(raw?.steps) ? raw.steps : [])) {
+                if (st && typeof st === 'object') {
+                    if (st.only === 'mobile' || st.only === 'desktop') devices.add(st.only);
+                    if (st.mobile) devices.add('mobile');
+                    if (st.desktop) devices.add('desktop');
+                }
+            }
+            // Recency: the manifest's newest history timestamp, else the config's mtime.
+            let lastTouched: string | null = null;
+            const manifest = readJson(path.join(abs, 'anim.manifest.json'));
+            if (manifest && Array.isArray(manifest.history)) {
+                for (const ev of manifest.history) {
+                    if (ev && typeof ev.timestamp === 'string' && (!lastTouched || ev.timestamp > lastTouched)) lastTouched = ev.timestamp;
+                }
+            }
+            if (!lastTouched) {
+                try { lastTouched = fs.statSync(configFile).mtime.toISOString(); } catch { /* keep null */ }
+            }
+            projects.push({
+                id: crypto.createHash('sha256').update(path.resolve(configFile)).digest('hex').slice(0, 10),
+                dir: path.relative(root, abs),
+                configFile,
+                configName: baseName,
+                title: String(meta.title ?? path.basename(abs)),
+                kind: meta.kind === 'reel' ? 'reel' : 'guide',
+                tour: tourDirs.has(path.relative(root, abs)),
+                locales: [...locales].sort(),
+                devices: [...devices].sort(),
+                steps,
+                lastTouched,
+            });
+        }
+    };
+
+    walk('', 0);
+    projects.sort((a, b) => (b.lastTouched ?? '').localeCompare(a.lastTouched ?? ''));
+    return projects;
+}
 
 export interface StudioOptions {
     port?: string;
@@ -379,17 +524,51 @@ function insertStyleAttr(openTag: string, patch: Record<string, string>): string
     return openTag.slice(0, at) + ` style="${serialized}"` + openTag.slice(at);
 }
 
-export async function studioCommand(dir: string, options: StudioOptions = {}): Promise<void> {
-    const absDir = path.resolve(dir);
-    if (!fs.existsSync(absDir)) throw new Error(`directory not found: ${displayPath(absDir)}`);
-    const indexHtmlPath = path.join(absDir, 'index.html');
-    if (!fs.existsSync(indexHtmlPath)) {
-        throw new Error(`no index.html in ${displayPath(absDir)}: the studio edits a screen + its timeline, so the mockup comes first`);
+export async function studioCommand(dir: string | undefined, options: StudioOptions = {}): Promise<void> {
+    const root = path.resolve(__dirname, '../..');
+    // The registry is the sandbox: requests name projects by id, ids exist only for scanned (or
+    // explicitly opened) dirs+configs, and no path from a request ever reaches the filesystem.
+    type Registered = ScannedProject & { dirAbs: string };
+    const registry = new Map<string, Registered>();
+    const register = (dirAbs: string, configFile: string): Registered => {
+        const raw = (() => { try { return JSON.parse(fs.readFileSync(configFile, 'utf8')); } catch { return null; } })();
+        const meta = (raw && typeof raw === 'object' && raw.meta && typeof raw.meta === 'object') ? raw.meta : {};
+        const entry: Registered = {
+            id: crypto.createHash('sha256').update(path.resolve(configFile)).digest('hex').slice(0, 10),
+            dir: path.relative(root, dirAbs),
+            dirAbs,
+            configFile,
+            configName: path.basename(configFile),
+            title: String(meta.title ?? path.basename(dirAbs)),
+            kind: meta.kind === 'reel' ? 'reel' : 'guide',
+            tour: false,
+            locales: [],
+            devices: [],
+            steps: Array.isArray(raw?.steps) ? raw.steps.length : 0,
+            lastTouched: null,
+        };
+        registry.set(entry.id, entry);
+        return entry;
+    };
+    for (const scanned of scanProjects(root)) {
+        registry.set(scanned.id, { ...scanned, dirAbs: path.resolve(root, scanned.dir) });
     }
-    // A --config value is cwd-relative like every other CLI path option; the resolved absolute is
-    // what every route below uses (cliConfigPath models exactly this but types as string|undefined).
-    const configArg = options.config ? path.resolve(options.config) : undefined;
-    const configFile = configArg ?? resolveConfigPath(absDir);
+
+    let defaultProjectId: string | null = null;
+    if (dir !== undefined) {
+        const absDir = path.resolve(dir);
+        if (!fs.existsSync(absDir)) throw new Error(`directory not found: ${displayPath(absDir)}`);
+        const indexHtmlPath = path.join(absDir, 'index.html');
+        if (!fs.existsSync(indexHtmlPath)) {
+            throw new Error(`no index.html in ${displayPath(absDir)}: the studio edits a screen + its timeline, so the mockup comes first`);
+        }
+        // A --config value is cwd-relative like every other CLI path option. A MISSING default
+        // config is not an error: the editor opens into the concept picker and scaffolds one
+        // (the blank-demo flow); only an explicitly named --config that does not exist refuses.
+        const configFile = options.config ? path.resolve(options.config) : resolveConfigPath(absDir);
+        if (options.config && !fs.existsSync(configFile)) throw new Error(`timeline not found: ${displayPath(configFile)}`);
+        defaultProjectId = register(absDir, configFile).id;
+    }
     const previewWidth = Math.max(320, Math.min(3840, Math.round(Number(options.width ?? 1280)) || 1280));
     const previewHeight = Math.max(240, Math.min(2160, Math.round(Number(options.height ?? 720)) || 720));
     const runner = new OneAtATime();
@@ -428,15 +607,56 @@ export async function studioCommand(dir: string, options: StudioOptions = {}): P
             return;
         }
 
-        // --- editor assets (fixed names, no user input reaches the filesystem) ---
+        // --- pages and assets (fixed names, no user input reaches the filesystem) ---
         if (segments.length === 0 || (segments.length === 1 && segments[0] === 'index.html')) {
-            serveAppFile(res, 'index.html');
+            // The front door: without ?project= this is the picker; with one, the editor.
+            serveAppFile(res, url.searchParams.get('project') ? 'index.html' : 'picker.html');
             return;
         }
-        if (segments.length === 1 && ['studio.css', 'studio.js', 'presets.json'].includes(segments[0])) {
+        if (segments.length === 1 && ['studio.css', 'studio.js', 'presets.json', 'picker.css', 'picker.js'].includes(segments[0])) {
             serveAppFile(res, segments[0]);
             return;
         }
+
+        if (segments[0] === 'api' && segments[1] === 'projects' && segments.length === 2 && req.method === 'GET') {
+            // Always a fresh scan (the picker tells the truth about new scenario files). When the
+            // opened project lives OUTSIDE the workspace (studio /some/other/path), its own tree
+            // is scanned too and merged by id, so it and its sibling stories are pickable.
+            // Everything listed must also be REGISTERED, or the picker offers cards whose
+            // routes 404 (a scenario created after boot; a sibling of an opened outside dir).
+            // Registering from the server's own scans widens nothing: the set stays "scanned
+            // or explicitly opened".
+            const merged = new Map<string, ScannedProject>();
+            for (const pr of scanProjects(root)) {
+                merged.set(pr.id, pr);
+                if (!registry.has(pr.id)) registry.set(pr.id, { ...pr, dirAbs: path.resolve(root, pr.dir) });
+            }
+            const boot = defaultProjectId ? registry.get(defaultProjectId) : undefined;
+            if (boot && path.relative(root, boot.dirAbs).startsWith('..')) {
+                for (const pr of scanProjects(boot.dirAbs)) {
+                    const entry = { ...pr, dir: boot.dirAbs, configFile: path.join(boot.dirAbs, path.basename(pr.configFile)) };
+                    merged.set(pr.id, entry);
+                    if (!registry.has(pr.id)) registry.set(pr.id, { ...entry, dirAbs: path.resolve(boot.dirAbs) });
+                }
+            }
+            const currentId = url.searchParams.get('project') ?? defaultProjectId;
+            json(res, 200, { projects: [...merged.values()].map(pr => { const { configFile, ...safe } = pr; void configFile; return { ...safe, current: pr.id === currentId }; }), defaultId: defaultProjectId });
+            return;
+        }
+
+        // Every stateful route below resolves its project THROUGH THE REGISTRY ONLY: an unknown
+        // id is a 404 and no request-borne path ever reaches the filesystem.
+        const projectParam = url.searchParams.get('project');
+        const projectEntry = registry.get(projectParam || defaultProjectId || '');
+        if (!projectEntry) {
+            json(res, 404, { error: 'unknown project (open one from the picker, or pass ?project=<id> from /api/projects)' });
+            return;
+        }
+        const absDir = projectEntry.dirAbs;
+        const configFile = projectEntry.configFile;
+        const configArg = projectEntry.configName === 'anim.config.json' ? undefined : configFile;
+        const indexHtmlPath = path.join(absDir, 'index.html');
+
 
         // Export artifacts, by fixed basename pattern only (no traversal surface: the name is
         // matched against /^studio\.[\w.-]+$/ before it ever reaches the filesystem).
@@ -729,7 +949,8 @@ export async function studioCommand(dir: string, options: StudioOptions = {}): P
         server.listen(portNumber, '127.0.0.1', () => {
             const addr = server.address();
             const port = typeof addr === 'object' && addr ? addr.port : portNumber;
-            console.log(`studio listening on http://127.0.0.1:${port}  (${displayPath(absDir)}${configArg ? `, config ${displayPath(configFile)}` : ''})`);
+            const opened = defaultProjectId ? registry.get(defaultProjectId) : null;
+            console.log(`studio listening on http://127.0.0.1:${port}${opened ? `  (editing ${displayPath(opened.dirAbs)}${opened.configName !== 'anim.config.json' ? `, ${opened.configName}` : ''})` : '  (project picker -- ' + registry.size + ' found)'}`);
             console.log('studio editing the timeline file directly -- save (⌘S) writes it; review in git; Ctrl-C to stop');
         });
     });

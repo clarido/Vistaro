@@ -16,6 +16,7 @@ import { buildAllCommand } from './src/commands/build-all';
 import { filmstripCommand } from './src/media/filmstrip';
 import { verifyCommand } from './src/commands/verify';
 import { studioCommand } from './src/commands/studio';
+import { demosCommand, demosJson } from './src/commands/demos';
 
 import { toolPackage } from './src/catalog';
 
@@ -321,14 +322,20 @@ RECORD OF WHAT WAS DONE:
 
   program
     .command('studio')
-    .description('Open a local web editor over the timeline: pick what to make (demo+guide, reel, blank), edit steps with a seekable live preview, pick targets by clicking, apply effect presets, run check/export, and save anim.config.json (the editor is a view over the file, never a second source of truth)')
-    .argument('<output_dir>', 'Directory containing index.html (the screen to edit a timeline for)')
+    .description('Open a local web editor over the timeline: with no directory it serves the project picker (every demo in the workspace, recents first); with one it opens that screen directly. Edit steps with a seekable live preview, pick targets by clicking, apply effect presets, run check/export, and save anim.config.json (the editor is a view over the file, never a second source of truth)')
+    .argument('[output_dir]', 'Directory containing index.html (the screen to edit a timeline for); omit it for the project picker')
     .option('-p, --port <n>', 'Port to serve the editor on (default: an ephemeral one, printed on start)')
     .option('-w, --width <pixels>', 'Authored viewport width of the preview iframe (default: 1280)')
     .option('-H, --height <pixels>', 'Authored viewport height of the preview iframe (default: 720)')
     .option('--config <file>', 'Edit a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--device <type>', 'Initial preview device: desktop or mobile (mobile also frames the preview at 390x844)')
     .action((dir, opts) => studioCommand(dir, opts));
+
+  program
+    .command('demos')
+    .description('List every demo project in the workspace (screens, scenario stories, catalog entries), newest first, with the studio command that opens each -- the terminal twin of the picker')
+    .option('--json', 'Print the scanner output as JSON (for agents and scripts)')
+    .action((opts) => { if (opts.json) console.log(JSON.stringify(demosJson(), null, 2)); else demosCommand(); });
 
   program
     .command('build-all')

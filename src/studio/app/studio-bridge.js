@@ -91,7 +91,17 @@
   function onKey(e) {
     if (e.key === 'Escape' || e.keyCode === 27) {
       if (picking) setPick(false);
-      else if (manipulating) deselect();
+      else if (manipulating && sel) {
+        // Esc walks UP the hierarchy one ancestor at a time (the devtools reflex): the box
+        // around the label, the section around the box; at the body it finally deselects.
+        var parent = sel.el.parentElement;
+        while (parent && parent !== document.body && parent !== document.documentElement
+               && parent.getAttribute && parent.getAttribute('data-studio-frame') !== null) {
+          parent = parent.parentElement;
+        }
+        if (parent && parent !== document.body && parent !== document.documentElement) select(parent);
+        else deselect();
+      }
     }
   }
 
@@ -218,8 +228,112 @@
     return document.getElementById('anim-cli-cursor');
   }
 
+  // ---- layers panel ---------------------------------------------------------
+  // The mockup's element tree as a flat depth-tagged list: what the layers panel renders. The
+  // same exclusions as stackAt (our frame, the runtime's overlays), plus non-visual tags, and a
+  // `hidden` flag from the computed style -- reel mockups pre-hide their reveal targets, and
+  // seeing WHICH rows are invisible is half of why a layers list earns its place here.
+  function buildLayers() {
+    var nodes = [];
+    var SKIP_TAGS = { SCRIPT: 1, STYLE: 1, LINK: 1, META: 1, TITLE: 1, NOSCRIPT: 1, BR: 1 };
+    function ownText(el) {
+      var out = '';
+      for (var i = 0; i < el.childNodes.length && out.length < 28; i++) {
+        var n = el.childNodes[i];
+        if (n.nodeType === 3) out += n.nodeValue;
+      }
+      return out.replace(/\s+/g, ' ').trim().slice(0, 28);
+    }
+    function labelOf(el) {
+      var tag = el.tagName.toLowerCase();
+      if (el.id) return tag + '#' + el.id;
+      if (el.classList && el.classList.length) return tag + '.' + el.classList[0];
+      return tag;
+    }
+    (function walk(el, depth) {
+      if (nodes.length >= 400 || depth > 12) return;
+      for (var i = 0; i < el.children.length; i++) {
+        var child = el.children[i];
+        if (SKIP_TAGS[child.tagName]) continue;
+        if (child.id && /^anim-cli-/.test(child.id)) continue;
+        if (child.getAttribute && child.getAttribute('data-studio-frame') !== null) continue;
+        var hidden = false;
+        if (typeof child.checkVisibility === 'function') {
+          hidden = !child.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+        } else {
+          var cs = getComputedStyle(child);
+          hidden = cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0';
+        }
+        nodes.push({
+          selector: window.__anim.selectorOf(child),
+          label: labelOf(child),
+          text: ownText(child),
+          depth: depth,
+          hidden: hidden,
+        });
+        walk(child, depth + 1);
+      }
+    })(document.body, 0);
+    return nodes;
+  }
+
+  var highlightTimer = null;
+  var highlightPrev = null;
+  /** A temporary outline for layers-row hover (the pick-hover pattern, self-clearing). */
+  function highlightSelector(selector) {
+    if (highlightPrev) {
+      highlightPrev.el.style.outline = highlightPrev.outline;
+      highlightPrev.el.style.outlineOffset = highlightPrev.offset;
+      highlightPrev = null;
+    }
+    if (highlightTimer) clearTimeout(highlightTimer);
+    if (!selector) return;
+    var el = null;
+    try { el = document.querySelector(selector); } catch (err) { el = null; }
+    if (!el || el === document.documentElement || el === document.body) return;
+    highlightPrev = { el: el, outline: el.style.outline, offset: el.style.outlineOffset };
+    el.style.outline = '2px dashed #7DD3FC';
+    el.style.outlineOffset = '1px';
+    highlightTimer = setTimeout(function () {
+      if (highlightPrev) {
+        highlightPrev.el.style.outline = highlightPrev.outline;
+        highlightPrev.el.style.outlineOffset = highlightPrev.offset;
+        highlightPrev = null;
+      }
+    }, 700);
+  }
+
+  /** The selectable elements under a point, top of the paint order first, with the studio's own
+   *  chrome (selection frame) and the runtime's overlays (cursor, spotlight, subtitles) removed. */
+  function stackAt(x, y) {
+    var all = document.elementsFromPoint(x, y);
+    var out = [];
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (!el || el === document.documentElement || el === document.body) continue;
+      if (el.id && /^anim-cli-/.test(el.id)) continue;
+      if (el.getAttribute && el.getAttribute('data-studio-frame') !== null) continue;
+      if (el.closest && el.closest('[data-studio-frame]')) continue;
+      out.push(el);
+    }
+    return out;
+  }
+
   function onDown(e) {
     if (!manipulating || picking || gesture) return;
+    // Ctrl/Cmd+click cycles the elements stacked under the pointer -- checked BEFORE the frame
+    // handling below, because the selection frame itself covers the stack (the exact case the
+    // cycle exists for: reaching the box behind the selected one).
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault(); e.stopPropagation();
+      var stack = stackAt(e.clientX, e.clientY);
+      if (stack.length) {
+        var at = sel ? stack.indexOf(sel.el) : -1;
+        var next = stack[(at + 1) % stack.length];
+        if (next) select(next);
+      }
+      return;
+    }
     var from = targetFromEvent(e);
     if (!from) {
       // Grabbing the cursor glyph: it is pointer-events:none, so we hit-test its box ourselves.
@@ -427,6 +541,10 @@
   document.addEventListener('mousemove', onMove, true);
   document.addEventListener('click', onPickClick, true);
   document.addEventListener('keydown', onKey, true);
+  // Ctrl+click IS right-click on macOS: without this, every stack cycle opens the context menu.
+  document.addEventListener('contextmenu', function (e) {
+    if (manipulating && (e.ctrlKey || picking)) e.preventDefault();
+  }, true);
 
   // The frame must follow window resizes and stay glued to its element.
   window.addEventListener('resize', showFrameIfSelected);
@@ -460,6 +578,17 @@
       setPick(!!d.enable);
     } else if (d.type === 'manipulate') {
       setManipulate(d.enable, d.mode);
+    } else if (d.type === 'layers') {
+      post('layers-tree', { nodes: buildLayers() });
+    } else if (d.type === 'highlight') {
+      highlightSelector(typeof d.selector === 'string' ? d.selector : null);
+    } else if (d.type === 'select') {
+      // Selection from the layers panel: same frame, same gestures as a canvas click.
+      if (!manipulating) setManipulate(true, manipMode);
+      var target = null;
+      try { target = document.querySelector(String(d.selector || '')); } catch (err) { target = null; }
+      if (target && target !== document.documentElement && target !== document.body) select(target);
+      else post('deselected');
     }
   });
 
