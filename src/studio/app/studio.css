@@ -307,6 +307,19 @@ select.mini { font: 600 11px/1 var(--mono); background: var(--panel2); }
 .choice b { display: block; font-size: 14.5px; margin-bottom: 3px; }
 .choice span { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
 
+/* ---------- inline ask (the drag offer) ---------- */
+.ask {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 12px 14px;
+  font-size: 13px; max-width: 520px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .5);
+  animation: toast-in .18s ease-out;
+}
+.ask-q { color: var(--ink); font-weight: 600; margin-right: 4px; }
+.ask .btn-sm { padding: 6px 11px; font-size: 12.5px; border-radius: 7px; }
+.ask .btn-ghost { background: transparent; }
+
 /* ---------- toasts ---------- */
 #toasts { position: fixed; right: 16px; bottom: 16px; z-index: 50; display: flex; flex-direction: column; gap: 8px; }
 .toast {

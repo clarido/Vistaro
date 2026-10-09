@@ -190,6 +190,9 @@
       baseTransform: el.style.transform || '',
     };
     placeFrame(el.getBoundingClientRect());
+    // deselect() hid the frame; selecting must show it again -- waiting for the next mousemove
+    // left the frame invisible after programmatic selections (layers clicks, reload re-clicks).
+    if (frame) frame.root.style.display = '';
     post('selected', {
       selector: selector,
       tag: sel.tag,

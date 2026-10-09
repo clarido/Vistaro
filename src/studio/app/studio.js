@@ -307,10 +307,51 @@
     var a = steps()[S.selected]?.action;
     return a === 'click' || a === 'focus' || a === 'type' || a === 'highlight' || a === 'hover';
   }
+  /** A drag with no animate step selected: the offer instead of the refusal. */
+  function offerAnimate(selector, what) {
+    // Convert names a real step or is not offered: a layers click or a shrunken timeline can
+    // leave no rail selection, and 'Convert (nothing)' was a dead button that threw.
+    var anchor = (S.selected >= 0 && steps()[S.selected]) ? steps()[S.selected] : null;
+    var options = [];
+    if (anchor) {
+      options.push({ label: 'Convert \u201c' + (anchor.id || anchor.action) + '\u201d to animate', act: function () {
+        var st = steps()[S.selected];
+        if (!st) return; // the rail changed under the bar; the dismissal below usually prevents this
+        st.action = 'animate';
+        if (!st.target && selector) st.target = selector;
+        st.to = Object.assign({}, st.to || {});
+        markDirty();
+        renderSteps(); renderInspector(); renderRaw();
+        toast('step converted to animate \u2014 drag again to author its motion');
+      } });
+    }
+    options.push({ label: 'New animate step \u2192 ' + (selector || 'this element'), act: function () {
+      if (!Array.isArray(S.raw.steps)) S.raw.steps = [];
+      // Mid-list insertion derives its time from the anchor step, not the last step: the
+      // timeline stays ordered instead of planting last+1s in the middle.
+      var step = {
+        id: suggestedId(),
+        time: bumpTime(anchor ? anchor.time : lastStepTime()),
+        action: 'animate',
+      };
+      if (selector) step.target = selector;
+      var at = anchor ? S.selected + 1 : steps().length;
+      S.raw.steps.splice(at, 0, step);
+      markDirty();
+      select(at);
+      toast('animate step added \u2014 drag again to author its motion');
+    } });
+    askInline('No animate step selected \u2014 a drag ' + what + '. Where should it go?', options);
+  }
+  function lastStepTime() {
+    var list = steps();
+    return list.length ? list[list.length - 1].time : 0;
+  }
+
   /** Drags write increments onto the step's `to` (the preview showed the to-state already). */
   function applyMotionDelta(dx, dy) {
     if (!isAnimateStep()) {
-      toast('select an animate step first \u2014 drags author its motion (to.x/to.y)');
+      offerAnimate(S.selectedInfo && S.selectedInfo.selector, 'moves the element (to.x/to.y)');
       return;
     }
     var st = steps()[S.selected];
@@ -322,7 +363,7 @@
   }
   function applyMotionScale(ratio) {
     if (!isAnimateStep()) {
-      toast('select an animate step first \u2014 corner drags author its scale (to.scale)');
+      offerAnimate(S.selectedInfo && S.selectedInfo.selector, 'scales the element (to.scale)');
       return;
     }
     var st = steps()[S.selected];
@@ -536,6 +577,7 @@
 
   function select(i, seek) {
     S.selected = i;
+    dismissAsk(); // an open offer names the previously selected step; a new selection voids it
     renderSteps();
     renderInspector();
     renderRaw();
@@ -1452,6 +1494,46 @@
     if (els.scenario.value && els.scenario.value !== PROJECT) {
       location.search = '?project=' + encodeURIComponent(els.scenario.value);
     }
+  });
+
+  // ---------------------------------------------------------------- inline ask
+  var askBar = null;
+  function askInline(question, options) {
+    dismissAsk();
+    askBar = document.createElement('div');
+    askBar.className = 'ask';
+    askBar.setAttribute('role', 'dialog');
+    askBar.setAttribute('aria-label', question);
+    var q = document.createElement('span');
+    q.className = 'ask-q';
+    q.textContent = question;
+    askBar.appendChild(q);
+    options.forEach(function (opt) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-sm';
+      b.textContent = opt.label;
+      b.addEventListener('click', function () { dismissAsk(); opt.act(); });
+      askBar.appendChild(b);
+    });
+    var no = document.createElement('button');
+    no.type = 'button';
+    no.className = 'btn btn-ghost btn-sm';
+    no.textContent = 'Ignore';
+    no.addEventListener('click', dismissAsk);
+    askBar.appendChild(no);
+    els.toasts.appendChild(askBar);
+    var first = askBar.querySelector('button');
+    if (first) first.focus();
+  }
+  function dismissAsk() {
+    if (askBar) { askBar.remove(); askBar = null; }
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !askBar) return;
+    var tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return; // the field's Esc is its own
+    dismissAsk();
   });
 
   // ---------------------------------------------------------------- toasts

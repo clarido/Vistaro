@@ -450,6 +450,26 @@ test('studio picker: scenario stories on one screen group under the same dir', a
     assert.ok(stories.some((p: { configName: string; current: boolean }) => p.configName === 'anim.config.json' && p.current), 'the default is flagged current');
 });
 
+test('studio picker: an outside boot lists scenario stories that actually load by id', async () => {
+    // Self-sufficient on purpose (the earlier test writes the same bytes): the fixture lives
+    // outside the repo root, so the story reaches the registry only through the outside-tree
+    // merge -- its id must resolve to the real timeline, not the blank-concept fallback of a
+    // mis-joined config path.
+    fs.mkdirSync(path.join(work, 'demo', 'scenarios'), { recursive: true });
+    fs.writeFileSync(path.join(work, 'demo', 'scenarios', 'short.json'), JSON.stringify({
+        meta: { title: 'A shorter story', locale: 'en' },
+        steps: [{ id: 'one', time: '0s', action: 'click', target: '#btn' }],
+    }, null, 2) + '\n');
+    const list = await (await fetch(server.url + '/api/projects')).json();
+    const story = list.projects.find((p: { configName: string }) => p.configName === 'short.json');
+    assert.ok(story, 'the scenario story is listed');
+    const res = await fetch(server.url + '/api/timeline?project=' + encodeURIComponent(story.id));
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.exists, true, 'the story timeline loads (not the concept-flow fallback)');
+    assert.equal(body.raw.steps.length, 1, 'it is short.json, one step');
+});
+
 test('studio stacking: Ctrl+click cycles the elements under the pointer, Esc walks to the parent', { skip }, async () => {
     const browser = await chromium.launch();
     try {
@@ -559,6 +579,85 @@ test('studio layers panel: the tree posts, hover highlights, and a row click sel
         assert.equal(await page.evaluate(`(function () { var el = document.querySelector('#layers-probe-box'); return el.style.outline.indexOf('dashed') !== -1; })()`), true, 'hover outline applied');
         await page.waitForTimeout(900);
         assert.equal(await page.evaluate(`(function () { var el = document.querySelector('#layers-probe-box'); return el.style.outline.indexOf('dashed') !== -1; })()`), false, 'and it self-clears');
+        assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+    }
+});
+
+test('studio drag offer: a drag with no animate step offers convert-or-create, then authors', { skip }, async () => {
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        const errors: string[] = [];
+        page.on("pageerror", (e) => errors.push(String(e)));
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        await page.waitForTimeout(700);
+
+        // A click step selected + a canvas drag -> the offer bar with three choices.
+        await page.locator("#steps .step").nth(1).click();
+        await page.waitForTimeout(500);
+        await page.frameLocator('#preview').locator('#btn').click();
+        await page.waitForTimeout(400);
+        let fb = await page.frameLocator("#preview").locator("[data-studio-frame] > div:first-child").boundingBox();
+        await page.mouse.move(fb!.x + fb!.width / 2, fb!.y + fb!.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(fb!.x + fb!.width / 2 + 50, fb!.y + fb!.height / 2 + 25, { steps: 5 });
+        await page.mouse.up();
+        await page.waitForTimeout(400);
+        assert.equal(await page.locator('.ask').count(), 1, 'the offer bar appears');
+        const options = await page.locator('.ask button').allTextContents();
+        assert.equal(options.length, 3, 'convert / create / ignore');
+        assert.match(options[0]!, /Convert/, 'the convert option names the selected step');
+        assert.match(options[1]!, /New animate step/, 'the create option names the element');
+
+        // Create: a new animate step targeting the dragged element is inserted and selected.
+        await page.locator('.ask button', { hasText: 'New animate step' }).click();
+        await page.waitForTimeout(900); // the live reload fires ~450ms later and deselects the canvas
+        assert.equal(await page.locator('#steps .step').count(), 10, 'the step was added');
+        const act = await page.evaluate("(function () { var el = document.querySelector('#steps .step.is-selected .act'); return el ? el.textContent : 'none'; })()");
+        assert.equal(act, 'animate', 'the new step is selected');
+
+        // The SAME gesture now authors: drag again and to.x/to.y carry the delta.
+        await page.frameLocator('#preview').locator('#btn').click();
+        await page.waitForTimeout(400);
+        fb = await page.frameLocator("#preview").locator("[data-studio-frame] > div:first-child").boundingBox();
+        const transform = await page.evaluate("document.getElementById('preview').style.transform || 'scale(1)'") as string;
+        const fit = Number(/scale\(([\d.]+)\)/.exec(transform)?.[1] ?? 1) || 1;
+        await page.mouse.move(fb!.x + fb!.width / 2, fb!.y + fb!.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(fb!.x + fb!.width / 2 + 60, fb!.y + fb!.height / 2 + 30, { steps: 5 });
+        await page.mouse.up();
+        await page.waitForTimeout(500);
+        await page.locator(".tab[data-tab='raw']").click();
+        const raw = JSON.parse(await page.locator('#raw-text').inputValue());
+        assert.equal(raw.action, 'animate');
+        assert.equal(raw.target, '#btn', 'the offer carried the dragged element as the target');
+        assert.ok(Math.abs(raw.to.x - Math.round(60 / fit)) <= 4 && Math.abs(raw.to.y - Math.round(30 / fit)) <= 4,
+            `to.x/to.y carry the authored delta (got ${raw.to.x}/${raw.to.y}, want ~${Math.round(60 / fit)}/${Math.round(30 / fit)})`);
+
+        // Convert: a wait step with no target ADOPTS the dragged selector, keeps its existing
+        // to, and the drag then authors onto it. This is the path the unguarded Convert threw on.
+        await page.locator('.tab[data-tab=\'inspector\']').click();
+        await page.locator('#steps .step').nth(3).click(); // the type step shifted right when the new animate step was inserted at 2
+        await page.waitForTimeout(300);
+        await page.evaluate("var sel = document.querySelector('#fields .field select'); sel.value = 'wait'; sel.dispatchEvent(new Event('change', { bubbles: true }))");
+        await page.waitForTimeout(700); // live reload
+        await page.frameLocator('#preview').locator('#btn').click();
+        await page.waitForTimeout(300);
+        fb = await page.frameLocator("#preview").locator("[data-studio-frame] > div:first-child").boundingBox();
+        await page.mouse.move(fb!.x + fb!.width / 2, fb!.y + fb!.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(fb!.x + fb!.width / 2 + 40, fb!.y + fb!.height / 2 + 20, { steps: 5 });
+        await page.mouse.up();
+        await page.waitForTimeout(400);
+        assert.equal(await page.locator('.ask').count(), 1, 'a second offer replaces the spent one');
+        await page.locator('.ask button', { hasText: 'Convert' }).click();
+        await page.waitForTimeout(400);
+        await page.locator(".tab[data-tab='raw']").click();
+        const converted = JSON.parse(await page.locator('#raw-text').inputValue());
+        assert.equal(converted.action, 'animate', 'the step converted without throwing (the unguarded P2 crash)');
+        assert.equal(converted.target, '#field', 'a step that already has a target keeps it (adoption is only for target-less steps)');
         assert.deepEqual(errors, []);
     } finally {
         await browser.close();
