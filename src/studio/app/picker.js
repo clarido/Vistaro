@@ -5,7 +5,11 @@
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var els = { filter: $('filter'), groups: $('groups'), empty: $('empty') };
+  var els = {
+    filter: $('filter'), groups: $('groups'), empty: $('empty'),
+    'open-dir': $('open-dir'), 'open-overlay': $('open-overlay'), 'open-form': $('open-form'),
+    'open-path': $('open-path'), 'open-error': $('open-error'), 'open-cancel': $('open-cancel')
+  };
 
   var projects = [];
   var cursor = -1;   // index into the FLAT visible list (keyboard navigation)
@@ -139,6 +143,7 @@
 
   els.filter.addEventListener('input', function () { cursor = -1; render(); });
   document.addEventListener('keydown', function (e) {
+    if (!els['open-overlay'].hidden) return;   // the open-folder dialog owns the keyboard
     var tag = (e.target && e.target.tagName) || '';
     if (tag === 'INPUT' && e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return;
     if (e.key === 'ArrowDown') {
@@ -162,6 +167,46 @@
     document.getElementById('toasts').appendChild(t);
     setTimeout(function () { t.remove(); }, 5000);
   }
+
+  // ---------------------------------------------------------------- open a folder
+  // The picker's own scope is the workspace scan; this is the way in for a screen that lives
+  // anywhere else (the UI twin of `studio <dir>`). The server validates and registers it.
+  function openFolderShow() {
+    els['open-overlay'].hidden = false;
+    els['open-error'].hidden = true;
+    els['open-path'].value = '';
+    cursor = -1;   // a card cursor from before the dialog must not survive it (Enter would open that card)
+    paintCursor();
+    // The Browse button and its caveat only matter when the OS dialog is available at all.
+    var browseable = !!window.showDirectoryPicker;
+    var browseBtn = document.getElementById('open-browse');
+    var note = document.getElementById('open-browse-note');
+    if (browseBtn) browseBtn.hidden = !browseable;
+    if (note) note.hidden = !browseable;
+    els['open-path'].focus();
+  }
+  function openFolderClose() { els['open-overlay'].hidden = true; els.filter.focus(); }
+  els['open-dir'].addEventListener('click', openFolderShow);
+  els['open-cancel'].addEventListener('click', openFolderClose);
+  els['open-overlay'].addEventListener('click', function (e) { if (e.target === els['open-overlay']) openFolderClose(); });
+  els['open-path'].addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); openFolderClose(); } });
+  els['open-form'].addEventListener('submit', function (e) {
+    e.preventDefault();
+    var p = els['open-path'].value.trim();
+    if (!p) { els['open-path'].focus(); return; }
+    els['open-error'].hidden = true;
+    fetch('/api/open', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: p }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (res.ok) { location.href = '/?project=' + encodeURIComponent(res.data.id); return; }
+        els['open-error'].textContent = res.data.error || 'could not open that directory';
+        els['open-error'].hidden = false;
+      })
+      .catch(function (err) {
+        els['open-error'].textContent = 'could not open: ' + err;
+        els['open-error'].hidden = false;
+      });
+  });
 
   fetchProjects();
   els.filter.focus();

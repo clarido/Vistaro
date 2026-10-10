@@ -15,6 +15,7 @@
   <span class="dir">What are we making?</span>
   <span class="spacer"></span>
   <input id="filter" type="search" placeholder="Filter&#8230; (title, directory, story)" aria-label="Filter projects" autocomplete="off">
+  <button id="open-dir" class="mini" type="button" title="Open a directory outside this workspace (it must contain an index.html screen)">open folder&hellip;</button>
 </header>
 
 <main id="picker-main">
@@ -22,7 +23,25 @@
   <p id="empty" class="hint" hidden>No project matches. The picker lists every directory with a screen + timeline, their scenario stories, and what the catalogs name.</p>
 </main>
 
+<div id="open-overlay" class="overlay" hidden role="dialog" aria-modal="true" aria-label="Open a folder">
+  <div class="card">
+    <h2>Open a folder</h2>
+    <p class="hint">Any directory with an <code>index.html</code> screen &mdash; absolute, or relative to this workspace. It opens in the editor and joins the picker; nothing is copied or moved.</p>
+    <form id="open-form">
+      <input id="open-path" type="text" placeholder="/path/to/project" autocomplete="off" spellcheck="false" aria-label="Directory path">
+      <button type="button" id="open-browse" class="btn" data-browse-for="open-path" hidden>Browse&hellip;</button>
+      <p id="open-error" class="hint open-error" hidden></p>
+      <p class="hint" id="open-browse-note" hidden>The dialog can only hand over the folder's name, not its full path &mdash; the field above is prefilled; complete it if needed.</p>
+    <div class="open-actions">
+        <button type="button" id="open-cancel" class="btn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Open</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="toasts" aria-live="polite"></div>
+<script src="browse.js"></script>
 <script src="picker.js"></script>
 </body>
 </html>

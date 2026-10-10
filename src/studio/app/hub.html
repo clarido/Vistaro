@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vistaro — show. don't tell.</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="studio.css">
+<link rel="stylesheet" href="hub.css">
+</head>
+<body class="hub">
+
+<header id="top">
+  <h1 class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>vistaro</h1>
+  <span class="dir">Show. Don&rsquo;t Tell.</span>
+  <span class="spacer"></span>
+  <a class="mini" href="/agents.md">the manual&hellip;</a>
+</header>
+
+<main id="hub-main">
+
+  <section class="panel">
+    <h2>You describe the demo. Your agent builds it.</h2>
+    <p class="lead">Open Claude Code, Codex, Antigravity &mdash; any coding agent &mdash; <b>in your own project</b>, then paste this:</p>
+    <div class="codeblock">
+      <div class="cb-bar"><span class="cb-dot"></span>the ask &middot; paste into your agent
+        <button class="cb-copy" id="copy-ask" type="button">copy</button>
+      </div>
+<pre id="the-ask">Create a product demo of my site.
+Use the vistaro CLI to generate everything (video, guide, reel, tour).
+`vistaro --help` prints its manual: the workflow, the timeline schema
+and every rule that is not guessable. Work in this project, and finish
+with `vistaro verify &lt;dir&gt;` so the demo is audited.</pre>
+    </div>
+    <p class="hint">Everything runs locally on this machine &mdash; no key, no signup. The manual reaches your agent through the command itself, so it always matches the version you have. It is also served right here, at <a href="/agents.md">/agents.md</a>, for an agent that can browse but cannot read your disk.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Then review and edit what it built</h2>
+    <p class="lead">The demo your agent writes is two text files in your project: a screen (<code>index.html</code>) and a timeline (<code>anim.config.json</code>). Open them here to watch the demo step by step, fix anything, and re-export in place:</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="/">Open the studio</a>
+      <button class="btn" id="open-dir" type="button">Open a folder&hellip;</button>
+    </div>
+    <p class="hint">The studio lists every demo it can see &mdash; the folder you open and everything beside it. It edits the files directly; git keeps the history.</p>
+  </section>
+
+</main>
+
+<div id="open-overlay" class="overlay" hidden role="dialog" aria-modal="true" aria-label="Open a folder">
+  <div class="card">
+    <h2>Open a folder</h2>
+    <p class="hint">Any directory with an <code>index.html</code> screen &mdash; absolute, or relative to this workspace. It opens in the editor and joins the picker; nothing is copied or moved.</p>
+    <form id="open-form">
+      <input id="open-path" type="text" placeholder="/path/to/project" autocomplete="off" spellcheck="false" aria-label="Directory path">
+      <button type="button" id="open-browse" class="btn" data-browse-for="open-path" hidden>Browse&hellip;</button>
+      <p id="open-error" class="hint open-error" hidden></p>
+      <div class="open-actions">
+        <button type="button" id="open-cancel" class="btn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Open</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+<script src="browse.js"></script>
+<script src="hub.js"></script>
+</body>
+</html>

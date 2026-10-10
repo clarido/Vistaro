@@ -2,6 +2,7 @@ import * as http from 'http';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { spawn } from 'child_process';
 import { parseTimeline, validateTimeline, formatIssue, loadTimeline, hasErrors, Issue, resolveConfigPath, Timeline, applyDevice } from '../engine/schema';
 import { buildTourPage } from '../engine/inject';
 import { localizedStringsFiles, readStrings, writeStrings, stringsPathFor } from '../engine/strings';
@@ -119,7 +120,7 @@ export function scanProjects(root: string): ScannedProject[] {
             const locales = new Set<string>();
             try {
                 for (const f of fs.readdirSync(path.dirname(configFile))) {
-                    const m = /^(?:[\\w-]+\.)?strings\.([\\w-]+)\.json$/.exec(f);
+                    const m = /^(?:[\w-]+\.)?strings\.([\w-]+)\.json$/.exec(f);
                     if (m) locales.add(m[1]);
                 }
             } catch { /* ignore */ }
@@ -185,6 +186,8 @@ export interface StudioOptions {
     /** The preview iframe's authored viewport (the recording size the mockup is written for). */
     width?: string;
     height?: string;
+    /** Boot as the `vistaro` front door: announce + open /hub (the ask, the manual, the doors). */
+    hub?: boolean;
 }
 
 const APP_DIR = path.resolve(__dirname, '../studio/app');
@@ -524,18 +527,35 @@ function insertStyleAttr(openTag: string, patch: Record<string, string>): string
     return openTag.slice(0, at) + ` style="${serialized}"` + openTag.slice(at);
 }
 
+/** The workspace the studio indexes at boot: the package directory when a scan of it finds at
+ *  least one screen (in the repo the package dir IS the workspace), else the caller's working
+ *  directory. An installed CLI's package dir ships no screens, so a bare `vistaro` that indexed
+ *  it would find nothing and /api/open would resolve "relative to this workspace" inside the
+ *  global package -- the cwd is what that hint promises. Pure: the caller passes both roots.
+ *  In-repo runs are unchanged, because the package dir scans to its demos and wins. */
+export function pickWorkspaceRoot(packageDir: string, cwd: string): string {
+    return scanProjects(packageDir).length > 0 ? packageDir : cwd;
+}
+
 export async function studioCommand(dir: string | undefined, options: StudioOptions = {}): Promise<void> {
-    const root = path.resolve(__dirname, '../..');
+    const root = pickWorkspaceRoot(path.resolve(__dirname, '../..'), process.cwd());
     // The registry is the sandbox: requests name projects by id, ids exist only for scanned (or
-    // explicitly opened) dirs+configs, and no path from a request ever reaches the filesystem.
+    // explicitly opened) dirs+configs, and no path from a request ever reaches the filesystem
+    // (the one exception, POST /api/open, only ever REGISTERS a validated directory).
     type Registered = ScannedProject & { dirAbs: string };
     const registry = new Map<string, Registered>();
+    // Trees beyond the workspace root: the boot directory when `studio /outside/path` opened
+    // one, plus everything POST /api/open adds. Scanned per request and merged by id.
+    const outsideRoots = new Set<string>();
     const register = (dirAbs: string, configFile: string): Registered => {
         const raw = (() => { try { return JSON.parse(fs.readFileSync(configFile, 'utf8')); } catch { return null; } })();
         const meta = (raw && typeof raw === 'object' && raw.meta && typeof raw.meta === 'object') ? raw.meta : {};
+        // Outside the workspace the relative dir is a "../../.."-style string; report the
+        // absolute path there, the same dir the /api/projects merge stamps for outside roots.
+        const rel = path.relative(root, dirAbs);
         const entry: Registered = {
             id: crypto.createHash('sha256').update(path.resolve(configFile)).digest('hex').slice(0, 10),
-            dir: path.relative(root, dirAbs),
+            dir: rel.startsWith('..') ? dirAbs : rel,
             dirAbs,
             configFile,
             configName: path.basename(configFile),
@@ -568,6 +588,7 @@ export async function studioCommand(dir: string | undefined, options: StudioOpti
         const configFile = options.config ? path.resolve(options.config) : resolveConfigPath(absDir);
         if (options.config && !fs.existsSync(configFile)) throw new Error(`timeline not found: ${displayPath(configFile)}`);
         defaultProjectId = register(absDir, configFile).id;
+        if (path.relative(root, absDir).startsWith('..')) outsideRoots.add(absDir);
     }
     const previewWidth = Math.max(320, Math.min(3840, Math.round(Number(options.width ?? 1280)) || 1280));
     const previewHeight = Math.max(240, Math.min(2160, Math.round(Number(options.height ?? 720)) || 720));
@@ -579,6 +600,20 @@ export async function studioCommand(dir: string | undefined, options: StudioOpti
             else json(res, 500, { error: e?.message ?? String(e) });
         });
     });
+
+    /** "Open a local web editor" now means it: when stdout is a terminal (a person typed
+     *  `vistaro`), open the browser at the front door. Under pipes -- the test suite, build-all
+     *  style wrappers -- the printed URLs above are the interface, and no window pops. */
+    function openBrowser(url: string): void {
+        if (!process.stdout.isTTY) return;
+        const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
+        const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
+        try {
+            const child = spawn(cmd, args, { stdio: 'ignore', detached: true });
+            child.on('error', () => undefined); // the URL is printed above either way
+            child.unref();
+        } catch { /* same: the printed URL is the fallback */ }
+    }
 
     /** {device, locale} off a JSON body, validated to the shapes the CLI accepts. */
     function variantOf(body: any): { device?: 'desktop' | 'mobile'; locale?: string } {
@@ -613,30 +648,58 @@ export async function studioCommand(dir: string | undefined, options: StudioOpti
             serveAppFile(res, url.searchParams.get('project') ? 'index.html' : 'picker.html');
             return;
         }
-        if (segments.length === 1 && ['studio.css', 'studio.js', 'presets.json', 'picker.css', 'picker.js'].includes(segments[0])) {
+        if (segments.length === 1 && segments[0] === 'hub') {
+            // The landing page a bare `vistaro` opens: the ask for the user's agent, the doors
+            // into the picker and the editor. Same server, one more fixed-name page.
+            serveAppFile(res, 'hub.html');
+            return;
+        }
+        if (segments.length === 1 && ['studio.css', 'studio.js', 'presets.json', 'picker.css', 'picker.js', 'browse.js', 'hub.css', 'hub.js'].includes(segments[0])) {
             serveAppFile(res, segments[0]);
+            return;
+        }
+        if (segments.length === 1 && segments[0] === 'agents.md') {
+            // The manual, served where an agent (or a human) can fetch it: the page links it,
+            // and a browser-only agent reads the workflow from the tool itself. The route is
+            // the package-root AGENTS.md verbatim -- the same file the repo ships, so the copy
+            // a friend's agent reads cannot drift from the CLI beside it.
+            const file = path.resolve(__dirname, '../../AGENTS.md');
+            try {
+                const data = fs.readFileSync(file);
+                res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store' });
+                res.end(data);
+            } catch {
+                json(res, 404, { error: 'manual not found (AGENTS.md missing beside the package)' });
+            }
             return;
         }
 
         if (segments[0] === 'api' && segments[1] === 'projects' && segments.length === 2 && req.method === 'GET') {
-            // Always a fresh scan (the picker tells the truth about new scenario files). When the
-            // opened project lives OUTSIDE the workspace (studio /some/other/path), its own tree
-            // is scanned too and merged by id, so it and its sibling stories are pickable.
-            // Everything listed must also be REGISTERED, or the picker offers cards whose
-            // routes 404 (a scenario created after boot; a sibling of an opened outside dir).
-            // Registering from the server's own scans widens nothing: the set stays "scanned
-            // or explicitly opened".
+            // Always a fresh scan (the picker tells the truth about new scenario files). Outside
+            // trees (the boot directory, anything /api/open added) are scanned too and merged by
+            // id, so an opened project and its sibling stories are pickable. Everything listed
+            // must also be REGISTERED, or the picker offers cards whose routes 404 (a scenario
+            // created after boot; a sibling of an opened outside dir). Registering from the
+            // server's own scans widens nothing: the set stays "scanned or explicitly opened".
+            // The registry keeps each story's own absolute config path: a basename re-join
+            // pointed a nested scenario (demo/scenarios/x.json) at <root>/x.json, and opening
+            // it fell through to the blank-concept flow instead of the story.
             const merged = new Map<string, ScannedProject>();
             for (const pr of scanProjects(root)) {
                 merged.set(pr.id, pr);
                 if (!registry.has(pr.id)) registry.set(pr.id, { ...pr, dirAbs: path.resolve(root, pr.dir) });
             }
-            const boot = defaultProjectId ? registry.get(defaultProjectId) : undefined;
-            if (boot && path.relative(root, boot.dirAbs).startsWith('..')) {
-                for (const pr of scanProjects(boot.dirAbs)) {
-                    const entry = { ...pr, dir: boot.dirAbs, configFile: path.join(boot.dirAbs, path.basename(pr.configFile)) };
-                    merged.set(pr.id, entry);
-                    if (!registry.has(pr.id)) registry.set(pr.id, { ...entry, dirAbs: path.resolve(boot.dirAbs) });
+            for (const outside of outsideRoots) {
+                for (const pr of scanProjects(outside)) {
+                    // dirAbs resolves the scan-relative dir against THIS root -- a scenario story's
+                    // configFile sits under <screen>/scenarios/, and a dirname join there pointed
+                    // every route at a dir with no index.html (500 on /preview). dir carries the
+                    // same absolute path: an outside project has no repo-relative home to display,
+                    // and the scenario switcher groups projects by dir equality, so screens under
+                    // one root must stay distinct from each other and from other roots.
+                    const dirAbs = path.resolve(outside, pr.dir);
+                    merged.set(pr.id, { ...pr, dir: dirAbs });
+                    if (!registry.has(pr.id)) registry.set(pr.id, { ...pr, dir: dirAbs, dirAbs });
                 }
             }
             const currentId = url.searchParams.get('project') ?? defaultProjectId;
@@ -644,8 +707,32 @@ export async function studioCommand(dir: string | undefined, options: StudioOpti
             return;
         }
 
+        if (segments[0] === 'api' && segments[1] === 'open' && segments.length === 2 && req.method === 'POST') {
+            // The CLI's directory argument over HTTP -- the picker's "open a folder". It is the
+            // one route where a request-borne path reaches the filesystem, and it only ever
+            // REGISTERS a validated directory (the same checks `studio <dir>` runs); every
+            // read and write below still goes through registry ids alone.
+            const body = await readJsonBody(req);
+            const rawPath = typeof body?.path === 'string' ? body.path.trim() : '';
+            if (!rawPath) { json(res, 400, { error: 'path is required (absolute, or relative to the workspace)' }); return; }
+            const abs = path.resolve(root, rawPath);
+            if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) {
+                json(res, 404, { error: `directory not found: ${displayPath(abs)}` });
+                return;
+            }
+            if (!fs.existsSync(path.join(abs, 'index.html'))) {
+                json(res, 400, { error: `no index.html in ${displayPath(abs)}: the studio edits a screen + its timeline, so the mockup comes first` });
+                return;
+            }
+            const entry = register(abs, resolveConfigPath(abs));
+            if (path.relative(root, abs).startsWith('..')) outsideRoots.add(abs);
+            json(res, 200, { id: entry.id, dir: entry.dir, title: entry.title });
+            return;
+        }
+
         // Every stateful route below resolves its project THROUGH THE REGISTRY ONLY: an unknown
-        // id is a 404 and no request-borne path ever reaches the filesystem.
+        // id is a 404 and, apart from /api/open's registration above, no request-borne path
+        // ever reaches the filesystem.
         const projectParam = url.searchParams.get('project');
         const projectEntry = registry.get(projectParam || defaultProjectId || '');
         if (!projectEntry) {
@@ -933,6 +1020,15 @@ export async function studioCommand(dir: string | undefined, options: StudioOpti
         json(res, 404, { error: 'not found' });
     }
 
+    // A Ctrl-C should close the socket rather than leave the port limping in TIME_WAIT half-open.
+    // Registered BEFORE the boot await: that promise resolves only on the error paths, so a
+    // handler placed after it never ran on the success path this exists for (Ctrl-C killed by
+    // default disposition and server.close never fired).
+    process.on('SIGINT', () => {
+        server.close(() => process.exit(0));
+        setTimeout(() => process.exit(0), 1000).unref();
+    });
+
     await new Promise<void>((resolve) => {
         server.on('error', (e) => {
             console.error(`Error: could not listen on 127.0.0.1:${options.port ?? 0}: ${e.message}`);
@@ -951,14 +1047,16 @@ export async function studioCommand(dir: string | undefined, options: StudioOpti
             const port = typeof addr === 'object' && addr ? addr.port : portNumber;
             const opened = defaultProjectId ? registry.get(defaultProjectId) : null;
             console.log(`studio listening on http://127.0.0.1:${port}${opened ? `  (editing ${displayPath(opened.dirAbs)}${opened.configName !== 'anim.config.json' ? `, ${opened.configName}` : ''})` : '  (project picker -- ' + registry.size + ' found)'}`);
+            if (options.hub) {
+                console.log(`vistaro hub at http://127.0.0.1:${port}/hub  -- the ask for your agent, the manual at /agents.md, the studio`);
+            }
             console.log('studio editing the timeline file directly -- save (⌘S) writes it; review in git; Ctrl-C to stop');
+            openBrowser(
+                options.hub
+                    ? `http://127.0.0.1:${port}/hub`
+                    : `http://127.0.0.1:${port}${defaultProjectId ? `/?project=${defaultProjectId}` : '/'}`
+            );
         });
-    });
-
-    // A Ctrl-C should close the socket rather than leave the port limping in TIME_WAIT half-open.
-    process.on('SIGINT', () => {
-        server.close(() => process.exit(0));
-        setTimeout(() => process.exit(0), 1000).unref();
     });
 
     // Never resolve: the listening server holds the process open, and cli.ts's drain watchdog

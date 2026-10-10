@@ -53,8 +53,8 @@ const PACKAGE = path.join(root, 'package.json');
 const DOCS: ReadonlyArray<string> = ['CLAUDE.md', 'AGENTS.md', 'docs/testing-discipline.md'];
 
 // Per spawned hook run. These windows name .githooks/claude/… and .githooks/pre-push, never
-// cli.ts, so spawn-bounds' KNOWN_SITES stays at 12 — the same classify-as-nothing rule as its
-// ffmpeg probes.
+// cli.ts, so they classify as nothing in spawn-bounds' KNOWN_SITES — the same
+// classify-as-nothing rule as its ffmpeg probes (the count there drifts; its list carries it).
 const HOOK_TIMEOUT_MS = 30000;
 
 type HookEntry = { matcher?: string; hooks?: Array<{ type?: string; command?: string }> };
@@ -224,7 +224,7 @@ const KNOWN_DOCS_REFS: ReadonlyArray<KnownRef> = [
     { token: 'help.catalog.json', at: 'help.catalog.json', why: 'AGENTS.md Catalog and build-all section' },
     { token: 'inject.ts', at: 'src/engine/inject.ts', why: 'AGENTS.md Layout: builds animated.html' },
     { token: 'jobs.js', at: 'saas/lib/jobs.js', why: 'discipline.md SaaS row: unit-tested by saas-jobs.test.ts' },
-    { token: 'learn.test.ts', at: 'test/learn.test.ts', why: 'discipline.md spawn-bounds row: one of the 12 CLI-spawn files' },
+    { token: 'learn.test.ts', at: 'test/learn.test.ts', why: 'discipline.md spawn-bounds row: one of the CLI-spawn files' },
     { token: 'media/ffmpeg.ts', at: 'src/media/ffmpeg.ts', why: 'AGENTS.md bounds note: FFMPEG_TIMEOUT_MS (10 min)' },
     { token: 'media/tts.ts', at: 'src/media/tts.ts', why: 'AGENTS.md bounds note: SAY_TIMEOUT_MS (60 s)' },
     { token: 'project.js', at: 'saas/lib/project.js', why: 'discipline.md known gaps: no dedicated unit test yet' },
@@ -249,7 +249,7 @@ const KNOWN_DOCS_REFS: ReadonlyArray<KnownRef> = [
     { token: 'src/media/', at: 'src/media', why: 'AGENTS.md Layout: ffmpeg, tts, vtt, chapters, contact sheet' },
     { token: 'src/tour/app/', at: 'src/tour/app', why: 'AGENTS.md Layout: the tour shell copied verbatim' },
     { token: 'stripe.js', at: 'saas/lib/stripe.js', why: 'discipline.md SaaS row: billing answers 501 without Stripe' },
-    { token: 'studio.test.ts', at: 'test/studio.test.ts', why: 'discipline.md spawn-bounds row: one of the 12 CLI-spawn files' },
+    { token: 'studio.test.ts', at: 'test/studio.test.ts', why: 'discipline.md spawn-bounds row: one of the CLI-spawn files' },
     { token: 'test/', at: 'test', why: 'scan-source.ts header: the runner glob, siblings of the canaries' },
     { token: 'test/assert-ran.ts', at: 'test/assert-ran.ts', why: 'discipline.md spawn-bounds row: the one shared spawn helper' },
     { token: 'test/browser.test.ts', at: 'test/browser.test.ts', why: 'discipline.md overflow-clip row: the behavioral pin at :1136-1145' },
@@ -272,13 +272,13 @@ const KNOWN_DOCS_REFS: ReadonlyArray<KnownRef> = [
     { token: 'test/saas-stripe.test.ts', at: 'test/saas-stripe.test.ts', why: 'discipline.md SaaS row' },
     { token: 'test/scan-source.ts', at: 'test/scan-source.ts', why: 'discipline.md rows: the shared comment-stripping reader' },
     { token: 'test/serial-suite.test.ts', at: 'test/serial-suite.test.ts', why: 'discipline.md serial-suite row' },
-    { token: 'test/spawn-bounds.test.ts', at: 'test/spawn-bounds.test.ts', why: 'discipline.md spawn-bounds row: the 12-site identity' },
+    { token: 'test/spawn-bounds.test.ts', at: 'test/spawn-bounds.test.ts', why: 'discipline.md spawn-bounds row: the site-list identity' },
     { token: 'test/spotlight-rect.test.ts', at: 'test/spotlight-rect.test.ts', why: 'discipline.md spotlight-rect row' },
     { token: 'test/src-async-spawn-bound.test.ts', at: 'test/src-async-spawn-bound.test.ts', why: 'discipline.md async-spawn row' },
     { token: 'test/src-spawn-bounds.test.ts', at: 'test/src-spawn-bounds.test.ts', why: 'discipline.md src-sync row' },
     { token: 'tour-bridge.js', at: 'src/engine/tour-bridge.js', why: 'AGENTS.md Layout: the message-driven tour scheduler' },
     { token: 'tour.catalog.json', at: 'tour.catalog.json', why: 'AGENTS.md Tours section' },
-    { token: 'verify.test.ts', at: 'test/verify.test.ts', why: 'discipline.md spawn-bounds row: one of the 12 CLI-spawn files' },
+    { token: 'verify.test.ts', at: 'test/verify.test.ts', why: 'discipline.md spawn-bounds row: one of the CLI-spawn files' },
     { token: 'zip.js', at: 'saas/lib/zip.js', why: 'discipline.md known gaps: no dedicated unit test yet' },
 ];
 

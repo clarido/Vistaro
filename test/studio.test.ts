@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, spawnSync, ChildProcess } from 'child_process';
 import { assertRan, CLI_TIMEOUT_MS, CliSpawnResult } from './assert-ran';
+import { scanProjects } from '../src/commands/studio';
 import { chromium } from 'playwright';
 
 const skip = process.env.SKIP_BROWSER === '1';
@@ -188,6 +189,65 @@ test('studio editor page: boots the step list, inspector and palette with no con
         assert.ok((await page.locator('.pal-item').count()) >= 10, 'presets render');
         assert.equal(await page.locator('#t-pos').textContent(), '2 / 9 \u00b7 1', 'transport synced after selection seek, with the authored time');
         assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+    }
+});
+
+test('studio editor page: the header links back to the project picker', { skip }, async () => {
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage();
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        const back = page.locator('#top a.back');
+        assert.equal(await back.count(), 1, 'the editor header carries one back link');
+        assert.equal(await back.getAttribute('href'), '/', 'it targets the picker route, dropping the project id');
+        await back.click();
+        await page.waitForURL(server.url + '/');
+        assert.equal(await page.locator('#picker-main').isVisible(), true, 'clicking it lands on the picker page');
+    } finally {
+        await browser.close();
+    }
+});
+
+test('studio quick-open: ⌘K switches projects from the keyboard, and the tab title names the project', { skip }, async () => {
+    // A second project with a distinct title, so the palette has somewhere to go. It lives
+    // beside the boot dir (outside the workspace), so it joins the index the way any outside
+    // folder does: through the open endpoint.
+    fs.cpSync(fixture, path.join(work, 'demo2'), { recursive: true });
+    const cfg = JSON.parse(fs.readFileSync(path.join(work, 'demo2', 'anim.config.json'), 'utf8'));
+    cfg.meta.title = 'Second fixture';
+    fs.writeFileSync(path.join(work, 'demo2', 'anim.config.json'), JSON.stringify(cfg, null, 2) + '\n');
+    const opened = await (await fetch(server.url + '/api/open', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: path.join(work, 'demo2') }),
+    })).json();
+    assert.match(String(opened.id), /^[0-9a-f]{10}$/, 'the second project registered');
+    const list = await (await fetch(server.url + '/api/projects')).json();
+    const target = list.projects.find((p: { id: string }) => p.id === opened.id);
+    assert.ok(target, 'the second project is listed');
+
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage();
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        assert.match(await page.title(), /Basic fixture/, 'the tab title names the open project');
+
+        const palette = page.locator('#quickopen');
+        // Control works everywhere (mac Chromium included): the chord listens for meta OR ctrl.
+        await page.keyboard.press('Control+k');
+        assert.equal(await palette.isVisible(), true, '⌘K opens the quick-open palette');
+        await page.waitForSelector('.qo-item', { state: 'visible' });
+        await page.keyboard.press('Escape');
+        assert.equal(await palette.isVisible(), false, 'Esc closes it');
+        await page.click('#qo-open');
+        assert.equal(await palette.isVisible(), true, 'the header button opens it too');
+        await page.waitForSelector('.qo-item', { state: 'visible' });
+        await page.fill('#qo-input', 'Second');
+        await page.waitForFunction("document.querySelectorAll('#qo-list .qo-item').length === 1");
+        await page.keyboard.press('Enter');
+        await page.waitForURL((url: URL) => url.searchParams.get('project') === target.id);
+        await page.waitForFunction("document.getElementById('dir') && document.getElementById('dir').textContent.indexOf('demo2') !== -1");
+        assert.match(await page.title(), /Second fixture/, 'the title follows the switch');
     } finally {
         await browser.close();
     }
@@ -434,6 +494,36 @@ test('studio picker: the projects index lists scenarios and locales, and the pro
     assert.equal(traversal.status, 404, 'path-shaped ids never reach the filesystem');
 });
 
+test('studio open endpoint: registers a directory the scan cannot see, joins the picker, refuses bad paths', async () => {
+    // A bare mockup with no anim.config.json: not scannable, but openable -- the editor scaffolds.
+    fs.mkdirSync(path.join(work, 'bare'));
+    fs.writeFileSync(path.join(work, 'bare', 'index.html'), '<!doctype html><html><body><div id="a">hi</div></body></html>');
+    const post = (body: unknown) => fetch(server.url + '/api/open', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const opened = await (await post({ path: path.join(work, 'bare') })).json();
+    assert.match(String(opened.id), /^[0-9a-f]{10}$/, 'an id comes back');
+    const tl = await (await fetch(server.url + '/api/timeline?project=' + encodeURIComponent(opened.id))).json();
+    assert.equal(tl.exists, false, 'the editor boots a config-less mockup into the concept flow');
+
+    // A directory WITH a screen + timeline joins the picker listing through the open.
+    fs.cpSync(fixture, path.join(work, 'side'), { recursive: true });
+    const side = await (await post({ path: path.join(work, 'side') })).json();
+    assert.match(String(side.id), /^[0-9a-f]{10}$/);
+    const list = await (await fetch(server.url + '/api/projects')).json();
+    assert.ok(list.projects.some((p: { id: string }) => p.id === side.id), 'an opened scannable dir is listed for the picker');
+
+    // Refusals carry the CLI's own words and statuses.
+    const missing = await post({ path: path.join(work, 'definitely-not') });
+    assert.equal(missing.status, 404);
+    assert.match(String((await missing.json()).error), /directory not found/);
+    const noMockup = await post({ path: work });
+    assert.equal(noMockup.status, 400);
+    assert.match(String((await noMockup.json()).error), /index\.html/);
+    const empty = await post({});
+    assert.equal(empty.status, 400);
+});
+
 test('studio picker: scenario stories on one screen group under the same dir', async () => {
     // The fixture has no scenarios/ -- make one, then the index must list it beside the default.
     const got = await (await fetch(server.url + '/api/timeline')).json();
@@ -468,6 +558,194 @@ test('studio picker: an outside boot lists scenario stories that actually load b
     const body = await res.json();
     assert.equal(body.exists, true, 'the story timeline loads (not the concept-flow fallback)');
     assert.equal(body.raw.steps.length, 1, 'it is short.json, one step');
+
+    // The story's routes resolve through its dirAbs, which must be the SCREEN -- the scenarios
+    // dir holds no index.html, so a dirname-of-config join reads a nonexistent path and 500s.
+    const preview = await fetch(server.url + '/preview?project=' + encodeURIComponent(story.id));
+    assert.equal(preview.status, 200, 'the story preview serves the screen through the right dirAbs');
+});
+
+test('studio picker: two screens under one opened outside root report distinct, correct dirs', async () => {
+    // The outside-tree merge used to stamp EVERY project under the root with the root itself:
+    // a nested screen's card showed the opened dir, and the scenario switcher (which groups
+    // projects by dir equality) offered unrelated screens as stories of one screen.
+    fs.cpSync(fixture, path.join(work, 'outer'), { recursive: true });
+    fs.cpSync(fixture, path.join(work, 'outer', 'inner'), { recursive: true });
+    const opened = await (await fetch(server.url + '/api/open', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: path.join(work, 'outer') }),
+    })).json();
+    assert.match(String(opened.id), /^[0-9a-f]{10}$/, 'the outside root registered');
+    const list = await (await fetch(server.url + '/api/projects')).json();
+    const outer = path.join(work, 'outer');
+    const byDir = (dir: string) => list.projects.filter((p: { dir: string }) => p.dir === dir);
+    assert.equal(byDir(outer).length, 1, 'the opened screen carries the opened dir');
+    assert.equal(byDir(path.join(outer, 'inner')).length, 1, 'the nested screen carries its own dir, not the opened root');
+});
+
+test('scanProjects: a flat strings.<locale>.json beside the config is detected as a locale', () => {
+    // The scanner's first locale loop wrote its regex literal with doubled backslashes ([\\w-],
+    // the class {backslash, w, hyphen}), so the common flat convention (strings.fr.json, no
+    // locales/ directory) never matched and the picker showed no locale flags. No locales/ dir
+    // here on purpose: a scaffolded locale directory would mask the loop entirely.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-scan-'));
+    try {
+        fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><html><body><div id="a">hi</div></body></html>');
+        fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { title: 'Scan fixture', locale: 'en' }, steps: [] }, null, 2) + '\n');
+        fs.writeFileSync(path.join(dir, 'strings.fr.json'), JSON.stringify({ 'meta.title': 'Scan fixture' }, null, 2) + '\n');
+        fs.writeFileSync(path.join(dir, 'strings.pt-BR.json'), JSON.stringify({ 'meta.title': 'Scan fixture' }, null, 2) + '\n');
+        const found = scanProjects(dir);
+        assert.equal(found.length, 1, 'the screen is found');
+        assert.deepEqual(found[0].locales, ['fr', 'pt-BR'], 'flat strings files surface as locales');
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+// ------------------------------------------------------------------ the hub
+// `vistaro` with no command is a friend's front door: the same server boots with /hub as its
+// landing page (the ask to give their agent, the manual served for agents at /agents.md, the
+// doors into the picker), the bin alias installs under the product name, and the manual rides
+// in the npm tarball so none of it depends on seeing this repo.
+
+test('studio hub: the page, its assets and the manual route are served', async () => {
+    const page = await fetch(server.url + '/hub');
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get('content-type') ?? '', /text\/html/);
+    const html = await page.text();
+    assert.match(html, /Create a product demo of my site\./, 'the ask leads the page');
+    assert.match(html, /vistaro --help/, 'the ask bootstraps the agent on the installed CLI, never on a URL that can go stale');
+    assert.match(html, /Show\. Don&rsquo;t Tell\./, 'the tagline is on the page');
+    assert.ok(html.includes('href="/agents.md"'), 'the manual is linked where an agent (or a human) can fetch it');
+    assert.ok(html.includes('href="/"'), 'the studio door targets the picker route');
+    const css = await fetch(server.url + '/hub.css');
+    assert.equal(css.status, 200);
+    assert.match(css.headers.get('content-type') ?? '', /text\/css/);
+    const js = await fetch(server.url + '/hub.js');
+    assert.equal(js.status, 200);
+    assert.match(js.headers.get('content-type') ?? '', /javascript/);
+});
+
+test('studio hub: /agents.md serves the shipped manual itself, as markdown', async () => {
+    const res = await fetch(server.url + '/agents.md');
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type') ?? '', /text\/markdown/);
+    const body = await res.text();
+    const onDisk = fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8');
+    assert.equal(body, onDisk, 'the route serves the manual byte for byte, not a summary');
+});
+
+/** The hub twin of startStudio: bare `cli.ts` (no subcommand) must boot the same server with /hub
+ *  as its front door. Pipes, not a TTY, so the auto-open never fires under the suite. */
+function startHub(): Promise<Server> {
+    return new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, ['--import', 'tsx', 'cli.ts'], { cwd: root, timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' });
+        const hub: Server = { child, port: 0, url: '', teardown: false, exitedBeforeTeardown: false, result: new Promise<CliSpawnResult>((resolveResult) => {
+            child.on('close', (status, signal) => {
+                if (!hub.teardown) hub.exitedBeforeTeardown = true;
+                resolveResult({ status, signal, stdout: '', stderr: '' });
+            });
+            child.on('error', (error) => resolveResult({ status: null, signal: null, stdout: '', stderr: '', error }));
+        }) };
+        let boot = '';
+        const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('hub server did not boot in time')); }, SPAWN_TIMEOUT_MS);
+        child.stdout.on('data', (d: Buffer) => {
+            boot += d.toString('utf8');
+            const m = /vistaro hub at http:\/\/127\.0\.0\.1:(\d+)\/hub/.exec(boot);
+            if (m) {
+                clearTimeout(timer);
+                hub.port = Number(m[1]); hub.url = `http://127.0.0.1:${m[1]}`;
+                resolve(hub);
+            }
+        });
+        child.stderr.on('data', (d: Buffer) => process.stderr.write(d));
+        child.on('exit', (code) => { clearTimeout(timer); reject(new Error(`hub server exited early (${code})`)); });
+    });
+}
+
+test('bare CLI: boots the server with /hub as the front door (the `vistaro` experience)', async () => {
+    const hub = await startHub();
+    try {
+        const page = await (await fetch(hub.url + '/hub')).text();
+        assert.match(page, /Create a product demo of my site\./, 'the hub answers on the bare invocation');
+        const manual = await fetch(hub.url + '/agents.md');
+        assert.equal(manual.status, 200, 'the manual route answers too');
+    } finally {
+        await stopServer(hub, []);
+    }
+});
+
+test('bare CLI: an unknown word is still an unknown command, not a hub', () => {
+    const res = spawnSync(process.execPath, ['--import', 'tsx', 'cli.ts', 'definitely-not-a-command'], { cwd: root, encoding: 'utf8', timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' });
+    assertRan(res, ['definitely-not-a-command']);
+    assert.notEqual(res.status, 0, 'exit is non-zero');
+    assert.match(res.stderr, /unknown command/, 'the error names the mistake');
+});
+
+test('studio: Ctrl-C after a successful boot exits cleanly through the server-close handler', { skip: process.platform === 'win32' ? 'a child kill(SIGINT) terminates unconditionally on Windows; the handler never runs' : false }, async () => {
+    // The SIGINT handler used to register after the boot await -- a promise only the error paths
+    // resolve -- so on the success path Ctrl-C took the default disposition: signal death, exit
+    // 130, server.close never called. The handler is process-level, so a real spawn is the oracle.
+    const child = spawn(process.execPath, ['--import', 'tsx', 'cli.ts', 'studio'], { cwd: root, timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' });
+    const result = new Promise<CliSpawnResult>((resolveResult) => {
+        child.on('close', (status, signal) => resolveResult({ status, signal, stdout: '', stderr: '' }));
+        child.on('error', (error) => resolveResult({ status: null, signal: null, stdout: '', stderr: '', error }));
+    });
+    let boot = '';
+    const listening = new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('SIGINT probe did not boot in time')); }, SPAWN_TIMEOUT_MS);
+        child.stdout.on('data', (d: Buffer) => {
+            boot += d.toString('utf8');
+            if (/studio listening on http:\/\/127\.0\.0\.1:\d+/.test(boot)) { clearTimeout(timer); resolve(); }
+        });
+        child.stderr.on('data', (d: Buffer) => process.stderr.write(d));
+    });
+    await listening;
+    child.kill('SIGINT');
+    const res = await result;
+    assertRan(res, ['studio']);
+    assert.equal(res.status, 0, `Ctrl-C must exit 0 through the handler, tail of boot output: ${boot.slice(-300)}`);
+});
+
+test('the vistaro bin alias ships, and the manual rides in the package with it', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+    assert.equal(pkg.bin.vistaro, 'bin/screenshot-animator.mjs', 'the friend-facing command name');
+    assert.ok((pkg.files ?? []).includes('AGENTS.md'), 'the /agents.md route needs the manual in the tarball');
+});
+
+test('studio hub page: the ask, the copy button and both doors work with no console errors', { skip }, async () => {
+    const browser = await chromium.launch();
+    try {
+        const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
+        const page = await context.newPage();
+        const errors: string[] = [];
+        page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+        page.on('pageerror', (e) => errors.push(String(e)));
+        await page.goto(server.url + '/hub', { waitUntil: 'networkidle' });
+        const ask = await page.locator('#the-ask').textContent();
+        assert.match(ask ?? '', /vistaro --help/, 'the ask block carries the self-bootstrapping manual pointer');
+
+        // Copy is real, not decorative: the clipboard ends up holding the ask.
+        await page.click('#copy-ask');
+        await page.waitForTimeout(300);
+        const copied = await page.evaluate('navigator.clipboard.readText()') as string;
+        assert.equal(copied.trim(), (ask ?? '').trim(), 'the button copies the ask itself');
+        assert.match((await page.locator('#copy-ask').textContent()) ?? '', /copied/, 'and confirms it');
+
+        // The studio door lands on the picker.
+        await page.click('a[href="/"]');
+        await page.waitForURL(server.url + '/');
+        assert.equal(await page.locator('#picker-main').isVisible(), true, 'the studio door opens the picker');
+
+        // The open-folder overlay opens and closes like the picker's own.
+        await page.goto(server.url + '/hub', { waitUntil: 'networkidle' });
+        await page.click('#open-dir');
+        assert.equal(await page.locator('#open-overlay').isVisible(), true, 'the overlay shows');
+        await page.keyboard.press('Escape');
+        assert.equal(await page.locator('#open-overlay').isVisible(), false, 'Esc closes it');
+        assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+    }
 });
 
 test('studio stacking: Ctrl+click cycles the elements under the pointer, Esc walks to the parent', { skip }, async () => {
@@ -659,6 +937,84 @@ test('studio drag offer: a drag with no animate step offers convert-or-create, t
         assert.equal(converted.action, 'animate', 'the step converted without throwing (the unguarded P2 crash)');
         assert.equal(converted.target, '#field', 'a step that already has a target keeps it (adoption is only for target-less steps)');
         assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+    }
+});
+
+test('studio editor: the open-transport link and the export-toast artifact links carry ?project=', { skip }, async () => {
+    // The hub -> picker flow boots NO default project: there, a bare /preview or /artifact/..
+    // is a 404 ("unknown project"). Open a project that is not the boot default, so the id in
+    // the links can only have come from the editor's own ?project=.
+    fs.cpSync(fixture, path.join(work, 'proj-links'), { recursive: true });
+    const opened = await (await fetch(server.url + '/api/open', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: path.join(work, 'proj-links') }),
+    })).json();
+    const id = String(opened.id);
+    assert.match(id, /^[0-9a-f]{10}$/, 'the second project registered');
+
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        await page.goto(server.url + '/?project=' + encodeURIComponent(id), { waitUntil: 'networkidle' });
+        await page.waitForTimeout(500);
+
+        // The transport's "open ↗" starts as static href="/preview"; the editor must rewrite it.
+        const openHref = await page.evaluate("document.getElementById('t-open').href") as string;
+        assert.equal(new URL(openHref).searchParams.get('project'), id, 'the transport link carries the project id, got ' + openHref);
+
+        // The export toast's artifact links carry it too. The export endpoint is intercepted:
+        // this tests the toast rendering, not the encode.
+        await page.route('**/api/export*', (route) => route.fulfill({
+            status: 200, contentType: 'application/json',
+            body: JSON.stringify({ exitCode: 0, artifacts: ['studio.mp4'] }),
+        }));
+        await page.click('#export');
+        await page.waitForSelector('#toasts .toast a', { timeout: 8000 });
+        const artifactHref = await page.evaluate("document.querySelector('#toasts .toast a').href") as string;
+        const artifactUrl = new URL(artifactHref);
+        assert.equal(artifactUrl.pathname, '/artifact/studio.mp4');
+        assert.equal(artifactUrl.searchParams.get('project'), id, 'the artifact link carries the project id, got ' + artifactHref);
+    } finally {
+        await browser.close();
+    }
+});
+
+test('studio editor: an artifact filename is escaped in the export toast, not interpolated as HTML', { skip }, async () => {
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        const hostile = 'studio.<img src=x onerror=alert(1)>.mp4';
+        await page.route('**/api/export*', (route) => route.fulfill({
+            status: 200, contentType: 'application/json',
+            body: JSON.stringify({ exitCode: 0, artifacts: [hostile] }),
+        }));
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        await page.waitForTimeout(500);
+        await page.click('#export');
+        await page.waitForSelector('#toasts .toast a', { timeout: 8000 });
+        const imgs = await page.evaluate("document.querySelectorAll('#toasts .toast img').length") as number;
+        assert.equal(imgs, 0, 'no element from the filename may land in the toast');
+        const text = await page.evaluate("document.querySelector('#toasts .toast a').textContent") as string;
+        assert.equal(text, hostile, 'the filename renders as its literal text, escaped');
+    } finally {
+        await browser.close();
+    }
+});
+
+test('studio editor: scaffolding a locale leaves the switcher on the new locale', { skip }, async () => {
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        await page.waitForTimeout(500);
+        page.on('dialog', (d) => { void d.accept('zz'); });
+        await page.selectOption('#locale', '__new__');
+        // loadStrings('zz') settles into the issues title ("Editing zz translations ...") in
+        // both the fixed and the unfixed page -- only the switcher distinguishes them.
+        await page.waitForFunction("document.getElementById('issues-title').textContent.indexOf('zz translations') !== -1", null, { timeout: 8000 });
+        await page.waitForTimeout(200);
+        assert.equal(await page.locator('#locale').inputValue(), 'zz', 'the switcher shows the locale the editor just entered');
     } finally {
         await browser.close();
     }

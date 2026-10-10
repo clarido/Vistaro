@@ -89,6 +89,7 @@
     raw: null,            // the file's JSON verbatim ({meta, steps}), unknown fields intact
     exists: false,
     dir: '', configPath: '',
+    projectLabel: '',     // meta.title (or the dir): the tab title names the open project
     selected: -1,         // index into raw.steps
     dirty: false,
     renames: {},          // old id -> new id, sent on save so strings keys follow
@@ -122,7 +123,7 @@
   var els = {};
   ['preview', 'steps', 'steps-empty', 'dir', 'kind', 'dirty', 'save', 'check', 'export', 'add-step', 'pick-concept',
     't-prev', 't-play', 't-next', 't-pos', 't-pick', 't-fit', 't-open', 't-note', 't-mode', 't-device', 't-layers', 'layers', 'layers-list', 'layers-close', 'locale', 'scenario', 'dirty-screen', 'fields', 'inspector', 'inspector-hint', 'palette', 'raw', 'raw-text', 'raw-apply',
-    'issues', 'issues-title', 'issues-list', 'issues-clear', 'concept', 'toasts', 'frame-wrap']
+    'issues', 'issues-title', 'issues-list', 'issues-clear', 'concept', 'toasts', 'frame-wrap', 'qo-open', 'quickopen', 'qo-input', 'qo-list']
     .forEach(function (id) { els[id] = $(id); });
 
   function steps() { return Array.isArray(S.raw?.steps) ? S.raw.steps : []; }
@@ -424,6 +425,10 @@
 
   // ---------------------------------------------------------------- fetch
   var PROJECT = new URLSearchParams(location.search).get('project') || '';
+  // The transport's "open ↗" link is static HTML ("/preview"): without the id it resolves the
+  // booted default project -- or nothing at all, in the hub -> picker flow that boots none.
+  // The export toast's artifact links go through withProject() below for the same reason.
+  if (PROJECT) els['t-open'].href = '/preview?project=' + encodeURIComponent(PROJECT);
   function projectQuery() { return PROJECT ? 'project=' + encodeURIComponent(PROJECT) : ''; }
   function withProject(path) {
     return path + (path.indexOf('?') === -1 ? '?' : '&') + projectQuery();
@@ -469,6 +474,7 @@
         }
         els.dir.textContent = S.configPath;
         els.dir.title = S.configPath;
+        S.projectLabel = (typeof t.raw?.meta?.title === 'string' && t.raw.meta.title) || t.dir || '';
         renderAll();
         if (!S.exists) showConcept();
         // "no steps" from the empty parse-error shell is noise beside the real diagnosis.
@@ -939,7 +945,9 @@
         S.stringsMtime = r.data.mtimeMs;
         toast('strings.' + code + '.json scaffolded with the source text \u2014 translate the fields, save writes the file', 'good');
         renderLocaleSwitcher();
-        loadStrings(code);
+        // loadStrings sets S.locale only once the strings arrive; re-render then, or the
+        // switcher keeps showing the locale the editor was on before the scaffold.
+        loadStrings(code).then(function (ok) { if (ok) renderLocaleSwitcher(); });
         });
       });
       return;
@@ -955,7 +963,7 @@
   }
   function updateDirty() {
     els.dirty.hidden = !S.dirty;
-    document.title = (S.dirty ? '\u2022 ' : '') + 'Demoforge studio';
+    document.title = (S.dirty ? '\u2022 ' : '') + (S.projectLabel ? S.projectLabel + ' — Demoforge studio' : 'Demoforge studio');
   }
 
   function setField(k, v) {
@@ -1296,7 +1304,7 @@
           return;
         }
         var links = (r.data.artifacts || []).map(function (a) {
-          return '<a href="/artifact/' + encodeURIComponent(a) + '" target="_blank" rel="noopener">' + a + '</a>';
+          return '<a href="' + withProject('/artifact/' + encodeURIComponent(a)) + '" target="_blank" rel="noopener">' + escapeHtml(a) + '</a>';
         }).join(' \u00b7 ');
         toastHtml('exported: ' + links, 'good');
       });
@@ -1493,6 +1501,79 @@
   els.scenario.addEventListener('change', function () {
     if (els.scenario.value && els.scenario.value !== PROJECT) {
       location.search = '?project=' + encodeURIComponent(els.scenario.value);
+    }
+  });
+
+  // ---------------------------------------------------------------- quick open (⌘K / ⌘P)
+  // The picker page is the front door; this is the in-editor one: every project, filtered,
+  // keyboard-first, no detour through another page to switch.
+  var QO = { all: [], visible: [], cursor: 0 };
+  function qoMatches(p, q) {
+    if (!q) return true;
+    var hay = (p.title + ' ' + p.dir + ' ' + p.configName + ' ' + (p.kind === 'reel' ? 'reel' : 'guide') + (p.tour ? ' tour' : '')).toLowerCase();
+    return q.toLowerCase().split(/\s+/).every(function (token) { return hay.indexOf(token) !== -1; });
+  }
+  function qoRender() {
+    var q = els['qo-input'].value.trim();
+    QO.visible = QO.all.filter(function (p) { return qoMatches(p, q); }).slice(0, 14);
+    if (QO.cursor >= QO.visible.length) QO.cursor = Math.max(0, QO.visible.length - 1);
+    els['qo-list'].innerHTML = '';
+    if (!QO.visible.length) {
+      var none = document.createElement('p');
+      none.className = 'qo-empty';
+      none.textContent = QO.all.length ? 'No project matches.' : 'No projects found yet.';
+      els['qo-list'].appendChild(none);
+      return;
+    }
+    QO.visible.forEach(function (p, i) {
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'qo-item' + (i === QO.cursor ? ' is-cursor' : '') + (p.current ? ' is-current' : '');
+      row.setAttribute('role', 'option');
+      row.setAttribute('aria-selected', i === QO.cursor ? 'true' : 'false');
+      var t = document.createElement('span'); t.className = 't'; t.textContent = p.title;
+      var w = document.createElement('span'); w.className = 'w';
+      w.textContent = p.dir + (p.configName !== 'anim.config.json' ? ' \u00b7 ' + p.configName : '');
+      var k = document.createElement('span'); k.className = 'k'; k.textContent = p.kind;
+      row.appendChild(t); row.appendChild(w); row.appendChild(k);
+      row.addEventListener('click', function () { qoGo(p); });
+      row.addEventListener('mousemove', function () { if (QO.cursor !== i) { QO.cursor = i; qoRender(); } });
+      els['qo-list'].appendChild(row);
+    });
+    var cur = els['qo-list'].querySelector('.is-cursor');
+    if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+  }
+  function qoShow() {
+    els.quickopen.hidden = false;
+    els['qo-input'].value = '';
+    QO.cursor = 0;
+    QO.all = [];
+    qoRender();
+    els['qo-input'].focus();
+    fetch(withProject('/api/projects')).then(function (r) { return r.json(); }).then(function (data) {
+      QO.all = data.projects || [];
+      qoRender();
+    }).catch(function (e) { qoHide(); toast('could not list projects: ' + e, 'bad'); });
+  }
+  function qoHide() { els.quickopen.hidden = true; }
+  function qoGo(p) {
+    if (!p) return;
+    if (String(p.id) === PROJECT) { qoHide(); return; }
+    location.search = '?project=' + encodeURIComponent(p.id);
+  }
+  els['qo-open'].addEventListener('click', qoShow);
+  els.quickopen.addEventListener('click', function (e) { if (e.target === els.quickopen) qoHide(); });
+  els['qo-input'].addEventListener('input', function () { QO.cursor = 0; qoRender(); });
+  els['qo-input'].addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); QO.cursor = Math.min(QO.visible.length - 1, QO.cursor + 1); qoRender(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); QO.cursor = Math.max(0, QO.cursor - 1); qoRender(); }
+    else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); qoGo(QO.visible[QO.cursor]); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); qoHide(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && 'kpKP'.indexOf(e.key) !== -1) {
+      e.preventDefault();
+      if (els.quickopen.hidden) qoShow(); else qoHide();
     }
   });
 
