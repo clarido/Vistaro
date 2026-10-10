@@ -42,3 +42,14 @@ body.picker {
 .card-project .foot { margin-top: auto; display: flex; justify-content: space-between; gap: 10px; font: 500 11px/1.3 var(--mono); color: var(--faint); }
 .card-project .steps { color: var(--muted); }
 .card-project.is-current .foot .touched::after { content: " \00b7 open"; color: #6EE7B7; }
+
+/* open-folder overlay (the .overlay/.card/.hint/.btn bones come from studio.css) */
+#open-form { display: grid; gap: 10px; margin-top: 14px; }
+#open-path {
+  width: 100%; background: #070B12; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px;
+  font: 400 13px/1.4 var(--mono); padding: 10px 12px;
+}
+#open-path:focus { border-color: var(--accent); outline: none; }
+.open-error { color: var(--bad); margin: 0; }
+.open-actions { display: flex; justify-content: flex-end; gap: 8px; }

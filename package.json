@@ -7,7 +7,8 @@
   "description": "CLI that turns a UI mockup (index.html + anim.config.json) or a live web page into demo videos, step-by-step help guides and their translations, driven by an AI agent or by hand",
   "main": "cli.ts",
   "bin": {
-    "screenshot-animator": "bin/screenshot-animator.mjs"
+    "screenshot-animator": "bin/screenshot-animator.mjs",
+    "vistaro": "bin/screenshot-animator.mjs"
   },
   "repository": {
     "type": "git",
@@ -19,6 +20,7 @@
     "src/",
     "scripts/",
     "README.md",
+    "AGENTS.md",
     "LICENSE"
   ],
   "scripts": {

@@ -49,6 +49,13 @@ code { font: 500 12px/1.4 var(--mono); color: #FDBA74; background: var(--panel2)
 }
 h1.brand { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
 .brand svg { width: 20px; height: 20px; }
+#open-form { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+#open-form input[type="text"] { flex: 1; min-width: 240px; }
+.open-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+/* The way out of an open project: the picker is the editor's parent level, and this is also
+   the escape hatch when an unknown project id leaves the editor with nothing to edit. */
+.back { font: 600 12.5px/1 var(--sans); color: var(--muted); text-decoration: none; white-space: nowrap; }
+.back:hover { color: var(--ink); }
 .dir { font: 500 12px/1.3 var(--mono); color: var(--muted); max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge {
   font: 700 10.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
@@ -306,6 +313,32 @@ select.mini { font: 600 11px/1 var(--mono); background: var(--panel2); }
 .choice:hover { border-color: var(--accent); }
 .choice b { display: block; font-size: 14.5px; margin-bottom: 3px; }
 .choice span { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+
+/* ---------- quick open (sits high, like every palette) ---------- */
+.overlay.qo { place-items: start center; }
+.qo-card { width: min(560px, calc(100vw - 48px)); padding: 0; overflow: hidden; margin-top: 12vh; }
+#qo-input {
+  width: 100%; border: 0; border-bottom: 1px solid var(--line);
+  background: transparent; color: var(--ink); outline: none;
+  font: 600 15px/1.4 var(--sans); padding: 15px 18px;
+}
+#qo-list { max-height: 46vh; overflow-y: auto; padding: 6px; }
+.qo-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 9px 12px; border-radius: 8px; border: 1px solid transparent;
+}
+.qo-item:hover, .qo-item.is-cursor { background: var(--panel2); border-color: var(--line-soft); }
+.qo-item .t { font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+.qo-item.is-current .t::after { content: ' \00b7 open'; color: var(--good); font-size: 11px; font-weight: 600; }
+.qo-item .w { flex: 1; color: var(--muted); font: 500 11.5px/1.3 var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qo-item .k {
+  font: 700 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 4px 7px;
+}
+.qo-empty { padding: 14px 16px; color: var(--muted); font-size: 12.5px; }
+.qo-hint { margin: 0; padding: 10px 14px; border-top: 1px solid var(--line-soft); font-size: 11.5px; }
+.qo-hint a { color: var(--muted); }
+.qo-hint a:hover { color: var(--ink); }
 
 /* ---------- inline ask (the drag offer) ---------- */
 .ask {

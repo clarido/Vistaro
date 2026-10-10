@@ -62,6 +62,9 @@ WORKFLOW (an AI agent or a person writes the screen and the timeline; no API key
      Or edit the timeline visually (a local web editor over the same file):
        npx tsx cli.ts studio <dir>             # seekable preview, pick targets, effects palette;
                                                # saves anim.config.json -- git keeps the history
+     And with NO command at all, the hub opens in your browser:
+       npx tsx cli.ts                          # the ask for your agent, the manual at /agents.md,
+                                               # and the doors into the studio (the \`vistaro\` front door)
   6. Other languages reuse the same choreography:
        npx tsx cli.ts localize <dir> fr        # <dir>/locales/fr/ + strings.fr.json
        npx tsx cli.ts export <dir>/locales/fr -o demo-fr.mp4 --guide
@@ -322,7 +325,7 @@ RECORD OF WHAT WAS DONE:
 
   program
     .command('studio')
-    .description('Open a local web editor over the timeline: with no directory it serves the project picker (every demo in the workspace, recents first); with one it opens that screen directly. Edit steps with a seekable live preview, pick targets by clicking, apply effect presets, run check/export, and save anim.config.json (the editor is a view over the file, never a second source of truth)')
+    .description('Open a local web editor over the timeline: with no directory it serves the project picker (every demo in the workspace, recents first); with one it opens that screen directly. Edit steps with a seekable live preview, pick targets by clicking, apply effect presets, run check/export, and save anim.config.json (the editor is a view over the file, never a second source of truth). Running the CLI with no command at all boots the same server on the hub page (/hub: the ask for your agent, the manual at /agents.md) and opens your browser')
     .argument('[output_dir]', 'Directory containing index.html (the screen to edit a timeline for); omit it for the project picker')
     .option('-p, --port <n>', 'Port to serve the editor on (default: an ephemeral one, printed on start)')
     .option('-w, --width <pixels>', 'Authored viewport width of the preview iframe (default: 1280)')
@@ -451,6 +454,23 @@ Catalog shape:
     .option('--sibling', 'Legacy layout: scaffold into a sibling directory named after the locale')
     .option('--force', 'Overwrite the target\'s index.html, anim.config.json and strings.<locale>.json (translations are lost); by default they are kept and only new strings are added')
     .action((src, locale, opts) => localizeCommand(src, locale, opts));
+
+  // The front door for someone who installed the CLI and typed its name: bare `vistaro` boots
+  // the studio server and opens the hub page (the ask for their agent, the manual at
+  // /agents.md, the doors into the picker and the editor). A variadic program argument is
+  // what makes unmatched words reach this handler at all (commander would refuse them as
+  // "too many arguments" before the action); subcommands still dispatch first, and a word
+  // that names nothing is refused as the unknown command it is, never silently a hub.
+  program
+    .argument('[words...]')
+    .action((words: string[]) => {
+      if (words.length > 0) {
+        console.error(`Error: unknown command '${words[0]}' (see --help for the command list)`);
+        process.exitCode = 1;
+        return;
+      }
+      return studioCommand(undefined, { hub: true });
+    });
 
   return program;
 }

@@ -9,17 +9,21 @@
 // through the process group.
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const packageDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const require = createRequire(import.meta.url);
+// Either bin name installs this shim (screenshot-animator, vistaro): speak as whichever
+// command the user actually typed. Windows shims invoke node with the real file path, so the
+// extension is stripped to at least degrade to the package name there.
+const invokedName = basename(process.argv[1] ?? 'vistaro').replace(/\.(mjs|cjs|js)$/i, '');
 
 let tsxImport;
 try {
     tsxImport = pathToFileURL(require.resolve('tsx')).href;
 } catch {
-    console.error('screenshot-animator: the "tsx" package is missing (it is a runtime dependency of this CLI); reinstall the package.');
+    console.error(`${invokedName}: the "tsx" package is missing (it is a runtime dependency of this CLI); reinstall the package.`);
     process.exit(1);
 }
 
@@ -27,7 +31,7 @@ const child = spawn(process.execPath, ['--import', tsxImport, join(packageDir, '
     stdio: 'inherit',
 });
 child.on('error', (e) => {
-    console.error(`screenshot-animator: could not start node: ${e.message}`);
+    console.error(`${invokedName}: could not start node: ${e.message}`);
     process.exit(1);
 });
 child.on('exit', (code, signal) => {

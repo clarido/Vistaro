@@ -11,11 +11,13 @@
 
 <header id="top">
   <h1 class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>studio</h1>
+  <a class="back" href="/" title="Back to the project picker (the browser asks before dropping unsaved edits)">&#8249; projects</a>
   <span id="dir" class="dir" title=""></span>
   <span id="kind" class="badge" hidden></span>
   <span class="spacer"></span>
   <select id="scenario" class="mini" title="Stories sharing this screen" hidden></select>
   <select id="locale" class="mini" title="Edit and preview a locale: text fields write strings.<locale>.json; the preview plays the localized timeline"></select>
+  <button id="qo-open" class="mini" type="button" title="Quick-open any project (&#8984;K or &#8984;P)">open&hellip; <kbd>&#8984;K</kbd></button>
   <span id="dirty-screen" class="dirty" hidden title="Layout mode moved boxes in the mockup — Save patches index.html">screen unsaved</span>
   <span id="dirty" class="dirty" hidden>unsaved</span>
   <button id="save" class="btn" type="button" title="Validate and write the timeline file (⌘S / Ctrl+S)">Save <kbd>⌘S</kbd></button>
@@ -103,6 +105,14 @@
       </button>
     </div>
     <p class="hint foot">The studio edits <code>anim.config.json</code> in place -- save writes the file, git keeps the history, the CLI stays the engine.</p>
+  </div>
+</div>
+
+<div id="quickopen" class="overlay qo" hidden role="dialog" aria-modal="true" aria-label="Open a project">
+  <div class="card qo-card">
+    <input id="qo-input" type="text" placeholder="Open a project&hellip; (title, directory, story)" autocomplete="off" spellcheck="false" aria-label="Search projects">
+    <div id="qo-list" role="listbox" aria-label="Matching projects"></div>
+    <p class="hint qo-hint"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> choose &middot; <kbd>enter</kbd> open &middot; <kbd>esc</kbd> close &middot; <a href="/" class="qo-all">the &#8249; projects page</a> lists everything</p>
   </div>
 </div>
 
