@@ -12,11 +12,11 @@ import * as path from 'path';
  * Discovery reads the runner's own glob scope, top-level test/*.test.ts (package.json), as text --
  * no recursion into test/fixtures/, which spawns nothing -- and keys a CLI child on the one token
  * every CLI command carries in its spawn window (`cli.ts`, bare or via path.join(root, 'cli.ts'))
- * and no other child does: the six ffmpeg probes, the node -e probe in guide.test.ts and the saas
- * shim text in saas-queue.test.ts all lack it in their window. A CLI spawn the list has never
- * met goes red until its author adds the three bounds and joins KNOWN_SITES -- that list's
- * comment carries the current count; a rename that scans zero files fails the
- * identity assert instead of passing vacuously.
+ * and no other child does: the six ffmpeg probes, the node -e probe in guide.test.ts, the tsx -e
+ * probe in chromium-check.test.ts and the saas shim text in saas-queue.test.ts all lack it in
+ * their window. A CLI spawn the list has never met goes red until its author adds the three
+ * bounds and joins KNOWN_SITES -- that list's comment carries the current count; a rename that
+ * scans zero files fails the identity assert instead of passing vacuously.
  */
 
 const root = path.resolve(__dirname, '..');
@@ -72,12 +72,13 @@ function discover(files: SourceFile[]): Site[] {
     return files.flatMap(cliSpawnSites);
 }
 
-/** The 15 known CLI spawn sites, sorted; buildall.test.ts twice (its sync cli and its async
+/** The 18 known CLI spawn sites, sorted; buildall.test.ts twice (its sync cli and its async
  *  cliAsync), studio.test.ts four times (its startStudio and startHub async helpers, the
- *  unknown-command spawnSync and the Ctrl-C probe). A new CLI spawn must join this list --
- *  after carrying the three bounds. */
+ *  unknown-command spawnSync and the Ctrl-C probe), chromium-check.test.ts three times (its
+ *  absent-engine check and its two partial-install checks). A new CLI spawn must join this
+ *  list -- after carrying the three bounds. */
 const KNOWN_SITES = [
-    'browser.test.ts', 'buildall.test.ts', 'buildall.test.ts', 'export.test.ts', 'filmstrip.test.ts',
+    'browser.test.ts', 'buildall.test.ts', 'buildall.test.ts', 'chromium-check.test.ts', 'chromium-check.test.ts', 'chromium-check.test.ts', 'export.test.ts', 'filmstrip.test.ts',
     'guide.test.ts', 'learn.test.ts', 'record.test.ts', 'strings.test.ts', 'studio.test.ts', 'studio.test.ts', 'studio.test.ts', 'studio.test.ts', 'tour.test.ts', 'verify.test.ts',
 ];
 

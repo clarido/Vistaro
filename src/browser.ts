@@ -95,8 +95,59 @@ async function newContext(browser: Browser, opts: LaunchOptions): Promise<{ cont
     return { context, width, height };
 }
 
+/**
+ * The failure message for a missing recording engine, its fix command pinned at runtime to the
+ * installed playwright (never hardcoded): `npm install` does NOT download Chromium -- that is
+ * Playwright's own one-time `install` step -- and an unversioned `npx playwright install` can
+ * resolve a different major whose browser revision will not match this CLI's.
+ */
+function missingEngineMessage(): string {
+    let pinned = 'playwright';
+    try {
+        const version = JSON.parse(fs.readFileSync(require.resolve('playwright/package.json'), 'utf8')).version;
+        if (typeof version === 'string' && version) pinned = `playwright@${version}`;
+    } catch { /* unreadable: fall back to the unversioned command rather than a broken pin */ }
+    return `Chromium (the recording engine) is not installed; run this once: npx ${pinned} install chromium`;
+}
+
+/**
+ * Is the full-Chrome binary installed? A STATUS probe (tests, and any future surface that wants
+ * to show engine state) -- NOT a launch gate. `chromium.executablePath()` returns the FULL-Chrome
+ * build's path without throwing when it is absent (verified on 1.58.2), but a channel-less
+ * headless launch resolves a DIFFERENT binary, the headless shell, so this answers "is anything
+ * installed" (null) rather than "will the launch succeed". Detection that must be right lives in
+ * launchChromium, on Playwright's own throw, which knows the binary actually resolved.
+ */
+export function chromiumMissingMessage(): string | null {
+    let executable: string | null = null;
+    try { executable = chromium.executablePath(); } catch { /* registry refused: treated as missing */ }
+    return executable !== null && fs.existsSync(executable) ? null : missingEngineMessage();
+}
+
+/**
+ * The one Chromium launch seam in the CLI. Every browser-driven entry point -- check, preview,
+ * export, record, guide, filmstrip/verify, and the studio's in-process jobs -- reaches the engine
+ * through here. A missing engine fails with the actionable message above instead of Playwright's
+ * raw banner; the detection is the launch itself, deliberately not a pre-flight probe: the binary
+ * a launch resolves depends on the options (full Chrome vs the headless shell), and a partial
+ * install defeats any single-path probe in BOTH directions -- Chrome without the shell must
+ * still fail with the fix command, and the shell without Chrome must still LAUNCH, which a
+ * full-Chrome gate would falsely refuse. Playwright throws before spawning anything when the
+ * resolved binary is absent; any other launch failure is real and rethrown untouched.
+ */
+export async function launchChromium(options: Parameters<typeof chromium.launch>[0] = {}): Promise<Browser> {
+    try {
+        return await chromium.launch({ headless: true, ...options });
+    } catch (e) {
+        if (/Executable doesn't exist/i.test(e instanceof Error ? e.message : String(e))) {
+            throw new Error(missingEngineMessage());
+        }
+        throw e;
+    }
+}
+
 export async function launchPage(opts: LaunchOptions = {}): Promise<LaunchedPage> {
-    const browser = await chromium.launch({ headless: true });
+    const browser = await launchChromium({ headless: true });
     let context: BrowserContext;
     let page: Page;
     let width = 0, height = 0;

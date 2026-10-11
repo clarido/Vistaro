@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import type { Browser } from 'playwright';
-import { chromium } from 'playwright';
+import { launchChromium } from '../browser';
 import { run, probeDurationMs, describeAsset } from './ffmpeg';
 import { renderContactSheet, SheetFrame } from './contactSheet';
 
@@ -62,8 +62,11 @@ export async function filmstripCommand(video: string, options: FilmstripOptions 
     const diffFile = options.diff ? path.resolve(options.diff) : undefined;
 
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-strip-'));
-    const browser = await chromium.launch({ headless: true });
+    // The launch sits inside the try (nullable, not awaited above it): a failed launch -- the
+    // missing-engine refusal among them -- must still clean the tmpdir, not leak one per run.
+    let browser: Browser | null = null;
     try {
+        browser = await launchChromium({ headless: true });
         run(['-y', '-i', abs, '-vf', `fps=${fps},scale=${cellWidth}:-1`, path.join(tmp, 'f-%05d.png')]);
         let files = fs.readdirSync(tmp).filter(f => f.endsWith('.png')).sort();
         if (!files.length) die(`ffmpeg extracted no frames from ${abs}`);
@@ -96,7 +99,7 @@ export async function filmstripCommand(video: string, options: FilmstripOptions 
             console.log(`Wrote ${diffFile} (${intervals.length} intervals${peak}).`);
         }
     } finally {
-        await browser.close().catch(() => {});
+        if (browser) await browser.close().catch(() => {});
         fs.rmSync(tmp, { recursive: true, force: true });
     }
 }
