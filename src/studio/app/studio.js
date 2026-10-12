@@ -107,6 +107,7 @@
     previewW: 1280, previewH: 720,
     device: 'desktop',            // the preview resolves for this device (mapping from the server)
     devices: null,                // { desktop: {positions,total}, mobile: {...} } -- authored indices in play order
+    computed: null,               // { desktop: {durationMs, steps, subtitles}, mobile: {...} } -- the ruler's data, server-computed
     viewports: null,              // { desktop: {width,height}, mobile: {...} }
     locale: null, baseLocale: 'en', locales: [],
     stringsMap: null, stringsMtime: undefined, stringsDirty: false,
@@ -123,7 +124,8 @@
   var els = {};
   ['preview', 'steps', 'steps-empty', 'dir', 'kind', 'dirty', 'save', 'check', 'export', 'add-step', 'pick-concept',
     't-prev', 't-play', 't-next', 't-pos', 't-pick', 't-fit', 't-open', 't-note', 't-mode', 't-device', 't-layers', 'layers', 'layers-list', 'layers-close', 'locale', 'scenario', 'dirty-screen', 'fields', 'inspector', 'inspector-hint', 'palette', 'raw', 'raw-text', 'raw-apply',
-    'issues', 'issues-title', 'issues-list', 'issues-clear', 'concept', 'toasts', 'frame-wrap', 'qo-open', 'quickopen', 'qo-input', 'qo-list']
+    'issues', 'issues-title', 'issues-list', 'issues-clear', 'concept', 'toasts', 'frame-wrap', 'qo-open', 'quickopen', 'qo-input', 'qo-list',
+    'ruler', 'ruler-ticks', 'ruler-track', 'ruler-subs', 'tl-ghost', 'tl-ghost-tip', 'tl-playhead']
     .forEach(function (id) { els[id] = $(id); });
 
   function steps() { return Array.isArray(S.raw?.steps) ? S.raw.steps : []; }
@@ -160,6 +162,9 @@
   function postTour(type, extra) {
     var msg = { source: 'anim-tour', type: type };
     if (extra) for (var k in extra) msg[k] = extra[k];
+    // An outgoing seek invalidates the pause rule's "same index" test: goto to the CURRENT step
+    // re-plays it and emits a same-index, not-playing state that must re-anchor, not freeze.
+    if (type === 'goto') PH.atResolved = -1;
     els.preview.contentWindow.postMessage(msg, location.origin);
   }
   function postStudio(type, extra) {
@@ -176,6 +181,7 @@
         S.total = d.total || 0;
         S.current = -1;
         S.playing = false;
+        rulerReset();
         updateTransport();
         if (S.selected >= 0) {
           var pos = resolvedPos(S.selected);
@@ -183,9 +189,14 @@
         }
       } else if (d.type === 'state') {
         S.current = authoredAt(d.index); S.playing = !!d.playing;
+        rulerState(d.index, S.current, S.playing);
         updateTransport(); markCurrent();
       } else if (d.type === 'end') {
-        S.playing = false; updateTransport();
+        S.playing = false; rulerEnd(); updateTransport();
+      } else if (d.type === 'error') {
+        // The bridge posts error INSTEAD of state for a failed step: playback is over, so stop
+        // the playhead where it is and give the transport its play button back.
+        S.playing = false; stopPlayheadLoop(); updateTransport();
       }
     } else if (d.source === 'anim-studio') {
       if (d.type === 'picked') {
@@ -275,7 +286,10 @@
       if (r.status === 200 && r.data) {
         var changed = JSON.stringify(r.data.devices) !== JSON.stringify(S.devices);
         S.devices = r.data.devices || S.devices;
+        S.computed = r.data.computed || S.computed;
+        overlayLocalTimes();
         renderSteps();
+        renderRuler();
         // The reload that triggered this refresh posted steps resolved with the OLD mapping
         // (an `only` flip, a deletion); the corrected list follows the moment it is known.
         if (changed) postStudio('reload', { steps: previewSteps(), meta: S.raw?.meta || {} });
@@ -290,6 +304,8 @@
       + (S.device === 'mobile' ? ' (only: mobile steps run, mobile overrides merge; 390x844 unless -w/-H)' : '');
     applyViewport();
     renderSteps();
+    overlayLocalTimes(); // unsaved edits made on the other device must not flash disk positions
+    renderRuler();
     reloadPreview();
   }
   els['t-device'].addEventListener('click', function () {
@@ -461,6 +477,7 @@
         S.previewH = (t.preview && t.preview.height) || 720;
         S.viewports = t.viewports || null;
         S.devices = t.devices || null;
+        S.computed = t.computed || null;
         S.baseLocale = t.baseLocale || 'en';
         S.locales = t.locales || [];
         if (t.initialDevice === 'mobile') S.device = 'mobile';
@@ -489,6 +506,7 @@
   function renderAll() {
     renderKind();
     renderSteps();
+    renderRuler();
     renderInspector();
     renderPalette();
     updateTransport();
@@ -579,12 +597,16 @@
     Array.prototype.forEach.call(els.steps.children, function (row) {
       row.classList.toggle('is-current', Number(row.getAttribute('data-i')) === S.current);
     });
+    Array.prototype.forEach.call(els['ruler-track'].querySelectorAll('.tl-marker'), function (btn) {
+      btn.classList.toggle('is-current', Number(btn.getAttribute('data-i')) === S.current);
+    });
   }
 
   function select(i, seek) {
     S.selected = i;
     dismissAsk(); // an open offer names the previously selected step; a new selection voids it
     renderSteps();
+    renderRuler();
     renderInspector();
     renderRaw();
     postStudio('manipulate', { enable: S.selected >= 0, mode: S.manipMode });
@@ -972,6 +994,12 @@
     if (!step) return;
     if (k === 'id' && step.id !== v && step.id) S.renames[String(step.id)] = String(v);
     step[k] = v;
+    if (k === 'time') {
+      // The marker follows the typed time in the same tick, not after the live-refresh debounce.
+      var ms = parseTimeLocal(v);
+      var c = computedNow();
+      if (Number.isFinite(ms) && c && c.steps[S.selected]) { c.steps[S.selected].timeMs = ms; renderRuler(); }
+    }
     if (k === 'action') { renderInspector(); renderRaw(); }
     if (k === 'id' || k === 'time' || k === 'action' || k === 'title' || k === 'target') renderSteps();
     markDirty();
@@ -1017,12 +1045,8 @@
   }
 
   function bumpTime(t) {
-    var ms = 0;
-    if (typeof t === 'number') ms = t * 1000;
-    else {
-      var m = /^([\d.]+)\s*(ms|s)?$/i.exec(String(t ?? ''));
-      if (m) ms = Number(m[1]) * (String(m[2] || 's').toLowerCase() === 'ms' ? 1 : 1000);
-    }
+    var ms = parseTimeLocal(t);
+    if (!Number.isFinite(ms)) ms = 0;
     ms += 1000;
     var secs = ms / 1000;
     return (secs % 1 === 0 ? secs + 's' : secs.toFixed(2) + 's');
@@ -1208,6 +1232,321 @@
     if (S.selected < 0) { toast('select the step whose target you are setting'); return; }
     setPickMode(!S.pickMode);
   });
+
+  // ---------------------------------------------------------------- timeline ruler
+  // A view over `time`, drawn from the server's computed block (schema.ts's own duration and
+  // subtitle math -- nothing here re-derives engine numbers): markers at their RESOLVED time for
+  // the active device, bars for steps that keep animating past their interaction, subtitle cues,
+  // and a playhead that anchors at each step start and interpolates only while playing (there is
+  // no state-at-time-t to scrub: a seek IS restart + instant replay, so the playhead never lies
+  // about more than the linear-between-anchors approximation). Known approximation: a typing
+  // bar's length comes from the base locale's text even in translation mode (the translated
+  // value types at the same cps but is not what the server computed from).
+  var PH = { ms: 0, raf: 0, anchorMs: 0, anchorAt: 0, targetMs: 0, atResolved: -1 };
+  var DRAG = null; // an in-progress track gesture: { kind: 'marker' | 'seek', i, moved, startX, rect, ms }
+  function computedNow() { return (S.computed && S.computed[S.device]) || null; }
+  function fmtMs(ms) {
+    var secs = ms / 1000;
+    return (secs % 1 === 0 ? String(secs) : String(Number(secs.toFixed(2)))) + 's';
+  }
+  /** The page-local time parser (the same grammar as schema.ts's parseTime, minus the negatives
+   *  it would reject anyway): "2s", "2500ms", seconds as a number -> ms. NaN when unparseable --
+   *  including ".5s" and "2.", which the engine treats as invalid and so must the marker. */
+  function parseTimeLocal(t) {
+    if (typeof t === 'number') return Number.isFinite(t) ? Math.round(t * 1000) : NaN;
+    var m = /^(\d+(?:\.\d+)?)\s*(ms|s)?$/i.exec(String(t ?? '').trim());
+    if (!m) return NaN;
+    return Math.round(Number(m[1]) * (String(m[2] || 's').toLowerCase() === 'ms' ? 1 : 1000));
+  }
+
+  function renderRuler() {
+    var c = computedNow();
+    var ok = !!(c && S.exists && !S.fileRaw && c.durationMs > 0 && c.steps.length > 0);
+    els.ruler.hidden = !ok;
+    if (!ok) { stopPlayheadLoop(); return; }
+    var total = c.durationMs;
+    // Ticks: the first interval that still lands a label at least every ~70px.
+    var width = els.ruler.clientWidth || 600;
+    var ivs = [500, 1000, 2000, 5000, 10000, 30000, 60000, 300000];
+    var iv = ivs[ivs.length - 1];
+    for (var i = 0; i < ivs.length; i++) { if (width * ivs[i] / total >= 70) { iv = ivs[i]; break; } }
+    var ticks = els['ruler-ticks'];
+    ticks.innerHTML = '';
+    for (var ms = 0; ms <= total; ms += iv) {
+      var tick = document.createElement('span');
+      tick.className = 'tl-tick';
+      tick.style.left = (ms / total * 100) + '%';
+      var lab = document.createElement('i');
+      lab.textContent = fmtMs(ms);
+      tick.appendChild(lab);
+      ticks.appendChild(tick);
+    }
+    var track = els['ruler-track'];
+    track.innerHTML = '';
+    var lastPct = -99, stack = 0;
+    c.steps.forEach(function (cs, i) {
+      if (cs.timeMs === null) return;
+      // Clamped: a retime past the current end is a legal write (it extends the video) but the
+      // ruler's scale is still the file's duration until the next save, so an overhanging marker
+      // would otherwise render past the right edge and vanish under the inspector.
+      var pct = Math.min(100, Math.max(0, cs.timeMs / total * 100));
+      if (!cs.dropped && cs.intrinsicMs > 0) {
+        var bar = document.createElement('span');
+        bar.className = 'tl-bar';
+        bar.setAttribute('data-i', i);
+        bar.style.left = pct + '%';
+        bar.style.width = Math.min(Math.max(0.4, cs.intrinsicMs / total * 100), 100 - pct) + '%';
+        track.appendChild(bar);
+      }
+      // Near-coincident markers stack upward so equal times stay grabbable (equal times are legal).
+      stack = pct - lastPct < 1.4 ? stack + 1 : 0;
+      lastPct = pct;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tl-marker' + (cs.dropped ? ' is-dropped' : '') + (i === S.selected ? ' is-selected' : '') + (i === S.current ? ' is-current' : '');
+      btn.setAttribute('data-i', i);
+      btn.style.left = pct + '%';
+      btn.style.setProperty('--tl-stack', stack);
+      btn.tabIndex = -1; // the step list owns the keyboard; markers are pointer affordances
+      btn.disabled = !!cs.dropped;
+      var st = steps()[i] || {};
+      var label = ['step ' + (i + 1), fmtMs(cs.timeMs), cs.action, st.target || st.title || cs.id].filter(Boolean).join(' \u00b7 ');
+      btn.setAttribute('aria-label', label);
+      btn.title = label + (cs.dropped ? ' (not played on ' + S.device + ')' : ' \u2014 drag to retime');
+      track.appendChild(btn);
+    });
+    var subs = els['ruler-subs'];
+    subs.hidden = !c.subtitles.length;
+    subs.innerHTML = '';
+    c.subtitles.forEach(function (w) {
+      var el = document.createElement('span');
+      el.className = 'tl-sub';
+      el.style.left = (w.startMs / total * 100) + '%';
+      el.style.width = (Math.max(0, w.endMs - w.startMs) / total * 100) + '%';
+      var st2 = steps()[w.index - 1];
+      el.title = (st2 && st2.subtitle) || '';
+      subs.appendChild(el);
+    });
+    placePlayhead();
+  }
+
+  function stopPlayheadLoop() {
+    if (PH.raf) { cancelAnimationFrame(PH.raf); PH.raf = 0; }
+  }
+  function placePlayhead() {
+    var c = computedNow();
+    if (!c || !c.durationMs || els.ruler.hidden) return;
+    els['tl-playhead'].style.left = Math.min(100, Math.max(0, PH.ms / c.durationMs * 100)) + '%';
+  }
+  /** A `state` event: every one carries the step the bridge is on. Pause RE-EMITS the current
+   *  index with playing=false (tour-bridge emits on pause), so a same-index state while paused
+   *  must only freeze the playhead -- re-anchoring there would jump it back to the step's start.
+   *  A new index, or playing=true (a resume replays its step from the top), anchors. */
+  function rulerState(resolvedIdx, authoredIdx, playing) {
+    if (!playing && resolvedIdx === PH.atResolved) { stopPlayheadLoop(); return; }
+    rulerAnchor(resolvedIdx, authoredIdx, playing);
+  }
+  /** Anchor at a step's start; interpolate toward the next step's time only while playing.
+   *  Re-anchoring every step bounds the linear approximation's error. */
+  function rulerAnchor(resolvedIdx, authoredIdx, playing) {
+    var c = computedNow();
+    if (!c || authoredIdx < 0 || !c.steps[authoredIdx]) return;
+    var st = c.steps[authoredIdx];
+    if (st.timeMs === null) return;
+    PH.atResolved = resolvedIdx;
+    PH.anchorMs = st.timeMs; PH.ms = st.timeMs; PH.anchorAt = performance.now();
+    var target = c.durationMs;
+    for (var j = authoredIdx + 1; j < c.steps.length; j++) {
+      var nx = c.steps[j];
+      if (!nx.dropped && nx.timeMs !== null && nx.timeMs > st.timeMs) { target = nx.timeMs; break; }
+    }
+    PH.targetMs = target;
+    stopPlayheadLoop();
+    if (playing) {
+      var tickPlay = function () {
+        var span = PH.targetMs - PH.anchorMs;
+        var frac = span > 0 ? (performance.now() - PH.anchorAt) / span : 1;
+        if (frac >= 1) { PH.ms = PH.targetMs; placePlayhead(); PH.raf = 0; return; }
+        PH.ms = PH.anchorMs + span * frac;
+        placePlayhead();
+        PH.raf = requestAnimationFrame(tickPlay);
+      };
+      PH.raf = requestAnimationFrame(tickPlay);
+    } else {
+      placePlayhead();
+    }
+  }
+  function rulerReset() { stopPlayheadLoop(); PH.ms = 0; PH.atResolved = -1; placePlayhead(); }
+  function rulerEnd() {
+    stopPlayheadLoop();
+    var c = computedNow();
+    if (c && c.durationMs) { PH.ms = c.durationMs; placePlayhead(); }
+  }
+
+  /** The last playable step at or before `ms` -- what a track click/drag can land on. */
+  function lastStepAtOrBefore(ms) {
+    var c = computedNow();
+    if (!c) return -1;
+    var best = -1;
+    for (var i = 0; i < c.steps.length; i++) {
+      var cs = c.steps[i];
+      if (cs.dropped || cs.timeMs === null) continue;
+      if (cs.timeMs <= ms) best = i; else break;
+    }
+    return best;
+  }
+  function showSeekGhost(target) {
+    var c = computedNow();
+    var cs = c && c.steps[target];
+    if (!cs || cs.timeMs === null) return;
+    els['tl-ghost'].hidden = false;
+    els['tl-ghost'].style.left = (cs.timeMs / c.durationMs * 100) + '%';
+    els['tl-ghost-tip'].textContent = fmtMs(cs.timeMs) + ' \u00b7 ' + cs.action;
+  }
+
+  els['ruler-track'].addEventListener('pointerdown', function (e) {
+    if (e.button !== 0 || els.ruler.hidden) return;
+    if (DRAG) return; // one gesture at a time: a second pointer must not steal the first's state
+    var c = computedNow();
+    if (!c || !c.durationMs || S.total <= 0) return;
+    var rect = els['ruler-track'].getBoundingClientRect();
+    var marker = e.target.closest('.tl-marker');
+    if (marker) {
+      if (marker.disabled) return;
+      DRAG = { kind: 'marker', i: Number(marker.getAttribute('data-i')), moved: false, startX: e.clientX, rect: rect, ms: null, pid: e.pointerId };
+    } else {
+      // Empty track: click or drag seeks the step at or before, shown by the ghost before release.
+      var target = lastStepAtOrBefore(rulerMsAt(e.clientX, rect));
+      if (target < 0) return;
+      DRAG = { kind: 'seek', i: target, moved: false, startX: e.clientX, rect: rect, ms: null, pid: e.pointerId };
+      showSeekGhost(target);
+    }
+    try { els['ruler-track'].setPointerCapture(e.pointerId); } catch (err) { /* gestures still work uncaught */ }
+    e.preventDefault();
+  });
+  els['ruler-track'].addEventListener('pointermove', function (e) {
+    if (!DRAG || e.pointerId !== DRAG.pid) return;
+    if (!DRAG.moved && Math.abs(e.clientX - DRAG.startX) > 3) DRAG.moved = true;
+    if (DRAG.kind === 'seek') {
+      var target = lastStepAtOrBefore(rulerMsAt(e.clientX, DRAG.rect));
+      if (target >= 0 && target !== DRAG.i) { DRAG.i = target; showSeekGhost(target); }
+    } else if (DRAG.kind === 'marker' && DRAG.moved) {
+      var ms = snapMs(rulerMsAt(e.clientX, DRAG.rect), e.shiftKey);
+      var b = retimeBounds(DRAG.i);
+      ms = Math.min(b.max, Math.max(b.min, ms));
+      if (ms !== DRAG.ms) { DRAG.ms = ms; showRetimeGhost(ms); }
+    }
+  });
+  function endRulerDrag(e) {
+    if (!DRAG || (e && e.pointerId !== undefined && e.pointerId !== DRAG.pid)) return;
+    var d = DRAG;
+    DRAG = null;
+    els['tl-ghost'].hidden = true;
+    if (d.kind === 'marker') {
+      if (d.moved && d.ms !== null) { setStepTime(d.i, d.ms); return; }
+      select(d.i); // a click, not a drag: select and seek, like the step list
+      return;
+    }
+    select(d.i); // seek: select seeks the preview (and re-renders everything)
+  }
+  els['ruler-track'].addEventListener('pointerup', endRulerDrag);
+  function abortRulerDrag() {
+    DRAG = null;
+    els['tl-ghost'].hidden = true;
+  }
+  els['ruler-track'].addEventListener('pointercancel', abortRulerDrag);
+  // Capture is best-effort; if it never took, a release outside the track reaches only the
+  // window, so the window is the backstop that still ends the gesture (idempotent: the track's
+  // own pointerup runs first and nulls DRAG).
+  window.addEventListener('pointerup', function (e) { if (DRAG && e.pointerId === DRAG.pid) endRulerDrag(e); });
+  function rulerMsAt(clientX, rect) {
+    var frac = (clientX - rect.left) / rect.width;
+    return Math.max(0, frac) * (computedNow() || { durationMs: 0 }).durationMs;
+  }
+
+  /** The retime snap: 100ms keeps written values clean; Shift drops to a 10ms grid. */
+  function snapMs(ms, fine) {
+    var unit = fine ? 10 : 100;
+    return Math.round(ms / unit) * unit;
+  }
+  /** Chronology clamp for a retime of authored step i (0-based), computed for the WRITE TARGET:
+   *  a base-time write is what the schema validates in authored order, so its bounds are the
+   *  neighbours' base times from the raw file; an override write leaves the file order alone, so
+   *  its bounds are this device's resolved neighbours. Equal times are legal; crossing is not.
+   *  Max/min over ALL earlier/later steps, so an out-of-order override outlier is pulled back
+   *  between its authored neighbours the moment its marker is dragged. */
+  function retimeBounds(i) {
+    var st = steps()[i];
+    var over = st && st[S.device] && typeof st[S.device] === 'object' && !Array.isArray(st[S.device]) && st[S.device].time !== undefined;
+    var min = 0, max = Infinity;
+    if (over) {
+      var c = computedNow();
+      if (c) c.steps.forEach(function (cs) {
+        if (cs.dropped || cs.timeMs === null) return;
+        if (cs.authoredIndex - 1 < i) min = Math.max(min, cs.timeMs);
+        else if (cs.authoredIndex - 1 > i) max = Math.min(max, cs.timeMs);
+      });
+    } else {
+      steps().forEach(function (s, k) {
+        var ms = parseTimeLocal(s.time);
+        if (!Number.isFinite(ms)) return;
+        if (k < i) min = Math.max(min, ms);
+        else if (k > i) max = Math.min(max, ms);
+      });
+    }
+    return { min: min, max: max };
+  }
+  function showRetimeGhost(ms) {
+    var c = computedNow();
+    if (!c || !c.durationMs) return;
+    els['tl-ghost'].hidden = false;
+    els['tl-ghost'].style.left = (Math.min(100, ms / c.durationMs * 100)) + '%';
+    els['tl-ghost-tip'].textContent = fmtMs(ms);
+  }
+  /** Commit a drag's new time. Writes what the marker represents (decision in the manual: an
+   *  override marker edits the override, an unflagged one edits the base time -- the same rule
+   *  the inspector's time field follows). The side effects mirror setField's, without touching
+   *  the selection. */
+  function setStepTime(i, ms) {
+    var st = steps()[i];
+    var c = computedNow();
+    if (!st || !c) return;
+    var fmt = fmtMs(ms);
+    var over = st[S.device];
+    if (over && typeof over === 'object' && !Array.isArray(over) && over.time !== undefined) {
+      var copy = Object.assign({}, over);
+      copy.time = fmt;
+      st[S.device] = copy;
+    } else {
+      st.time = fmt;
+    }
+    if (c.steps[i]) c.steps[i].timeMs = ms; // the marker moves now; server truth follows the refresh
+    renderSteps(); renderInspector(); renderRaw(); renderRuler();
+    markDirty();
+  }
+  /** The server computes from the FILE; unsaved edits live only in memory. Re-derive each
+   *  resolved step's time from the in-memory raw (the same merge applyDevice runs), so a
+   *  refresh never snaps the ruler back to the last save mid-edit. Duration bars may lag a
+   *  save behind (their lengths come from the file's step fields); markers and times do not. */
+  function overlayLocalTimes() {
+    var c = S.computed;
+    if (!c) return;
+    ['desktop', 'mobile'].forEach(function (dev) {
+      var d = c[dev];
+      var m = S.devices && S.devices[dev];
+      if (!d || !m || !m.positions) return;
+      var authored = steps();
+      m.positions.forEach(function (auth1) {
+        var st = authored[auth1 - 1];
+        var cs = d.steps[auth1 - 1];
+        if (!st || !cs || cs.dropped) return;
+        var over = st[dev];
+        var t = (over && typeof over === 'object' && !Array.isArray(over) && over.time !== undefined) ? over.time : st.time;
+        var ms = parseTimeLocal(t);
+        if (Number.isFinite(ms)) cs.timeMs = ms;
+      });
+    });
+  }
 
   // ---------------------------------------------------------------- save / check / export
   function save() {

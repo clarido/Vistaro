@@ -325,7 +325,7 @@ RECORD OF WHAT WAS DONE:
 
   program
     .command('studio')
-    .description('Open a local web editor over the timeline: with no directory it serves the project picker (every demo in the workspace, recents first); with one it opens that screen directly. Edit steps with a seekable live preview, pick targets by clicking, apply effect presets, run check/export, and save anim.config.json (the editor is a view over the file, never a second source of truth). Running the CLI with no command at all boots the same server on the hub page (/hub: the ask for your agent, the manual at /agents.md) and opens your browser')
+    .description('Open a local web editor over the timeline: with no directory it serves the project picker (every demo in the workspace, recents first); with one it opens that screen directly. Edit steps with a seekable live preview, pick targets by clicking, apply effect presets, retime steps by dragging them on the timeline ruler, run check/export, and save anim.config.json (the editor is a view over the file, never a second source of truth). Running the CLI with no command at all boots the same server on the hub page (/hub: the ask for your agent, the manual at /agents.md) and opens your browser')
     .argument('[output_dir]', 'Directory containing index.html (the screen to edit a timeline for); omit it for the project picker')
     .option('-p, --port <n>', 'Port to serve the editor on (default: an ephemeral one, printed on start)')
     .option('-w, --width <pixels>', 'Authored viewport width of the preview iframe (default: 1280)')

@@ -416,6 +416,410 @@ test('studio device support: the mapping reflects drop and overrides, the previe
     }
 });
 
+test('studio API: the timeline GET carries a computed ruler block (durations, subtitles, per-device resolution)', async () => {
+    // The numbers are derived from the fixture by the same schema helpers export runs, so they
+    // are exact: tailMs 1000, caret's typing 4 chars / 50cps = 80ms, camera 0.3s, fades 0.8s.
+    const got = await (await fetch(server.url + '/api/timeline')).json();
+    assert.ok(got.computed, 'the computed block is present');
+    const desktop = got.computed.desktop;
+    assert.equal(desktop.durationMs, 6300, 'duration = last interaction + intrinsic + tail');
+    assert.equal(desktop.steps.length, 9);
+    assert.equal(desktop.steps[2].timeMs, 2000, 'name types at 2s');
+    assert.equal(desktop.steps[2].intrinsicMs, 60, '3 chars at 50cps = 60ms of typing');
+    assert.equal(desktop.steps[3].intrinsicMs, 300, 'the camera pan lasts its authored 0.3s');
+    assert.equal(desktop.steps[6].intrinsicMs, 800, 'fadeIn keeps the default 0.8s');
+    assert.equal(desktop.steps[8].timeMs, 5000);
+    assert.ok(desktop.steps.every((s: { dropped?: boolean }) => !s.dropped), 'nothing is dropped without only:');
+    assert.deepEqual(desktop.subtitles, [
+        { index: 1, startMs: 0, endMs: 1000 },
+        { index: 2, startMs: 1000, endMs: 5000 },
+    ], 'cue 1 until cue 2; cue 2 holds its 4s maximum');
+    assert.equal(got.computed.mobile.durationMs, 6300, 'the fixture has no device variation, both resolve alike');
+
+    // Device variation: an only: step is flagged dropped (authored time kept), an override moves
+    // its device's resolved time and stretches that device's duration.
+    const restore = JSON.parse(JSON.stringify(got.raw));
+    const restoreMtime = async () => (await (await fetch(server.url + '/api/timeline')).json()).mtimeMs;
+    const raw = got.raw;
+    raw.steps[2].only = 'mobile';
+    raw.steps[3].mobile = { time: '9.9s' };
+    try {
+        const put = await fetch(server.url + '/api/timeline', {
+            method: 'PUT', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ raw, mtime: got.mtimeMs }),
+        });
+        assert.equal(put.status, 200, JSON.stringify(await put.json()));
+        const after = await (await fetch(server.url + '/api/timeline')).json();
+        const d = after.computed.desktop;
+        assert.equal(d.steps[2].dropped, true, 'the mobile-only step is flagged on desktop');
+        assert.equal(d.steps[2].timeMs, 2000, 'a dropped step keeps its authored time (dimmed marker)');
+        assert.equal(d.steps[2].intrinsicMs, 0, 'a dropped step draws no duration bar');
+        assert.equal(d.steps[3].timeMs, 2500, 'the override does not touch desktop');
+        assert.equal(d.durationMs, 6300);
+        const m = after.computed.mobile;
+        assert.ok(!m.steps[2].dropped, 'mobile keeps the only: step');
+        assert.equal(m.steps[3].timeMs, 9900, 'the override is the resolved time on mobile');
+        assert.equal(m.durationMs, 11200, "9.9s + 300ms camera beats screen2's 5.3s, + 1s tail");
+    } finally {
+        const putBack = await fetch(server.url + '/api/timeline', {
+            method: 'PUT', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ raw: restore, mtime: await restoreMtime() }),
+        });
+        assert.equal(putBack.status, 200, 'fixture restore failed');
+    }
+});
+
+test('studio ruler: markers, duration bars, subtitle windows and ticks render from the computed block; a marker click selects and seeks', { skip }, async () => {
+    const browser = await chromium.launch();
+    // Left positions as percents of the 6300ms total, read off the inline styles.
+    const pct = (page: import('playwright').Page, sel: string, which: 'left' | 'width' = 'left') =>
+        page.locator(sel).evaluate((el, w) => parseFloat((el as HTMLElement).style[w] || 'nan'), which);
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        const errors: string[] = [];
+        page.on('pageerror', (e) => errors.push(String(e)));
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        await page.waitForSelector('#ruler:not([hidden])', { timeout: 8000 });
+        assert.equal(await page.locator('#ruler .tl-marker').count(), 9, 'one marker per authored step');
+        assert.equal(await page.locator('#ruler .tl-marker.is-dropped').count(), 0, 'nothing is dropped in the base fixture');
+
+        const nameLeft = await pct(page, '#ruler .tl-marker[data-i="2"]');
+        assert.ok(Math.abs(nameLeft - (2000 / 6300) * 100) < 0.5, 'the name marker sits at its resolved time, got ' + nameLeft);
+        assert.equal(await page.locator('#ruler .tl-bar').count(), 6, 'typing + two cameras + two fades + transitionScreen draw bars');
+        const zoomLeft = await pct(page, '#ruler .tl-bar[data-i="3"]');
+        const zoomWidth = await pct(page, '#ruler .tl-bar[data-i="3"]', 'width');
+        assert.ok(Math.abs(zoomLeft - (2500 / 6300) * 100) < 0.5, 'a camera bar starts at its step time');
+        assert.ok(Math.abs(zoomWidth - (300 / 6300) * 100) < 0.5, 'and spans its authored 0.3s');
+
+        assert.equal(await page.locator('#ruler-subs .tl-sub').count(), 2, 'two subtitle cues');
+        const subLeft = await pct(page, '#ruler-subs .tl-sub >> nth=1');
+        const subWidth = await pct(page, '#ruler-subs .tl-sub >> nth=1', 'width');
+        assert.ok(Math.abs(subLeft - (1000 / 6300) * 100) < 0.5, 'cue 2 starts when cue 1 ends');
+        assert.ok(Math.abs(subWidth - (4000 / 6300) * 100) < 0.5, 'cue 2 holds its 4s maximum');
+        assert.ok(await page.locator('.ruler-ticks .tl-tick').count() >= 8, 'time ticks render');
+
+        const label = await page.locator('#ruler .tl-marker[data-i="2"]').getAttribute('aria-label');
+        assert.match(label ?? '', /^step 3 \u00b7 2s \u00b7 type/, 'a screen reader can name the marker');
+
+        await page.locator('#ruler .tl-marker[data-i="3"]').click();
+        await page.waitForFunction("document.getElementById('t-pos').textContent.indexOf('4 / 9') !== -1", null, { timeout: 8000 });
+        const markerClass = String(await page.locator('#ruler .tl-marker[data-i="3"]').getAttribute('class'));
+        assert.ok(markerClass.includes('is-selected'), 'the clicked marker shows its selection');
+        assert.ok(await page.locator('#steps .step').nth(3).evaluate((el) => el.classList.contains('is-selected')), 'the step list follows the marker click');
+        const phLeft = await pct(page, '#tl-playhead');
+        assert.ok(Math.abs(phLeft - (2500 / 6300) * 100) < 0.5, 'the playhead anchors at the seeked step, got ' + phLeft);
+        assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+    }
+});
+
+test('studio ruler: dropped steps are dimmed and inert, an empty-track click seeks the step at or before, playback advances the playhead', { skip }, async () => {
+    const got = await (await fetch(server.url + '/api/timeline')).json();
+    const restore = JSON.parse(JSON.stringify(got.raw));
+    const restoreMtime = async () => (await (await fetch(server.url + '/api/timeline')).json()).mtimeMs;
+    got.raw.steps[2].only = 'mobile';
+    const put = await fetch(server.url + '/api/timeline', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ raw: got.raw, mtime: got.mtimeMs }),
+    });
+    assert.equal(put.status, 200, JSON.stringify(await put.json()));
+    const pct = (page: import('playwright').Page, sel: string) =>
+        page.locator(sel).evaluate((el) => parseFloat((el as HTMLElement).style.left || 'nan'));
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        const errors: string[] = [];
+        page.on('pageerror', (e) => errors.push(String(e)));
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        await page.waitForSelector('#ruler:not([hidden])', { timeout: 8000 });
+
+        const dropped = page.locator('#ruler .tl-marker[data-i="2"]');
+        assert.ok(String(await dropped.getAttribute('class')).includes('is-dropped'), 'the mobile-only step renders dimmed on desktop');
+        assert.equal(await dropped.isDisabled(), true, 'a dropped marker is inert');
+        await dropped.click({ force: true });
+        await page.waitForTimeout(300);
+        assert.equal(await page.locator('#t-pos').textContent(), '\u2013 / 8', 'clicking a dropped marker seeks nowhere');
+
+        await page.locator('#ruler .tl-marker[data-i="1"]').click();
+        await page.waitForFunction("document.getElementById('t-pos').textContent.indexOf('2 / 8') !== -1", null, { timeout: 8000 });
+        const phOpen = await pct(page, '#tl-playhead');
+        assert.ok(Math.abs(phOpen - (1000 / 6300) * 100) < 0.5, 'the playhead anchors at the open step, got ' + phOpen);
+
+        // An empty-track click at 75% = 4725ms: the last step at or before it is screen2 (4.5s).
+        const track = await page.locator('#ruler-track').boundingBox();
+        assert.ok(track, 'the track lane is measurable');
+        await page.mouse.click(track!.x + track!.width * 0.75, track!.y + track!.height / 2);
+        await page.waitForFunction("document.getElementById('t-pos').textContent.indexOf('7 / 8') !== -1", null, { timeout: 8000 });
+        assert.ok(await page.locator('#steps .step').nth(7).evaluate((el) => el.classList.contains('is-selected')), 'the step list landed on screen2');
+        const phTrack = await pct(page, '#tl-playhead');
+        assert.ok(Math.abs(phTrack - (4500 / 6300) * 100) < 0.5, 'the playhead followed the track seek, got ' + phTrack);
+
+        // Playback: the playhead advances past the anchor; pause stops it where it is. The
+        // bridge's natural end (1s tail) may land before the second click — both stop playback,
+        // and the transport flipping back to "play" is what says so, before the frozen value.
+        await page.locator('#t-play').click();
+        await page.waitForTimeout(1300);
+        const moved = await pct(page, '#tl-playhead');
+        assert.ok(moved > (4500 / 6300) * 100, 'the playhead advances during playback, got ' + moved);
+        await page.locator('#t-play').click(); // pause
+        await page.waitForFunction("document.getElementById('t-play').textContent.indexOf('play') !== -1", null, { timeout: 8000 });
+        await page.waitForTimeout(120);
+        const frozen = await pct(page, '#tl-playhead');
+        await page.waitForTimeout(250);
+        assert.ok(Math.abs((await pct(page, '#tl-playhead')) - frozen) < 0.01, 'pause freezes the playhead');
+        assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+        const putBack = await fetch(server.url + '/api/timeline', {
+            method: 'PUT', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ raw: restore, mtime: await restoreMtime() }),
+        });
+        assert.equal(putBack.status, 200, 'fixture restore failed');
+    }
+});
+
+test('studio ruler: the subtitle lane collapses when no step carries a subtitle', { skip }, async () => {
+    fs.cpSync(fixture, path.join(work, 'nosub'), { recursive: true });
+    const cfgPath = path.join(work, 'nosub', 'anim.config.json');
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    cfg.steps.forEach((s: { subtitle?: string }) => { delete s.subtitle; });
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
+    const opened = await (await fetch(server.url + '/api/open', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: path.join(work, 'nosub') }),
+    })).json();
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        await page.goto(server.url + '/?project=' + encodeURIComponent(opened.id), { waitUntil: 'networkidle' });
+        await page.waitForSelector('#ruler:not([hidden])', { timeout: 8000 });
+        assert.equal(await page.locator('#ruler .tl-marker').count(), 9, 'markers render as usual');
+        assert.equal(await page.locator('#ruler-subs').isHidden(), true, 'the subtitle lane collapses (a reel has no cues)');
+        assert.equal(await page.locator('#ruler-subs .tl-sub').count(), 0);
+    } finally {
+        await browser.close();
+    }
+});
+
+/** The studio's own time format for expectations: 2700 -> '2.7s', 3000 -> '3s'. */
+function fmtTime(ms: number): string {
+    return (ms % 1000 === 0 ? String(ms / 1000) : String(Number((ms / 1000).toFixed(2)))) + 's';
+}
+
+test('studio ruler: dragging a marker retimes the step in memory (snapped), nothing on disk until ⌘S', { skip }, async () => {
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        const errors: string[] = [];
+        page.on('pageerror', (e) => errors.push(String(e)));
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        await page.waitForSelector('#ruler:not([hidden])', { timeout: 8000 });
+        const track = await page.locator('#ruler-track').boundingBox();
+        const perMs = track!.width / 6300;
+        const m = await page.locator('#ruler .tl-marker[data-i="3"]').boundingBox();
+        const dragPx = 30;
+        // The same math the drag runs: pointer time, snapped to 100ms, clamped to the neighbours.
+        const expectMs = Math.min(3000, Math.max(2500, Math.round((2500 + dragPx / perMs) / 100) * 100));
+        await page.mouse.move(m!.x + m!.width / 2, m!.y + m!.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(m!.x + m!.width / 2 + dragPx, m!.y + m!.height / 2, { steps: 5 });
+        assert.equal(await page.locator('#tl-ghost').getAttribute('hidden'), null, 'the ghost shows the prospective time mid-drag'); // the anchor is 0x0, so visibility() lies
+        await page.mouse.up();
+        await page.waitForTimeout(700); // the debounced live refresh re-renders everything
+        assert.equal(await page.locator('#steps .step').nth(3).locator('.time').textContent(), fmtTime(expectMs), 'the step list shows the new time');
+        const markerLeft = parseFloat(String(await page.locator('#ruler .tl-marker[data-i="3"]').evaluate((el) => (el as HTMLElement).style.left)));
+        assert.ok(Math.abs(markerLeft - (expectMs / 6300) * 100) < 0.5, 'the marker moved to the new time, got ' + markerLeft);
+        assert.ok(await page.locator('#dirty').isVisible(), 'the retime marked the timeline dirty');
+        const beforeSave = await (await fetch(server.url + '/api/timeline')).json();
+        assert.equal(beforeSave.raw.steps[3].time, '2500ms', 'nothing was written to disk yet');
+        assert.deepEqual(errors, []);
+
+        await page.keyboard.press('Control+s');
+        await page.waitForTimeout(400);
+        const afterSave = await (await fetch(server.url + '/api/timeline')).json();
+        assert.equal(afterSave.raw.steps[3].time, fmtTime(expectMs), '⌘S round-trips the new time to the file');
+    } finally {
+        await browser.close();
+        const got = await (await fetch(server.url + '/api/timeline')).json();
+        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'anim.config.json'), 'utf8'));
+        const putBack = await fetch(server.url + '/api/timeline', {
+            method: 'PUT', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ raw: fixtureRaw, mtime: got.mtimeMs }),
+        });
+        assert.equal(putBack.status, 200, 'fixture restore failed');
+    }
+});
+
+test('studio ruler: a drag clamps to the neighbours, snaps to 100ms, and Shift snaps to 10ms', { skip }, async () => {
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        const errors: string[] = [];
+        page.on('pageerror', (e) => errors.push(String(e)));
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        await page.waitForSelector('#ruler:not([hidden])', { timeout: 8000 });
+        const track = await page.locator('#ruler-track').boundingBox();
+        const perMs = track!.width / 6300;
+
+        // zoom-again (3s) dragged far left of zoom (2.5s): the clamp stops it AT its neighbour.
+        const m = await page.locator('#ruler .tl-marker[data-i="4"]').boundingBox();
+        await page.mouse.move(m!.x + m!.width / 2, m!.y + m!.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(m!.x + m!.width / 2 - 600, m!.y + m!.height / 2, { steps: 6 });
+        await page.mouse.up();
+        await page.waitForTimeout(700);
+        assert.equal(await page.locator('#steps .step').nth(4).locator('.time').textContent(), '2.5s', 'the drag clamps at the previous step, never past it');
+
+        // Shift disables the 100ms snap: a small drag lands on the 10ms grid instead.
+        const n = await page.locator('#ruler .tl-marker[data-i="5"]').boundingBox();
+        const fine = Math.round((5 / perMs) / 10) * 10;
+        await page.keyboard.down('Shift');
+        await page.mouse.move(n!.x + n!.width / 2, n!.y + n!.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(n!.x + n!.width / 2 + 5, n!.y + n!.height / 2, { steps: 4 });
+        await page.mouse.up();
+        await page.keyboard.up('Shift');
+        await page.waitForTimeout(700);
+        assert.equal(await page.locator('#steps .step').nth(5).locator('.time').textContent(), fmtTime(3500 + fine),
+            'Shift lands on the 10ms grid (' + fmtTime(3500 + fine) + '), not the 100ms one');
+        assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+        const got = await (await fetch(server.url + '/api/timeline')).json();
+        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'anim.config.json'), 'utf8'));
+        const putBack = await fetch(server.url + '/api/timeline', {
+            method: 'PUT', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ raw: fixtureRaw, mtime: got.mtimeMs }),
+        });
+        assert.equal(putBack.status, 200, 'fixture restore failed');
+    }
+});
+
+test('studio ruler: on the mobile view a drag edits a mobile.time override, never the base time', { skip }, async () => {
+    const got = await (await fetch(server.url + '/api/timeline')).json();
+    const restore = JSON.parse(JSON.stringify(got.raw));
+    const restoreMtime = async () => (await (await fetch(server.url + '/api/timeline')).json()).mtimeMs;
+    got.raw.steps[3].mobile = { time: '9.9s' };
+    const put = await fetch(server.url + '/api/timeline', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ raw: got.raw, mtime: got.mtimeMs }),
+    });
+    assert.equal(put.status, 200, JSON.stringify(await put.json()));
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        const errors: string[] = [];
+        page.on('pageerror', (e) => errors.push(String(e)));
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        await page.waitForSelector('#ruler:not([hidden])', { timeout: 8000 });
+
+        await page.locator('#t-device').click(); // the mobile view: zoom's marker sits at its override
+        await page.waitForFunction("var el = document.querySelector('#ruler .tl-marker[data-i=\\\"3\\\"]'); el && Math.abs(parseFloat(el.style.left) - 9900 / 11200 * 100) < 0.6", null, { timeout: 8000 });
+        const track = await page.locator('#ruler-track').boundingBox();
+        const perMs = track!.width / 11200;
+        const m = await page.locator('#ruler .tl-marker[data-i="3"]').boundingBox();
+        await page.mouse.move(m!.x + m!.width / 2, m!.y + m!.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(m!.x + m!.width / 2 - 200, m!.y + m!.height / 2, { steps: 6 });
+        await page.mouse.up();
+        await page.waitForTimeout(700);
+
+        // The override moved (clamped between its mobile neighbours: name 2s, zoom-again 3s);
+        // the base time is untouched, and the desktop view never saw any of it.
+        await page.locator('#steps .step').nth(3).click(); // the Raw tab shows the selected step
+        await page.waitForTimeout(300);
+        await page.locator('.tab[data-tab=\'raw\']').click();
+        const step4 = JSON.parse(await page.locator('#raw-text').inputValue());
+        assert.equal(step4.mobile.time, '3s', 'the drag wrote the override (clamped into mobile chronology), got ' + step4.mobile.time);
+        assert.equal(step4.time, '2500ms', 'the base time survived');
+        await page.locator('#t-device').click(); // back to desktop
+        await page.waitForFunction("var el = document.querySelector('#ruler .tl-marker[data-i=\\\"3\\\"]'); el && Math.abs(parseFloat(el.style.left) - 2500 / 6300 * 100) < 0.6", null, { timeout: 8000 });
+        assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+        const putBack = await fetch(server.url + '/api/timeline', {
+            method: 'PUT', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ raw: restore, mtime: await restoreMtime() }),
+        });
+        assert.equal(putBack.status, 200, 'fixture restore failed');
+    }
+});
+
+test('studio ruler: typing a time in the inspector moves the marker at once, not after the debounce', { skip }, async () => {
+    const browser = await chromium.launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        const errors: string[] = [];
+        page.on('pageerror', (e) => errors.push(String(e)));
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        await page.waitForSelector('#ruler:not([hidden])', { timeout: 8000 });
+        await page.locator('#steps .step').nth(1).click();
+        await page.waitForSelector('#f-time', { timeout: 8000 });
+        await page.fill('#f-time', '1.4s');
+        // No wait for the 450ms live-refresh debounce: the marker must move in the same tick.
+        const left = parseFloat(String(await page.locator('#ruler .tl-marker[data-i="1"]').evaluate((el) => (el as HTMLElement).style.left)));
+        assert.ok(Math.abs(left - (1400 / 6300) * 100) < 0.5, 'the marker follows the typed time immediately, got ' + left);
+        assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+        const got = await (await fetch(server.url + '/api/timeline')).json();
+        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'anim.config.json'), 'utf8'));
+        const putBack = await fetch(server.url + '/api/timeline', {
+            method: 'PUT', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ raw: fixtureRaw, mtime: got.mtimeMs }),
+        });
+        assert.equal(putBack.status, 200, 'fixture restore failed');
+    }
+});
+
+test('studio ruler: a retime past the end keeps the marker on the ruler, and replaying the current step re-anchors the playhead', { skip }, async () => {
+    const browser = await chromium.launch();
+    const pct = (page: import('playwright').Page, sel: string) =>
+        page.locator(sel).evaluate((el) => parseFloat((el as HTMLElement).style.left || 'nan'));
+    try {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+        const errors: string[] = [];
+        page.on('pageerror', (e) => errors.push(String(e)));
+        await page.goto(await editorUrl(), { waitUntil: 'networkidle' });
+        await page.waitForSelector('#ruler:not([hidden])', { timeout: 8000 });
+
+        // Playback runs to the end, parking the playhead at 100%. The bridge floors every dwell
+        // at 450ms plus each step's own duration, so the full fixture takes ~15s — the wait must
+        // cover real pacing, not the tail.
+        await page.locator('#t-play').click();
+        await page.waitForFunction("document.getElementById('t-play').textContent.indexOf('play') !== -1 && document.getElementById('tl-playhead').style.left === '100%'", null, { timeout: 30000 });
+        await page.locator('#ruler .tl-marker[data-i="8"]').click();
+        await page.waitForTimeout(400);
+        const after = await pct(page, '#tl-playhead');
+        assert.ok(Math.abs(after - (5000 / 6300) * 100) < 0.5, 'the playhead re-anchored on the replay seek, got ' + after + '%');
+
+        // Drag the last marker (caret, 5s) well past the end of the timeline: the write is legal
+        // (it extends the video) but the marker may not render off the ruler's right edge.
+        const track = await page.locator('#ruler-track').boundingBox();
+        const perMs = track!.width / 6300;
+        const m = await page.locator('#ruler .tl-marker[data-i="8"]').boundingBox();
+        await page.mouse.move(m!.x + m!.width / 2, m!.y + m!.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(m!.x + m!.width / 2 + 250, m!.y + m!.height / 2, { steps: 6 });
+        await page.mouse.up();
+        await page.waitForTimeout(700);
+        const expectMs = Math.round((5000 + 250 / perMs) / 100) * 100;
+        assert.equal(await page.locator('#steps .step').nth(8).locator('.time').textContent(), fmtTime(expectMs), 'the overhang time is written');
+        const left = await pct(page, '#ruler .tl-marker[data-i="8"]');
+        assert.ok(left >= 0 && left <= 100, 'the marker stays on the ruler, got ' + left + '%');
+        assert.deepEqual(errors, []);
+    } finally {
+        await browser.close();
+        const got = await (await fetch(server.url + '/api/timeline')).json();
+        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'anim.config.json'), 'utf8'));
+        const putBack = await fetch(server.url + '/api/timeline', {
+            method: 'PUT', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ raw: fixtureRaw, mtime: got.mtimeMs }),
+        });
+        assert.equal(putBack.status, 200, 'fixture restore failed');
+    }
+});
+
 test('studio locale support: scaffold, translate, refuse unknown keys and stale writes', async () => { // API-only; must run last-ish: it leaves strings.fr.json in the fixture (after() removes the dir)
     // Scaffold a new locale with the source text (the switcher's "+ new locale" flow).
     const t = await (await fetch(server.url + '/api/timeline')).json();

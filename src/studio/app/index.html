@@ -46,6 +46,13 @@
       <div class="pane-head"><span>Layers</span><span class="spacer"></span><button id="layers-close" class="mini" type="button" title="Close the layers panel">&#10005;</button></div>
       <div id="layers-list" role="tree" aria-label="Screen elements"></div>
     </div>
+    <div id="ruler" role="group" aria-label="Timeline ruler" hidden>
+      <div id="ruler-ticks" class="ruler-lane ruler-ticks" aria-hidden="true"></div>
+      <div id="ruler-track" class="ruler-lane ruler-track"></div>
+      <div id="ruler-subs" class="ruler-lane ruler-subs" aria-hidden="true" hidden></div>
+      <div id="tl-ghost" aria-hidden="true" hidden><span id="tl-ghost-tip"></span></div>
+      <div id="tl-playhead" aria-hidden="true"></div>
+    </div>
     <div id="transport">
       <button id="t-prev" class="mini" type="button" title="Previous step">&#8630; prev</button>
       <button id="t-play" class="mini" type="button" title="Play / pause (space)">&#9654; play</button>

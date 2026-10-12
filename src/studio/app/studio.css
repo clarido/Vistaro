@@ -182,6 +182,67 @@ select.mini { font: 600 11px/1 var(--mono); background: var(--panel2); }
 .t-pos { font: 600 11.5px/1 var(--mono); color: var(--muted); }
 .t-note { font: 400 11px/1 var(--mono); color: var(--faint); }
 
+/* ---------- timeline ruler ---------- */
+/* Percent geometry throughout: every lane is the same width, so left/width in % of the timeline
+   duration needs no resize handling. The ruler is a view over `time` — markers at their resolved
+   time, bars for steps that keep animating, cues for subtitles, a playhead for playback. */
+#ruler {
+  position: relative; flex: none;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  user-select: none; -webkit-user-select: none;
+  touch-action: none;
+}
+/* Each lane is its own containing block: without this, every lane's absolute children resolve
+   against #ruler and the subtitle bars end up covering the track, eating its clicks. */
+.ruler-lane { position: relative; }
+#ruler-ticks { height: 15px; overflow: hidden; }
+.tl-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line-soft); }
+.tl-tick i { position: absolute; left: 3px; top: 2px; font: 500 9.5px/1 var(--mono); font-style: normal; color: var(--faint); }
+#ruler-track { height: 30px; border-top: 1px solid var(--line-soft); cursor: crosshair; }
+.tl-bar { position: absolute; top: 50%; height: 4px; margin-top: -2px; background: var(--line); border-radius: 2px; z-index: 1; }
+.tl-marker {
+  position: absolute; top: 50%; z-index: 2;
+  width: 12px; height: 12px; margin: -6px 0 0 -6px;
+  background: var(--accent); border: 1px solid #140700; border-radius: 2.5px;
+  /* stacked pasties for near-coincident steps; translate stays in screen space (rotate after) */
+  transform: translateY(calc(var(--tl-stack, 0) * -7px)) rotate(45deg);
+  padding: 0;
+}
+.tl-marker:hover { box-shadow: 0 0 0 3px var(--accent-soft); }
+.tl-marker.is-selected { background: var(--ink); box-shadow: 0 0 0 2px var(--accent); }
+.tl-marker.is-current { background: var(--good); }
+.tl-marker.is-dropped { opacity: .35; background: var(--muted); cursor: default; }
+#ruler-subs { height: 10px; border-top: 1px solid var(--line-soft); }
+.tl-sub { position: absolute; top: 3px; bottom: 3px; background: var(--info); opacity: .4; border-radius: 2px; }
+#tl-playhead {
+  position: absolute; top: 0; bottom: 0; left: 0; z-index: 5;
+  width: 2px; margin-left: -1px;
+  background: var(--info);
+  pointer-events: none;
+}
+#tl-playhead::after { content: ""; position: absolute; top: -1px; left: -2px; border: 3px solid transparent; border-top-color: var(--info); }
+#tl-ghost {
+  /* An unrotated anchor at the ghost time (width 0, so left:% is the centre); the diamond is a
+     pseudo-element so the tooltip keeps its horizontal text. */
+  position: absolute; top: 15px; z-index: 6;
+  width: 0; height: 0;
+  pointer-events: none;
+}
+#tl-ghost::before {
+  content: ""; position: absolute; left: -6px; top: -6px;
+  width: 12px; height: 12px;
+  background: var(--warn); border: 1px solid #140700; border-radius: 2.5px;
+  transform: rotate(45deg);
+}
+#tl-ghost-tip {
+  position: absolute; bottom: 15px; left: 0;
+  transform: translateX(-50%);
+  font: 600 10px/1 var(--mono); color: var(--ink);
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 5px;
+  padding: 3px 6px; white-space: nowrap;
+}
+
 /* ---------- side / inspector ---------- */
 #side { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
 .tabs { display: flex; border-bottom: 1px solid var(--line-soft); flex: none; }

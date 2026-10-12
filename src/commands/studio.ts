@@ -3,7 +3,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
-import { parseTimeline, validateTimeline, formatIssue, loadTimeline, hasErrors, Issue, resolveConfigPath, Timeline, applyDevice } from '../engine/schema';
+import { parseTimeline, validateTimeline, formatIssue, loadTimeline, hasErrors, Issue, resolveConfigPath, Timeline, applyDevice, subtitleWindows, computeDurationMs, intrinsicDurationMs } from '../engine/schema';
 import { buildTourPage } from '../engine/inject';
 import { localizedStringsFiles, readStrings, writeStrings, stringsPathFor } from '../engine/strings';
 import { CONFIG_SCAFFOLD, REEL_SCAFFOLD } from './init-config';
@@ -298,6 +298,47 @@ function deviceMap(raw: Record<string, unknown> | null): Record<string, { positi
         try {
             const resolved = applyDevice(parseTimeline(JSON.parse(JSON.stringify(raw))), device);
             out[device] = { positions: resolved.steps.map(st => st.index), total: resolved.steps.length };
+        } catch {
+            out[device] = null;
+        }
+    }
+    return out;
+}
+
+/** What the editor's timeline ruler draws, per device -- derived from the SAME schema helpers the
+ *  export path runs, so the studio never re-implements duration or subtitle-window math. Steps
+ *  keep their authored 1-based index; a step an `only:` dropped carries `dropped: true` with its
+ *  authored time (rendered dimmed, not seekable) and no duration. `timeMs` is null for a time the
+ *  parser rejects (validation already reports it). null per device when the timeline will not
+ *  parse, like deviceMap. */
+interface ComputedStep {
+    authoredIndex: number;
+    id: string;
+    action: string;
+    timeMs: number | null;
+    intrinsicMs: number;
+    dropped?: boolean;
+}
+function computedFor(raw: Record<string, unknown> | null): Record<string, { durationMs: number; steps: ComputedStep[]; subtitles: { index: number; startMs: number; endMs: number }[] } | null> {
+    const out: Record<string, { durationMs: number; steps: ComputedStep[]; subtitles: { index: number; startMs: number; endMs: number }[] } | null> = {};
+    for (const device of ['desktop', 'mobile'] as const) {
+        if (!raw) { out[device] = null; continue; }
+        try {
+            const authored = parseTimeline(JSON.parse(JSON.stringify(raw)));
+            const resolved = applyDevice(parseTimeline(JSON.parse(JSON.stringify(raw))), device);
+            const byIndex = new Map(resolved.steps.map(s => [s.index, s]));
+            const steps: ComputedStep[] = authored.steps.map((s) => {
+                const live = byIndex.get(s.index);
+                if (!live) {
+                    return { authoredIndex: s.index, id: s.id, action: s.action, timeMs: Number.isFinite(s.timeMs) ? s.timeMs : null, intrinsicMs: 0, dropped: true };
+                }
+                return { authoredIndex: s.index, id: live.id, action: live.action, timeMs: Number.isFinite(live.timeMs) ? live.timeMs : null, intrinsicMs: intrinsicDurationMs(live) };
+            });
+            out[device] = {
+                durationMs: computeDurationMs(resolved),
+                steps,
+                subtitles: subtitleWindows(resolved).map(w => ({ index: w.index, startMs: w.startMs, endMs: w.endMs })),
+            };
         } catch {
             out[device] = null;
         }
@@ -820,6 +861,7 @@ export async function studioCommand(dir: string | undefined, options: StudioOpti
                 locales: availableLocales(absDir, configFile),
                 initialDevice: options.device === 'mobile' ? 'mobile' : 'desktop',
                 devices: deviceMap(raw),
+                computed: computedFor(raw),
                 issues: exists ? staticIssues(raw!).map(formatIssue) : [],
             });
             return;
