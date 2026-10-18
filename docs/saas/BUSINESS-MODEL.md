@@ -1,10 +1,53 @@
 # Vistaro: business model
 
-*Revised 2026-10-18. This replaces the 2026-10-02 "Demoforge" model, which sold cloud build-minutes and API calls. That conflicts with the owner's rule (§0), so the model was rebuilt around it. Competitor prices below are the ones fetched on 2026-10-02 (sources in §10). Re-verify them before they go on a public page.*
+*Revised 2026-10-18. Decision of the day: **Vistaro is free for now.** Get users first, then decide whether a business model exists. The paid "Vistaro Cloud" design below is kept as parked notes, not as a plan.*
 
 ---
 
-## 0. Decisions at a glance
+## Current decision: free, and watch
+
+**What ships:** the open-source CLI and the website. That's all.
+
+**Why free works:** the CLI runs on the user's computer, driven by the agent they already pay for (Claude Code, Codex, Antigravity). Rendering uses their machine; the AI uses their subscription. Our cost is a static web page and an npm package, close to zero, so there's no pressure to charge before we know who the users are.
+
+**Why not run Vistaro Cloud for free:** it's built and tested (`saas/`), but running it means hosting HTML strangers upload (phishing and spam magnet), storing other people's visitors' emails (privacy obligations), and maintaining a server with accounts and backups. That's real cost and risk for a feature nobody has asked for yet. It stays in the repo, undeployed, ready to switch on in days.
+
+**What we watch to find a model:**
+
+| Signal | Where | What it would tell us |
+|---|---|---|
+| Adoption | npm downloads, GitHub stars, website traffic | Whether anyone wants the tool at all |
+| Requests | GitHub issues and discussions | What's missing; especially "how do I host this?" or "how do I see who watched?" |
+| Waitlist | "Join the waitlist" on the site (email to hello@vistaro.dev, with a prompt asking what they'd use it for) | Whether a hosted service has demand, and for which feature |
+| Who shows up | Issues, waitlist emails | Developers only, or also marketing, sales and support people? Only the second group plausibly pays (see below). |
+| What they do with output | Issues, examples shared publicly | Where demos end up: docs, homepages, sales emails |
+
+No telemetry in the CLI: a tool whose pitch is "runs locally" shouldn't phone home.
+
+**Decision point:** revisit after three months, or earlier if the waitlist or issues show a clear pattern.
+
+---
+
+## What we learned designing the paid version
+
+**Developers won't pay for collaboration on files they already have.** The CLI's output is ordinary files. A developer can review them in a pull request, share the MP4 in Slack, and host the folder on GitHub Pages or Netlify for free. So review workflows, release history, plain hosting, password protection, a static help center and translation editing are all weak paid features: each has a free do-it-yourself version that developers already use.
+
+**What a laptop genuinely can't do involves people outside the company:**
+1. *Seeing what viewers did:* which step they quit at, completion per scenario. Generic web analytics doesn't understand demo steps.
+2. *Turning viewers into leads:* an email form before the demo, a button at the end, leads sent to the CRM. That needs a server receiving personal data.
+3. Further ideas, not built: identifying which company watched (IP-to-company lookup) and alerting sales; personalized demo links per prospect; A/B testing two versions of a demo; native HubSpot and Salesforce integrations.
+
+**So the plausible buyer is marketing and sales, not the developer.** The developer gets everything free; the person judged on what demos bring in might pay for audience insight and lead capture. That's the same buyer Arcade, Storylane and Navattic sell to. If the "who shows up" signal stays developers-only, a hosted business probably isn't there.
+
+**The rule that holds either way:** never charge for rendering, credits or minutes. It would mean charging people for what they can do themselves with one command.
+
+---
+
+## Appendix: the hosted model we built and parked
+
+Everything below is the 2026-10-18 design for Vistaro Cloud. It's kept for reference. The pricing in it is **not** on the website and should be revisited against the lessons above before any revival (in particular, the Team tier leans on review and translation features that developers can do for free).
+
+### 0. Decisions at a glance
 
 | Decision | Call |
 |---|---|
@@ -19,7 +62,7 @@
 
 ---
 
-## 1. Why the rule is also the right strategy
+### 1. Why the rule is also the right strategy
 
 The owner set the constraint: no selling tokens or video generation, and the CLI stays as designed. It is also the stronger business:
 
@@ -30,7 +73,7 @@ The owner set the constraint: no selling tokens or video generation, and the CLI
 
 ---
 
-## 2. What the market pays for
+### 2. What the market pays for
 
 Prices fetched 2026-10-02 (§10). The pattern matters more than the numbers.
 
@@ -68,7 +111,7 @@ What every one of them monetizes is **hosting, branding, analytics, lead capture
 
 ---
 
-## 3. The product
+### 3. The product
 
 ```
  repo (index.html + anim.config.json)
@@ -104,7 +147,7 @@ The old operator **render runner** (`POST /v1/builds`) is still there for self-h
 
 ---
 
-## 4. Pricing
+### 4. Pricing
 
 | | **Free** | **Pro** | **Team** | **Enterprise** |
 |---|---|---|---|---|
@@ -131,7 +174,7 @@ The old operator **render runner** (`POST /v1/builds`) is still there for self-h
 
 ---
 
-## 5. Upsell mechanics, where each upgrade happens
+### 5. Upsell mechanics, where each upgrade happens
 
 The product is built so every wall shows up at the moment of need, with the plan that removes it:
 
@@ -153,7 +196,7 @@ Each 402 carries `feature`, `upgradeTo` and `upgradeUrl`, so the publish client 
 
 ---
 
-## 6. Unit economics
+### 6. Unit economics
 
 Nothing is rendered on our side, so the cost of serving a customer is storage + egress + a share of a small VM:
 
@@ -167,7 +210,7 @@ At $19–24 a Pro workspace costs us under $1–2/mo, a gross margin above 90%. 
 
 ---
 
-## 7. Go-to-market
+### 7. Go-to-market
 
 1. **The CLI is the funnel.** Open source, unlimited, agent-first (AGENTS.md is the integration manual). The website's hero stays "ask your agent", and the second CTA becomes "publish it".
 2. **The badge is the viral loop.** Every free hosted demo links to vistaro.dev with `?ref=badge`; measure that referral.
@@ -178,7 +221,7 @@ At $19–24 a Pro workspace costs us under $1–2/mo, a gross margin above 90%. 
 
 ---
 
-## 8. Before charging money: what production still needs
+### 8. Before charging money: what production still needs
 
 Honest list. The code above is a working, tested product, but a single-node one:
 
@@ -193,7 +236,7 @@ Honest list. The code above is a working, tested product, but a single-node one:
 
 ---
 
-## 9. Risks
+### 9. Risks
 
 | Risk | Mitigation |
 |---|---|
@@ -205,7 +248,7 @@ Honest list. The code above is a working, tested product, but a single-node one:
 
 ---
 
-## 10. Evidence
+### 10. Evidence
 
 - Competitor pricing pages fetched 2026-10-02: arcade.software/pricing, supademo.com/pricing, storylane.io/pricing, navattic.com/pricing (no public prices), scribe.com/pricing, tango.ai/pricing, guidde.com/pricing. Remotion's license (remotion.dev) is the precedent that companies pay for source-driven video.
 - The competitor research and naming checks of the superseded model stay readable in this file's git history (the 2026-10-02 revision).

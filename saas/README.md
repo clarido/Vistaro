@@ -1,5 +1,7 @@
 # Vistaro Cloud
 
+> **Status: parked, not deployed (2026-10-18).** Vistaro is launching as a free, open-source CLI. This service is built and tested but intentionally not running anywhere: hosting strangers' uploads and storing their visitors' emails carries cost and risk that only makes sense once users ask for it. See [`docs/saas/BUSINESS-MODEL.md`](../docs/saas/BUSINESS-MODEL.md) for the decision and what would revive it.
+
 The paid half of Vistaro ([business model](../docs/saas/BUSINESS-MODEL.md)). The free CLI renders guides, tours, reels and videos on your machine or in CI. **Vistaro Cloud never renders.** It hosts what the CLI built and adds what a team pays for: analytics, lead capture, a help center, review and approvals, a translation workspace, custom domains, webhooks and billing.
 
 **Zero runtime dependencies**: `node:http`, `node:crypto`, `node:zlib` and the built-in `fetch`. The server and its smoke test need no `npm install`.

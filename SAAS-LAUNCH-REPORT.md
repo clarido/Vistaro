@@ -1,4 +1,4 @@
-> **Superseded (2026-10-18).** This report describes the October 3 "Demoforge" plan, which sold cloud build-minutes and API calls. The product is now **Vistaro**, and its paid half, **Vistaro Cloud**, never sells rendering: it hosts, measures and monetizes what the free CLI builds. Read [`docs/saas/BUSINESS-MODEL.md`](docs/saas/BUSINESS-MODEL.md) for the current model and [`saas/README.md`](saas/README.md) for what is built. This report is kept for its history and verification record.
+> **Superseded (2026-10-18).** This report describes the October 3 "Demoforge" plan, which sold cloud build-minutes and API calls. The product is now **Vistaro**, launching **free and open source**; a hosted service was designed and built (`saas/`) but is parked. Read [`docs/saas/BUSINESS-MODEL.md`](docs/saas/BUSINESS-MODEL.md) for the current decision. This report is kept for its history and verification record.
 
 # SaaS launch report — Demoforge
 
