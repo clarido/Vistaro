@@ -1,21 +1,31 @@
 'use strict';
 /**
- * Demoforge SaaS — MVP backend. Zero runtime dependencies (node:http,
+ * Vistaro Cloud -- backend. Zero runtime dependencies (node:http,
  * node:crypto, node:zlib, built-in fetch).
  *
- *   GET  /health                 liveness + queue/billing facts
- *   POST /v1/builds              upload a project .zip, queue an export (auth)
- *   GET  /v1/builds              list builds (auth)
- *   GET  /v1/builds/<id>         one build's status, artifacts, log (auth)
- *   POST /v1/billing/checkout    Stripe Checkout session (auth; 501 unconfigured)
- *   GET  /embed/<id>/<path>      a build's artifacts, public, Range-capable
- *   GET  /                       the dashboard (saas/public/index.html)
+ * Vistaro Cloud never renders: the free CLI builds videos, guides, reels and
+ * tours on the customer's machine or CI, and the Cloud hosts, measures and
+ * monetizes what was built (docs/saas/BUSINESS-MODEL.md).
  *
- * Auth: Bearer keys from SAAS_API_KEYS (comma-separated). Everything under
- * /v1/* requires a key; /health, / and /embed/* are public.
+ * APP origin (VISTARO_APP_URL, dev default http://127.0.0.1:<port>)
+ *   GET  /                       the dashboard (saas/public/app.html)
+ *   *    /api/*                  accounts, workspaces, publishing, analytics,
+ *                                leads, review, translations, billing (lib/cloud/api.js)
+ *   GET  /health                 liveness facts
+ * CONTENT origin (VISTARO_CONTENT_URL, dev default http://localhost:<port>)
+ *   /p/<ws>/<project>/...        published demos, /h/<ws>/ help centers,
+ *   /r/<key>/... review links, /_v/* viewer script + beacon (lib/cloud/content.js)
+ *   plus every workspace custom domain.
  *
- * The export runner is serial (one browser-driven CLI at a time — AGENTS.md
- * warns concurrent runs corrupt each other) and lives in lib/queue.js.
+ * OPERATOR surface (Bearer keys from SAAS_API_KEYS; unset => 401):
+ *   POST /v1/builds, GET /v1/builds[/<id>]   the self-hosted render runner
+ *   GET  /embed/<id>/<path>                  its artifacts
+ *   POST /v1/billing/checkout                legacy checkout stub
+ *   PUT  /v1/workspaces/<slug>/plan          set a plan by hand (Enterprise deals)
+ *   GET  /ops                                its console (saas/public/ops.html)
+ * The runner is serial (one browser-driven CLI at a time -- AGENTS.md warns
+ * concurrent runs corrupt each other) and lives in lib/queue.js. It is not a
+ * customer-facing product: selling renders is what the model rules out.
  */
 
 const http = require('node:http');
@@ -29,8 +39,10 @@ const { unpackProject } = require('./lib/project');
 const { ExportQueue } = require('./lib/queue');
 const { createCheckoutSession, PLAN_ENV } = require('./lib/stripe');
 const { looksLikeZip, ZipError } = require('./lib/zip');
+const { Cloud } = require('./lib/cloud');
+const { PLANS } = require('./lib/cloud/plans');
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 
 // ---------------------------------------------------------------------------
 // Environment (documented in saas/README.md)
@@ -57,7 +69,7 @@ const RUNNER_DISABLED = process.env.SAAS_DISABLE_RUNNER === '1';
 const auth = new Auth(parseApiKeys(process.env.SAAS_API_KEYS));
 fs.mkdirSync(jobs.jobsRoot(DATA_DIR), { recursive: true });
 
-const log = (line) => process.stderr.write(`[demoforge] ${line}\n`);
+const log = (line) => process.stderr.write(`[vistaro] ${line}\n`);
 const queue = new ExportQueue({
   dataDir: DATA_DIR,
   repoRoot: REPO_ROOT,
@@ -66,6 +78,8 @@ const queue = new ExportQueue({
   log,
 });
 queue.markInterruptedJobs();
+
+const cloud = new Cloud({ dataDir: DATA_DIR, maxUploadBytes: MAX_UPLOAD_BYTES, log });
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -123,9 +137,17 @@ function requestOrigin(req) {
   return `${proto}://${host}`;
 }
 
-/** Serve saas/public/* — only the dashboard, nothing else, from a fixed path. */
-function serveDashboard(req, res) {
-  const file = path.join(__dirname, 'public', 'index.html');
+// saas/public/* is served from a fixed allowlist, never from a request path.
+const PUBLIC_FILES = {
+  '': 'app.html',
+  'index.html': 'app.html',
+  'app.js': 'app.js',
+  'app.css': 'app.css',
+  'ops': 'ops.html',
+};
+
+function servePublic(req, res, name) {
+  const file = path.join(__dirname, 'public', PUBLIC_FILES[name]);
   return serveFile(req, res, file, { cacheControl: 'no-store' });
 }
 
@@ -154,9 +176,9 @@ async function serveEmbed(req, res, id, restSegments) {
           ([k, rel]) => `<li><a href="/embed/${id}/${rel}">${k}</a> — ${rel}</li>`,
         ).join('')
       : '<li>no artifacts yet</li>';
-    const body = `<!doctype html><meta charset="utf-8"><title>Demoforge build ${id}</title>
+    const body = `<!doctype html><meta charset="utf-8"><title>Vistaro build ${id}</title>
 <body style="font:14px/1.6 system-ui,sans-serif;background:#0b0d10;color:#e8eaed;max-width:640px;margin:48px auto;padding:0 16px">
-<h1 style="font-size:18px">Demoforge build <code>${id}</code></h1>
+<h1 style="font-size:18px">Vistaro build <code>${id}</code></h1>
 <p>status: <strong>${meta.status}</strong>${meta.error ? ` — ${String(meta.error).replace(/</g, '&lt;')}` : ''}</p>
 <ul>${links}</ul></body>`;
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
@@ -253,10 +275,14 @@ async function route(req, res) {
     return;
   }
 
+  // --- Vistaro Cloud: content origin, custom domains, /api ---------------
+  if ((await cloud.handle(req, res, segments)) === 'handled') return;
+
   // --- public ------------------------------------------------------------
-  if (segments.length === 0 || (segments.length === 1 && segments[0] === 'index.html')) {
+  const publicName = segments.length === 0 ? '' : segments.length === 1 ? segments[0] : null;
+  if (publicName != null && Object.prototype.hasOwnProperty.call(PUBLIC_FILES, publicName)) {
     if (req.method !== 'GET' && req.method !== 'HEAD') { json(res, 405, { error: 'method not allowed' }); return; }
-    if (!(await serveDashboard(req, res))) json(res, 404, { error: 'not found' });
+    if (!(await servePublic(req, res, publicName))) json(res, 404, { error: 'not found' });
     return;
   }
 
@@ -264,7 +290,7 @@ async function route(req, res) {
     if (req.method !== 'GET' && req.method !== 'HEAD') { json(res, 405, { error: 'method not allowed' }); return; }
     json(res, 200, {
       ok: true,
-      service: 'demoforge-saas',
+      service: 'vistaro-cloud',
       version: VERSION,
       uptimeMs: Math.round(process.uptime() * 1000),
       queue: { depth: queue.depth, running: queue.runningJob != null, runnerDisabled: RUNNER_DISABLED },
@@ -302,6 +328,18 @@ async function route(req, res) {
         return;
       }
       json(res, segments.length === 3 ? 405 : 404, { error: 'not found' });
+      return;
+    }
+
+    if (segments[1] === 'workspaces' && segments.length === 4 && segments[3] === 'plan') {
+      if (req.method !== 'PUT') { json(res, 405, { error: 'method not allowed' }); return; }
+      const ws = cloud.store.findOne('workspaces', (w) => w.slug === segments[2]);
+      if (!ws) { json(res, 404, { error: 'not found', message: `no workspace ${segments[2]}` }); return; }
+      const body = await readJsonBody(req);
+      if (!PLANS[body.plan]) { json(res, 400, { error: `plan must be one of ${Object.keys(PLANS).join(', ')}` }); return; }
+      const next = cloud.store.update('workspaces', ws.id, { plan: body.plan });
+      cloud.accounts.audit(ws.id, null, 'operator.plan', { plan: body.plan });
+      json(res, 200, { slug: next.slug, plan: next.plan });
       return;
     }
 
@@ -345,9 +383,12 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, HOST, () => {
   const addr = server.address();
+  cloud.setUrls({ port: addr.port });
   // stdout line is the boot contract: saas/smoke.mjs parses the port from it.
   process.stdout.write(`listening on http://${HOST}:${addr.port}\n`);
-  log(`demoforge-saas ${VERSION}`);
+  log(`vistaro-cloud ${VERSION}`);
+  log(`app:       ${cloud.appUrl}`);
+  log(`content:   ${cloud.contentUrl}`);
   log(`repo root: ${REPO_ROOT}`);
   log(`data dir:  ${DATA_DIR}`);
   log(`api keys:  ${auth.configured ? `${auth.count} configured` : 'NONE — every /v1 request will 401 (set SAAS_API_KEYS)'}`);

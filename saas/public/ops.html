@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>Demoforge — cloud builds</title>
+<title>Vistaro ops — render runner</title>
 <style>
   :root {
     --bg: #0b0d10;
@@ -94,8 +94,8 @@
 <body>
 
 <header>
-  <h1><span class="mark">⚒</span> Demoforge</h1>
-  <span class="tag">cloud builds — your demo, compiled</span>
+  <h1><span class="mark">⚒</span> Vistaro ops</h1>
+  <span class="tag">operator console — self-hosted render runner (not a customer product)</span>
   <span class="spacer"></span>
   <span class="health" id="health"></span>
   <button class="ghost" id="forget" title="Forget the stored API key">Log out</button>
@@ -107,7 +107,7 @@
   <!-- API-key gate -->
   <div class="card keycard" id="keycard">
     <h2 style="margin:0">API key required</h2>
-    <p>Cloud builds are a paid feature. Paste the workspace API key
+    <p>The render runner is an operator tool for self-hosted installs. Paste an operator key
        (it is kept in this browser's localStorage only).</p>
     <div class="row" style="justify-content:center">
       <input type="password" id="key" placeholder="dfk_…" autocomplete="off">

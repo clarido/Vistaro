@@ -1,7 +1,6 @@
-# Demoforge — Business Model
+# Vistaro: business model
 
-Strategy doc for taking this repo (today `screenshot-animator@2.0.0`, `package.json`) to market as a SaaS.
-Written 2026-10-02. All pricing evidence was fetched the same day; see [§9 Evidence](#9-evidence--sources).
+*Revised 2026-10-18. This replaces the 2026-10-02 "Demoforge" model, which sold cloud build-minutes and API calls. That conflicts with the owner's rule (§0), so the model was rebuilt around it. Competitor prices below are the ones fetched on 2026-10-02 (sources in §10). Re-verify them before they go on a public page.*
 
 ---
 
@@ -9,170 +8,205 @@ Written 2026-10-02. All pricing evidence was fetched the same day; see [§9 Evid
 
 | Decision | Call |
 |---|---|
-| **Name** | **Demoforge** (confirmed — npm name free, no active same-named company/product) |
-| **Positioning** | Developer-first **demo compiler**: the product demo as code — validated, sharpened, not overturned |
-| **Free tier** | OSS CLI, unlimited local builds, no watermark (the repo as it stands) |
-| **Paid ladder** | Builder **$29/mo** · Team **$99/mo** · Enterprise **custom** |
-| **What the cloud sells** | Hosted tour/guide/reel embeds with analytics · GitHub PR-preview builds · agent HTTP API · localization management |
-| **Who we are not** | Not a GUI editor, not capture-first, not a general-purpose video framework |
+| **The rule** | **Never sell generation.** No tokens, credits, render minutes or per-video fees. The CLI renders on the customer's laptop or CI, for free and without limits, forever, and its design does not change. |
+| **Name** | **Vistaro** ("Show. Don't Tell."): the CLI, the website and the paid service, **Vistaro Cloud**. |
+| **What the Cloud sells** | Everything that happens *after* the render: **publishing** (hosting, embeds, custom domain, password protection, release history), **measuring** (step drop-off, completion, referrers), **converting** (lead-capture gates, CTAs, CRM webhooks), **operating as a team** (help center, review and approval, translation workspace, seats, audit). |
+| **Ladder** | Free $0 · Pro **$24/mo** ($19 billed yearly) · Team **$79/mo** ($64 billed yearly) · Enterprise from about **$1,000/mo**, annual. |
+| **Pricing unit** | A flat price per **workspace** with seats included. Limits are seats, live demos, release history and analytics retention. **No meter tracks compute.** |
+| **The free tier's job** | Distribution. Every free demo carries a "Made with Vistaro" badge that links back, the way Loom, Calendly and Typeform grew. |
+| **First dollar** | A team that wants the badge gone, a custom domain or a lead form on a demo that already works (Free → Pro). |
+| **Expansion dollar** | A help center that spans every guide and language, translators and reviewers who are not engineers, CRM sync (Pro → Team). |
 
 ---
 
-## 1. Positioning & ICP
+## 1. Why the rule is also the right strategy
 
-**Positioning.** Demoforge is for teams whose demos, help guides and product clips are engineering artifacts: developers, DevRel engineers, doc engineers and technical founders who live in git and CI. It wins because a Demoforge demo is two text files in the repo — reviewed in a pull request, diffed pixel-by-pixel, rebuilt only when the UI changed, driven end-to-end by a coding agent, and compiled into video, guide, reel, tour and every locale from one source.
+The owner set the constraint: no selling tokens or video generation, and the CLI stays as designed. It is also the stronger business:
 
-**ICP (primary):** engineering-led product teams (seed→Series C) that ship UI weekly and need their demos/guides to keep up; DevRel and docs teams already comfortable with CLIs; solo technical founders creating launch assets. The operator is increasingly **an AI agent** — the manual (`AGENTS.md`) is literally written for an LLM, and the review loop (`check` reporting camera framing as facts, `preview --motion`, `filmstrip`) exists so motion can be judged without watching (README.md:84).
-
-**ICP (secondary):** PMs and doc engineers who can read a JSON timeline but would never build a GUI-editor demo themselves.
-
-**Deliberately not our buyer:** the marketing/enablement user who wants a browser-extension capture and a GUI editor. Arcade, Supademo, Storylane, Navattic and Tango own that segment with funded GUI products and per-seat sales motion. We do not chase them; we take the teams they cannot serve — the ones who refuse a binary blob in their repo.
-
-**Validation of the owner's positioning (why it holds):**
-
-1. The differentiation is structural, not cosmetic. A capture tool records pixels; a dead recording. Demoforge's output is regenerable: `build-all --changed-only` rebuilds only what changed against a content-hash build key (AGENTS.md:217, 362) and `--diff` flags drifted frames pixel-by-pixel. That is a CI property, and only a code-first tool can have it.
-2. The product is already agent-shaped. Target probing per step, camera framing reported as facts, `--json` issues, `trace.json` geometry, `filmstrip --diff` motion facts — the entire review surface is text and JSON (README.md:84). Competing GUI tools have no agent surface at all.
-3. "Demo as code" has paying precedent next door: Remotion charges companies for programmatic video ($100/mo minimum once >3 employees, remotion.pro) — proof that engineering teams pay for source-driven video. Nobody sells *demo semantics* (cursor, spotlight, camera, subtitles, guides, locales) as code. That is the open wedge.
+1. **Selling renders would compete with our own free product.** The CLI already renders anything locally and in CI, and coding agents drive it. A paid "render in our cloud" button only sells to users who could get the same thing free with one `npx` command. That is a thin, price-sensitive wedge.
+2. **Renders are cost of goods, and publishing is nearly free to serve.** Each render drives headless Chromium and ffmpeg for minutes. Serving a published demo is static files plus a 2 KB beacon. Margin sits on the hosting side.
+3. **The value is downstream.** A demo nobody watches, that can't capture a lead and that rots silently when the UI changes earns nothing, however well it was rendered. Buyers in this category pay for distribution, measurement and conversion. Every incumbent's paid tier is built from those (§2).
+4. **It keeps the open-source story clean.** "Unlimited, no watermark on what you export, no account needed" stays true for the CLI. The badge exists only on pages *we host for free*, and that is a fair trade.
 
 ---
 
-## 2. Name decision
+## 2. What the market pays for
 
-**Final name: Demoforge.** Used everywhere downstream (product, npm, docs, site).
+Prices fetched 2026-10-02 (§10). The pattern matters more than the numbers.
 
-**Evidence gathered 2026-10-02:**
-
-| Check | Command / source | Result |
-|---|---|---|
-| npm availability | `npm view demoforge` | **E404 — free.** Claim it before launch. |
-| GitHub name search | GitHub API `search/repositories?q=demoforge in:name` | 43 repos. Most noise; **4–5 are in our exact category but all are personal projects with 0–4 stars** (top: `granth-agarwal/DemoForge`, "paste a URL, get a clean MP4 walkthrough", 4 stars, active Feb–Mar 2026; `upxill/agent-demoforge`, `rznies/demoforge`, `holburn-hornssentinel/demoforge` ≤1 star). No company, no product, no traction. |
-| Historical brand | Web search | "DemoForge" was a defunct 2000s Windows screen-recording/FTP vendor (DemoForge Studio, BlackMoon FTP, a virtual-display driver). Dead brand; trademark clearance is a human launch task (§8). |
-| Alternates | `npm view demokit` → **taken (v7.0.0)**; `npm view demogen` → **taken (0.1.1)**; `npm view democraft` / `reelwright` / `demo-craft` → free | see below |
-
-**Alternates considered (and rejected):**
-
-1. **Democraft** — npm free; reads toy-like and carries no "built from source" connotation.
-2. **Reelwright** — npm free; covers only the reel output, not guides/tours/localization; narrower than the product.
-3. **Demokit** — rejected outright: npm name taken (v7.0.0).
-
-**Why confirm Demoforge:** short, verb-y, and "forge" lands the dev-first story (built from source, like GitLab/Forgejo "forge" vocabulary). The same-category GitHub repos are all sub-5-star weekend projects — the name converging on this category is mild evidence it *fits* it. With a first-party site and an OSS launch we take over the search results; we cannot take over "demokit". Residual cost: some GitHub search noise at launch; trademark clearance against the dead DemoForge brand is required (human task, §8). Domain and GitHub-org availability were **not** checked in this session (§9).
-
----
-
-## 3. Value proposition & messaging pillars
-
-**Value proposition (site, one sentence):** Your product demo is two text files in your repo — Demoforge compiles them into demo videos with subtitles and chapters, step-by-step help guides, looping marketing reels and interactive tours, in every language, regenerated whenever the UI changes.
-
-### Pillar 1 — Regenerate, don't re-record
-
-The UI moved? Run the command again; `build-all --changed-only` rebuilds only what changed and `--diff` marks guides whose frames drifted (README.md:17; build-key mechanics at AGENTS.md:217, OUTPUT_REVISION at AGENTS.md:362). Screen recordings and capture-tool projects are dead ends that rot on contact with the sprint cadence; a Demoforge demo has a freshness check in CI. *Message: "Demos that keep up with your sprint."*
-
-### Pillar 2 — Reviewable like code, without watching
-
-The timeline is JSON in a pull request and the whole pipeline runs headless in CI (README.md:20). Motion is auditable as text: `check` probes every target right before its step and reports each camera push's framing as facts — what's in frame, what's cut (AGENTS.md Workflow step 3; README.md:84); `preview --motion` samples a real playback pass; `check --trace` writes per-step cursor/spotlight/subtitle/camera geometry; `filmstrip --diff` turns the exported MP4 into what-moved-when facts. A coding agent fixes a badly aimed zoom like any other lint finding. No GUI tool offers an agent anything. *Message: "Your agent can review the demo, so you don't have to watch it."*
-
-### Pillar 3 — One source, every output, every language
-
-The same timeline compiles to MP4 (+`.vtt`, chapters, narration), a Scribe-style step guide (`guide.json`/`.md`/`.html` + cropped frames), a marketing reel (MP4/WebM/poster/GIF, embeddable looping page) and an interactive tour site — and `localize` shares the choreography across locales so a French build is a strings file, not a re-shoot (README.md:18–19, 27–32; AGENTS.md Localization, line 26). Numbers and currency formats localize too (`$2.4M → 2,4 M$`), because a translated American product reads as a translated American product (AGENTS.md, Localization). *Message: "Write it once; ship the video, the guide, the reel and the tour — in ten languages."*
-
----
-
-## 4. Pricing ladder
-
-Free OSS CLI forever (unlimited local builds, no watermark) + paid cloud workspace. The CLI stays free because every cloud product below is genuinely server-side; the free CLI is the distribution engine, not lost revenue.
-
-| Tier | Price | Who buys | What they get |
+| Vendor | How demos are made | What is behind the paywall | Entry paid tier |
 |---|---|---|---|
-| **Free (OSS CLI)** | $0 | every developer, agents | Everything local: unlimited `check`/`build`/`preview`/`export`/`tour`/`localize`, no watermark, all output types, batch `build-all`. No hosting, no analytics, no PR previews, no API. |
-| **Builder** | **$29/mo** per workspace | solo devs, technical founders, first DevRel hire | 3 seats · 500 cloud build-minutes/mo · 25 hosted tour/guide/reel embeds with view/completion analytics · GitHub App PR-preview builds (`--changed-only` + stale-frame diff report on every PR) · agent HTTP API 2,000 calls/mo · 5 managed locales · email support |
-| **Team** | **$99/mo** per workspace | product/docs/DevRel teams | 15 seats · 2,500 build-minutes/mo · 100 hosted embeds · 12-month analytics retention · 25,000 API calls/mo · unlimited managed locales + translation memory · custom embed domain · priority support |
-| **Enterprise** | **custom** (anchor ~$500/mo+) | orgs with security review | SSO/SAML · audit log · **self-hosted build runners** (recordings never leave the customer's infra; cloud serves embeds + analytics only) · SLA · DPA · private preview domains · dedicated support |
+| **Arcade** | Browser capture + GUI editor | Branding removal, custom domain, analytics, lead forms, CRM integrations, team workspace | Growth $42.50–50 per seat |
+| **Supademo** | Capture + AI | Branding removal, analytics, lead gates, CRM, custom domains, team | Scale $38–50 per creator |
+| **Storylane** | HTML capture + editor | Lead forms, analytics, CRM, demo hubs, custom domains | Starter $40–50; Growth $500+/mo |
+| **Navattic** | HTML capture | Analytics, CRM, demo center, custom domain | Unpublished ("contact us") |
+| **Scribe** | Extension capture → step guides | Branding removal, custom branding, export, sharing controls, team | Pro $25–35 per seat |
+| **Tango** | Extension capture → workflows | Branding, export, admin, analytics | Pro $22–26 per user |
+| **Guidde** | Capture + AI voice → video guides | Branding, more videos, team | Pro $19–29 per creator |
 
-**Overage:** $0.10/build-minute; $1/hosted embed/mo beyond plan; $5 per extra 1k API calls. Hard caps, no surprise bills.
+What every one of them monetizes is **hosting, branding, analytics, lead capture, CRM sync, custom domains and team features**. None of them charges for "rendering" as such: the capture is the free hook. We take the same proven monetization surface and attach it to a product they cannot copy:
 
-**Why these numbers:**
+- **Their demos are dead recordings.** A capture rots the day the UI ships. A Vistaro demo is two text files in the repo, rebuilt in CI, with `build-all --diff` flagging stale guides. The Cloud *displays* that freshness (stale badges, webhook alerts). No capture tool can show that signal.
+- **Their localization is a re-shoot.** Ours is a strings file, and the Cloud adds the translator workflow on top (§3, Team).
+- **Their buyer is a marketer with a browser extension.** Ours is an engineering-led team, plus that team's coding agent, which now produces the demo from one sentence. The Cloud is where the marketer and the support lead come in: analytics, lead forms, the help center, review. That brings a second buyer into the same account.
 
-- **Flat per-workspace, not per-seat.** Our ICP adds teammates the way git does — freely — and per-seat pricing is the capture-tools pattern we explicitly reject. Remotion prices per company + usage (remotion.pro); Vercel/Netlify normalize flat + metered for dev tools. Usage dimensions (build-minutes, embeds, API calls) map to real cost: each build drives a headless Chromium + ffmpeg.
-- **$29 entry undercuts the GUI median** — Arcade Growth $42.50–50/seat, Supademo Scale $38–50/creator, Scribe Pro Personal $25–35/seat, Tango $20–26/user, Guidde Pro $19–29/creator (all fetched 2026-10-02, §9). The po story is "one line item, not five seats."
-- **Team $99 flat vs. the $500+ hosting tiers** (Storylane Growth $500–625/mo, Navattic Base/Growth unpriced but historically ~$500/mo+): we are 5× cheaper because our analytics is honest about being simpler — we sell CI + agent + localization, and say so on the pricing page.
-- **Enterprise self-hosted runners are the wedge within the wedge:** capture tools must route your product's pixels through their cloud; our CLI already runs fully on-prem, so "your unreleased UI never leaves your VPC" closes security reviews the GUI vendors fail.
+**Pain points the Cloud answers** (what a buyer actually says):
 
----
-
-## 5. Competitive landscape & our wedge
-
-Prices fetched from vendor pricing pages on **2026-10-02** (§9); annual-per-month in parentheses.
-
-| Vendor | How demos are made | Entry paid tier | Top tier shown | Basis | Why we don't fight / what we take |
-|---|---|---|---|---|---|
-| **Arcade** | GUI editor + browser capture | Growth $50/mo ($42.50) | Enterprise custom | per seat | Their buyer wants zero code. We take teams needing git/CI/agent workflows. |
-| **Supademo** | GUI editor + AI capture | Scale $50/mo ($38)/creator | Growth $450/mo ($350) | per creator | Same. Their AI-credit pricing ($99–500 packs) is a different cost model entirely. |
-| **Storylane** | GUI editor, HTML demo editor | Starter $50/mo ($40) | Premium $1,500/mo ($1,200) | flat + seats | Deep sales/marketing analytics (account reveals, deal intelligence) — not our job. |
-| **Navattic** | GUI editor, HTML demos | Base/Growth unpriced ("contact us") | Enterprise custom | flat/annual | Same segment; opaque pricing itself repels the dev buyer. |
-| **Scribe** | Extension capture → step guides | Pro Personal $35/mo ($25)/seat; Team $17/mo ($13) | Enterprise custom | per seat | **Closest output overlap** (step guides!) but capture-based: not regenerable, no diff, no CI, no multi-output compile. |
-| **Tango** | Extension capture → workflows | Pro $26/mo ($22)/user | Enterprise custom | per user | Same story as Scribe. |
-| **Guidde** | Capture + AI voiceover → video guides | Pro $29/mo ($19)/creator | Business $59/mo ($39)/creator | per creator | Video-guides overlap; again capture-first, single output, no source of truth. |
-| **Remotion** | **Code-first**, general programmatic video | Company license ~$100/mo min (creators $25/seat, or $0.01/render) | Enterprise custom | per company | Neighbour, not enemy: no demo semantics (cursor/spotlight/camera/subtitles), no guides, no tours, no localization — and a much steeper authoring cliff. Proof devs pay for source-driven video. |
-| **Motion Canvas** | Code-first, free OSS animation lib | free | free | — | Validates the authoring model; general animation, zero demo semantics, no CLI pipeline. |
-
-**Our wedge, one line:** *the only tool where the demo is source code* — regenerable in CI (Pillar 1), agent-reviewable as text (Pillar 2), compiled to video + guide + reel + tour + N locales from one timeline (Pillar 3) — with the local/free-first deployment story (unreleased UI can stay in your VPC) that no capture SaaS can copy without becoming a different product.
-
----
-
-## 6. GTM plan
-
-| # | Channel | First moves |
+| "We need…" | Feature | Plan |
 |---|---|---|
-| 1 | **GitHub OSS** | Rename to `demoforge` (name verified free), MIT-or-keep-ISC decision, landing README with generated outputs, Discussions open, apply to GitHub Stars. Get listed on relevant awesome lists (documentation, devtools, CI themes) via PRs — the README's "why not just record your screen" section (README.md:13–23) is the pitch. |
-| 2 | **Show HN** | "Show HN: Demoforge – product demos as code (MP4 + guides + tours from two text files)". Lead with the regeneration/diff story and a demo *made with Demoforge* (dogfooding: `reels/` and `tour.catalog.json` in this repo are already that). Ship on a Tuesday–Wednesday morning US. |
-| 3 | **Dev Twitter/X + LinkedIn** | Build-in-public from the maintainer account; every clip is generated by the tool (the marketing asset *is* the product demo). Post the agent workflow: paste screenshots → agent ships localized demo in a PR. |
-| 4 | **Docs SEO** | Programmatic pages: "demo as code", "screenshot to video CLI", "open-source Scribe alternative", "Arcade/Supademo alternative for engineering teams", "regenerate product demos in CI", "programmatic video for product demos (Remotion compared)". Each guide/reel output type gets a page with a live embed (hosted = the paid product, demonstrated). |
-| 5 | **AI-agent ecosystem** | The agent *is* the channel: publish `AGENTS.md` as the canonical integration manual, ship an agent skill (the repo already carries `skills-lock.json`), add `llms.txt`, later an MCP server; list in agent-tool directories. Every coding agent that can run `npx demoforge` is a distribution point; the cloud API is how agents without a sandbox become paid users. |
-
-**Motion:** OSS adoption (1–2) creates the CLI user base; PR-preview builds and hosted embeds are the natural first dollar (they need a server); localization management + API expand accounts (4–5). Target: 1k GitHub stars and 10 paying workspaces in the first two quarters post-launch.
+| "…a link I can send / embed in the docs" | Hosted demos, embed snippet | Free |
+| "…to know if anyone watches it, and where they quit" | Views, completion, step drop-off funnels, referrers | Free (7 days) / Pro (funnels, 1 year) |
+| "…it to look like ours" | Badge removal, custom domain, accent colour | Pro |
+| "…leads from the demo on our homepage" | Email gate, CTA button, CSV export | Pro |
+| "…to show an unreleased feature to one partner" | Password-protected demos | Pro |
+| "…to undo a bad publish" | Release history, one-click rollback | Pro |
+| "…one help site for all our guides, in every language" | Branded, searchable help center on our domain | Team |
+| "…marketing to approve before it goes live" | Draft releases from PRs, review links, comments, approvals | Team |
+| "…our translators (not engineers) to fix the French" | Translation workspace, translator seats, CI pull-back | Team |
+| "…leads in HubSpot / alerts in Slack" | Webhooks (Slack-compatible JSON, works with Zapier and Make) | Team |
+| "…SSO, an audit trail, our own VPC" | SSO/SAML, audit log, self-hosted Cloud, SLA, DPA | Enterprise |
 
 ---
 
-## 7. Risks & mitigations
+## 3. The product
+
+```
+ repo (index.html + anim.config.json)
+        │   free, unlimited, local or CI: the CLI as it is today
+        ▼
+ npx tsx cli.ts export|tour|build-all …  →  guide/ · tour site · reel embed · video
+        │
+        │   saas/bin/vistaro-cloud.mjs publish <dir> --project <slug>   (static upload, no rendering)
+        ▼
+ Vistaro Cloud
+   APP origin      dashboard + /api: workspaces, seats, tokens, releases, analytics, leads,
+                   review, translations, webhooks, billing
+   CONTENT origin  /p/<ws>/<demo>/ hosted demos (+ viewer script: beacon, gate, CTA, badge)
+                   /h/<ws>/ help center · /r/<key>/ review links · custom domains
+```
+
+Built in this repo (all under `saas/`, zero runtime dependencies, nothing in `cli.ts` or `src/` changed):
+
+| Capability | Where |
+|---|---|
+| Accounts, sessions (HttpOnly cookie, CSRF header), workspaces, roles (owner/admin/editor/translator), invites, seats, hashed CI tokens, audit log | `saas/lib/cloud/accounts.js` |
+| Plans as code; every gate returns **402 with `upgradeTo`**, so each limit becomes an upgrade prompt | `saas/lib/cloud/plans.js` |
+| Publishing bundles the CLI already built: kind and entry detection (guide, tour, reel, video, page), versioned releases, drafts, approval, rollback, history pruning, `strings.*.json` capture, freshness from `build-all` `index.json` | `saas/lib/cloud/publish.js` |
+| Content origin: hosted demos, viewer-script injection, password unlock, lead endpoint, beacon, help center, custom domains | `saas/lib/cloud/content.js`, `saas/public/v.js` |
+| Cookieless analytics: views, visits, completion, CTA rate, median dwell, referrers, per-step/per-scenario funnels, plan-bound retention | `saas/lib/cloud/analytics.js` |
+| Webhooks (Slack-compatible) for leads, publishes, review requests, stale guides | `saas/lib/cloud/notify.js` |
+| Stripe: subscription Checkout, Billing Portal, signed webhooks driving plan changes | `saas/lib/cloud/billing.js` |
+| Dashboard (demos, analytics, leads, releases & review, translations, settings, team, CI tokens, billing, audit) | `saas/public/app.html`, `app.js`, `app.css` |
+| Publish / pull-strings client for CI | `saas/bin/vistaro-cloud.mjs` |
+| Operator: set a plan by hand (Enterprise deals) | `PUT /v1/workspaces/<slug>/plan` |
+
+The old operator **render runner** (`POST /v1/builds`) is still there for self-hosted installs and internal use, behind operator keys. It is **not** part of any plan and is not sold.
+
+---
+
+## 4. Pricing
+
+| | **Free** | **Pro** | **Team** | **Enterprise** |
+|---|---|---|---|---|
+| Price | $0 | $24/mo, or $19/mo billed yearly | $79/mo, or $64/mo billed yearly | from ~$12k/yr |
+| Seats | 1 | 3 | 10 | unlimited |
+| Live demos | 3 | unlimited | unlimited | unlimited |
+| Releases kept per demo | 3 | 50 | 200 | unlimited |
+| Analytics retention | 7 days | 1 year | 2 years | unlimited |
+| CLI (render anything, any number of times) | ✓ | ✓ | ✓ | ✓ |
+| Hosting, embeds, cookieless analytics | ✓ | ✓ | ✓ | ✓ |
+| "Made with Vistaro" badge on hosted demos | shown | removable | removable | removable |
+| Custom domain, CTA, lead gate, CSV, password, funnels, rollback | | ✓ | ✓ | ✓ |
+| Help center, review & approvals, translations + translator seats, webhooks | | | ✓ | ✓ |
+| Audit log, SSO/SAML, self-hosted Cloud, SLA, DPA, invoicing | | | | ✓ |
+
+**Why these numbers.**
+
+- **Pro at $24 is one line item, not five seats.** The GUI tools charge $38–50 *per seat* for badge removal, analytics and lead forms (§2). Three seats for $24 means a three-person team pays about a sixth of Arcade's price. The annual $19 sits at Guidde's entry point.
+- **Team at $79 is priced against the $500/mo hosting tiers** (Storylane Growth, Navattic) that first unlock a demo center and CRM sync. We are 6× cheaper, and say so honestly: our analytics is simpler than their deal intelligence. What we sell instead is the help center, translations and review, which they do not have.
+- **Flat per workspace with seats included.** Our users add teammates the way they add git collaborators. Per-seat pricing is the capture tools' pattern, and our buyer resents it. Seats still cap each tier, so a growing team climbs the ladder.
+- **Enterprise is about security, not volume.** SSO, an audit trail, a DPA and "your unreleased UI never leaves your VPC" (the self-hosted Cloud, next to a CLI that already runs on-prem). A capture SaaS fails this security review by design.
+
+**Fair use instead of meters.** Storage and bandwidth are real costs, but tiny ones (§6). Policy, not yet enforced in code: 10 GB stored per Pro workspace and 50 GB per Team workspace, with a polite email beyond that. A meter would contradict the promise for a cost under a dollar.
+
+---
+
+## 5. Upsell mechanics, where each upgrade happens
+
+The product is built so every wall shows up at the moment of need, with the plan that removes it:
+
+| Trigger (in product) | What the user sees | Upgrade |
+|---|---|---|
+| A visitor clicks the badge on a free demo | vistaro.dev, with the "make this yours" offer | new signup (viral loop) |
+| 4th demo published | `402 … hosts 3 live projects` in CLI output and dashboard | Free → Pro |
+| Lead gate, CTA, password, custom domain toggled on | Locked card, "See plans" | Free → Pro |
+| Funnel card on Analytics | "Step-by-step drop-off funnels — included in Pro" | Free → Pro |
+| Rollback button on an archived release | disabled, "Rollback is part of Pro" | Free → Pro |
+| Inviting a 2nd person | `402 … includes 1 seat` | Free → Pro |
+| Inviting a 4th person, or a translator | seat / role gate | Pro → Team |
+| Help center tab, Translations tab, Webhooks, Review policy, `--draft` from a PR | locked cards, `402 … Team plan` | Pro → Team |
+| Audit log tab, SSO question in sales | locked card, "Talk to us" | Team → Enterprise |
+
+Each 402 carries `feature`, `upgradeTo` and `upgradeUrl`, so the publish client prints the exact upgrade link in CI logs (`saas/bin/vistaro-cloud.mjs`).
+
+**Natural progression of an account.** An engineer's agent builds a demo → publishes it free and embeds it in the docs → marketing asks for it on the homepage with a lead form (Pro) → support asks for every guide in one help center in four languages, with marketing approving releases (Team) → security asks for SSO (Enterprise).
+
+---
+
+## 6. Unit economics
+
+Nothing is rendered on our side, so the cost of serving a customer is storage + egress + a share of a small VM:
+
+- A published guide is about 5–30 MB (frames + MP4). A tour site is under 1 MB plus media.
+- Egress at CDN list prices is about $0.01–0.08/GB. A demo viewed 2,000 times a month at an average 10 MB transferred is 20 GB, or about $0.20–1.60.
+- The API and dashboard run on one small VM ($5–30/mo) for the first several hundred workspaces. The JSON store is the first thing to replace (§8).
+
+At $19–24 a Pro workspace costs us under $1–2/mo, a gross margin above 90%. Compare the old build-minute model, where each render tied up a performance VM for minutes.
+
+**Targets for the first two quarters** (to replace with measured numbers): activation (first publish within 7 days of signup) 40%, free → paid 4–6% of activated workspaces, 30% of paid on annual, Pro → Team 15% within 6 months.
+
+---
+
+## 7. Go-to-market
+
+1. **The CLI is the funnel.** Open source, unlimited, agent-first (AGENTS.md is the integration manual). The website's hero stays "ask your agent", and the second CTA becomes "publish it".
+2. **The badge is the viral loop.** Every free hosted demo links to vistaro.dev with `?ref=badge`; measure that referral.
+3. **Help centers are SEO surface.** A Team help center on `help.customer.com` is indexed content made with Vistaro (with the footer link on Free).
+4. **CI is the habit.** The "Publish from CI" page hands out a ready GitHub Actions workflow: PRs publish drafts with review links, main goes live. Once a team's pipeline publishes, churn is low.
+5. **Agent ecosystem.** Publishing is one more command the agent can run (`vistaro-cloud publish`). Listing in agent-tool directories and an MCP server later.
+6. **Launch.** Show HN with a demo made and hosted by Vistaro, with live analytics shown in the post. A beta cohort of 10–20 DevRel, docs and support teams gets Team free for 3 months in exchange for feedback.
+
+---
+
+## 8. Before charging money: what production still needs
+
+Honest list. The code above is a working, tested product, but a single-node one:
+
+1. **Storage:** move releases to object storage plus a CDN (keep the content origin a separate hostname, as now). Move `cloud.json` to Postgres.
+2. **Custom domains:** automate TLS (Caddy on-demand TLS, or the host's certificate API) and verify the CNAME before activating.
+3. **Email:** invites and password resets currently show a link in the dashboard and send nothing. Wire an email provider (Postmark, Resend).
+4. **Webhook SSRF guard:** today the guard is https-only. Production must also refuse private and link-local IPs at connect time.
+5. **SSO/SAML:** sold on Enterprise, not built. Use WorkOS or similar when the first deal needs it.
+6. **Legal:** terms, privacy policy, DPA. Analytics is cookieless by design and leads are the customer's data (we are a processor).
+7. **Stripe setup:** products and prices for `STRIPE_PRICE_{PRO,TEAM}_{MONTHLY,ANNUAL}`, the webhook endpoint `/api/billing/webhook` with `STRIPE_WEBHOOK_SECRET`, Stripe Tax and the customer portal configuration.
+8. **Ops:** backups of the data dir, uptime monitoring, rate limits shared across nodes (they are in-memory today).
+
+---
+
+## 9. Risks
 
 | Risk | Mitigation |
 |---|---|
-| GUI incumbents (Arcade, Scribe…) ship a "code export" and blur the wedge | Depth wins, not checkbox: diff/CI/build-keys/agent review/localization compile is a pipeline, not a feature flag; OSS trust + first-mover in "demo as code". Keep shipping the agent surface they structurally lack. |
-| Market too small (dev-first demo tooling is a niche of a niche) | The ICP is widening on its own (DevRel + docs teams + agents); free CLI removes adoption risk; localization (Pillar 3) sells to every product-led SaaS going multi-locale, well beyond the demo niche. |
-| "Demoforge" namespace noise: 4–5 tiny same-category GitHub repos + dead DemoForge brand | Claim npm name and GitHub org immediately; first-party site + SEO from day one; trademark clearance as a pre-launch human gate (§8). |
-| Free-forever CLI cannibalizes cloud revenue | Cloud sells only server-side value (hosting, analytics, PR builds, API, locale management); Remotion precedent shows companies pay for source-driven video; metered build-minutes capture heavy users. |
-| Cloud builds are heavy/flaky (headless Chromium + ffmpeg per build; repo docs warn about machine load) | Metered minutes with hard caps, per-plan concurrency queues, the existing timeout ladders (`FFMPEG_TIMEOUT_MS`, per-step abandonment) as templates; self-hosted runner option on Enterprise offloads the worst tail. |
-| Remotion-adjacent LLM tools erode "write a timeline yourself" | The moat is not the renderer, it's the review pipeline (check facts, trace, filmstrip diff, build-keys) + demo semantics + compile-to-N-outputs. Make Demoforge the layer agents call, whatever renders underneath. |
-| Solo-maintainer bus factor / support load from OSS | Free tier is CLI-only with docs (`AGENTS.md` already is the support doc); paid tiers fund support; Community Discussions deflect repeats. |
+| Customers self-host the static output and never pay | That is fine. The free CLI is distribution. The Cloud sells the parts that need a server and a team (analytics, leads, review, translators, help center); static hosting alone was never the product. |
+| GUI incumbents add "code export" | They can export; they cannot regenerate. The freshness signal, the translation pull-back and the agent workflow are pipeline properties, and they live in our free CLI. |
+| Too small a market (dev-led demo tooling) | The Cloud's second buyer is marketing and support, which the incumbents prove pays. The help center and translations sell to every product-led SaaS going multi-locale. |
+| Badge resentment | The badge is only on pages we host for free, never in exported files. Removing it is the cheapest paid step. |
+| Single-node scaling | Fine for launch; §8 is the path. Rendering never touches the server, so load is static serving. |
 
 ---
 
-## 8. Launch checklist (human tasks)
+## 10. Evidence
 
-1. **Domain:** check and buy `demoforge.dev` (primary) / `.io` (defensive). *Not verified in this session.*
-2. **Trademark:** clearance search for "Demoforge" (classes 9/42) — specifically against the defunct DemoForge screen-recorder brand; file if clean.
-3. **GitHub org + npm name:** create `demoforge` org; `npm publish` rights on the `demoforge` package (verified free 2026-10-02). Claim same-day as the public announcement.
-4. **Stripe account:** activate Stripe Tax, set up the two plan prices + metered overage (`build-minutes`, `embeds`, API calls) as usage records.
-5. **OSS license call:** repo is ISC today (`package.json`) — confirm ISC vs MIT/Apache-2.0 for the renamed CLI before the announcement.
-6. **Beta cohort:** 10–20 hand-picked DevRel/docs/engineering teams from network; instrument onboarding with the existing manifest + `--json` outputs; collect timeline-telemetry consent.
-7. **GitHub App for PR previews:** build the app that runs `build-all --changed-only --diff` on PRs and comments with preview links + stale-frame report (Builder/Team gating).
-8. **Marketing site:** landing page, pricing page (§4), docs; every demo asset on the site generated by Demoforge itself.
-9. **Show HN:** draft post + a 60–90s Demoforge-made clip; stage 1 and 2 above first so the thread has something to star.
-10. **Analytics + SLA plumbing:** embed analytics collector (the client-side events already exist — `tourstep`/`tourend`/`tourready`, AGENTS.md:284), billing alerts, status page.
-
----
-
-## 9. Evidence & sources
-
-**Checks run this session (2026-10-02):**
-
-- `npm view demoforge` → E404 (name free). `npm view demokit` → taken v7.0.0; `npm view demogen` → taken v0.1.1; `npm view democraft|reelwright|demo-craft` → all E404 (free).
-- GitHub API `search/repositories?q=demoforge in:name` → 43 repos; top same-category: `granth-agarwal/DemoForge` (4★, pushed 2026-03-08, "paste a URL, get a clean MP4 walkthrough"), `upxill/agent-demoforge` (1★), `rznies/demoforge` (0★), `holburn-hornssentinel/demoforge` (1★), `karansaini46/DEMOFORGE` (1★).
-- `package.json` → name `screenshot-animator`, version 2.0.0, license ISC.
-- Repo grounding: README.md:13–23, 27–32, 84; AGENTS.md:26, 217, 284, 362, 462 (line numbers from `grep -n` this session).
-
-**Pricing pages fetched 2026-10-02** (numbers quoted in §4/§5 come verbatim from these fetches): supademo.com/pricing; scribe.com/pricing (via redirect); navattic.com/pricing (dollar prices not published); storylane.io/pricing; tango.ai/pricing (via redirect); guidde.com/pricing; arcade.software/pricing; motion-canvas.io (OSS confirmed; license text not stated on page).
-
-**Web search (rate-limited backend; used where fetches failed):** Remotion license tiers (free ≤3 employees; creators $25/mo/seat from ~3 seats; automators $0.01/render, $100/mo min) via search results citing remotion.dev; initial Arcade figure (~$42/seat/mo) later confirmed directly on arcade.software/pricing.
-
-**Not run / not verifiable here (human launch tasks):** domain DNS availability, GitHub org-name availability, trademark search, Stripe setup. Navattic's Base/Growth dollar prices are not published anywhere public as of this date.
+- Competitor pricing pages fetched 2026-10-02: arcade.software/pricing, supademo.com/pricing, storylane.io/pricing, navattic.com/pricing (no public prices), scribe.com/pricing, tango.ai/pricing, guidde.com/pricing. Remotion's license (remotion.dev) is the precedent that companies pay for source-driven video.
+- The competitor research and naming checks of the superseded model stay readable in this file's git history (the 2026-10-02 revision).
+- Product claims in §3 are covered by `test/saas-cloud-*.test.ts` (41 tests, including a canary that fails if any plan ever meters rendering) and the end-to-end HTTP checks in `saas/smoke.mjs`.

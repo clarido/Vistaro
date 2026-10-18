@@ -67,3 +67,6 @@ auth.json
 # `npx skills add` installs here (symlinked into .claude/skills/)
 .agents/
 skills-lock.json
+
+# Vistaro Cloud runtime state (accounts, releases, analytics) -- never source
+saas/data/

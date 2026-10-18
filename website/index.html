@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vistaro — Show. Don't Tell.</title>
-<meta name="description" content="The demo tool built for coding agents: Claude Code, Codex or Antigravity writes your demo as two text files in the repo, compiles video, guides, reels, tours and every locale, and audits its own work. Humans review the diff and tweak details.">
+<meta name="description" content="The demo tool built for coding agents: Claude Code, Codex or Antigravity writes your demo as two text files in the repo and compiles video, guides, reels, tours and every locale, free and unlimited. Vistaro Cloud publishes them with analytics, lead capture, a help center and team review.">
 <meta property="og:title" content="Vistaro — Show. Don't Tell.">
 <meta property="og:description" content="Built for your coding agent, not your screen recorder: one instruction and it writes the demo as code in your repo, compiles every artifact in every locale, and regenerates whenever the UI changes. You review the diff and tweak details.">
 <meta property="og:image" content="assets/og.jpg">
@@ -91,7 +91,7 @@
   .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -.01em; }
   .logo svg { width: 24px; height: 24px; flex: none; }
   .nav-links { display: flex; gap: 24px; margin-left: 8px; }
-  .nav-links a { color: var(--muted); font-size: 14.5px; font-weight: 500; transition: color .15s; }
+  .nav-links a { color: var(--muted); font-size: 14.5px; font-weight: 500; transition: color .15s; white-space: nowrap; }
   .nav-links a:hover { color: var(--ink); }
   .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
   .nav-cta .gh { color: var(--muted); font-size: 14.5px; font-weight: 500; display: flex; align-items: center; gap: 7px; }
@@ -101,10 +101,10 @@
   .burger { display: none; background: none; border: 0; color: var(--ink); padding: 8px; cursor: pointer; }
   .burger svg { width: 22px; height: 22px; display: block; }
 
-  @media (max-width: 860px) {
+  @media (max-width: 1080px) {
     .nav-links, .nav-cta .gh span { display: none; }
     .burger { display: block; margin-left: auto; }
-    .nav-cta { margin-left: 0; }
+    .nav-cta { margin-left: auto; }
     .nav-cta .btn { display: none; }
     .nav-links.open {
       display: flex;
@@ -440,6 +440,24 @@
   .price li b { color: var(--ink); font-weight: 600; }
   .price .btn { margin-top: auto; justify-content: center; }
   .price-note { margin-top: 26px; text-align: center; color: var(--faint); font: 400 13px/1.7 var(--mono); }
+  .bill-switch { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 99px; background: var(--panel); margin-top: 22px; }
+  .bill-switch button { border: 0; background: none; color: var(--muted); font: 600 13px var(--sans); padding: 7px 14px; border-radius: 99px; cursor: pointer; }
+  .bill-switch button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .price .plus { color: var(--ink); font-size: 13px; font-weight: 600; margin: -6px 0 10px; }
+
+  /* ---------- cloud ---------- */
+  .cloud-flow { display: grid; grid-template-columns: 1.05fr 1fr; gap: 28px; align-items: start; margin-bottom: 28px; }
+  @media (max-width: 900px) { .cloud-flow { grid-template-columns: 1fr; } }
+  .cloud-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: cs; }
+  .cloud-steps li { counter-increment: cs; position: relative; padding: 2px 0 0 44px; color: var(--muted); font-size: 15px; }
+  .cloud-steps li::before { content: counter(cs); position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-hi); font: 700 13px var(--sans); border: 1px solid rgba(228, 99, 43, .35); }
+  .cloud-steps b { color: var(--ink); }
+  .cloud-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 1020px) { .cloud-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .cloud-grid { grid-template-columns: 1fr; } }
+  .plan-chip { display: inline-block; margin-top: auto; padding-top: 12px; font: 600 11.5px/1.3 var(--mono); letter-spacing: .04em; color: var(--accent-hi); text-transform: uppercase; }
+  .promise { margin: 28px 0 0; padding: 18px 22px; border: 1px dashed rgba(228, 99, 43, .45); border-radius: 14px; background: var(--accent-soft); color: var(--muted); font-size: 15px; }
+  .promise b { color: var(--ink); }
 
   /* ---------- FAQ ---------- */
   .faq { border-bottom: 1px solid var(--line-soft); }
@@ -517,8 +535,10 @@
       <a href="#agent">Ask your agent</a>
       <a href="#how">How it works</a>
       <a href="#outputs">What you get</a>
+      <a href="#cloud">Cloud</a>
       <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
+      <a href="https://app.vistaro.dev/">Sign in</a>
       <a class="mobile-cta" href="#quickstart">Get started</a>
     </nav>
     <div class="nav-cta">
@@ -552,7 +572,7 @@
         View on GitHub
       </a>
     </div>
-    <div class="hero-note">free OSS CLI<i>·</i>no API key needed<i>·</i>Node 20+<i>·</i>ffmpeg bundled</div>
+    <div class="hero-note">free OSS CLI, unlimited renders<i>·</i>no API key needed<i>·</i>Node 20+<i>·</i>ffmpeg bundled<i>·</i>publish with <a href="#cloud" style="color:var(--accent-hi)">Vistaro Cloud</a></div>
     <div class="codeblock hero-quick" id="quickstart" tabindex="-1" role="region" aria-label="The ask: paste this into your coding agent">
       <div class="cb-bar"><span class="cb-dot"></span>the ask · paste into Claude Code, Codex or Antigravity
         <button class="cb-copy" type="button" data-copy="Create a product demo of my site. Use the CLI to generate everything.">copy</button>
@@ -777,6 +797,78 @@ to generate everything.</pre>
   </div>
 </section>
 
+<!-- ======================= CLOUD ======================= -->
+<section class="cloud" id="cloud" tabindex="-1">
+  <div class="container">
+    <div class="section-head">
+      <h2>Render it free. Publish it with Vistaro Cloud.</h2>
+      <p class="section-lead">The CLI builds the demo on your machine or in CI. Vistaro Cloud is where it goes to work: hosted, measured, turning viewers into leads and living in a help center your support team owns. We never re-render anything, so there are no credits and no render minutes, and nothing is metered by the video.</p>
+    </div>
+
+    <div class="cloud-flow">
+      <ol class="cloud-steps">
+        <li><b>Build it with the free CLI</b>, as always: a guide, a tour site, a reel or a video.</li>
+        <li><b>Publish the output</b> with one command, from your laptop or a GitHub Action. Every publish is a versioned release, tagged with its commit.</li>
+        <li><b>Share one link or embed snippet</b> on your site, in your docs, in a sales email. Pull requests publish drafts with a review link; main goes live.</li>
+        <li><b>Watch it work</b>: who watched, where they dropped off, who left their email, which guides went stale since the last UI change.</li>
+      </ol>
+      <div class="codeblock">
+        <div class="cb-bar"><span class="cb-dot"></span>.github/workflows/demos.yml
+          <button class="cb-copy" type="button" data-copy="node saas/bin/vistaro-cloud.mjs publish demo --project getting-started">copy</button>
+        </div>
+<pre>- run: npx tsx cli.ts export demo -o demo/demo.mp4 --guide
+- run: node saas/bin/vistaro-cloud.mjs publish demo \
+         --project getting-started
+  env:
+    VISTARO_TOKEN: ${{ secrets.VISTARO_TOKEN }}
+<span class="c"># → Getting started #12 (guide, live)
+#   https://help.yourapp.com/getting-started/</span></pre>
+      </div>
+    </div>
+
+    <div class="cloud-grid">
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></div>
+        <h3>Hosted, embeddable, on your domain</h3>
+        <p>One link and one iframe snippet per demo, on <code>help.yourapp.com</code> if you like. Password-protect a partner preview; roll back a bad publish in one click.</p>
+        <span class="plan-chip">Free · domain &amp; rollback on Pro</span>
+      </div>
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div>
+        <h3>Know where viewers drop off</h3>
+        <p>Views, completion, time watched, referrers and a step-by-step funnel for every guide and every tour scenario. It's cookieless, so your consent banner doesn't change.</p>
+        <span class="plan-chip">Free 7 days · funnels on Pro</span>
+      </div>
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H5.2L4 17.2V4z"/><path d="M8 9h8M8 12h5"/></svg></div>
+        <h3>Turn demos into pipeline</h3>
+        <p>An email gate before the demo plays, a call-to-action button at the end, CSV export, and every new lead pushed to Slack, HubSpot or Zapier by webhook.</p>
+        <span class="plan-chip">Pro · webhooks on Team</span>
+      </div>
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+        <h3>A help center that never goes stale</h3>
+        <p>Every guide, tour and video in one branded, searchable site, with a language switcher. Guides your CI flagged as stale are marked before a customer finds them.</p>
+        <span class="plan-chip">Team</span>
+      </div>
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+        <h3>Review before it ships</h3>
+        <p>Pull requests publish drafts with a private review link. Marketing comments on a step, an admin approves, and it goes live with the commit it came from.</p>
+        <span class="plan-chip">Team</span>
+      </div>
+      <div class="card">
+        <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg></div>
+        <h3>Translators without a terminal</h3>
+        <p>Translators edit every string of every locale in the browser. CI pulls the file back into the repo and the free CLI rebuilds that language. Nobody re-records anything.</p>
+        <span class="plan-chip">Team</span>
+      </div>
+    </div>
+
+    <p class="promise"><b>Our promise:</b> rendering is free and unlimited in the open-source CLI, forever. Vistaro Cloud charges for hosting, insight and teamwork, a flat price per workspace with seats included. There are no credits, no per-video fees, and no watermark on anything you export.</p>
+  </div>
+</section>
+
 <!-- ======================= SAVED AS CODE ======================= -->
 <section class="artifacts" id="artifacts" tabindex="-1">
   <div class="container">
@@ -810,71 +902,77 @@ demo.mp4 + demo.vtt   <span class="c">regenerated by export, never edited</span>
 <section class="pricing" id="pricing" tabindex="-1">
   <div class="container">
     <div class="section-head">
-      <h2>Free where the work is local. Paid only where a server is genuinely needed.</h2>
-      <p class="section-lead">The CLI is the free tier, unlimited and unwatermarked, because it is also the distribution engine. The cloud sells hosting, PR previews, the agent API and locale management. Flat per workspace, not per seat.</p>
+      <h2>Render free, forever. Pay to publish, measure and convert.</h2>
+      <p class="section-lead">Every plan includes the whole CLI: unlimited renders of every output type in every locale, no watermark. You pay per workspace for what the Cloud does with them, with seats included and nothing metered.</p>
+      <div class="bill-switch" role="group" aria-label="Billing interval">
+        <button type="button" data-interval="annual" aria-pressed="true">Yearly · save 20%</button>
+        <button type="button" data-interval="monthly" aria-pressed="false">Monthly</button>
+      </div>
     </div>
 
     <div class="price-grid">
       <div class="price">
-        <h3>Free <span style="color:var(--faint);font-weight:500;">(OSS CLI)</span></h3>
+        <h3>Free</h3>
         <div class="amount"><b>$0</b><span>forever</span></div>
         <p class="who">Every developer, every agent.</p>
         <ul>
-          <li><b>Everything local and unlimited</b>: check, build, preview, export, tour, localize</li>
-          <li>All output types: video, guide, reel, tour</li>
-          <li>No watermark, no API key</li>
-          <li>Batch <b>build-all</b> with pixel diffs</li>
-          <li>ISC-licensed source</li>
+          <li><b>The whole CLI, unlimited</b>: video, guide, reel, tour, every locale, <b>build-all</b> with pixel diffs</li>
+          <li><b>3 hosted demos</b> with embed links</li>
+          <li>Cookieless analytics, <b>7 days</b></li>
+          <li>Publish from CI with a workspace token</li>
+          <li>"Made with Vistaro" badge on hosted demos</li>
         </ul>
-        <a class="btn btn-ghost" href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener">Use it now</a>
+        <a class="btn btn-ghost" href="https://app.vistaro.dev/#signup">Start free</a>
       </div>
 
       <div class="price is-pop">
         <span class="pop-tag">MOST POPULAR</span>
-        <h3>Builder</h3>
-        <div class="amount"><b>$29</b><span>/mo per workspace</span></div>
-        <p class="who">Solo devs and founders.</p>
+        <h3>Pro</h3>
+        <div class="amount"><b data-annual="$19" data-monthly="$24">$19</b><span data-annual="/mo, billed yearly" data-monthly="/mo">/mo, billed yearly</span></div>
+        <p class="who">Founders and small product teams.</p>
+        <p class="plus">Everything in Free, plus:</p>
         <ul>
-          <li><b>3 seats</b></li>
-          <li><b>500 cloud build-minutes</b>/mo</li>
-          <li><b>25 hosted</b> tour/guide/reel embeds with analytics</li>
-          <li>GitHub <b>PR-preview builds</b> with stale-frame diff report</li>
-          <li>Agent HTTP API, <b>2,000 calls</b>/mo</li>
-          <li><b>5 managed locales</b></li>
+          <li><b>3 seats</b>, <b>unlimited</b> hosted demos</li>
+          <li><b>No badge</b>, your <b>custom domain</b> and accent colour</li>
+          <li><b>Lead capture</b> gate, <b>call-to-action</b> button, CSV export</li>
+          <li><b>Step drop-off funnels</b>, 1 year of analytics</li>
+          <li><b>Password-protected</b> demos</li>
+          <li>Release history and <b>one-click rollback</b></li>
         </ul>
-        <a class="btn btn-primary" href="mailto:sales@vistaro.dev?subject=Builder%20plan%20waitlist">Start Builder</a>
+        <a class="btn btn-primary" href="https://app.vistaro.dev/#signup">Start with Pro</a>
       </div>
 
       <div class="price">
         <h3>Team</h3>
-        <div class="amount"><b>$99</b><span>/mo per workspace</span></div>
-        <p class="who">Product, docs and DevRel teams.</p>
+        <div class="amount"><b data-annual="$64" data-monthly="$79">$64</b><span data-annual="/mo, billed yearly" data-monthly="/mo">/mo, billed yearly</span></div>
+        <p class="who">Product, docs, support and DevRel together.</p>
+        <p class="plus">Everything in Pro, plus:</p>
         <ul>
-          <li><b>15 seats</b></li>
-          <li><b>2,500 build-minutes</b>/mo</li>
-          <li><b>100 hosted embeds</b>, 12-month analytics retention</li>
-          <li><b>25,000 API calls</b>/mo</li>
-          <li>Unlimited managed locales + <b>translation memory</b></li>
-          <li><b>Custom embed domain</b></li>
+          <li><b>10 seats</b>, 2 years of analytics</li>
+          <li>A branded, searchable <b>help center</b> across every guide and language</li>
+          <li><b>Draft releases</b> from pull requests, review links, comments, approvals</li>
+          <li><b>Translation workspace</b> and translator seats</li>
+          <li><b>Webhooks</b> to Slack, HubSpot or Zapier for leads, publishes and stale guides</li>
         </ul>
-        <a class="btn btn-ghost" href="mailto:sales@vistaro.dev?subject=Team%20plan%20waitlist">Start Team</a>
+        <a class="btn btn-ghost" href="https://app.vistaro.dev/#signup">Start with Team</a>
       </div>
 
       <div class="price">
         <h3>Enterprise</h3>
-        <div class="amount"><b>Custom</b></div>
-        <p class="who">Orgs with a security review.</p>
+        <div class="amount"><b>Custom</b><span>annual</span></div>
+        <p class="who">Organizations with a security review.</p>
+        <p class="plus">Everything in Team, plus:</p>
         <ul>
-          <li><b>SSO/SAML</b> and audit log</li>
-          <li><b>Self-hosted build runners</b> (unreleased UI never leaves your VPC)</li>
-          <li><b>SLA, DPA</b>, private preview domains</li>
-          <li>Dedicated support</li>
+          <li><b>SSO/SAML</b> and an <b>audit log</b></li>
+          <li><b>Self-hosted Cloud</b>, so your unreleased UI never leaves your VPC</li>
+          <li>Unlimited seats, history and retention</li>
+          <li><b>SLA, DPA</b>, invoicing, dedicated support</li>
         </ul>
-        <a class="btn btn-ghost" href="mailto:sales@vistaro.dev">Talk to us</a>
+        <a class="btn btn-ghost" href="mailto:sales@vistaro.dev?subject=Vistaro%20Enterprise">Talk to us</a>
       </div>
     </div>
 
-    <p class="price-note">Overage: $0.10/build-minute · $1/hosted embed/mo · $5 per extra 1k API calls. Hard caps, no surprise bills.</p>
+    <p class="price-note">No credits · no render minutes · no per-video fees · cancel anytime from the billing portal</p>
   </div>
 </section>
 
@@ -917,7 +1015,28 @@ demo.mp4 + demo.vtt   <span class="c">regenerated by export, never edited</span>
       <details>
         <summary>Is the free tier actually usable, or a crippled trial?</summary>
         <div class="a">
-          It is the whole CLI, and it is what built everything on this page: unlimited local <code>check</code>/<code>build</code>/<code>preview</code>/<code>export</code>/<code>tour</code>/<code>localize</code>, every output type, batch <code>build-all</code>, no watermark, ISC-licensed source. The paid plans exist because hosting embeds with analytics, running PR-preview builds, serving an agent HTTP API and managing locales <b>genuinely need a server</b>; that is all the cloud sells. If you never need those, the free tier is a complete workflow, forever.
+          It is the whole CLI, and it built everything on this page: unlimited local <code>check</code>/<code>build</code>/<code>preview</code>/<code>export</code>/<code>tour</code>/<code>localize</code>, every output type, batch <code>build-all</code>, no watermark, ISC-licensed source. On top of that, Vistaro Cloud's free plan hosts three demos with a week of analytics. The paid plans add what a team needs once a demo is out there (lead capture, funnels, a help center, review, translators), never more rendering, because rendering is never limited.
+        </div>
+      </details>
+
+      <details>
+        <summary>Why don't you charge for rendering, credits or minutes?</summary>
+        <div class="a">
+          Because the CLI already renders everything on your machine and in your CI for free, and it should stay that way. Charging for renders would mean charging you for something you can do yourself with one command. What a server is genuinely good at is everything after the render: hosting, knowing who watched, capturing the lead, keeping a help center current, letting marketing approve and translators translate. That is what Vistaro Cloud sells, at a flat price per workspace, so a busy month never turns into a surprise bill.
+        </div>
+      </details>
+
+      <details>
+        <summary>Do the analytics need cookies or a consent banner change?</summary>
+        <div class="a">
+          No. The viewer script sets no cookies and does no fingerprinting. A visit is a random id kept in the tab's session storage, and events carry the step reached and the referring site's hostname, nothing personal. The only personal data Vistaro Cloud ever receives is what a viewer types into a lead form you turned on, and that data is yours: export it, send it to your CRM, or delete the demo and it goes with it.
+        </div>
+      </details>
+
+      <details>
+        <summary>Can we keep demos of unreleased features private?</summary>
+        <div class="a">
+          Yes, at three levels. Render locally and never publish (free). Publish with a password, or as a draft that only review-link holders can open (Pro and Team). Or run Vistaro Cloud yourself inside your VPC (Enterprise), so nothing leaves your infrastructure at any point.
         </div>
       </details>
 
@@ -942,10 +1061,10 @@ demo.mp4 + demo.vtt   <span class="c">regenerated by export, never edited</span>
 <section class="endcta">
   <div class="container">
     <h2>Your next demo is one sentence away.</h2>
-    <p>Tell your agent <b>create a product demo of my site</b>. The demo lands in your repo as code: every artifact compiled, every locale covered, rebuilt whenever the UI changes. Free and local.</p>
+    <p>Tell your agent <b>create a product demo of my site</b>. The demo lands in your repo as code: every artifact compiled, every locale covered, rebuilt whenever the UI changes, free and local. When it's ready for the world, Vistaro Cloud hosts it, measures it and turns viewers into leads.</p>
     <div class="hero-ctas">
       <a class="btn btn-primary" href="#quickstart">Ask your agent</a>
-      <a class="btn btn-ghost" href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener">Read the manual on GitHub</a>
+      <a class="btn btn-ghost" href="https://app.vistaro.dev/#signup">Publish it with Vistaro Cloud</a>
     </div>
   </div>
 </section>
@@ -959,7 +1078,7 @@ demo.mp4 + demo.vtt   <span class="c">regenerated by export, never edited</span>
           <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
           Vistaro
         </a>
-        <p>Product demos as code: versioned with your repo, reviewed in the pull request, rebuilt in CI when the UI changes.</p>
+        <p>Product demos as code: versioned with your repo, reviewed in the pull request, rebuilt in CI when the UI changes, and published with analytics, lead capture and a help center by Vistaro Cloud.</p>
       </div>
       <div class="foot-col">
         <h3>Product</h3>
@@ -967,6 +1086,7 @@ demo.mp4 + demo.vtt   <span class="c">regenerated by export, never edited</span>
         <a href="#how">How it works</a>
         <a href="#outputs">What you get</a>
         <a href="#review">Agent review</a>
+        <a href="#cloud">Vistaro Cloud</a>
         <a href="#pricing">Pricing</a>
       </div>
       <div class="foot-col">
@@ -978,11 +1098,12 @@ demo.mp4 + demo.vtt   <span class="c">regenerated by export, never edited</span>
       <div class="foot-col">
         <h3>Company</h3>
         <a href="#pricing">Plans &amp; pricing</a>
+        <a href="https://app.vistaro.dev/">Sign in to Vistaro Cloud</a>
         <a href="mailto:sales@vistaro.dev">sales@vistaro.dev</a>
       </div>
     </div>
     <div class="foot-bottom">
-      <span>© 2026 Vistaro. The CLI is ISC-licensed open source.</span>
+      <span>© 2026 Vistaro. The CLI is ISC-licensed open source; Vistaro Cloud is the hosted service.</span>
       <span>Every clip, frame and strip on this page is real Vistaro output from this repo. <code>website/src/reel/</code></span>
     </div>
   </div>
@@ -991,6 +1112,16 @@ demo.mp4 + demo.vtt   <span class="c">regenerated by export, never edited</span>
 <span id="copy-status" class="visually-hidden" role="status" aria-live="polite"></span>
 
 <script>
+  // Pricing: yearly / monthly
+  (function () {
+    var btns = document.querySelectorAll('.bill-switch button');
+    function set(interval) {
+      btns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.interval === interval)); });
+      document.querySelectorAll('.price [data-annual]').forEach(function (el) { el.textContent = el.dataset[interval]; });
+    }
+    btns.forEach(function (b) { b.addEventListener('click', function () { set(b.dataset.interval); }); });
+  })();
+
   // Mobile nav
   (function () {
     var burger = document.getElementById('burger');
