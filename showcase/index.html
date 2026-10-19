@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clarido — Tender pipeline</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  :root {
+    --paper: #F6F3EC; --card: #FFFFFF; --ink: #23262E; --muted: #6B6E7B;
+    --line: #E5E1D5; --navy: #1C2030; --accent: #2F6BFF; --accent-ink: #FFFFFF;
+    --lavender: #E7E2F5; --lavender-ink: #4A3E78; --green: #3E7A4E; --amber: #A0742E;
+    --radius: 14px;
+  }
+  html, body { height: 100%; }
+  body {
+    font: 400 15px/1.55 -apple-system, "Segoe UI", sans-serif;
+    background: var(--paper); color: var(--ink);
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+
+  /* --- top bar ------------------------------------------------------------------ */
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 13px 28px; background: var(--card); border-bottom: 1px solid var(--line);
+  }
+  .wordmark { font: 600 21px Georgia, serif; color: var(--navy); letter-spacing: -0.01em; }
+  .wordmark::after { content: "."; color: var(--accent); }
+  .view-name { font-weight: 600; white-space: nowrap; }
+  .topbar .spacer { flex: 1; }
+  #badge-deadlines {
+    background: var(--lavender); color: var(--lavender-ink); border-radius: 999px;
+    padding: 5px 14px; font-size: 13px; font-weight: 600; white-space: nowrap;
+  }
+  #btn-new {
+    background: var(--navy); color: #F6F3EC; border-radius: 999px;
+    padding: 9px 20px; font-size: 14px; font-weight: 600; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    transition: background 0.2s;
+  }
+  #btn-new:hover { background: #2A3049; }
+  #btn-new svg { width: 15px; height: 15px; }
+
+  /* --- layout ------------------------------------------------------------------- */
+  .frame { flex: 1; display: grid; grid-template-columns: 296px 1fr; max-width: 1280px; width: 100%; margin: 0 auto; gap: 24px; padding: 20px 28px 24px; min-height: 0; }
+  .side { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .side h2 { font: 600 12px/1 sans-serif; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 6px 2px 8px; }
+  .tenders { display: flex; flex-direction: column; gap: 6px; }
+  .tender-item {
+    display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  }
+  .tender-item:hover { border-color: var(--accent); box-shadow: 0 6px 18px -10px rgba(47, 107, 255, 0.45); transform: translateY(-1px); }
+  .tender-item .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .tender-item .label { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tender-item .tag { font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .dot.done { background: var(--green); } .tag.done { color: var(--green); }
+  .dot.writing { background: var(--accent); } .tag.writing { color: var(--accent); }
+  .dot.review { background: var(--amber); } .tag.review { color: var(--amber); }
+  .dot.empty { background: #C9C4B4; } .tag.empty { color: var(--muted); }
+  .tender-item.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+  /* --- activity feed (a scrollable container; lower rows live below its fold) ------ */
+  #feed {
+    margin-top: 10px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; max-height: 172px; overflow: auto; padding: 4px 0;
+  }
+  .act { display: flex; gap: 10px; padding: 8px 14px; font-size: 13.5px; align-items: baseline; }
+  .act + .act { border-top: 1px solid var(--line); }
+  .act .who { font-weight: 600; color: var(--navy); white-space: nowrap; }
+  .act .what { color: var(--muted); min-width: 0; }
+
+  /* --- screens (siblings; transitionScreen fades between them) --------------------- */
+  .screens { min-width: 0; }
+  .screen { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 32px 22px; min-width: 0; }
+  #screen-report { display: none; }
+  .kicker { font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .screen h1 { font: 600 26px/1.2 Georgia, serif; color: var(--navy); margin-bottom: 10px; }
+  .screen .body-copy { color: var(--ink); font-size: 15px; max-width: 64ch; margin-bottom: 16px; }
+
+  /* --- KPI row ---------------------------------------------------------------------- */
+  .facts { display: flex; gap: 12px; margin-bottom: 16px; }
+  .fact { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; background: var(--paper); }
+  .fact .n { font: 600 22px/1.1 Georgia, serif; color: var(--navy); font-variant-numeric: tabular-nums; }
+  .fact .k { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+
+  /* --- chart -------------------------------------------------------------------------- */
+  #chart { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 10px; margin-bottom: 16px; }
+  #chart .chart-title { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 10px; }
+  .bars { display: flex; align-items: flex-end; gap: 14px; height: 96px; padding: 0 4px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: stretch; gap: 6px; height: 100%; justify-content: flex-end; }
+  .bar { border-radius: 5px 5px 2px 2px; background: var(--navy); transform-origin: bottom; }
+  .bar.lead { background: var(--accent); }
+  .bar-col .q { text-align: center; font-size: 12px; color: var(--muted); }
+
+  /* --- ask row --------------------------------------------------------------------------- */
+  #ask-row { display: flex; gap: 10px; align-items: center; }
+  #ask-input {
+    flex: 1; border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 16px;
+    font: inherit; font-size: 15px; outline: none; background: var(--card); color: var(--ink);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  #ask-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.14); }
+  #ask-input::placeholder { color: #A5A89F; }
+  .chips { display: flex; gap: 8px; margin-top: 10px; }
+  .chip {
+    border: 1px solid var(--line); background: var(--paper); border-radius: 999px;
+    padding: 6px 14px; font-size: 13px; font-weight: 500; color: var(--navy);
+    white-space: nowrap; cursor: pointer;
+  }
+
+  /* --- answer card (hidden; fadeIn reveals it) --------------------------------------------- */
+  #answer {
+    display: none; margin-top: 12px; border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 10px; padding: 12px 16px; background: var(--paper);
+  }
+  #answer .a-head { font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 5px; }
+  #answer .a-body { font-size: 14.5px; max-width: 62ch; }
+  #answer .a-src { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--lavender-ink); background: var(--lavender); border-radius: 999px; padding: 3px 10px; }
+
+  /* --- report screen --------------------------------------------------------------------------- */
+  #screen-report .facts { margin-top: 4px; }
+  .readiness { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .ready-row { display: flex; align-items: center; gap: 10px; font-size: 14.5px; }
+  .ready-row .pill { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .pill.ok { background: var(--green); } .pill.warn { background: var(--amber); }
+
+  /* --- toast (pre-hidden; fadeIn / animate reveal it) ------------------------------------------- */
+  #toast {
+    position: fixed; left: 50%; bottom: 44px; transform: translateX(-50%);
+    background: var(--navy); color: #F1EEE6; border-radius: 12px;
+    padding: 13px 24px; font: 600 15.5px Georgia, serif; letter-spacing: 0.01em;
+    opacity: 0; pointer-events: none; white-space: nowrap;
+    box-shadow: 0 18px 40px -18px rgba(28, 32, 48, 0.55);
+  }
+
+  /* --- phone ---------------------------------------------------------------------- */
+  @media (max-width: 900px) {
+    .topbar { flex-wrap: wrap; padding: 12px 16px; gap: 10px; }
+    .frame { grid-template-columns: 1fr; gap: 14px; padding: 14px; }
+    .tenders { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+    .tender-item { flex: none; }
+    .tender-item .label { max-width: 130px; }
+    .screen { padding: 18px 16px; }
+    .screen h1 { font-size: 21px; }
+    .facts { flex-direction: column; }
+    .chips { flex-wrap: wrap; }
+    #toast { font-size: 14px; padding: 11px 18px; bottom: 20px; max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <span class="wordmark">Clarido</span>
+    <span class="view-name">Tender pipeline — Q4 2026</span>
+    <span class="spacer"></span>
+    <span id="badge-deadlines">3 deadlines this week</span>
+    <span id="btn-new" role="button" tabindex="0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      <span class="btn-label">New tender</span>
+    </span>
+  </header>
+
+  <main class="frame">
+    <nav class="side">
+      <h2>Active tenders</h2>
+      <div class="tenders">
+        <div class="tender-item active" id="item-1"><span class="dot writing"></span><span class="label">Water network renewal — batch 2</span><span class="tag writing">Writing</span></div>
+        <div class="tender-item" id="item-2"><span class="dot done"></span><span class="label">Schoolyard renovation, lot 3</span><span class="tag done">Done</span></div>
+        <div class="tender-item" id="item-3"><span class="dot review"></span><span class="label">Harbour lighting upgrade</span><span class="tag review">Review</span></div>
+        <div class="tender-item" id="item-4"><span class="dot empty"></span><span class="label">Cycle path extension</span><span class="tag empty">Empty</span></div>
+        <div class="tender-item" id="item-5"><span class="dot empty"></span><span class="label">Pumping station retrofit</span><span class="tag empty">Empty</span></div>
+      </div>
+      <h2 style="margin-top: 14px">Activity</h2>
+      <div id="feed">
+        <div class="act" id="act-1"><span class="who">Léa</span><span class="what">cited the 1998 audit in §3</span></div>
+        <div class="act" id="act-2"><span class="who">Marc</span><span class="what">attached the site survey</span></div>
+        <div class="act" id="act-3"><span class="who">Clarido</span><span class="what">flagged a missing warranty term</span></div>
+        <div class="act" id="act-4"><span class="who">Léa</span><span class="what">drafted "Worksite logistics"</span></div>
+        <div class="act" id="act-5"><span class="who">Nadia</span><span class="what">approved the pricing annex</span></div>
+        <div class="act" id="act-6"><span class="who">Clarido</span><span class="what">re-scored the response: 82/100</span></div>
+        <div class="act" id="act-7"><span class="who">Marc</span><span class="what">exported a review copy</span></div>
+        <div class="act" id="act-8"><span class="who">Léa</span><span class="what">closed the last open comment</span></div>
+      </div>
+    </nav>
+
+    <div class="screens">
+      <section class="screen" id="screen-pipeline">
+        <div class="kicker">Pipeline — Q4 2026</div>
+        <h1>Five tenders in motion</h1>
+        <p class="body-copy">Two responses are drafted, one is in review, and the next deadline is Thursday. The win rate below counts awarded tenders only.</p>
+        <div class="facts">
+          <div class="fact" id="kpi-1"><div class="n">68<span style="font-size:15px;color:var(--muted)">%</span></div><div class="k">Win rate, last 12 months</div></div>
+          <div class="fact" id="kpi-2"><div class="n">12</div><div class="k">Responses submitted</div></div>
+          <div class="fact" id="kpi-3"><div class="n">€4.2M</div><div class="k">Pipeline under response</div></div>
+        </div>
+        <div id="chart">
+          <div class="chart-title">Win rate by quarter</div>
+          <div class="bars">
+            <div class="bar-col"><div class="bar" style="height: 42%"></div><div class="q">Q1 25</div></div>
+            <div class="bar-col"><div class="bar" style="height: 55%"></div><div class="q">Q2 25</div></div>
+            <div class="bar-col"><div class="bar" style="height: 48%"></div><div class="q">Q3 25</div></div>
+            <div class="bar-col"><div class="bar" style="height: 63%"></div><div class="q">Q4 25</div></div>
+            <div class="bar-col"><div class="bar" style="height: 58%"></div><div class="q">Q1 26</div></div>
+            <div class="bar-col"><div class="bar" style="height: 71%"></div><div class="q">Q2 26</div></div>
+            <div class="bar-col"><div class="bar" style="height: 66%"></div><div class="q">Q3 26</div></div>
+            <div class="bar-col"><div class="bar lead" style="height: 84%"></div><div class="q">Q4 26</div></div>
+          </div>
+        </div>
+        <div id="ask-row">
+          <input id="ask-input" type="text" spellcheck="false" placeholder="Ask anything about this pipeline…">
+        </div>
+        <div class="chips">
+          <span class="chip" id="chip-1">What is due this week?</span>
+          <span class="chip" id="chip-2">Which section scores lowest?</span>
+          <span class="chip" id="chip-3">Draft the warranty terms</span>
+        </div>
+        <div id="answer">
+          <div class="a-head">Clarido's answer</div>
+          <div class="a-body">Two deadlines fall this week: <strong>Harbour lighting upgrade</strong> (Thursday) and <strong>Cycle path extension</strong> (Friday). The harbour response still has one unresolved review comment.</div>
+          <span class="a-src">From 2 tenders · deadlines annex</span>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-report">
+        <div class="kicker">Weekly report</div>
+        <h1>Week 42 — submission readiness</h1>
+        <p class="body-copy">Every active tender, scored against its own evaluation grid. One response needs attention before Thursday.</p>
+        <div class="readiness">
+          <div class="ready-row"><span class="pill ok"></span><span><strong>Water network renewal</strong> — 82/100, all sections drafted</span></div>
+          <div class="ready-row"><span class="pill ok"></span><span><strong>Schoolyard renovation</strong> — 91/100, exported Monday</span></div>
+          <div class="ready-row" id="ready-risk"><span class="pill warn"></span><span><strong>Harbour lighting</strong> — 64/100, warranty section still empty</span></div>
+        </div>
+        <div class="facts">
+          <div class="fact"><div class="n">79<span style="font-size:15px;color:var(--muted)">/100</span></div><div class="k">Average readiness</div></div>
+          <div class="fact"><div class="n">2</div><div class="k">Deadlines this week</div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="toast">Saved — the pipeline is up to date.</div>
+
+  <script>
+    // Listeners only, no DOM appends: a tour seek rebuilds the page and re-runs this script in
+    // fresh nodes, so wiring must be re-attachable and never stack visible state.
+    (function () {
+      var btn = document.getElementById('btn-new');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          var label = btn.querySelector('.btn-label');
+          if (!label) return;
+          label.textContent = 'Creating…';
+          setTimeout(function () { label.textContent = 'Tender created'; }, 900);
+        });
+      }
+      var items = document.querySelectorAll('.tender-item');
+      items.forEach(function (item) {
+        item.addEventListener('click', function () {
+          items.forEach(function (other) { other.classList.remove('active'); });
+          item.classList.add('active');
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

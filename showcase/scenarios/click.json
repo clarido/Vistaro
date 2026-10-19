@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "title": "Click",
+    "slug": "showcase-click",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "pick", "time": "1.4s", "action": "click", "target": "#item-3",
+      "title": "The cursor travels and clicks",
+      "subtitle": "A glowing spotlight, a press, a ripple — then a real el.click()." },
+    { "id": "pick-2", "time": "3.8s", "action": "click", "target": "#item-4",
+      "title": "The page's own handlers run",
+      "subtitle": "The selection moves because the mockup's script moved it." },
+    { "id": "create", "time": "6.2s", "action": "click", "target": "#btn-new",
+      "title": "Watch the button react",
+      "subtitle": "The label changes — the click is real, not painted on." }
+  ]
+}

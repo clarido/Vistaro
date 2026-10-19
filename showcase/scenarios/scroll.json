@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "title": "Scroll",
+    "slug": "showcase-scroll",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "zoom", "time": "1.2s", "action": "camera", "target": "#feed", "scale": 1.5, "xOffset": 250, "duration": 1.6, "guide": false },
+    { "id": "down", "time": "3.6s", "action": "scroll", "target": "#act-8",
+      "title": "Smooth-scroll a buried row into view",
+      "subtitle": "The activity feed scrolls until the target is visible." },
+    { "id": "up", "time": "6.4s", "action": "scroll", "target": "#act-1",
+      "title": "And back up",
+      "subtitle": "Any scrollable container works — or the page itself." },
+    { "id": "pull-back", "time": "8.8s", "action": "camera", "scale": 1, "duration": 1.4, "guide": false }
+  ]
+}

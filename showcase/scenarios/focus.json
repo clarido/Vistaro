@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "title": "Focus",
+    "slug": "showcase-focus",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "zoom", "time": "1.2s", "action": "camera", "target": "#ask-row", "scale": 1.25, "duration": 1.4, "guide": false },
+    { "id": "field", "time": "3.4s", "action": "focus", "target": "#ask-input",
+      "title": "The field takes real focus",
+      "subtitle": "el.focus() — the page's own focus ring lights up." },
+    { "id": "pull-back", "time": "5.8s", "action": "camera", "scale": 1, "duration": 1.2, "guide": false },
+    { "id": "button", "time": "7.8s", "action": "focus", "target": "#btn-new",
+      "title": "Any focusable element works",
+      "subtitle": "Buttons, inputs, links — whatever the page can focus." }
+  ]
+}

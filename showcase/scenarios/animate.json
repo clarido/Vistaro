@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "title": "Animate",
+    "slug": "showcase-animate",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "bars", "time": "1s", "action": "animate", "target": ".bar", "all": true,
+      "stagger": 0.07, "count": 8, "duration": 0.9, "ease": "spring",
+      "from": { "scaleY": 0.08, "opacity": 0.4 }, "to": { "scaleY": 1, "opacity": 1 },
+      "title": "Stagger — the chart builds bar by bar",
+      "subtitle": "One step, every match of the selector, 70 ms apart, on a spring." },
+    { "id": "chip-cubic", "time": "3.6s", "action": "animate", "target": "#chip-1", "duration": 0.7,
+      "ease": "easeOutCubic",
+      "from": { "y": 14, "opacity": 0.2 }, "to": { "y": 0, "opacity": 1 },
+      "title": "Easings: easeOutCubic",
+      "subtitle": "A clean decelerating entrance." },
+    { "id": "chip-back", "time": "5.2s", "action": "animate", "target": "#chip-2", "duration": 0.7,
+      "ease": "easeOutBack",
+      "from": { "y": 14, "opacity": 0.2 }, "to": { "y": 0, "opacity": 1 },
+      "title": "easeOutBack overshoots",
+      "subtitle": "Same move, different personality." },
+    { "id": "chip-spring", "time": "6.8s", "action": "animate", "target": "#chip-3", "duration": 0.7,
+      "ease": "spring",
+      "from": { "y": 14, "opacity": 0.2 }, "to": { "y": 0, "opacity": 1 },
+      "title": "spring settles with a bounce",
+      "subtitle": "Seven named easings, from linear to spring." },
+    { "id": "toast", "time": "8.8s", "action": "animate", "target": "#toast", "duration": 0.8,
+      "ease": "easeOutExpo",
+      "from": { "opacity": 0 }, "to": { "opacity": 1 },
+      "title": "Any CSS property",
+      "subtitle": "Transforms compose; everything else passes through as-is." }
+  ]
+}

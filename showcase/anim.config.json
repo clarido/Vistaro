@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "title": "Everything at once",
+    "slug": "showcase-medley",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body",
+      "title": "Overview", "subtitle": "One dashboard, every animation the engine knows." },
+    { "id": "notice", "time": "2.2s", "action": "highlight", "target": "#badge-deadlines",
+      "title": "Highlight", "subtitle": "A spotlight pulse — notice this, no click." },
+    { "id": "open", "time": "4.4s", "action": "click", "target": "#item-3",
+      "title": "Click", "subtitle": "The cursor travels, presses, and the page's own handlers run." },
+    { "id": "ask", "time": "6.8s", "action": "type", "target": "#ask-input",
+      "value": "What is due this week?", "translatable": true,
+      "title": "Type", "subtitle": "Typed character by character." },
+    { "id": "answer", "time": "9.6s", "action": "fadeIn", "target": "#answer", "duration": 0.7,
+      "title": "Fade in", "subtitle": "A hidden element is revealed." },
+    { "id": "zoom", "time": "11.8s", "action": "camera", "target": "#answer", "scale": 1.25, "duration": 1.6,
+      "title": "Camera", "subtitle": "Push in on what matters." },
+    { "id": "pull-back", "time": "14.4s", "action": "camera", "scale": 1, "duration": 1.3, "guide": false },
+    { "id": "bars", "time": "16.4s", "action": "animate", "target": ".bar", "all": true,
+      "stagger": 0.07, "count": 8, "duration": 0.9, "ease": "spring",
+      "from": { "scaleY": 0.08, "opacity": 0.4 }, "to": { "scaleY": 1, "opacity": 1 },
+      "title": "Animate", "subtitle": "Free-form motion: transforms, stagger, springs." },
+    { "id": "closing", "time": "19s", "action": "fadeIn", "target": "#toast", "duration": 0.9,
+      "title": "Closing", "subtitle": "And a closing beat.", "subtitlePlace": "top" }
+  ]
+}

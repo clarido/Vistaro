@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "title": "Type",
+    "slug": "showcase-type",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "land", "time": "1.4s", "action": "focus", "target": "#ask-input",
+      "title": "The cursor lands on the field",
+      "subtitle": "Focus first, like a person would." },
+    { "id": "ask", "time": "2.8s", "action": "type", "target": "#ask-input",
+      "value": "Which tenders are due this week?", "translatable": true,
+      "title": "Typed character by character",
+      "subtitle": "Real key events, at a human pace — 25 characters per second." },
+    { "id": "zoom", "time": "5.8s", "action": "camera", "target": "#ask-row", "scale": 1.3, "duration": 1.6, "guide": false },
+    { "id": "pull-back", "time": "8.2s", "action": "camera", "scale": 1, "duration": 1.2, "guide": false }
+  ]
+}

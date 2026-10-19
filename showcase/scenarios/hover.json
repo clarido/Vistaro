@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "title": "Hover",
+    "slug": "showcase-hover",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "row", "time": "1.4s", "action": "hover", "target": "#item-2",
+      "title": "The row lifts under the cursor",
+      "subtitle": "The mockup's own :hover style does the work." },
+    { "id": "row-2", "time": "3.8s", "action": "hover", "target": "#item-4",
+      "title": "The cursor glides between targets",
+      "subtitle": "With a slight drift, like a hand on a mouse." },
+    { "id": "button", "time": "6.2s", "action": "hover", "target": "#btn-new",
+      "title": "Buttons show their hover state too",
+      "subtitle": "Anything with a hover style responds." }
+  ]
+}

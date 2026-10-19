@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "title": "Highlight",
+    "slug": "showcase-highlight",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "badge", "time": "1.4s", "action": "highlight", "target": "#badge-deadlines",
+      "title": "A pulse that says: notice this",
+      "subtitle": "The spotlight frames the element — no click happens." },
+    { "id": "kpi", "time": "3.8s", "action": "highlight", "target": "#kpi-1",
+      "title": "Point at any element",
+      "subtitle": "The ring sizes itself to whatever you target." },
+    { "id": "row", "time": "6.2s", "action": "highlight", "target": "#item-3",
+      "title": "The cursor rides along",
+      "subtitle": "It glides to each highlight like a presenter's hand." }
+  ]
+}

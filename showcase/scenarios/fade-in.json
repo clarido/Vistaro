@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "title": "Fade in",
+    "slug": "showcase-fade-in",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "page", "time": "0s", "action": "fadeIn", "target": "body",
+      "title": "The whole page can fade up",
+      "subtitle": "fadeIn on body is the classic opening beat." },
+    { "id": "answer", "time": "2.6s", "action": "fadeIn", "target": "#answer", "duration": 0.8,
+      "title": "Reveal a hidden element",
+      "subtitle": "display and opacity are handled together — the card takes its place." },
+    { "id": "toast", "time": "5.4s", "action": "fadeIn", "target": "#toast", "duration": 0.9,
+      "title": "A toast, a banner, a closing line",
+      "subtitle": "Anything pre-hidden in CSS can be brought in on cue.", "subtitlePlace": "top" }
+  ]
+}

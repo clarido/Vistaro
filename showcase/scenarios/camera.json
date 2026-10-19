@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "title": "Camera",
+    "slug": "showcase-camera",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "push", "time": "1.2s", "action": "camera", "target": "#chart", "scale": 1.3, "duration": 2,
+      "title": "Push in — the page pans and zooms toward the target" },
+    { "id": "glide", "time": "4.8s", "action": "camera", "target": "#feed", "scale": 1.5, "xOffset": 250, "duration": 1.8,
+      "title": "Glide to another detail",
+      "subtitle": "No cut — the frame travels from one subject to the next." },
+    { "id": "pull-back", "time": "8.2s", "action": "camera", "scale": 1, "duration": 1.6,
+      "title": "Pull back",
+      "subtitle": "Scale 1 returns to the full frame." }
+  ]
+}

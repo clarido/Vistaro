@@ -1,0 +1,624 @@
+{
+  "history": [
+    {
+      "command": "tour",
+      "scenario": "medley",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 8,
+      "locale": "en",
+      "contentHash": "sha256:9a803cdbb6af04e4b07e0905742b978e6999e2e1413f504fc8910445320e4143",
+      "timestamp": "2026-10-19T18:13:34.320Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "click",
+      "config": "scenarios/click.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:69957839c81c57253b301ad7423878945e0cd99aa5a1e30105bb78c55053790e",
+      "timestamp": "2026-10-19T18:13:34.321Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "type",
+      "config": "scenarios/type.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:bb85fa88518474804f435d8856d5e7ad28af347c1648526a52b7c01f5eb1164a",
+      "timestamp": "2026-10-19T18:13:34.323Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "focus",
+      "config": "scenarios/focus.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:eaf68cf2c13834972343d0ec22d3da512a3526b11caec7e9a9c6af3a896f260e",
+      "timestamp": "2026-10-19T18:13:34.324Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "hover",
+      "config": "scenarios/hover.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:471182baaa8615389c0425a7c50f3dc2ca0690d318db685ee141bc9d5755abc3",
+      "timestamp": "2026-10-19T18:13:34.325Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "press",
+      "config": "scenarios/press.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:5b48945ef9a3d25a74fcb6973848ec48e852d179bda6cc5cc80b8f3d5cd2acd8",
+      "timestamp": "2026-10-19T18:13:34.326Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "highlight",
+      "config": "scenarios/highlight.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:3651674f25a4ee14b39c74167e7f7c40c5a218f53626735941abc285b8f41bc6",
+      "timestamp": "2026-10-19T18:13:34.327Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "camera",
+      "config": "scenarios/camera.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:091232eb193602bd254b9d278894327da1ffa63c63bd33009374eb0f97c6ed2c",
+      "timestamp": "2026-10-19T18:13:34.328Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "scroll",
+      "config": "scenarios/scroll.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:2f0b6ef35db48616480376b2fabed6f1b1ad895d11ee66677fb38546f174eadf",
+      "timestamp": "2026-10-19T18:13:34.329Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "fade-in",
+      "config": "scenarios/fade-in.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:c00be2bf312a47194ec9c57b3cc692bce0a783bcedefaa0635428ae23af8de99",
+      "timestamp": "2026-10-19T18:13:34.330Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "transition-screen",
+      "config": "scenarios/transition-screen.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:2f3ed369a58b1eba14747dac46168b4c8b9be0ca87f936ed41c619388218a731",
+      "timestamp": "2026-10-19T18:13:34.332Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "animate",
+      "config": "scenarios/animate.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../showcase-out",
+      "steps": 5,
+      "locale": "en",
+      "contentHash": "sha256:85387e5434cdf20e449d6cc96d361d8d5b2979af8ec2cb912149bd0e58d7b137",
+      "timestamp": "2026-10-19T18:13:34.332Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "medley",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 8,
+      "locale": "en",
+      "contentHash": "sha256:9a803cdbb6af04e4b07e0905742b978e6999e2e1413f504fc8910445320e4143",
+      "timestamp": "2026-10-19T18:35:26.370Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "click",
+      "config": "scenarios/click.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:69957839c81c57253b301ad7423878945e0cd99aa5a1e30105bb78c55053790e",
+      "timestamp": "2026-10-19T18:35:26.373Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "type",
+      "config": "scenarios/type.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:bb85fa88518474804f435d8856d5e7ad28af347c1648526a52b7c01f5eb1164a",
+      "timestamp": "2026-10-19T18:35:26.375Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "focus",
+      "config": "scenarios/focus.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:eaf68cf2c13834972343d0ec22d3da512a3526b11caec7e9a9c6af3a896f260e",
+      "timestamp": "2026-10-19T18:35:26.378Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "hover",
+      "config": "scenarios/hover.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:471182baaa8615389c0425a7c50f3dc2ca0690d318db685ee141bc9d5755abc3",
+      "timestamp": "2026-10-19T18:35:26.381Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "press",
+      "config": "scenarios/press.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:5b48945ef9a3d25a74fcb6973848ec48e852d179bda6cc5cc80b8f3d5cd2acd8",
+      "timestamp": "2026-10-19T18:35:26.383Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "highlight",
+      "config": "scenarios/highlight.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:3651674f25a4ee14b39c74167e7f7c40c5a218f53626735941abc285b8f41bc6",
+      "timestamp": "2026-10-19T18:35:26.385Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "camera",
+      "config": "scenarios/camera.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:091232eb193602bd254b9d278894327da1ffa63c63bd33009374eb0f97c6ed2c",
+      "timestamp": "2026-10-19T18:35:26.388Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "scroll",
+      "config": "scenarios/scroll.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:2f0b6ef35db48616480376b2fabed6f1b1ad895d11ee66677fb38546f174eadf",
+      "timestamp": "2026-10-19T18:35:26.390Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "fade-in",
+      "config": "scenarios/fade-in.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:c00be2bf312a47194ec9c57b3cc692bce0a783bcedefaa0635428ae23af8de99",
+      "timestamp": "2026-10-19T18:35:26.393Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "transition-screen",
+      "config": "scenarios/transition-screen.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:2f3ed369a58b1eba14747dac46168b4c8b9be0ca87f936ed41c619388218a731",
+      "timestamp": "2026-10-19T18:35:26.396Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "animate",
+      "config": "scenarios/animate.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 5,
+      "locale": "en",
+      "contentHash": "sha256:85387e5434cdf20e449d6cc96d361d8d5b2979af8ec2cb912149bd0e58d7b137",
+      "timestamp": "2026-10-19T18:35:26.398Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "medley",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 8,
+      "locale": "en",
+      "contentHash": "sha256:9a803cdbb6af04e4b07e0905742b978e6999e2e1413f504fc8910445320e4143",
+      "timestamp": "2026-10-19T18:36:33.769Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "click",
+      "config": "scenarios/click.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:69957839c81c57253b301ad7423878945e0cd99aa5a1e30105bb78c55053790e",
+      "timestamp": "2026-10-19T18:36:33.772Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "type",
+      "config": "scenarios/type.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:bb85fa88518474804f435d8856d5e7ad28af347c1648526a52b7c01f5eb1164a",
+      "timestamp": "2026-10-19T18:36:33.774Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "focus",
+      "config": "scenarios/focus.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:eaf68cf2c13834972343d0ec22d3da512a3526b11caec7e9a9c6af3a896f260e",
+      "timestamp": "2026-10-19T18:36:33.777Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "hover",
+      "config": "scenarios/hover.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:471182baaa8615389c0425a7c50f3dc2ca0690d318db685ee141bc9d5755abc3",
+      "timestamp": "2026-10-19T18:36:33.780Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "press",
+      "config": "scenarios/press.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:5b48945ef9a3d25a74fcb6973848ec48e852d179bda6cc5cc80b8f3d5cd2acd8",
+      "timestamp": "2026-10-19T18:36:33.782Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "highlight",
+      "config": "scenarios/highlight.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:3651674f25a4ee14b39c74167e7f7c40c5a218f53626735941abc285b8f41bc6",
+      "timestamp": "2026-10-19T18:36:33.785Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "camera",
+      "config": "scenarios/camera.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:091232eb193602bd254b9d278894327da1ffa63c63bd33009374eb0f97c6ed2c",
+      "timestamp": "2026-10-19T18:36:33.787Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "scroll",
+      "config": "scenarios/scroll.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:2f0b6ef35db48616480376b2fabed6f1b1ad895d11ee66677fb38546f174eadf",
+      "timestamp": "2026-10-19T18:36:33.791Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "fade-in",
+      "config": "scenarios/fade-in.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:c00be2bf312a47194ec9c57b3cc692bce0a783bcedefaa0635428ae23af8de99",
+      "timestamp": "2026-10-19T18:36:33.796Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "transition-screen",
+      "config": "scenarios/transition-screen.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:2f3ed369a58b1eba14747dac46168b4c8b9be0ca87f936ed41c619388218a731",
+      "timestamp": "2026-10-19T18:36:33.798Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "animate",
+      "config": "scenarios/animate.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 5,
+      "locale": "en",
+      "contentHash": "sha256:85387e5434cdf20e449d6cc96d361d8d5b2979af8ec2cb912149bd0e58d7b137",
+      "timestamp": "2026-10-19T18:36:33.802Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "medley",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 8,
+      "locale": "en",
+      "contentHash": "sha256:9a803cdbb6af04e4b07e0905742b978e6999e2e1413f504fc8910445320e4143",
+      "timestamp": "2026-10-19T19:08:40.333Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "click",
+      "config": "scenarios/click.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:69957839c81c57253b301ad7423878945e0cd99aa5a1e30105bb78c55053790e",
+      "timestamp": "2026-10-19T19:08:40.335Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "type",
+      "config": "scenarios/type.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:bb85fa88518474804f435d8856d5e7ad28af347c1648526a52b7c01f5eb1164a",
+      "timestamp": "2026-10-19T19:08:40.337Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "focus",
+      "config": "scenarios/focus.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:eaf68cf2c13834972343d0ec22d3da512a3526b11caec7e9a9c6af3a896f260e",
+      "timestamp": "2026-10-19T19:08:40.338Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "hover",
+      "config": "scenarios/hover.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:471182baaa8615389c0425a7c50f3dc2ca0690d318db685ee141bc9d5755abc3",
+      "timestamp": "2026-10-19T19:08:40.340Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "press",
+      "config": "scenarios/press.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:a412e7488bb5e337ed265bed16007dbb08d2f8067440023742ece679e27916a8",
+      "timestamp": "2026-10-19T19:08:40.341Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "highlight",
+      "config": "scenarios/highlight.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:3651674f25a4ee14b39c74167e7f7c40c5a218f53626735941abc285b8f41bc6",
+      "timestamp": "2026-10-19T19:08:40.343Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "camera",
+      "config": "scenarios/camera.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:091232eb193602bd254b9d278894327da1ffa63c63bd33009374eb0f97c6ed2c",
+      "timestamp": "2026-10-19T19:08:40.344Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "scroll",
+      "config": "scenarios/scroll.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 2,
+      "locale": "en",
+      "contentHash": "sha256:2f0b6ef35db48616480376b2fabed6f1b1ad895d11ee66677fb38546f174eadf",
+      "timestamp": "2026-10-19T19:08:40.346Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "fade-in",
+      "config": "scenarios/fade-in.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:c00be2bf312a47194ec9c57b3cc692bce0a783bcedefaa0635428ae23af8de99",
+      "timestamp": "2026-10-19T19:08:40.347Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "transition-screen",
+      "config": "scenarios/transition-screen.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 3,
+      "locale": "en",
+      "contentHash": "sha256:2f3ed369a58b1eba14747dac46168b4c8b9be0ca87f936ed41c619388218a731",
+      "timestamp": "2026-10-19T19:08:40.350Z"
+    },
+    {
+      "command": "tour",
+      "scenario": "animate",
+      "config": "scenarios/animate.json",
+      "devices": [
+        "desktop"
+      ],
+      "output": "../website/src/showcase-out",
+      "steps": 5,
+      "locale": "en",
+      "contentHash": "sha256:85387e5434cdf20e449d6cc96d361d8d5b2979af8ec2cb912149bd0e58d7b137",
+      "timestamp": "2026-10-19T19:08:40.352Z"
+    }
+  ]
+}

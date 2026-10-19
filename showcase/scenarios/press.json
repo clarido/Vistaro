@@ -1,0 +1,24 @@
+{
+  "meta": {
+    "title": "Press",
+    "slug": "showcase-press",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "land", "time": "1.2s", "action": "focus", "target": "#ask-input", "guide": false },
+    { "id": "ask", "time": "2s", "action": "type", "target": "#ask-input",
+      "value": "Due this week?", "translatable": true, "guide": false },
+    { "id": "enter", "time": "3.6s", "action": "press", "value": "Enter",
+      "title": "Press Enter — no cursor, no target, just the keyboard",
+      "subtitle": "A single key event: Enter, Tab, or a chord like Control+K." },
+    { "id": "answer", "time": "4.6s", "action": "fadeIn", "target": "#answer", "duration": 0.6,
+      "title": "…and the app answers",
+      "subtitle": "The result lands right below." },
+    { "id": "zoom", "time": "6.8s", "action": "camera", "target": "#answer", "scale": 1.2, "duration": 1.5, "guide": false },
+    { "id": "pull-back", "time": "9s", "action": "camera", "scale": 1, "duration": 1.2, "guide": false }
+  ]
+}

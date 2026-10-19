@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vistaro — Every animation, played live</title>
+<meta name="description" content="Every animation type Vistaro knows — click, type, camera, stagger, cross-fade and the rest — each playing live on the same mockup. Nothing on this page is a video.">
+<meta property="og:title" content="Vistaro — Every animation, played live">
+<meta property="og:description" content="Twelve interactive scenarios, one per animation type, running on the engine itself. Pause, scrub, replay.">
+<meta property="og:image" content="assets/og.jpg">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #05070D;
+    --panel: #0B101B;
+    --panel2: #0E1522;
+    --line: #1D2739;
+    --line-soft: #141C2C;
+    --ink: #E8EDF7;
+    --muted: #8B95AB;
+    --faint: #7A869E;
+    --accent: #E4632B;
+    --accent-hi: #EE7B45;
+    --accent-soft: rgba(228, 99, 43, .12);
+    --accent-ink: #160903;
+    --good: #34D399;
+    --key: #7DD3FC;
+    --str: #FDBA74;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    color-scheme: dark;
+    scrollbar-color: #2A3550 var(--bg);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: rgba(228, 99, 43, .38); }
+
+  a { color: inherit; text-decoration: none; }
+
+  .container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+
+  /* ---------- nav ---------- */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(5, 7, 13, .82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .nav-inner { display: flex; align-items: center; gap: 28px; height: 62px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -.01em; }
+  .logo svg { width: 24px; height: 24px; flex: none; }
+  .nav-links { display: flex; gap: 24px; margin-left: 8px; }
+  .nav-links a { color: var(--muted); font-size: 14.5px; font-weight: 500; transition: color .15s; white-space: nowrap; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-links a[aria-current="page"] { color: var(--ink); }
+  .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .nav-cta .gh { color: var(--muted); font-size: 14.5px; font-weight: 500; display: flex; align-items: center; gap: 7px; }
+  .nav-cta .gh:hover { color: var(--ink); }
+  .nav-cta .gh svg { width: 17px; height: 17px; }
+  .nav-links .mobile-cta { display: none; }
+  .burger { display: none; background: none; border: 0; color: var(--ink); padding: 8px; cursor: pointer; }
+  .burger svg { width: 22px; height: 22px; display: block; }
+
+  @media (max-width: 1080px) {
+    .nav-links, .nav-cta .gh span { display: none; }
+    .burger { display: block; margin-left: auto; }
+    .nav-cta { margin-left: auto; }
+    .nav-cta .btn { display: none; }
+    .nav-links.open {
+      display: flex;
+      position: absolute;
+      top: 62px; left: 0; right: 0;
+      flex-direction: column;
+      gap: 0;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 8px 24px 16px;
+    }
+    .nav-links.open a { padding: 12px 0; border-bottom: 1px solid var(--line-soft); font-size: 16px; }
+    .nav-links.open a:last-child { border-bottom: 0; }
+    .nav-links.open .mobile-cta { display: block; color: var(--accent); font-weight: 600; }
+  }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 12px 22px;
+    transition: transform .12s, background .15s, border-color .15s;
+    cursor: pointer;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent-hi); }
+  .btn-ghost { border: 1px solid var(--line); color: var(--ink); background: rgba(11, 16, 27, .5); }
+  .btn-ghost:hover { border-color: var(--faint); }
+  .btn-sm { padding: 8px 16px; font-size: 14px; border-radius: 8px; }
+  .btn svg { width: 16px; height: 16px; }
+
+  /* ---------- page hero ---------- */
+  .page-hero {
+    padding: 80px 0 56px;
+    border-bottom: 1px solid var(--line-soft);
+    text-align: center;
+  }
+  .page-hero h1 {
+    font-size: clamp(30px, 4.8vw, 48px);
+    font-weight: 700;
+    letter-spacing: -.03em;
+    line-height: 1.15;
+    margin: 16px 0 18px;
+  }
+  .page-hero .sub {
+    color: var(--muted);
+    font-size: clamp(15.5px, 1.6vw, 17.5px);
+    line-height: 1.65;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .page-hero .sub b { color: var(--ink); font-weight: 600; }
+  .live-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font: 500 12.5px/1.5 var(--mono);
+    color: var(--muted);
+  }
+  .live-chip .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(52, 211, 153, .18); }
+
+  /* ---------- animation blocks ---------- */
+  .anim-group { padding: 64px 0 8px; }
+  .group-label {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font: 700 12px/1 var(--mono);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .group-label::after { content: ""; height: 1px; flex: 1; background: var(--line); }
+
+  .anim-block { padding: 56px 0 64px; border-bottom: 1px solid var(--line-soft); }
+  .anim-block:last-of-type { border-bottom: 0; }
+  .anim-head { max-width: 720px; margin: 0 auto 28px; text-align: center; }
+  .action-chip {
+    display: inline-block;
+    font: 600 12px/1 var(--mono);
+    color: var(--str);
+    background: var(--panel2);
+    border: 1px solid var(--line-soft);
+    padding: 7px 12px;
+    border-radius: 7px;
+    margin-bottom: 14px;
+  }
+  .action-chip .q { color: var(--faint); }
+  .anim-head h2 {
+    font-size: clamp(24px, 3.4vw, 32px);
+    font-weight: 700;
+    letter-spacing: -.022em;
+    line-height: 1.15;
+    margin: 0 0 12px;
+  }
+  .anim-head p { color: var(--muted); font-size: 16px; line-height: 1.65; margin: 0; }
+  .anim-head p b { color: var(--ink); font-weight: 600; }
+  .anim-head p code { font: 500 13px/1 var(--mono); color: var(--str); background: var(--panel2); border: 1px solid var(--line-soft); padding: 2px 6px; border-radius: 5px; }
+
+  anim-tour {
+    display: block;
+    max-width: 980px;
+    margin: 0 auto;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line-soft); padding: 56px 0 40px; background: #04060A; }
+  .foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 36px; margin-bottom: 44px; }
+  @media (max-width: 860px) { .foot-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 520px) { .foot-grid { grid-template-columns: 1fr; } }
+  .foot-brand p { color: var(--faint); font-size: 13.5px; line-height: 1.65; max-width: 300px; margin: 12px 0 0; }
+  .foot-col h3 { margin: 0 0 14px; font: 700 11.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+  .foot-col a { display: block; color: var(--muted); font-size: 14px; padding: 5px 0; }
+  .foot-col a:hover { color: var(--ink); }
+  .foot-bottom {
+    border-top: 1px solid var(--line-soft);
+    padding-top: 24px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    color: var(--faint);
+    font-size: 13px;
+  }
+  .foot-bottom code { font: 500 12px/1 var(--mono); color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ======================= NAV ======================= -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="logo" href="index.html" aria-label="Vistaro home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
+      Vistaro
+    </a>
+    <nav class="nav-links" id="navLinks">
+      <a href="animations.html" aria-current="page">Animations</a>
+      <a href="index.html#agent">Ask your agent</a>
+      <a href="index.html#how">How it works</a>
+      <a href="index.html#outputs">What you get</a>
+      <a href="index.html#faq">FAQ</a>
+      <a class="mobile-cta" href="index.html#quickstart">Get started</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="gh" href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener" aria-label="Vistaro on GitHub">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>GitHub</span>
+      </a>
+      <a class="btn btn-primary btn-sm" href="index.html#quickstart">Get started</a>
+      <button class="burger" id="burger" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ======================= PAGE HERO ======================= -->
+<section class="page-hero" id="top">
+  <div class="container">
+    <span class="live-chip"><span class="pulse"></span> NOTHING ON THIS PAGE IS A VIDEO — EVERY CLIP IS THE ENGINE RUNNING LIVE</span>
+    <h1>Every animation, played live</h1>
+    <p class="sub">
+      A Vistaro timeline is a list of steps, and each step has an <b>action</b>. This page plays
+      every one of them on the same mockup — pause any clip, step through it, replay it. The whole
+      page is one screen (<b>showcase/index.html</b>) and twelve small timelines in this repo.
+    </p>
+  </div>
+</section>
+
+<!-- ======================= MEDLEY ======================= -->
+<div class="anim-block" id="medley">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip">anim.config.json <span class="q">·</span> 9 steps <span class="q">·</span> 20 s</span>
+      <h2>Everything at once</h2>
+      <p>The 20-second overview: a highlight, a real click, character-by-character typing, a camera push, a staggered chart build and a closing fade — one timeline, in the order you'd tell the story.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="medley" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<!-- ======================= INTERACTIONS ======================= -->
+<section class="anim-group" aria-label="Interactions">
+  <div class="container"><div class="group-label">Interactions</div></div>
+</section>
+
+<div class="anim-block" id="click">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "click"</span>
+      <h2>Click</h2>
+      <p>The cursor travels with a human drift, a spotlight frames the target, a ripple marks the press — and a real <code>el.click()</code> fires, so the page's own handlers do the reacting.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="click" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<div class="anim-block" id="type">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "type"</span>
+      <h2>Type</h2>
+      <p>Text lands character by character at a human pace, through real key events — React-style controlled inputs see genuine keystrokes, not a pasted value.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="type" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<div class="anim-block" id="focus">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "focus"</span>
+      <h2>Focus</h2>
+      <p>The element takes the page's real focus — its own focus ring lights up. Works on anything focusable: inputs, buttons, links.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="focus" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<div class="anim-block" id="hover">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "hover"</span>
+      <h2>Hover</h2>
+      <p>The cursor glides onto an element and its <code>:hover</code> styles respond — the lift, the shadow, the color change are the mockup's own.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="hover" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<div class="anim-block" id="press">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "press"</span>
+      <h2>Press</h2>
+      <p>No cursor, no target — just the keyboard: <code>Enter</code>, <code>Tab</code>, or a chord like <code>Control+K</code>. Where <b>type</b> fills the field, <b>press</b> submits it.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="press" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<div class="anim-block" id="highlight">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "highlight"</span>
+      <h2>Highlight</h2>
+      <p>A spotlight pulse that says <b>notice this</b> — no click, no state change. The ring sizes itself to whatever you point at.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="highlight" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<!-- ======================= CAMERA & MOVEMENT ======================= -->
+<section class="anim-group" aria-label="Camera and movement">
+  <div class="container"><div class="group-label">Camera &amp; movement</div></div>
+</section>
+
+<div class="anim-block" id="camera">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "camera"</span>
+      <h2>Camera</h2>
+      <p>Push in on a detail, glide to the next one without a cut, pull back to the full frame — a camera on rails, with easing. The cursor and spotlight ride along.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="camera" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<div class="anim-block" id="scroll">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "scroll"</span>
+      <h2>Scroll</h2>
+      <p>Smooth-scroll a buried element into view — inside any scrollable container, or the page itself.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="scroll" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<!-- ======================= REVEALS & MOTION ======================= -->
+<section class="anim-group" aria-label="Reveals and motion">
+  <div class="container"><div class="group-label">Reveals &amp; motion</div></div>
+</section>
+
+<div class="anim-block" id="fade-in">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "fadeIn"</span>
+      <h2>Fade in</h2>
+      <p>Reveal anything pre-hidden in CSS on cue — a result card, a toast, the whole page as an opening beat. <code>display</code> and <code>opacity</code> are handled together.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="fade-in" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<div class="anim-block" id="transition-screen">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "transitionScreen"</span>
+      <h2>Transition screen</h2>
+      <p>Cross-fade between two screens authored in one file — a multi-screen story without a real navigation, and every other action keeps working on the new screen.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="transition-screen" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<div class="anim-block" id="animate">
+  <div class="container">
+    <div class="anim-head">
+      <span class="action-chip"><span class="q">"action":</span> "animate"</span>
+      <h2>Animate</h2>
+      <p>The free-form one: Web Animations from a <code>from</code> state to a <code>to</code> state — transforms that compose, any CSS property, every match of a selector with a <code>stagger</code>, and seven named easings from <code>linear</code> to <code>spring</code>.</p>
+    </div>
+    <anim-tour src="src/showcase-out/" scenario="animate" device="desktop" autoplay="inview" height="640"></anim-tour>
+  </div>
+</div>
+
+<!-- ======================= FOOTER ======================= -->
+<footer>
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="logo" href="index.html">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
+          Vistaro
+        </a>
+        <p>Product demos as code: versioned with your repo, reviewed in the pull request, rebuilt in CI when the UI changes.</p>
+      </div>
+      <div class="foot-col">
+        <h3>Product</h3>
+        <a href="animations.html">Animations</a>
+        <a href="index.html#agent">Ask your agent</a>
+        <a href="index.html#how">How it works</a>
+        <a href="index.html#outputs">What you get</a>
+        <a href="index.html#free">Free &amp; open source</a>
+      </div>
+      <div class="foot-col">
+        <h3>Resources</h3>
+        <a href="https://github.com/clarido/screenshot-animator" target="_blank" rel="noopener">GitHub repository</a>
+        <a href="https://github.com/clarido/screenshot-animator/blob/main/AGENTS.md" target="_blank" rel="noopener">The agent manual (AGENTS.md)</a>
+        <a href="https://github.com/clarido/screenshot-animator/blob/main/README.md" target="_blank" rel="noopener">README</a>
+      </div>
+      <div class="foot-col">
+        <h3>Company</h3>
+        <a href="mailto:hello@vistaro.dev?subject=Vistaro%20Cloud%20waitlist&amp;body=What%20would%20you%20use%20a%20hosted%20Vistaro%20for%3F%20(analytics%2C%20lead%20capture%2C%20a%20help%20center%2C%20something%20else)">Hosted Vistaro waitlist</a>
+        <a href="mailto:hello@vistaro.dev">hello@vistaro.dev</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Vistaro. Free and ISC-licensed open source.</span>
+      <span>Every clip on this page is the engine itself, running <code>website/src/showcase-out/</code> built from <code>showcase/</code>.</span>
+    </div>
+  </div>
+</footer>
+
+<span id="copy-status" class="visually-hidden" role="status" aria-live="polite"></span>
+
+<script type="module" src="src/showcase-out/anim-tour.js"></script>
+<script>
+  // Mobile nav — same behaviour as index.html.
+  (function () {
+    var burger = document.getElementById('burger');
+    var links = document.getElementById('navLinks');
+    if (!burger || !links) return;
+    burger.addEventListener('click', function () {
+      var open = links.classList.toggle('open');
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    links.addEventListener('click', function (e) {
+      if (e.target.tagName === 'A') links.classList.remove('open');
+    });
+    if (window.matchMedia) {
+      var wide = window.matchMedia('(min-width: 861px)');
+      var syncMenu = function () {
+        if (wide.matches && links.classList.contains('open')) {
+          links.classList.remove('open');
+          burger.setAttribute('aria-expanded', 'false');
+        }
+      };
+      if (wide.addEventListener) wide.addEventListener('change', syncMenu);
+    }
+  })();
+</script>
+
+</body>
+</html>

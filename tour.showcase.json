@@ -1,0 +1,68 @@
+{
+  "outputDir": "showcase-out",
+  "product": {
+    "name": "Vistaro",
+    "tagline": "Every animation type, played live on one screen",
+    "accent": "#E4632B"
+  },
+  "theme": {
+    "accent": "#E4632B",
+    "ink": "#E8EDF7",
+    "muted": "#8B95AB",
+    "line": "#1D2739",
+    "paper": "#0B101B",
+    "ground": "#05070D",
+    "canvas": "#070B12",
+    "radius": "14px",
+    "font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif"
+  },
+  "rail": {
+    "title": "Pick an animation type",
+    "subtitle": "Each scenario demonstrates one step action from anim.config.json, on the same mockup."
+  },
+  "groups": [
+    { "id": "overview", "label": "Start here" },
+    { "id": "interact", "label": "Interactions" },
+    { "id": "movement", "label": "Camera & movement" },
+    { "id": "reveal", "label": "Reveals & motion" }
+  ],
+  "defaults": { "width": 1280, "height": 720, "locale": "en" },
+  "scenarios": [
+    { "slug": "medley", "dir": "showcase", "group": "overview",
+      "label": "Everything at once",
+      "blurb": "A 20-second tour through highlight, click, type, camera, animate and fade." },
+    { "slug": "click", "dir": "showcase", "config": "showcase/scenarios/click.json", "group": "interact",
+      "label": "Click",
+      "blurb": "Cursor travel, spotlight, ripple — and the page's own handlers run." },
+    { "slug": "type", "dir": "showcase", "config": "showcase/scenarios/type.json", "group": "interact",
+      "label": "Type",
+      "blurb": "Character-by-character typing with real key events." },
+    { "slug": "focus", "dir": "showcase", "config": "showcase/scenarios/focus.json", "group": "interact",
+      "label": "Focus",
+      "blurb": "el.focus() — the page's own focus ring lights up." },
+    { "slug": "hover", "dir": "showcase", "config": "showcase/scenarios/hover.json", "group": "interact",
+      "label": "Hover",
+      "blurb": "The cursor glides onto elements and their :hover styles respond." },
+    { "slug": "press", "dir": "showcase", "config": "showcase/scenarios/press.json", "group": "interact",
+      "label": "Press",
+      "blurb": "A real keyboard key: Enter, Tab, or a chord like Control+K." },
+    { "slug": "highlight", "dir": "showcase", "config": "showcase/scenarios/highlight.json", "group": "interact",
+      "label": "Highlight",
+      "blurb": "A spotlight pulse that says notice this — no click." },
+    { "slug": "camera", "dir": "showcase", "config": "showcase/scenarios/camera.json", "group": "movement",
+      "label": "Camera",
+      "blurb": "Push in, glide between details, pull back — a camera on rails." },
+    { "slug": "scroll", "dir": "showcase", "config": "showcase/scenarios/scroll.json", "group": "movement",
+      "label": "Scroll",
+      "blurb": "Smooth-scroll a buried element into view, in a container or the page." },
+    { "slug": "fade-in", "dir": "showcase", "config": "showcase/scenarios/fade-in.json", "group": "reveal",
+      "label": "Fade in",
+      "blurb": "Reveal pre-hidden elements: a card, a toast, the whole page." },
+    { "slug": "transition-screen", "dir": "showcase", "config": "showcase/scenarios/transition-screen.json", "group": "reveal",
+      "label": "Transition screen",
+      "blurb": "Cross-fade between two screens authored in one file." },
+    { "slug": "animate", "dir": "showcase", "config": "showcase/scenarios/animate.json", "group": "reveal",
+      "label": "Animate",
+      "blurb": "Free-form Web Animations: transforms, stagger, seven easings." }
+  ]
+}

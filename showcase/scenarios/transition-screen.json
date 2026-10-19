@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "title": "Transition screen",
+    "slug": "showcase-transition-screen",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "to-report", "time": "1.6s", "action": "transitionScreen", "target": "#screen-report", "duration": 0.8,
+      "title": "Cross-fade to a second screen",
+      "subtitle": "Both screens live in one file — the engine fades between them." },
+    { "id": "risk", "time": "4.2s", "action": "highlight", "target": "#ready-risk",
+      "title": "Play on, as if the app navigated",
+      "subtitle": "Every other action keeps working on the new screen." },
+    { "id": "back", "time": "6.8s", "action": "transitionScreen", "target": "#screen-pipeline", "duration": 0.8,
+      "title": "…and back",
+      "subtitle": "A multi-screen story without a real navigation." }
+  ]
+}
