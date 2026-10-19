@@ -1,0 +1,34 @@
+# Vistaro
+
+> Product demos as code, built for your coding agent. You describe a demo in one sentence; an agent (Claude Code, Codex or Antigravity) writes two text files in your repo — a screen (`index.html`) and a timeline (`anim.config.json`) — and the Vistaro CLI compiles them into demo videos, step-by-step help guides, marketing reels, interactive tours and every locale. Free and open source (ISC). Runs locally and headless with no API key and no account; ffmpeg is bundled and Chromium comes via Playwright. Requires Node.js 20.6+.
+
+## How it works
+
+- The agent writes two files: a faithful HTML mockup of the UI and a JSON timeline of steps (click, type, camera, highlight, scroll, animate, and more).
+- The CLI validates the timeline against the real page (`check`), previews frames (`preview`), then compiles outputs (`export`, `guide`, `tour`, `build`, `localize`).
+- Because the demo is source, it diffs pixel-by-pixel in CI and regenerates when the UI changes, instead of rotting like a screen recording.
+- No LLM is required for the pipeline itself; only the optional `extract` (screenshot→HTML) and `animate` (prompt→timeline) commands use a model, and agents skip them by writing the timeline directly.
+
+## Outputs from one timeline
+
+- Demo videos (MP4) with subtitles (.vtt), chapters and optional narration.
+- Step-by-step help guide sites (guide.json / guide.md / guide.html + frames).
+- Marketing reels: short, silent, looping product clips as MP4/WebM/poster/GIF or an embeddable page.
+- Interactive tours: a scenario rail plus a canvas that plays each scenario step by step; embeddable via an `<anim-tour>` custom element.
+- Localization: the same artifacts in every language from one shared choreography.
+
+## Getting started
+
+- Clone the repo, run `npm install`, then `npx playwright install chromium`. ffmpeg is bundled; no API key needed.
+- If an agent drives it, paste one instruction (e.g. "Create a product demo of my site. Use the CLI to generate everything.") — the agent reads its manual (AGENTS.md) from the repo and runs everything locally.
+- To drive it yourself: `npx tsx cli.ts init-config demo`, then `check`, `preview`, `export`.
+
+## Links
+
+- Website: https://vistaro.dev/
+- Animation showcase (interactive): https://vistaro.dev/animations.html
+- Source code (GitHub): https://github.com/clarido/screenshot-animator
+- Agent manual (AGENTS.md): https://github.com/clarido/screenshot-animator/blob/main/AGENTS.md
+- README: https://github.com/clarido/screenshot-animator/blob/main/README.md
+- License: ISC (open source, free for commercial use)
+- Contact: hello@vistaro.dev

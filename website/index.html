@@ -5,11 +5,65 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vistaro — Show. Don't Tell.</title>
 <meta name="description" content="The demo tool built for coding agents: Claude Code, Codex or Antigravity writes your demo as two text files in the repo and compiles video, guides, reels, tours and every locale. Free and open source: it runs on your machine, driven by your agent.">
+<link rel="canonical" href="https://vistaro.dev/">
+<meta name="theme-color" content="#05070D">
+<meta name="author" content="Vistaro">
+<meta name="robots" content="index, follow, max-image-preview:large">
 <meta property="og:title" content="Vistaro — Show. Don't Tell.">
 <meta property="og:description" content="Built for your coding agent, not your screen recorder: one instruction and it writes the demo as code in your repo, compiles every artifact in every locale, and regenerates whenever the UI changes. You review the diff and tweak details.">
-<meta property="og:image" content="assets/og.jpg">
+<meta property="og:image" content="https://vistaro.dev/assets/og.jpg">
+<meta property="og:image:alt" content="Vistaro — product demos as code, built for your coding agent.">
+<meta property="og:url" content="https://vistaro.dev/">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Vistaro">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vistaro — Show. Don't Tell.">
+<meta name="twitter:description" content="The demo tool built for coding agents: your agent writes the demo as two text files in the repo and compiles video, guides, reels, tours and every locale. Free and open source.">
+<meta name="twitter:image" content="https://vistaro.dev/assets/og.jpg">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://vistaro.dev/#website",
+      "url": "https://vistaro.dev/",
+      "name": "Vistaro",
+      "description": "Product demos as code, built for your coding agent.",
+      "inLanguage": "en"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://vistaro.dev/#app",
+      "name": "Vistaro",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "macOS, Linux, Windows",
+      "softwareRequirements": "Node.js 20.6+",
+      "description": "A command-line tool that turns two text files in your repo (a screen and a timeline) into demo videos, step-by-step help guides, marketing reels, interactive tours and every locale. Built to be driven by coding agents such as Claude Code, Codex or Antigravity. Runs locally and headless with no API key.",
+      "url": "https://vistaro.dev/",
+      "downloadUrl": "https://github.com/clarido/screenshot-animator",
+      "license": "https://opensource.org/licenses/ISC",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://vistaro.dev/#faq",
+      "mainEntity": [
+        { "@type": "Question", "name": "How is this different from Arcade, Supademo, Storylane, Navattic, Scribe or Tango?", "acceptedAnswer": { "@type": "Answer", "text": "Those tools capture pixels, through a browser extension or a recorder, into a GUI project — a capture that rots when the UI changes and someone has to re-record. A Vistaro demo is source: two text files that regenerate, diff pixel-by-pixel in CI, and compile to video, guide, reel, tour and every locale from one timeline. It is also the only one of the bunch your coding agent can drive end to end, because the entire review surface is text and JSON. If your team wants zero code and a GUI editor, those tools are honest alternatives." } },
+        { "@type": "Question", "name": "Does it need an API key — or any LLM at all?", "acceptedAnswer": { "@type": "Answer", "text": "No. The whole pipeline (check, build, preview, export, record, guide, tour, localize, build-all) runs locally and headless with no key and no secrets, which is why it runs in CI as-is. The only LLM-powered commands are optional conveniences: extract (screenshot to HTML via a vision model) and animate (prompt to timeline). A coding agent skips both and writes the timeline itself." } },
+        { "@type": "Question", "name": "What does \"rebuilt in CI when the UI changes\" mean concretely?", "acceptedAnswer": { "@type": "Answer", "text": "Every build records a content-hash build key (sources, referenced media, render settings and tool revision) into a manifest. build-all --changed-only skips any guide and locale whose key is unchanged and whose video still exists, so a CI run costs seconds when nothing moved. --diff keeps the previous step frames, compares them pixel by pixel and marks a guide stale above a threshold (default 2%). A UI change shows up as a diff report on the pull request, not as a stale video a customer finds first." } },
+        { "@type": "Question", "name": "Can it drive our real app, not just a mockup?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. record runs the same timeline against a live URL: real navigations, waitFor gates, Playwright storage state for sign-in, and re-injection of the runtime after each navigation. Every target is probed before its step, and a reset hook (--reset-cmd) puts the app back into its starting state between passes. check --live --url is the cheap half of that loop, replaying the timeline and probing every selector in seconds." } },
+        { "@type": "Question", "name": "Is it really free? What's the catch?", "acceptedAnswer": { "@type": "Answer", "text": "No catch. The whole CLI is free and open source: unlimited local check, build, preview, export, tour and localize, every output type, batch build-all, no watermark, ISC-licensed. It costs us almost nothing to offer because it runs on your machine with your agent. If we ever add a paid hosted service it will be optional, and the CLI stays free." } },
+        { "@type": "Question", "name": "Can we keep demos of unreleased features private?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, by default. Vistaro runs entirely on your machine or in your own CI, and nothing is sent to us or anyone else. The demo, the screenshots and the video stay wherever you put them." } },
+        { "@type": "Question", "name": "What do I need to run it?", "acceptedAnswer": { "@type": "Answer", "text": "Node 20.6+, then npm install and the Chromium download through Playwright (npx playwright install chromium). ffmpeg is bundled, nothing else to install, and no API key. If an agent drives it, it handles those steps for you. Narration uses OpenAI TTS when a key is present, otherwise macOS say, and is optional. The CI workflow in the repo needs no secrets at all." } },
+        { "@type": "Question", "name": "Who is Vistaro not for?", "acceptedAnswer": { "@type": "Answer", "text": "If you want to record a demo by clicking through your app once and dragging a hotspot in a GUI, a capture tool will make you faster. Vistaro pays off when demos are engineering artifacts: many outputs, many locales, frequent UI change, and a repo-and-CI workflow you want your agent to own." } }
+      ]
+    }
+  ]
+}
+</script>
 <style>
   :root {
     --bg: #05070D;
@@ -550,6 +604,7 @@
 Use the CLI to generate everything.</pre>
     </div>
     <p class="hero-quick-note">The agent finds its manual (<code>AGENTS.md</code>) in the repo and runs everything locally: nothing to sign up for, no key to paste. Prefer to drive? The commands are below.</p>
+    <p class="hero-quick-note"><strong>One-time setup:</strong> Node 20.6+, then <code>npm install</code> and <code>npx playwright install chromium</code> (the recording engine — <code>npm install</code> alone won't fetch it). ffmpeg is bundled; no API key.</p>
   </div>
 
   <!-- The hero clip: real Vistaro output, embedded with the page the CLI itself generates. -->
