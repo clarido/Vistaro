@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get started — Vistaro</title>
+<meta name="description" content="How to go from nothing to a first product demo with Vistaro: one sentence to your coding agent, plus the setup around it and how to drive the CLI yourself.">
+<link rel="canonical" href="https://vistaro.dev/start.html">
+<meta name="theme-color" content="#05070D">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Get started — Vistaro">
+<meta property="og:description" content="How to go from nothing to a first product demo with Vistaro: one sentence to your coding agent, plus the setup around it.">
+<meta property="og:image" content="https://vistaro.dev/assets/og.jpg">
+<meta property="og:url" content="https://vistaro.dev/start.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Vistaro">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/bricolage-grotesque-latin-opsz.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face {
+    font-family: "Bricolage Grotesque";
+    src: url("assets/fonts/bricolage-grotesque-latin-opsz.woff2") format("woff2");
+    font-weight: 200 800;
+    font-style: normal;
+    font-display: swap;
+  }
+  /* Arial scaled to Bricolage's advance widths, so the swap does not reflow the headings */
+  @font-face {
+    font-family: "Bricolage Fallback";
+    src: local("Arial"), local("ArialMT");
+    size-adjust: 95.5%;
+    ascent-override: 97.4%;
+    descent-override: 28.3%;
+    line-gap-override: 0%;
+  }
+
+  :root {
+    --bg: #05070D;
+    --panel: #0B101B;
+    --panel2: #0E1522;
+    --line: #1D2739;
+    --line-soft: #141C2C;
+    --ink: #E8EDF7;
+    --muted: #8B95AB;
+    --faint: #7A869E;
+    --accent: #E4632B;
+    --accent-hi: #EE7B45;
+    --accent-ink: #160903;
+    --good: #34D399;
+    --str: #FDBA74;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --display: "Bricolage Grotesque", "Bricolage Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+
+    /* type roles: one size per job */
+    --text-lead: clamp(17px, 1.5vw, 19px);
+    --text-meta: 14px;
+    --font-label: 600 11.5px/1 var(--mono);
+    --label-track: .08em;
+
+    --container: 1140px;
+    --gutter: 24px;
+    --measure: 760px;
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; scrollbar-color: #2A3550 var(--bg); scroll-padding-top: 76px; }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  ::selection { background: rgba(228, 99, 43, .38); }
+  a { color: inherit; text-decoration: none; }
+  h1, h2, h3 { font-family: var(--display); font-optical-sizing: auto; text-wrap: balance; }
+  p, li { text-wrap: pretty; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .container { max-width: var(--container); margin: 0 auto; padding: 0 var(--gutter); }
+  /* the guide reads as one centred column: text stays left-aligned inside it */
+  .container.column { max-width: calc(var(--measure) + 2 * var(--gutter)); }
+  .inline-link { color: var(--accent-hi); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .inline-link:hover { color: var(--ink); }
+  code { font: 500 .86em/1 var(--mono); color: var(--str); }
+
+  /* ---------- nav ---------- */
+  .nav { position: sticky; top: 0; z-index: 50; background: rgba(5, 7, 13, .86); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line-soft); }
+  .nav-inner { display: flex; align-items: center; gap: 28px; height: 62px; }
+  .logo { display: flex; align-items: center; gap: 10px; min-height: 44px; font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+  .logo svg { width: 24px; height: 24px; flex: none; }
+  .nav-links { display: flex; gap: 26px; margin-left: 8px; }
+  .nav-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 15px; font-weight: 500; transition: color .15s; white-space: nowrap; }
+  .nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--ink); }
+  .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .nav-links .mobile-cta { display: none; }
+  .burger { display: none; background: none; border: 0; color: var(--ink); width: 44px; height: 44px; padding: 11px; margin-right: -11px; cursor: pointer; }
+  .burger svg { width: 22px; height: 22px; display: block; }
+  @media (max-width: 860px) {
+    .nav-links { display: none; }
+    .burger { display: block; }
+    .nav-cta .btn { display: none; }
+    .nav-links.open { display: flex; position: absolute; top: 62px; left: 0; right: 0; flex-direction: column; gap: 0; margin: 0; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px var(--gutter) 16px; }
+    .nav-links.open a { padding: 13px 0; border-bottom: 1px solid var(--line-soft); font-size: 16px; }
+    .nav-links.open a:last-child { border-bottom: 0; }
+    .nav-links.open .mobile-cta { display: block; color: var(--accent-hi); font-weight: 600; }
+  }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border-radius: 10px; font: 600 15px/1 var(--sans); padding: 0 22px; border: 0; transition: transform .12s, background .15s, border-color .15s; cursor: pointer; }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent-hi); }
+  .btn-sm { min-height: 38px; padding: 0 16px; font-size: 14px; border-radius: 8px; }
+
+  /* ---------- page ---------- */
+  .page-head { padding: clamp(48px, 7vw, 88px) 0 clamp(32px, 4vw, 48px); border-bottom: 1px solid var(--line-soft); }
+  .page-head h1 { margin: 0 0 18px; font-size: clamp(44px, 7vw, 76px); font-weight: 720; letter-spacing: -.026em; line-height: 1; }
+  .page-head p { margin: 0; max-width: 56ch; color: var(--muted); font-size: var(--text-lead); }
+  .toc { list-style: none; margin: 28px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 24px; font-size: var(--text-meta); }
+  .toc a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); }
+  .toc a:hover { color: var(--ink); }
+
+  .guide-body { padding-top: clamp(48px, 6vw, 72px); padding-bottom: clamp(72px, 9vw, 120px); }
+  .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: grid; gap: clamp(48px, 6vw, 64px); max-width: var(--measure); }
+  .steps > li { counter-increment: step; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0 20px; }
+  .steps > li > * { grid-column: 2; }
+  .steps > li::before {
+    content: counter(step);
+    grid-column: 1;
+    grid-row: 1 / span 8;
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    font: 700 17px/1 var(--display);
+    color: var(--accent-hi);
+  }
+  .steps h2, .extra h2 { margin: 6px 0 12px; font-size: clamp(24px, 2.6vw, 30px); font-weight: 700; letter-spacing: -.02em; line-height: 1.12; }
+  .steps p, .extra p { margin: 0 0 14px; color: var(--muted); }
+  .steps p b, .extra p b { color: var(--ink); font-weight: 600; }
+  .checks { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
+  .checks li { position: relative; padding-left: 28px; color: var(--muted); }
+  .checks li b { color: var(--ink); font-weight: 600; }
+  .checks li::before { content: ""; position: absolute; left: 0; top: 5px; width: 16px; height: 16px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2334D399' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .callout { margin: 0 0 16px; padding: 16px 18px; border: 1px solid rgba(228, 99, 43, .35); border-radius: 12px; background: var(--panel); color: var(--muted); }
+  .callout b { color: var(--ink); font-weight: 600; }
+  .asks { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+  .asks li { padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); }
+  .asks li span { display: block; color: var(--faint); font-size: var(--text-meta); }
+
+  .codeblock { margin: 0 0 14px; background: #070B12; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font: 400 13.5px/1.7 var(--mono); }
+  .codeblock .cb-bar { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--line-soft); color: var(--faint); font-size: 12px; }
+  .codeblock .cb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
+  .codeblock .cb-copy { margin-left: auto; min-height: 36px; background: none; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font: var(--font-label); letter-spacing: .03em; padding: 0 12px; cursor: pointer; }
+  .codeblock .cb-copy:hover { color: var(--ink); border-color: var(--faint); }
+  .codeblock .cb-copy.copied { color: var(--good); border-color: rgba(52, 211, 153, .4); }
+  .codeblock pre { margin: 0; padding: 16px 18px; overflow-x: auto; white-space: pre; color: #C9D3E4; }
+  .codeblock pre.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .codeblock .c { color: var(--faint); }
+  .codeblock .pr { color: var(--faint); user-select: none; }
+
+  .extra { max-width: var(--measure); margin-top: clamp(64px, 8vw, 96px); padding-top: clamp(48px, 6vw, 64px); border-top: 1px solid var(--line-soft); }
+  .extra dl { margin: 0; display: grid; gap: 18px; }
+  .extra dt { color: var(--ink); font-weight: 600; }
+  .extra dd { margin: 4px 0 0; color: var(--muted); }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line-soft); padding: 56px 0 40px; background: #04060A; }
+  .foot-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 36px; margin-bottom: 44px; }
+  .foot-brand p { color: var(--faint); font-size: var(--text-meta); line-height: 1.6; max-width: 300px; margin: 12px 0 0; }
+  .foot-col h3 { margin: 0 0 10px; font: var(--font-label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--faint); }
+  .foot-col a { display: flex; align-items: center; min-height: 44px; color: var(--muted); font-size: var(--text-meta); }
+  .foot-col a:hover { color: var(--ink); }
+  .foot-bottom { border-top: 1px solid var(--line-soft); padding-top: 24px; display: flex; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; color: var(--faint); font-size: var(--text-meta); }
+  @media (max-width: 960px) { .foot-grid { grid-template-columns: 1fr 1fr; } .foot-brand { grid-column: 1 / -1; } }
+  @media (max-width: 640px) {
+    :root { --gutter: 20px; }
+    .steps > li { grid-template-columns: 36px minmax(0, 1fr); gap: 0 14px; }
+    .steps > li::before { width: 36px; height: 36px; font-size: 15px; }
+    .foot-grid { grid-template-columns: 1fr; gap: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="logo" href="index.html" aria-label="Vistaro home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
+      Vistaro
+    </a>
+    <nav class="nav-links" id="navLinks" aria-label="Main">
+      <a href="animations.html">Animations</a>
+      <a href="index.html#how">How it works</a>
+      <a href="index.html#compare">Compare</a>
+      <a href="index.html#faq">FAQ</a>
+      <a class="mobile-cta" href="mailto:hello@vistaro.dev?subject=Vistaro%20early%20access&amp;body=Send%20me%20the%20repository%20link%20when%20Vistaro%20goes%20public.">Get early access</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-primary btn-sm" href="mailto:hello@vistaro.dev?subject=Vistaro%20early%20access&amp;body=Send%20me%20the%20repository%20link%20when%20Vistaro%20goes%20public.">Get early access</a>
+      <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="page-head">
+    <div class="container column">
+      <h1>Get started</h1>
+      <p>How to go from nothing to a first product demo. The demo itself takes one sentence to your coding agent; this page covers the setup around it and what to ask for next.</p>
+      <ul class="toc" aria-label="On this page">
+        <li><a href="#need">What you need</a></li>
+        <li><a href="#code">Get the code</a></li>
+        <li><a href="#ask">Ask your agent</a></li>
+        <li><a href="#next">Ask for more</a></li>
+        <li><a href="#cli">Drive it yourself</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="container column guide-body">
+    <ol class="steps">
+      <li id="need">
+        <h2>What you need</h2>
+        <ul class="checks">
+          <li><b>Node 20.6 or later</b> on macOS or Linux. Windows is untested.</li>
+          <li><b>A coding agent</b>: Claude Code, Codex or Antigravity.</li>
+          <li><b>The project you want to demo</b>, open in that agent. A running app helps but is not required: the agent can work from your code or from screenshots.</li>
+        </ul>
+        <p>No account, no API key, no credit card. ffmpeg is bundled.</p>
+      </li>
+
+      <li id="code">
+        <h2>Get the code</h2>
+        <div class="callout"><b>The repository opens to the public soon.</b> <a class="inline-link" href="mailto:hello@vistaro.dev?subject=Vistaro%20early%20access&amp;body=Send%20me%20the%20repository%20link%20when%20Vistaro%20goes%20public.">Get early access</a> and we'll send you the link on day one.</div>
+        <p>Once you have it, clone it <b>next to your project</b> and install it. The install also downloads the Chromium that Vistaro records with.</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> git clone &lt;the repository link&gt; screenshot-animator
+<span class="pr">$</span> cd screenshot-animator
+<span class="pr">$</span> npm install    <span class="c"># also fetches Chromium</span></pre>
+        </div>
+        <p>If an agent drives it, you can skip this step: the prompt below tells it to do the install.</p>
+      </li>
+
+      <li id="ask">
+        <h2>Ask your agent</h2>
+        <p>Open your project in your coding agent and paste this. Vistaro's manual (<code>AGENTS.md</code>) is written for agents, so this is all it needs.</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>the prompt
+            <button class="cb-copy" type="button" data-copy="Read ../screenshot-animator/AGENTS.md (run npm install there first if needed), then create a product demo of my site.">Copy</button>
+          </div>
+<pre class="wrap">Read ../screenshot-animator/AGENTS.md (run npm install there first if needed), then create a product demo of my site.</pre>
+        </div>
+        <p>The agent writes two files, a screen that mirrors your UI and a timeline of steps, then checks them and looks at the frames, fixing whatever is off before it renders. You get a video with subtitles and a step-by-step help guide. <b>Review it like any other change</b>: read the diff, ask for a different wording or timing, and it renders again.</p>
+      </li>
+
+      <li id="next">
+        <h2>Ask for more</h2>
+        <p>The same two files make every other format. Follow-ups that work:</p>
+        <ul class="asks">
+          <li>"Make a French version."<span>A translated screen and strings file, same choreography.</span></li>
+          <li>"Turn it into a 10-second loop for our homepage."<span>A silent reel: MP4, WebM, GIF and an embeddable page.</span></li>
+          <li>"Build an interactive tour with three scenarios."<span>A self-contained tour site visitors can pause and step through.</span></li>
+          <li>"Record it against our staging app at https://staging.example.com."<span>The same timeline, played in your real app.</span></li>
+          <li>"Our UI changed. Rebuild the demos."<span>Only what changed is rendered again.</span></li>
+        </ul>
+      </li>
+
+      <li id="cli">
+        <h2>Drive it yourself</h2>
+        <p>Prefer the command line? From the cloned folder, with your demo in <code>demo/</code>:</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> npx tsx cli.ts init-config demo    <span class="c"># scaffold the timeline</span>
+<span class="pr">$</span> npx tsx cli.ts check demo          <span class="c"># probe every step's target</span>
+<span class="pr">$</span> npx tsx cli.ts preview demo        <span class="c"># one labelled frame per step</span>
+<span class="pr">$</span> npx tsx cli.ts export demo -o demo.mp4 --guide</pre>
+        </div>
+        <p>Every command prints what it wrote. <code>npx tsx cli.ts --help</code> lists them all, and <code>AGENTS.md</code> in the repository is the full manual.</p>
+      </li>
+    </ol>
+
+    <section class="extra" aria-labelledby="stuck">
+      <h2 id="stuck">If something goes wrong</h2>
+      <dl>
+        <div>
+          <dt>A step's target is missing</dt>
+          <dd>The screen and the timeline disagree about an element. <code>check</code> names the step and the selector; ask your agent to fix it.</dd>
+        </div>
+        <div>
+          <dt>Chromium is not found</dt>
+          <dd>The install skipped the browser download. Run <code>npx playwright install chromium</code> in the Vistaro folder.</dd>
+        </div>
+        <div>
+          <dt>Anything else</dt>
+          <dd>Write to <a class="inline-link" href="mailto:hello@vistaro.dev">hello@vistaro.dev</a>.</dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="logo" href="index.html">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
+          Vistaro
+        </a>
+        <p>Product demos your coding agent writes as code.</p>
+      </div>
+      <div class="foot-col">
+        <h3>Product</h3>
+        <a href="start.html" aria-current="page">Get started</a>
+        <a href="animations.html">Animations</a>
+        <a href="index.html#how">How it works</a>
+        <a href="index.html#compare">Compared to capture tools</a>
+        <a href="index.html#faq">FAQ</a>
+      </div>
+      <div class="foot-col">
+        <h3>Contact</h3>
+        <a href="mailto:hello@vistaro.dev">hello@vistaro.dev</a>
+        <a href="mailto:hello@vistaro.dev?subject=Vistaro%20early%20access&amp;body=Send%20me%20the%20repository%20link%20when%20Vistaro%20goes%20public.">Early access</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Vistaro. Free and ISC-licensed open source.</span>
+      <span>Every demo on this site is real Vistaro output.</span>
+    </div>
+  </div>
+</footer>
+
+<span id="copy-status" class="visually-hidden" role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;"></span>
+
+<script>
+  // Mobile nav
+  (function () {
+    var burger = document.getElementById('burger');
+    var links = document.getElementById('navLinks');
+    if (!burger || !links) return;
+    burger.addEventListener('click', function () {
+      var open = links.classList.toggle('open');
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    links.addEventListener('click', function (e) {
+      if (e.target.tagName === 'A') {
+        links.classList.remove('open');
+        burger.setAttribute('aria-expanded', 'false');
+      }
+    });
+    if (window.matchMedia) {
+      var wide = window.matchMedia('(min-width: 861px)');
+      var syncMenu = function () {
+        if (wide.matches && links.classList.contains('open')) {
+          links.classList.remove('open');
+          burger.setAttribute('aria-expanded', 'false');
+        }
+      };
+      if (wide.addEventListener) wide.addEventListener('change', syncMenu);
+    }
+  })();
+
+  // The prompt is one click from the clipboard.
+  (function () {
+    var status = document.getElementById('copy-status');
+    document.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-copy]') : null;
+      if (!btn) return;
+      var text = btn.getAttribute('data-copy');
+      var done = function () {
+        var label = btn.getAttribute('data-label') || btn.textContent;
+        btn.setAttribute('data-label', label);
+        btn.classList.add('copied');
+        btn.textContent = 'Copied';
+        if (status) status.textContent = 'Prompt copied to the clipboard';
+        setTimeout(function () { btn.classList.remove('copied'); btn.textContent = label; }, 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+    });
+  })();
+</script>
+</body>
+</html>

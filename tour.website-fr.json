@@ -1,0 +1,59 @@
+{
+  "outputDir": "website/src/clarido-tour-fr-out",
+  "product": {
+    "name": "Clarido",
+    "tagline": "Rédaction de réponses aux appels d'offres publics",
+    "accent": "#E4632B"
+  },
+  "rail": {
+    "title": "Que voulez-vous voir ?",
+    "subtitle": "Choisissez un scénario."
+  },
+  "theme": {
+    "accent": "#E4632B",
+    "ink": "#E8EDF7",
+    "muted": "#8B95AB",
+    "line": "#1D2739",
+    "paper": "#0B101B",
+    "ground": "#05070D",
+    "canvas": "#070B12",
+    "radius": "14px",
+    "font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif"
+  },
+  "defaults": {
+    "width": 1280,
+    "height": 720,
+    "devices": [
+      "desktop",
+      "mobile"
+    ],
+    "locale": "fr"
+  },
+  "strings": {
+    "metaTitle": "{name} — visite interactive",
+    "contextOne": "Visite guidée · 1 scénario",
+    "stepNofM": "Étape {n} sur {total}",
+    "stepAria": "Étape {n} : {title}",
+    "play": "Lecture",
+    "pause": "Pause",
+    "restart": "Recommencer",
+    "prev": "Étape précédente",
+    "next": "Étape suivante",
+    "fullscreen": "Plein écran",
+    "exitFullscreen": "Quitter le plein écran",
+    "stepsMenu": "Étapes",
+    "stepsCount": "{n} étapes",
+    "stepsDuration": "{n} étapes · {s} s",
+    "loadingTitle": "Chargement…",
+    "replayScenario": "Revoir",
+    "stepError": "Cette étape n’a pas pu s’exécuter : {m}"
+  },
+  "scenarios": [
+    {
+      "slug": "draft-response",
+      "dir": "demo/locales/fr",
+      "label": "Rédiger une réponse",
+      "blurb": "Ouvrir une section et rédiger la réponse."
+    }
+  ]
+}
