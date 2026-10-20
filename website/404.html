@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found — Vistaro</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#05070D">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #05070D;
+    --line: #1D2739;
+    --ink: #E8EDF7;
+    --muted: #8B95AB;
+    --accent: #E4632B;
+    --accent-hi: #EE7B45;
+    --accent-ink: #160903;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { color-scheme: dark; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px 16px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+  }
+
+  main { max-width: 32rem; text-align: center; }
+
+  .code {
+    font-family: var(--mono);
+    font-size: .875rem;
+    letter-spacing: .08em;
+    color: var(--accent);
+  }
+
+  h1 { margin: .5rem 0 .75rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 1.15; }
+
+  p { margin: 0 0 2rem; color: var(--muted); }
+
+  a {
+    display: inline-block;
+    padding: .7rem 1.2rem;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  a:hover, a:focus-visible { background: var(--accent-hi); }
+  a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="code">404</div>
+  <h1>This page doesn't exist.</h1>
+  <p>The link may be old, or the address mistyped.</p>
+  <a href="/">Back to Vistaro</a>
+</main>
+</body>
+</html>

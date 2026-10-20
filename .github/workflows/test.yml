@@ -1,15 +1,157 @@
 # Typecheck, docs drift and the full test suite on every push and pull request.
 # Expect roughly 12 to 15 minutes: the suite runs serially (--test-concurrency=1) and most of it
-# drives a real Chromium and encodes video with ffmpeg. No secrets are needed; the narration test
-# skips off macOS, and nothing here reaches the network beyond npm and the browser download.
+# drives a real Chromium and encodes video with ffmpeg. The test job needs no secrets; the narration
+# test skips off macOS, and nothing there reaches the network beyond npm and the browser download.
+#
+# Two jobs ride behind it, so a red suite can never ship anything:
+# - release: a v* tag publishes the package to npm through trusted publishing (OIDC, no token).
+# - deploy-website: a push to main that touches website/ rsyncs vistaro.dev to the VPS as the
+#   restricted vistaro-deploy user (secret VISTARO_DEPLOY_KEY).
+# They live here rather than in their own files because test/ci-workflow.test.ts requires every
+# workflow to carry the three checks.
 name: test
 
 on:
   push:
     branches: ['**']
+    tags: ['v*']
   pull_request:
 
 jobs:
+  # release and deploy-website come first on purpose: test/ci-workflow.test.ts reads a step as
+  # running until the next step starts, so a job-level `if:` placed after the npm test step would
+  # read as guarding it. GitHub orders jobs by `needs:`, not by position in the file.
+  release:
+    needs: test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write   # trusted publishing + provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'   # ships npm 11, which trusted publishing needs
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+
+      - name: Tag matches package.json version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+      # prepublishOnly (tsc + docs:check) needs the dependencies, not the browser.
+      - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - run: npm publish --access public
+
+  deploy-website:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: deploy-website
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Did website/ change?
+        id: changed
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # A new branch or a force push has no usable "before": deploy rather than guess.
+          if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
+             || [ -n "$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- website/)" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "website/ unchanged since $BEFORE: nothing to deploy"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.changed.outputs.deploy == 'true'
+        with:
+          node-version: '20.x'
+          cache: npm
+
+      - if: steps.changed.outputs.deploy == 'true'
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        if: steps.changed.outputs.deploy == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium
+        if: steps.changed.outputs.deploy == 'true'
+        run: npx playwright install --with-deps chromium
+
+      # The hero reel's embed page and video are generated and gitignored.
+      - name: Build the reel
+        if: steps.changed.outputs.deploy == 'true'
+        run: |
+          npx tsx cli.ts build website/src/reel --embed --device desktop
+          npx tsx cli.ts export website/src/reel -o website/assets/reel.mp4 -w 1280 -H 720 --scale 2
+
+      # Every other demo the pages play is generated and gitignored too; the stage is mirrored
+      # with --delete, so anything not rebuilt here would vanish from vistaro.dev.
+      - name: Build the tours, the demo video and the product reel
+        if: steps.changed.outputs.deploy == 'true'
+        run: |
+          npx tsx cli.ts tour tour.showcase.json --embed -o website/src/showcase-out
+          npx tsx cli.ts tour tour.website.json --embed
+          npx tsx cli.ts tour tour.website-fr.json --embed
+          npx tsx cli.ts export demo -o website/assets/clarido-demo.mp4 -w 1280 -H 720 --no-chapters
+          npx tsx cli.ts build reels/ask-anything --embed --device desktop
+          mkdir -p website/src/ask-anything
+          cp reels/ask-anything/embed-desktop.html website/src/ask-anything/embed-desktop.html
+          npx tsx cli.ts export reels/ask-anything -o website/assets/ask-anything.mp4 -w 1280 -H 720 --scale 2
+
+      - name: Stage the site
+        if: steps.changed.outputs.deploy == 'true'
+        run: |
+          rsync -a --exclude '.DS_Store' --exclude 'reel.gif' --exclude 'reel.poster.png' \
+            --exclude 'reel.webm' --exclude '*.snippet.html' --exclude 'src/reel/animated.html' \
+            --exclude 'src/reel/anim.*' --exclude 'src/reel/index.html' \
+            --exclude 'ask-anything.gif' --exclude 'ask-anything.webm' --exclude 'ask-anything.poster.png' \
+            --no-links --chmod=D755,F644 website/ "$RUNNER_TEMP/site/"
+          for f in index.html start.html animations.html assets/reel.mp4 assets/clarido-demo.mp4 \
+                   assets/ask-anything.mp4 src/ask-anything/embed-desktop.html \
+                   src/showcase-out/tours.json src/clarido-tour-out/tours.json src/clarido-tour-fr-out/tours.json; do
+            test -f "$RUNNER_TEMP/site/$f" || { echo "::error::missing $f, refusing to deploy"; exit 1; }
+          done
+
+      - name: Upload to vistaro.dev
+        if: steps.changed.outputs.deploy == 'true'
+        env:
+          DEPLOY_KEY: ${{ secrets.VISTARO_DEPLOY_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pinned host key of vpsovh (ED25519 SHA256:gyQmJjKfQE2A1rREf2Oh8X/pDqTZNDRNT8EffNCQHvI).
+          echo '158.69.214.113 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFJ+tEy/1e6G+6mhTK4nPe5L0mZurLHzY1MmaZhEL0hO' > ~/.ssh/known_hosts
+          # --delete makes the live folder mirror the stage: an empty stage would wipe vistaro.dev.
+          test -f "$RUNNER_TEMP/site/index.html" || { echo "::error::empty stage, refusing to deploy"; exit 1; }
+          # The key is locked server-side to write-only rrsync in /opt/static-sites/vistaro, so ./ is
+          # that folder. No symlinks travel: Caddy serves this folder and a link could expose /data.
+          rsync -rpt --delete --no-links -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
+            "$RUNNER_TEMP/site/" vistaro-deploy@158.69.214.113:./
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30

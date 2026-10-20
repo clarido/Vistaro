@@ -331,6 +331,92 @@
       "force": false,
       "output": "animated.html",
       "timestamp": "2026-10-09T19:07:23.059Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-10-20T18:23:23.588Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "ask",
+          "actualMs": 5,
+          "completedMs": 478
+        },
+        {
+          "index": 2,
+          "id": "win",
+          "actualMs": 562,
+          "completedMs": 1182
+        },
+        {
+          "index": 3,
+          "id": "lines",
+          "actualMs": 912,
+          "completedMs": 1942
+        },
+        {
+          "index": 4,
+          "id": "cmd1",
+          "actualMs": 1808,
+          "completedMs": 2284
+        },
+        {
+          "index": 5,
+          "id": "ok1",
+          "actualMs": 2257,
+          "completedMs": 2820
+        },
+        {
+          "index": 6,
+          "id": "cmd2",
+          "actualMs": 2855,
+          "completedMs": 3317
+        },
+        {
+          "index": 7,
+          "id": "wait",
+          "actualMs": 3355,
+          "completedMs": 3744
+        },
+        {
+          "index": 8,
+          "id": "arts",
+          "actualMs": 3505,
+          "completedMs": 4545
+        },
+        {
+          "index": 9,
+          "id": "ci",
+          "actualMs": 4460,
+          "completedMs": 5028
+        },
+        {
+          "index": 10,
+          "id": "fade",
+          "actualMs": 7126,
+          "completedMs": 7779
+        }
+      ],
+      "duration": 8.379,
+      "output": "../../assets/reel.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:517d0af46b0704f65de05926e1a31922ffbd4fe1a64a0c6b6a5b702d8fe98d04",
+      "timestamp": "2026-10-20T18:24:51.899Z"
     }
   ]
 }

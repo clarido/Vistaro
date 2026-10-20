@@ -1,5 +1,5 @@
 {
-  "name": "screenshot-animator",
+  "name": "vistaro",
   "version": "2.0.0",
   "engines": {
     "node": ">=20.6"
@@ -10,6 +10,7 @@
     "screenshot-animator": "bin/screenshot-animator.mjs",
     "vistaro": "bin/screenshot-animator.mjs"
   },
+  "homepage": "https://vistaro.dev",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/OWNER/screenshot-animator.git"
@@ -29,6 +30,7 @@
     "test:static": "SKIP_BROWSER=1 SKIP_TTS=1 node --import tsx --test --test-concurrency=1 --test-timeout=1800000 test/*.test.ts",
     "docs": "tsx scripts/gen-cli-reference.ts",
     "docs:check": "tsx scripts/gen-cli-reference.ts --check",
+    "postinstall": "playwright install chromium",
     "prepublishOnly": "tsc --noEmit && npm run docs:check"
   },
   "keywords": [

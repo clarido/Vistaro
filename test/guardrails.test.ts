@@ -116,9 +116,14 @@ function integrityProblems(base: string, settings: SettingsShape): string[] {
 /** npm lifecycle scripts that would wire hooks behind JF's back. */
 const WIRING_SCRIPTS: ReadonlyArray<string> = ['prepare', 'preprepare', 'postprepare', 'preinstall', 'install', 'postinstall', 'prepush', 'postpush'];
 
+/** The one lifecycle script allowed, by exact value (JF's go, 2026-10-20): the published package
+ *  downloads the Chromium its own playwright dependency drives. It wires nothing; anything
+ *  appended to it (`&& git config ...`) no longer matches and reds like any other script. */
+const ALLOWED_LIFECYCLE: Readonly<Record<string, string>> = { postinstall: 'playwright install chromium' };
+
 function hookWiringProblems(pkg: { scripts?: Record<string, unknown> }): string[] {
     assert.ok(pkg.scripts && typeof pkg.scripts === 'object', 'package.json carries no scripts object — it was deleted or corrupted');
-    return WIRING_SCRIPTS.filter((key) => typeof pkg.scripts?.[key] === 'string').map((key) =>
+    return WIRING_SCRIPTS.filter((key) => typeof pkg.scripts?.[key] === 'string' && pkg.scripts[key] !== ALLOWED_LIFECYCLE[key]).map((key) =>
         `package.json has a "${key}" script — npm install must never wire hooks on its own; activation is JF's "git config core.hooksPath .githooks" one-liner`);
 }
 
@@ -215,6 +220,7 @@ const KNOWN_DOCS_REFS: ReadonlyArray<KnownRef> = [
     { token: 'app.js', at: 'src/tour/app/app.js', why: 'AGENTS.md Tours output: the tour shell assets copied verbatim' },
     { token: 'build-all.ts', at: 'src/commands/build-all.ts', why: 'AGENTS.md bounds note: CHILD_TIMEOUT_MS lives there' },
     { token: 'buildall.test.ts', at: 'test/buildall.test.ts', why: 'discipline.md OUTPUT_REVISION row: buildKeyFor assertions' },
+    { token: 'chromium-check.test.ts', at: 'test/chromium-check.test.ts', why: 'discipline.md spawn-bounds row: one of the CLI-spawn files (its three missing/partial-engine check spawns)' },
     { token: 'cli.ts', at: 'cli.ts', why: 'AGENTS.md Layout: the commander program' },
     { token: 'commands/build-all.ts', at: 'src/commands/build-all.ts', why: 'discipline.md async-spawn row: the single known runCli site' },
     { token: 'docs/testing-discipline.md', at: 'docs/testing-discipline.md', why: 'CLAUDE.md import + AGENTS.md contributor notes' },
@@ -522,6 +528,19 @@ test('self-test: a planted wiring naming a missing hook reds, naming the path', 
     const problems = integrityProblems(root, wiringWith('$CLAUDE_PROJECT_DIR/.githooks/claude/no-such.mjs'));
     assert.equal(problems.length, 1, 'exactly the missing hook must red');
     assert.match(problems[0], /no-such\.mjs/, 'the red names the missing path');
+});
+
+test('self-test: only the exact Chromium postinstall passes; any other lifecycle script reds', () => {
+    assert.deepEqual(hookWiringProblems({ scripts: { postinstall: 'playwright install chromium' } }), []);
+    for (const scripts of [
+        { postinstall: 'playwright install chromium && git config core.hooksPath .githooks' },
+        { postinstall: 'git config core.hooksPath .githooks' },
+        { prepare: 'playwright install chromium' },
+    ]) {
+        const problems = hookWiringProblems({ scripts });
+        assert.equal(problems.length, 1, `planted ${JSON.stringify(scripts)} must red`);
+        assert.match(problems[0], new RegExp(`"${Object.keys(scripts)[0]}" script`), 'the red names the script');
+    }
 });
 
 test('self-test: a planted empty hooks map reds instead of passing vacuously', () => {
