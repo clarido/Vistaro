@@ -31,4 +31,4 @@
 - Animation showcase (interactive): https://vistaro.dev/animations.html
 - Source code: https://github.com/clarido/Vistaro
 - License: ISC (open source, free for commercial use)
-- Contact: hello@vistaro.dev
+- Questions and bug reports: https://github.com/clarido/Vistaro/issues

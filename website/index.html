@@ -271,7 +271,7 @@
   .stage-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     align-items: flex-end;
     gap: 20px 40px;
     flex-wrap: wrap;
@@ -298,9 +298,6 @@
   }
   .segmented [role="tab"]:hover { color: var(--ink); }
   .segmented [role="tab"][aria-selected="true"] { background: var(--panel2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
-  .stage-head h2 { margin: 0 0 8px; font-size: clamp(26px, 3vw, 34px); font-weight: 700; letter-spacing: -.022em; line-height: 1.1; }
-  .stage-head p { margin: 0; max-width: 62ch; color: var(--muted); }
-  .stage-head p b { color: var(--ink); font-weight: 600; }
   .stage-frame {
     border: 1px solid var(--line);
     border-radius: 16px;
@@ -634,10 +631,6 @@
 
     <div class="stage" id="demo" tabindex="-1">
       <div class="stage-bar">
-        <div class="stage-head">
-          <h2 id="demo-title">Vistaro makes it easy</h2>
-          <p>A walkthrough of Clarido, a sample proposal-writing app. A coding agent wrote it as two files; switch to <b>The source</b> to read them. Pause it or step through it any time.</p>
-        </div>
         <div class="segmented" role="tablist" aria-label="The demo and its source">
           <button type="button" role="tab" id="tab-demo" aria-selected="true" aria-controls="panel-demo">The demo</button>
           <button type="button" role="tab" id="tab-source" aria-selected="false" aria-controls="panel-source" tabindex="-1">The source</button>
@@ -701,7 +694,7 @@
   <div class="container">
     <div class="section-head">
       <h2>One timeline, every format your team asks for</h2>
-      <p class="section-lead">The tour above is one of them. Here are the rest, all built from the same two files and the same Clarido walkthrough.</p>
+      <p class="section-lead">From one timeline, Vistaro builds a demo video, a help guide, a homepage loop, an interactive tour and every language, for desktop and phone. Ask for the formats you need, when you need them.</p>
     </div>
 
     <div class="gallery-tabs" role="tablist" aria-label="Outputs">
@@ -869,7 +862,7 @@ tour-out/           <span class="c">the tour</span></pre>
   <div class="container faq-grid">
     <div class="section-head">
       <h2>Questions</h2>
-      <p class="section-lead">Anything else? <a class="inline-link" href="mailto:hello@vistaro.dev">Ask us</a>.</p>
+      <p class="section-lead">Anything else? <a class="inline-link" href="https://github.com/clarido/Vistaro/issues">Ask on GitHub</a>.</p>
     </div>
     <div class="faq-list">
       <details>
@@ -900,7 +893,7 @@ tour-out/           <span class="c">the tour</span></pre>
     <div class="hero-ctas">
       <a class="btn btn-primary" href="start.html">Get started</a>
     </div>
-    <p class="later">Thinking about a hosted version for viewer analytics, lead capture or a shared help center? <a href="mailto:hello@vistaro.dev?subject=Hosted%20Vistaro">Tell us what you'd use it for</a> at hello@vistaro.dev.</p>
+    <p class="later">Thinking about a hosted version for viewer analytics, lead capture or a shared help center? <a href="https://github.com/clarido/Vistaro/issues">Tell us what you'd use it for</a> on GitHub.</p>
   </div>
 </section>
 </main>
@@ -927,7 +920,7 @@ tour-out/           <span class="c">the tour</span></pre>
       </div>
       <div class="foot-col">
         <h3>Contact</h3>
-        <a href="mailto:hello@vistaro.dev">hello@vistaro.dev</a>
+        <a href="https://github.com/clarido/Vistaro/issues">Questions and bugs</a>
         <a href="https://github.com/clarido/Vistaro">GitHub</a>
       </div>
     </div>
