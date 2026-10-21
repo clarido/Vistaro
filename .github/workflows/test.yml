@@ -6,7 +6,8 @@
 # Two jobs ride behind it, so a red suite can never ship anything:
 # - release: a v* tag publishes the package to npm through trusted publishing (OIDC, no token).
 # - deploy-website: a push to main that touches website/ rsyncs vistaro.dev to the VPS as the
-#   restricted vistaro-deploy user (secret VISTARO_DEPLOY_KEY).
+#   restricted vistaro-deploy user (secret VISTARO_DEPLOY_KEY). "Run workflow" on main (Actions
+#   tab, workflow_dispatch) runs the suite and always deploys.
 # They live here rather than in their own files because test/ci-workflow.test.ts requires every
 # workflow to carry the three checks.
 name: test
@@ -16,6 +17,7 @@ on:
     branches: ['**']
     tags: ['v*']
   pull_request:
+  workflow_dispatch:
 
 jobs:
   # release and deploy-website come first on purpose: test/ci-workflow.test.ts reads a step as
@@ -55,7 +57,7 @@ jobs:
 
   deploy-website:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:
@@ -71,7 +73,7 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
         run: |
-          # A new branch or a force push has no usable "before": deploy rather than guess.
+          # A manual run, a new branch or a force push has no usable "before": deploy rather than guess.
           if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
              || [ -n "$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- website/)" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
