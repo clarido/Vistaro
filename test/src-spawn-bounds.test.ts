@@ -50,7 +50,8 @@ const TIMEOUT_CONSTANT = /timeout:\s*[A-Z][A-Z0-9_]+/;
 // The 3 sync-child sites in src/, in discovery order (line order over the reader's sorted walk):
 // spawnSync at media/ffmpeg.ts:25, execFileSync at media/tts.ts:61, spawnSync at reset.ts:36. A
 // 4th sync child must carry `timeout: A_CONSTANT` and join this list (rule 8 to widen).
-const KNOWN_SITES = ['media/ffmpeg.ts', 'media/tts.ts', 'reset.ts'];
+// media/ffmpeg.ts holds two: the encode (FFMPEG_TIMEOUT_MS) and the binary fetch (FFMPEG_FETCH_TIMEOUT_MS).
+const KNOWN_SITES = ['media/ffmpeg.ts', 'media/ffmpeg.ts', 'media/tts.ts', 'reset.ts'];
 
 // Planted-snippet openers, assembled so this file's own text never contains a raw call site.
 const SPAWN_SYNC_NAME = ['spawn', 'Sync'].join('');

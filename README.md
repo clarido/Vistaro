@@ -57,7 +57,7 @@ npx playwright install chromium      # one time: the browser Vistaro records wit
 npx vistaro --help
 ```
 
-Or once for the whole machine with `npm install -g vistaro` (then `vistaro --help`), or without installing anything with `npx vistaro@latest <command>`. Run the Chromium line in every case: npm 12 and pnpm skip install scripts by default, so the download usually does not happen on its own. If it is missing, the CLI stops and prints the command to run.
+Or once for the whole machine with `npm install -g vistaro` (then `vistaro --help`), or without installing anything with `npx vistaro@latest <command>`. Run the Chromium line in every case: npm 12 and pnpm skip install scripts by default, so the download usually does not happen on its own. If it is missing, the CLI stops and prints the command to run. The same npm skips ffmpeg's download too; the first `export` fetches it on its own before recording.
 
 Node >= 20.6, macOS or Linux (Windows is untested). The manual is installed with the package at `node_modules/vistaro/AGENTS.md`. Optional keys in `.env` or the environment: `OPENAI_API_KEY` (narration; falls back to macOS `say`), `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` (only for the standalone `extract` and `animate` commands).
 

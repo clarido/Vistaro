@@ -1,5 +1,6 @@
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
+import * as path from 'path';
 import ffmpegStatic from 'ffmpeg-static';
 
 /** Thin wrapper around the bundled ffmpeg binary (ffmpeg-static ships no ffprobe). */
@@ -7,6 +8,30 @@ import ffmpegStatic from 'ffmpeg-static';
 export function ffmpegPath(): string {
     if (!ffmpegStatic) throw new Error('ffmpeg-static binary not found (run npm install)');
     return ffmpegStatic as unknown as string;
+}
+
+/**
+ * How long fetching the ffmpeg binary may take: one download of a few tens of MB. spawnSync blocks
+ * the event loop, so this bound cannot be left to the exit watchdog either.
+ */
+const FFMPEG_FETCH_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
+ * The ffmpeg binary, fetched first if it is missing. ffmpeg-static downloads it from an install
+ * script, and npm 12 and pnpm block dependency install scripts by default, so on those an install
+ * leaves no binary: export would then record the whole video and only fail at the encode. This
+ * runs ffmpeg-static's own installer (the download npm skipped), and when that cannot fetch it
+ * either, stops with the one command that does. Call it before recording anything.
+ */
+export function ensureFfmpeg(o: { bin?: string; installer?: string } = {}): string {
+    const bin = o.bin || ffmpegPath();
+    if (fs.existsSync(bin)) return bin;
+    const installer = o.installer || path.join(path.dirname(require.resolve('ffmpeg-static/package.json')), 'install.js');
+    console.log('ffmpeg was not downloaded at install time (npm 12 and pnpm skip install scripts); fetching it now...');
+    const r = spawnSync(process.execPath, [installer], { stdio: 'inherit', timeout: FFMPEG_FETCH_TIMEOUT_MS });
+    if (fs.existsSync(bin)) return bin;
+    const why = r.error ? ` (${r.error.message})` : r.signal ? ` (stopped by ${r.signal})` : '';
+    throw new Error(`ffmpeg is missing and could not be downloaded${why}: run this once, then retry: node ${installer}`);
 }
 
 export interface RunResult { status: number; stdout: string; stderr: string }
@@ -22,7 +47,7 @@ const FFMPEG_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** Run ffmpeg with safe argument passing. Throws with the stderr tail when it fails (unless allowFailure). */
 export function run(args: string[], opts: { allowFailure?: boolean } = {}): RunResult {
-    const r = spawnSync(ffmpegPath(), args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: FFMPEG_TIMEOUT_MS });
+    const r = spawnSync(ensureFfmpeg(), args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: FFMPEG_TIMEOUT_MS });
     const result = { status: r.status ?? -1, stdout: r.stdout || '', stderr: r.stderr || '' };
     // A timeout populates r.error too, so it must be told apart first: reporting a ten-minute stall
     // as "could not start" would send the reader looking for a missing binary.

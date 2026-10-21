@@ -15,7 +15,7 @@ Run the Chromium line even if the install seemed to fetch it: npm 12 and pnpm sk
 
 Every command below is written `npx vistaro <command>`, the npm install. **In a clone of the repository, use `npx tsx cli.ts <command>` instead** (after `npm install` there). The generated [CLI reference](#cli-reference) and the hints the CLI prints use the npm form.
 
-Node >= 20.6. TypeScript runs through `tsx` (no build step). ffmpeg is bundled (`ffmpeg-static`). Narration uses `OPENAI_API_KEY` when set, else macOS `say`.
+Node >= 20.6. TypeScript runs through `tsx` (no build step). ffmpeg comes with it (`ffmpeg-static`); when npm 12 or pnpm skip its download, the first `export` fetches it before recording. Narration uses `OPENAI_API_KEY` when set, else macOS `say`.
 
 ### Upgrading from 2.x
 

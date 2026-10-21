@@ -19,7 +19,7 @@
 
 ## Getting started
 
-- Install in your project: `npm install --save-dev vistaro`, then `npx playwright install chromium` (the browser it records with, about 150 MB; npm 12 and pnpm skip install scripts, so this line is required). ffmpeg is bundled; no API key needed.
+- Install in your project: `npm install --save-dev vistaro`, then `npx playwright install chromium` (the browser it records with, about 600 MB of disk space; npm 12 and pnpm skip install scripts, so this line is required). ffmpeg comes with it: if the install skipped its download, Vistaro fetches it on the first export. No API key needed.
 - If an agent drives it, paste one instruction: "Install vistaro as a dev dependency (npm install --save-dev vistaro, then npx playwright install chromium), read node_modules/vistaro/AGENTS.md, and create a product demo of my site." The agent reads its manual (AGENTS.md) and runs everything locally.
 - To drive it yourself: `npx vistaro init-config demo`, then `check`, `preview`, `export`. From a clone of the repository, the same commands are `npx tsx cli.ts …`.
 

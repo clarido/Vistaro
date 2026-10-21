@@ -5,7 +5,7 @@ import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors,
 import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions, RunAbortedError, errorMessage } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions, resolveViewport, closeWithWatchdog, closeBrowser, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
-import { encodeMp4, encodeGif, encodeWebm, extractPoster, cutClip, probeDurationMs, describeAsset } from '../media/ffmpeg';
+import { encodeMp4, encodeGif, encodeWebm, extractPoster, cutClip, probeDurationMs, describeAsset, ensureFfmpeg } from '../media/ffmpeg';
 import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions, NarrationClip } from '../media/tts';
 import { buildGuide, resolveCrop, VideoInfo } from './guide';
 import { hashGuideDir, relPosix, displayPath } from '../catalog';
@@ -140,6 +140,9 @@ export async function exportCommand(outputDir: string, options: ExportOptions): 
 }
 
 export async function runExport(outputDir: string, options: ExportOptions, tempVideoDir: string, session?: LiveSession): Promise<ExportSummary> {
+    // Every export ends in an ffmpeg encode: make sure the binary exists before a single frame is
+    // recorded, so a skipped download (npm 12, pnpm) is fixed or reported now, not after the take.
+    ensureFfmpeg();
     // Input page (a live session has no local page): with vistaro.config.json present, index.html is
     // always recorded with the runtime injected, so an edit to index.html after `build` can never
     // produce a video that disagrees with check/preview; animated.html is the self-playing page for
