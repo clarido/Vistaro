@@ -66,7 +66,7 @@
     if (cta) cta.classList.add('vst-pulse');
   }
 
-  // ---- tours: the shell hears the scenario frame's 'anim-tour' messages ----
+  // ---- tours: the shell hears the scenario frame's 'vistaro-tour' messages ----
   function scenarioOf(win) {
     var frames = document.getElementsByTagName('iframe');
     for (var i = 0; i < frames.length; i++) {
@@ -80,7 +80,7 @@
   }
   addEventListener('message', function (e) {
     var d = e && e.data;
-    if (!d || d.source !== 'anim-tour') return;
+    if (!d || d.source !== 'vistaro-tour') return;
     var sc = scenarioOf(e.source);
     if (d.type === 'state' && typeof d.index === 'number' && d.index >= 0) step(d.index, d.title, sc);
     else if (d.type === 'end') complete(sc);

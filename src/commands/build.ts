@@ -10,7 +10,7 @@ export interface BuildOptions {
     cursor?: string;
     loop?: boolean;
     locale?: string;
-    /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
+    /** --config: a timeline other than <dir>/vistaro.config.json (cwd-relative on the CLI). */
     config?: string;
     force?: boolean;
     /** Write somewhere other than <dir>/animated.html. */
@@ -40,9 +40,9 @@ const EMBED_CSS = `<style>
 function embedSnippet(file: string, width: number, height: number, title: string): string {
     const ratio = (height / width * 100).toFixed(3);
     return `<!-- Paste this where the clip should appear. Serve ${file} from the same origin or any https host. -->
-<div class="anim-embed" style="position: relative; width: 100%; max-width: ${width}px; padding-top: ${ratio}%;">
+<div class="vistaro-embed" style="position: relative; width: 100%; max-width: ${width}px; padding-top: ${ratio}%;">
   <iframe
-    class="anim-embed-frame"
+    class="vistaro-embed-frame"
     src="${file}"
     title="${title.replace(/"/g, '&quot;')}"
     loading="lazy"
@@ -53,13 +53,13 @@ function embedSnippet(file: string, width: number, height: number, title: string
 <script>
   // The frame cannot see the real viewport, so the parent tells it when to play.
   (function () {
-    var frames = document.querySelectorAll('.anim-embed');
+    var frames = document.querySelectorAll('.vistaro-embed');
     if (!('IntersectionObserver' in window)) return;
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
-        var frame = entry.target.querySelector('.anim-embed-frame');
+        var frame = entry.target.querySelector('.vistaro-embed-frame');
         if (!frame || !frame.contentWindow) return;
-        frame.contentWindow.postMessage({ source: 'anim-cli', type: entry.isIntersecting ? 'play' : 'pause' }, '*');
+        frame.contentWindow.postMessage({ source: 'vistaro', type: entry.isIntersecting ? 'play' : 'pause' }, '*');
       });
     }, { threshold: 0.25 });
     Array.prototype.forEach.call(frames, function (f) { io.observe(f); });
@@ -68,7 +68,7 @@ function embedSnippet(file: string, width: number, height: number, title: string
 }
 
 /**
- * `build <dir>`: index.html + anim.config.json -> animated.html, no LLM involved.
+ * `build <dir>`: index.html + vistaro.config.json -> animated.html, no LLM involved.
  * Validation errors abort with exit code 1 unless --force.
  */
 export function buildCommand(dir: string, options: BuildOptions = {}): void {
@@ -91,7 +91,7 @@ export function buildCommand(dir: string, options: BuildOptions = {}): void {
     if (hasErrors(issues)) {
         const n = issues.filter(i => i.level === 'error').length;
         if (!options.force) {
-            console.error(`\nBuild aborted: ${n} error(s) in ${path.resolve(dir, 'anim.config.json')} (use --force to build anyway).`);
+            console.error(`\nBuild aborted: ${n} error(s) in ${path.resolve(dir, 'vistaro.config.json')} (use --force to build anyway).`);
             process.exit(1);
         }
         console.error(`\n--force: building despite ${n} error(s); those steps will be skipped at playback.`);
@@ -135,12 +135,12 @@ export function buildCommand(dir: string, options: BuildOptions = {}): void {
         console.log(`Embed:  ${embedFile} (autoplay: ${reel.autoplay}${reel.loop ? ', looping' : ''})`);
         console.log(`        ${snippetFile} -- paste into the page that hosts the clip; it posts play/pause from the parent, which is the only place the real viewport is known.`);
     }
-    console.log(`Next: npx tsx cli.ts preview ${dir}   # contact sheet of every step`);
+    console.log(`Next: npx vistaro preview ${dir}   # contact sheet of every step`);
     if (isReel(timeline)) {
         // --guide is refused on a reel, so suggesting it would hand the author a failing command.
-        console.log(`      npx tsx cli.ts export ${dir} -o clip.mp4 --device mobile --scale 2   # mp4 + webm + poster + gif (${formatTime(durationMs)})`);
-        if (!options.embed) console.log(`      npx tsx cli.ts build ${dir} --embed --device mobile   # embed-<device>.html + snippet`);
+        console.log(`      npx vistaro export ${dir} -o clip.mp4 --device mobile --scale 2   # mp4 + webm + poster + gif (${formatTime(durationMs)})`);
+        if (!options.embed) console.log(`      npx vistaro build ${dir} --embed --device mobile   # embed-<device>.html + snippet`);
     } else {
-        console.log(`      npx tsx cli.ts export ${dir} -o demo.mp4 --guide   # length from the timeline (${formatTime(durationMs)})`);
+        console.log(`      npx vistaro export ${dir} -o demo.mp4 --guide   # length from the timeline (${formatTime(durationMs)})`);
     }
 }

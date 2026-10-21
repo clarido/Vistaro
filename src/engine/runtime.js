@@ -1,26 +1,26 @@
 /*
- * anim-cli in-page runtime (plain browser JavaScript, no build step).
+ * vistaro in-page runtime (plain browser JavaScript, no build step).
  *
  * Loaded two ways:
- *   - `build` inlines it before </body> followed by `__anim.boot({...timeline...})`;
+ *   - `build` inlines it before </body> followed by `__vistaro.boot({...timeline...})`;
  *   - `record`/`check`/`preview`/`export` inject it via Playwright (addInitScript or
- *     addScriptTag) and drive it step by step from Node with `__anim.runStep(step, {leadMs})`.
+ *     addScriptTag) and drive it step by step from Node with `__vistaro.runStep(step, {leadMs})`.
  *
  * It holds the visual primitives (cursor, spotlight highlight, click ripple, typing,
  * camera, scroll, subtitles, fades) and a ~20-line optional scheduler (`play`) used
  * only when animated.html is opened directly in a browser. When Node drives the page
- * it sets `window.__ANIM_DRIVEN = true` before load so `boot` never self-plays.
+ * it sets `window.__VISTARO_DRIVEN = true` before load so `boot` never self-plays.
  *
  * Timing: a step's `timeMs` is the moment the interaction happens. `runStep` is
  * started `leadMs` earlier and spends `leadMs - 150` travelling the cursor, then
- * highlights + presses for 150ms, then acts and dispatches `anim:step`.
+ * highlights + presses for 150ms, then acts and dispatches `vistaro:step`.
  *
  * Must not use require/import/TypeScript. Must survive injection at document start
  * (DOM creation is deferred until DOMContentLoaded when document.body is null).
  */
 (function () {
   'use strict';
-  if (window.__anim) return;
+  if (window.__vistaro) return;
 
   var PRESS_MS = 150;
   var DEFAULT_LEAD_MS = 950;
@@ -54,8 +54,8 @@
 
   // --- CSS (ported verbatim from the previous inline engine) ---------------------
   var CURSOR_CSS = {
-    mac: `#anim-cli-cursor { position: fixed; top: 0; left: 0; transform: translate(50vw, 120vh); width: 28px; height: 28px; z-index: 99999; pointer-events: none; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230F172A" stroke="white" stroke-width="1.5"><path d="M4 2v20l5.83-5.83 3.96 8.5 3.65-1.7-3.96-8.5H22L4 2z"/></svg>') no-repeat; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform-origin: top left; transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }`,
-    windows: `#anim-cli-cursor { position: fixed; top: 0; left: 0; transform: translate(50vw, 120vh); width: 20px; height: 20px; z-index: 99999; pointer-events: none; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" stroke="black" stroke-width="1"><path d="M2 2l20 10-8 2-2 8z"/></svg>') no-repeat; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform-origin: top left; transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }`
+    mac: `#vistaro-cursor { position: fixed; top: 0; left: 0; transform: translate(50vw, 120vh); width: 28px; height: 28px; z-index: 99999; pointer-events: none; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230F172A" stroke="white" stroke-width="1.5"><path d="M4 2v20l5.83-5.83 3.96 8.5 3.65-1.7-3.96-8.5H22L4 2z"/></svg>') no-repeat; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform-origin: top left; transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }`,
+    windows: `#vistaro-cursor { position: fixed; top: 0; left: 0; transform: translate(50vw, 120vh); width: 20px; height: 20px; z-index: 99999; pointer-events: none; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" stroke="black" stroke-width="1"><path d="M2 2l20 10-8 2-2 8z"/></svg>') no-repeat; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform-origin: top left; transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }`
   };
   // The chip's font size and wrap width come from the layer as px custom properties set by
   // sizeSubtitleLayer(): viewport units cannot express "a share of the recorded frame" on a
@@ -72,25 +72,25 @@
   // in the frame. A reel's caption is the voiceover of a muted autoplay clip, so it drops the
   // decoration, goes near-opaque (separation by construction, nothing showing through), takes the
   // stadium radius apps use for badges, and is sized by its own law in sizeSubtitleLayer().
-  var SUBTITLE_CSS = `#anim-cli-subtitle-layer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99998; pointer-events: none; }
-.anim-cli-sub-item { position: absolute; box-sizing: content-box; width: max-content; max-width: min(var(--anim-sub-max, 800px), calc(100% - 80px)); background: rgba(20,20,20,0.75); color: white; padding: 0.8em 1.6em; border-radius: 0.6em; font-family: -apple-system, sans-serif; font-size: var(--anim-sub-size, 20px); line-height: 1.4; text-align: center; box-shadow: 0 1em 2em -0.4em rgba(0,0,0,0.5); opacity: 0; font-weight: 500; letter-spacing: 0.015em; backdrop-filter: blur(0.8em); -webkit-backdrop-filter: blur(0.8em); border: 1px solid rgba(255,255,255,0.15); }
-.anim-cli-sub-item:not([data-place]), .anim-cli-sub-item[data-place="bottom"] { left: 0; right: 0; margin: 0 auto; bottom: 40px; top: auto; }
-.anim-cli-sub-item[data-place="top"] { left: 0; right: 0; margin: 0 auto; top: 40px; bottom: auto; }
-.anim-cli-sub-item[data-place="bottom-left"] { left: 40px; right: auto; margin: 0; bottom: 40px; top: auto; }
-.anim-cli-sub-item[data-place="bottom-right"] { right: 40px; left: auto; margin: 0; bottom: 40px; top: auto; }
-.anim-cli-sub-item[data-place="top-left"] { left: 40px; right: auto; margin: 0; top: 40px; bottom: auto; }
-.anim-cli-sub-item[data-place="top-right"] { right: 40px; left: auto; margin: 0; top: 40px; bottom: auto; }
-#anim-cli-subtitle-layer.anim-cli-sub-stadium .anim-cli-sub-item { background: rgba(15,18,24,0.92); border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; border-radius: 999em; padding: 0.5em 1.4em; font-weight: 600; letter-spacing: 0.01em; }
-@keyframes anim-cli-subFade { 0% { opacity: 0; transform: translateY(0.75em) scale(0.95); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); } 10%, 90% { opacity: 1; transform: translateY(0) scale(1); animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0); } 100% { opacity: 0; transform: translateY(-0.5em) scale(0.95); } }`;
-  var EFFECTS_CSS = `#anim-cli-highlight { position: fixed; box-sizing: content-box; border-radius: 10px; border: 2px solid #3B82F6; box-shadow: 0 0 0 4px rgba(59,130,246,0.18), 0 0 28px rgba(59,130,246,0.35); pointer-events: none; z-index: 99996; opacity: 0; transition: left 0.5s cubic-bezier(0.16,1,0.3,1), top 0.5s cubic-bezier(0.16,1,0.3,1), width 0.5s cubic-bezier(0.16,1,0.3,1), height 0.5s cubic-bezier(0.16,1,0.3,1); }
-#anim-cli-highlight.anim-cli-pulse { animation: anim-cli-highlightPulse 1.3s cubic-bezier(0.16,1,0.3,1) forwards; }
-#anim-cli-highlight.anim-cli-hold { opacity: 1; animation: none; }
-@keyframes anim-cli-highlightPulse { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
-.anim-cli-ripple { position: fixed; box-sizing: content-box; width: 14px; height: 14px; margin-left: -7px; margin-top: -7px; border-radius: 50%; background: rgba(59,130,246,0.35); border: 2px solid rgba(59,130,246,0.65); pointer-events: none; z-index: 99997; animation: anim-cli-rippleAnim 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
-@keyframes anim-cli-rippleAnim { 0% { width: 14px; height: 14px; margin-left: -7px; margin-top: -7px; opacity: 0.9; } 100% { width: 80px; height: 80px; margin-left: -40px; margin-top: -40px; opacity: 0; } }`;
+  var SUBTITLE_CSS = `#vistaro-subtitle-layer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99998; pointer-events: none; }
+.vistaro-sub-item { position: absolute; box-sizing: content-box; width: max-content; max-width: min(var(--vistaro-sub-max, 800px), calc(100% - 80px)); background: rgba(20,20,20,0.75); color: white; padding: 0.8em 1.6em; border-radius: 0.6em; font-family: -apple-system, sans-serif; font-size: var(--vistaro-sub-size, 20px); line-height: 1.4; text-align: center; box-shadow: 0 1em 2em -0.4em rgba(0,0,0,0.5); opacity: 0; font-weight: 500; letter-spacing: 0.015em; backdrop-filter: blur(0.8em); -webkit-backdrop-filter: blur(0.8em); border: 1px solid rgba(255,255,255,0.15); }
+.vistaro-sub-item:not([data-place]), .vistaro-sub-item[data-place="bottom"] { left: 0; right: 0; margin: 0 auto; bottom: 40px; top: auto; }
+.vistaro-sub-item[data-place="top"] { left: 0; right: 0; margin: 0 auto; top: 40px; bottom: auto; }
+.vistaro-sub-item[data-place="bottom-left"] { left: 40px; right: auto; margin: 0; bottom: 40px; top: auto; }
+.vistaro-sub-item[data-place="bottom-right"] { right: 40px; left: auto; margin: 0; bottom: 40px; top: auto; }
+.vistaro-sub-item[data-place="top-left"] { left: 40px; right: auto; margin: 0; top: 40px; bottom: auto; }
+.vistaro-sub-item[data-place="top-right"] { right: 40px; left: auto; margin: 0; top: 40px; bottom: auto; }
+#vistaro-subtitle-layer.vistaro-sub-stadium .vistaro-sub-item { background: rgba(15,18,24,0.92); border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; border-radius: 999em; padding: 0.5em 1.4em; font-weight: 600; letter-spacing: 0.01em; }
+@keyframes vistaro-subFade { 0% { opacity: 0; transform: translateY(0.75em) scale(0.95); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); } 10%, 90% { opacity: 1; transform: translateY(0) scale(1); animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0); } 100% { opacity: 0; transform: translateY(-0.5em) scale(0.95); } }`;
+  var EFFECTS_CSS = `#vistaro-highlight { position: fixed; box-sizing: content-box; border-radius: 10px; border: 2px solid #3B82F6; box-shadow: 0 0 0 4px rgba(59,130,246,0.18), 0 0 28px rgba(59,130,246,0.35); pointer-events: none; z-index: 99996; opacity: 0; transition: left 0.5s cubic-bezier(0.16,1,0.3,1), top 0.5s cubic-bezier(0.16,1,0.3,1), width 0.5s cubic-bezier(0.16,1,0.3,1), height 0.5s cubic-bezier(0.16,1,0.3,1); }
+#vistaro-highlight.vistaro-pulse { animation: vistaro-highlightPulse 1.3s cubic-bezier(0.16,1,0.3,1) forwards; }
+#vistaro-highlight.vistaro-hold { opacity: 1; animation: none; }
+@keyframes vistaro-highlightPulse { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+.vistaro-ripple { position: fixed; box-sizing: content-box; width: 14px; height: 14px; margin-left: -7px; margin-top: -7px; border-radius: 50%; background: rgba(59,130,246,0.35); border: 2px solid rgba(59,130,246,0.65); pointer-events: none; z-index: 99997; animation: vistaro-rippleGrow 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
+@keyframes vistaro-rippleGrow { 0% { width: 14px; height: 14px; margin-left: -7px; margin-top: -7px; opacity: 0.9; } 100% { width: 80px; height: 80px; margin-left: -40px; margin-top: -40px; opacity: 0; } }`;
   // The numbered badge is guide-capture furniture, not chrome the viewer sees during playback, so it
   // is installed even when the spotlight and ripple are off.
-  var CALLOUT_CSS = `#anim-cli-callout { position: fixed; box-sizing: content-box; width: 32px; height: 32px; border-radius: 50%; background: #3B82F6; color: #fff; font: 600 15px/32px -apple-system, sans-serif; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; z-index: 99998; display: none; }`;
+  var CALLOUT_CSS = `#vistaro-callout { position: fixed; box-sizing: content-box; width: 32px; height: 32px; border-radius: 50%; background: #3B82F6; color: #fff; font: 600 15px/32px -apple-system, sans-serif; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; z-index: 99998; display: none; }`;
 
   // --- state ----------------------------------------------------------------------
   var state = {
@@ -172,7 +172,7 @@
    * replaying steps, a recording) does not accumulate thousands of spent handles. stop() still
    * clears whatever is pending, and the fire time is exactly what setTimeout alone would give.
    */
-  function setAnimTimeout(fn, ms) {
+  function setRunTimeout(fn, ms) {
     var id = setTimeout(function () {
       var at = state.timers.indexOf(id);
       if (at >= 0) state.timers.splice(at, 1);
@@ -181,7 +181,7 @@
     state.timers.push(id);
     return id;
   }
-  function clearAnimInterval(id) {
+  function clearRunInterval(id) {
     clearInterval(id);
     var at = state.intervals.indexOf(id);
     if (at >= 0) state.intervals.splice(at, 1);
@@ -348,7 +348,7 @@
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
       if (skipTags[el.tagName]) continue;
-      if (el.id && el.id.indexOf('anim-cli-') === 0) continue;
+      if (el.id && el.id.indexOf('vistaro-') === 0) continue;
       var isLandmark = !!(el.matches && el.matches(FRAMING_LANDMARKS));
       var isNamed = !!el.id || (el.classList && el.classList.length > 0);
       if (heavy && !el.id && !isLandmark) continue;
@@ -534,7 +534,7 @@
     var z = rootZoom();
     var out = { cursor: null, spotlight: null, subtitle: null, camera: null };
     if (state.point) out.cursor = { x: Math.round(state.point.x / z), y: Math.round(state.point.y / z) };
-    var h = document.getElementById('anim-cli-highlight');
+    var h = document.getElementById('vistaro-highlight');
     if (h) {
       var hr = h.getBoundingClientRect();
       if (hr.width > 0 && hr.height > 0) out.spotlight = { x: Math.round(hr.left / z), y: Math.round(hr.top / z), w: Math.round(hr.width / z), h: Math.round(hr.height / z) };
@@ -564,10 +564,10 @@
     if (state.opts.subtitles) css += SUBTITLE_CSS + '\n';
     if (state.opts.spotlight || state.opts.ripple) css += EFFECTS_CSS + '\n';
     css += CALLOUT_CSS + '\n';
-    var style = document.getElementById('anim-cli-runtime-style');
+    var style = document.getElementById('vistaro-runtime-style');
     if (!style) {
       style = document.createElement('style');
-      style.id = 'anim-cli-runtime-style';
+      style.id = 'vistaro-runtime-style';
       (document.head || document.documentElement).appendChild(style);
     }
     if (style.textContent !== css) style.textContent = css;
@@ -620,8 +620,8 @@
     }
     // Never past the layer's own 40px side gutters, and scaled with meta.subtitleScale.
     var max = Math.min(w - 80, wrapBase * scale);
-    layer.style.setProperty('--anim-sub-size', (Math.round(font * scale * 100) / 100) + 'px');
-    layer.style.setProperty('--anim-sub-max', Math.max(120, Math.round(max)) + 'px');
+    layer.style.setProperty('--vistaro-sub-size', (Math.round(font * scale * 100) / 100) + 'px');
+    layer.style.setProperty('--vistaro-sub-max', Math.max(120, Math.round(max)) + 'px');
   }
 
   /** Rects the subtitle chip must not cover, in PAINTED px: the spotlighted target (the thing the
@@ -737,19 +737,19 @@
   // Idempotent: creates missing overlays, removes the cursor when cursor is 'none'.
   function createOverlays() {
     var root = overlayRoot();
-    var cursor = document.getElementById('anim-cli-cursor');
+    var cursor = document.getElementById('vistaro-cursor');
     if (state.opts.cursor && state.opts.cursor !== 'none') {
-      if (!cursor) { cursor = document.createElement('div'); cursor.id = 'anim-cli-cursor'; }
+      if (!cursor) { cursor = document.createElement('div'); cursor.id = 'vistaro-cursor'; }
       if (cursor.parentNode !== root) root.appendChild(cursor);
       state.cursor = cursor;
     } else {
       if (cursor) cursor.remove();
       state.cursor = null;
     }
-    var layer = document.getElementById('anim-cli-subtitle-layer');
-    if (!layer) { layer = document.createElement('div'); layer.id = 'anim-cli-subtitle-layer'; }
+    var layer = document.getElementById('vistaro-subtitle-layer');
+    if (!layer) { layer = document.createElement('div'); layer.id = 'vistaro-subtitle-layer'; }
     if (layer.parentNode !== root) root.appendChild(layer);
-    layer.className = state.opts.subtitleStyle === 'stadium' ? 'anim-cli-sub-stadium' : '';
+    layer.className = state.opts.subtitleStyle === 'stadium' ? 'vistaro-sub-stadium' : '';
     state.subtitleLayer = layer;
     sizeSubtitleLayer();
     if (!state.subtitleSizer) {
@@ -781,11 +781,11 @@
       }
       if (state.opts.cursorPoint && state.cursor) placeCursor(state.opts.cursorPoint.x, state.opts.cursorPoint.y);
       state.ready = true;
-      dispatch('anim:ready', { driven: !!window.__ANIM_DRIVEN });
+      dispatch('vistaro:ready', { driven: !!window.__VISTARO_DRIVEN });
       var tl = state.opts.timeline;
       var steps = tl && (Array.isArray(tl) ? tl : tl.steps);
       // No steps (e.g. `animate --loop` without a config): nothing to play, and no loop.
-      if (steps && steps.length && !window.__ANIM_DRIVEN) {
+      if (steps && steps.length && !window.__VISTARO_DRIVEN) {
         // Taken before the first step runs, so the clone is the authored page.
         snapshot();
         startPlayback(tl);
@@ -849,7 +849,7 @@
     if (!state.opts.ripple) return;
     var p = toOverlayPoint(x, y);
     var r = document.createElement('div');
-    r.className = 'anim-cli-ripple';
+    r.className = 'vistaro-ripple';
     r.style.left = p.x + 'px';
     r.style.top = p.y + 'px';
     overlayRoot().appendChild(r);
@@ -857,10 +857,10 @@
   }
 
   function getHighlightBox() {
-    var h = document.getElementById('anim-cli-highlight');
+    var h = document.getElementById('vistaro-highlight');
     if (!h) {
       h = document.createElement('div');
-      h.id = 'anim-cli-highlight';
+      h.id = 'vistaro-highlight';
       overlayRoot().appendChild(h);
     }
     return h;
@@ -885,10 +885,10 @@
     if (!state.opts.spotlight) return;
     if (!el) return;
     var h = positionHighlight(el);
-    h.classList.remove('anim-cli-hold');
-    h.classList.remove('anim-cli-pulse');
+    h.classList.remove('vistaro-hold');
+    h.classList.remove('vistaro-pulse');
     void h.offsetWidth;
-    h.classList.add('anim-cli-pulse');
+    h.classList.add('vistaro-pulse');
     // A highlight landing on a held chip (this step has no subtitle of its own) must push it away.
     reflowSubtitle(false);
   }
@@ -897,8 +897,8 @@
     if (!el) return;
     // A held mark is a static frame element: it snaps into place, no transition to be caught mid-flight.
     var h = positionHighlight(el, true);
-    h.classList.remove('anim-cli-pulse');
-    h.classList.add('anim-cli-hold');
+    h.classList.remove('vistaro-pulse');
+    h.classList.add('vistaro-hold');
     reflowSubtitle(false);
   }
   /**
@@ -907,7 +907,7 @@
    * ordinary step-to-step move keeps its own timing.
    */
   function glideHighlight(rect, ms, easing) {
-    var h = document.getElementById('anim-cli-highlight');
+    var h = document.getElementById('vistaro-highlight');
     if (!h) return;
     var curve = easing || CAMERA_EASING;
     var ease = function (p) { return p + ' ' + ms + 'ms ' + curve; };
@@ -917,7 +917,7 @@
     h.style.top = (box.top - 6) + 'px';
     h.style.width = (box.width + 12) + 'px';
     h.style.height = (box.height + 12) + 'px';
-    var c = document.getElementById('anim-cli-callout');
+    var c = document.getElementById('vistaro-callout');
     var badgeShowing = c && c.style.display === 'block';
     if (badgeShowing) {
       var pos = toOverlayPoint(calloutPosition(rect).x, calloutPosition(rect).y);
@@ -926,7 +926,7 @@
       c.style.top = pos.y + 'px';
     }
     if (ms > 0) {
-      setAnimTimeout(function () {
+      setRunTimeout(function () {
         h.style.transition = '';
         if (c) c.style.transition = '';
       }, ms + 50);
@@ -937,8 +937,8 @@
   }
 
   function releaseHighlight() {
-    var h = document.getElementById('anim-cli-highlight');
-    if (h) { h.classList.remove('anim-cli-hold'); h.classList.remove('anim-cli-pulse'); }
+    var h = document.getElementById('vistaro-highlight');
+    if (h) { h.classList.remove('vistaro-hold'); h.classList.remove('vistaro-pulse'); }
   }
 
   var CALLOUT_SIZE = 32;
@@ -954,8 +954,8 @@
     return { x: Math.round(x), y: Math.round(y) };
   }
   function showCallout(n, el) {
-    var c = document.getElementById('anim-cli-callout');
-    if (!c) { c = document.createElement('div'); c.id = 'anim-cli-callout'; overlayRoot().appendChild(c); }
+    var c = document.getElementById('vistaro-callout');
+    if (!c) { c = document.createElement('div'); c.id = 'vistaro-callout'; overlayRoot().appendChild(c); }
     // Clamped against the viewport in painted space, then converted once for the style. The value
     // returned stays painted: guide.json and the screenshot crop both work in that space.
     var pos = calloutPosition(visibleRect(el));
@@ -967,7 +967,7 @@
     return { number: n, x: pos.x, y: pos.y };
   }
   function hideCallout() {
-    var c = document.getElementById('anim-cli-callout');
+    var c = document.getElementById('vistaro-callout');
     if (c) c.style.display = 'none';
   }
 
@@ -1074,14 +1074,14 @@
           setTyped(el, value.slice(0, i));
           if (onProgress && (i % 5 === 0 || i === value.length)) onProgress(i);
         } else {
-          clearAnimInterval(intId);
+          clearRunInterval(intId);
           resolve();
         }
       }
       tick(); // first character lands exactly at the interaction moment
       var intId = setInterval(tick, interval);
       state.intervals.push(intId);
-      if (value.length <= 1) { clearAnimInterval(intId); resolve(); }
+      if (value.length <= 1) { clearRunInterval(intId); resolve(); }
     });
   }
 
@@ -1159,7 +1159,7 @@
     var anchor = state.cursorAnchor;
     var spot = state.spotAnchor;
     var moveCursorToo = !!(state.cursor && anchor && anchor.el && anchor.el.isConnected);
-    var moveSpotToo = !!(spot && spot.isConnected && document.getElementById('anim-cli-highlight'));
+    var moveSpotToo = !!(spot && spot.isConnected && document.getElementById('vistaro-highlight'));
     {
       var beforeTransform = stage.style.transform;
       var beforeTransition = stage.style.transition;
@@ -1208,9 +1208,9 @@
     // Once the pan has settled, the carried cursor/spot have their final rects: recheck the chip
     // against where they actually landed (the framing centre moves under a push-in, so the
     // placement taken at the step's start can be stale by the end of it). Registered through
-    // setAnimTimeout so stop()/restart() cancels it with every other pending callback instead of
+    // setRunTimeout so stop()/restart() cancels it with every other pending callback instead of
     // it firing at a page that no longer plays.
-    if (dur > 0) setAnimTimeout(function () { reflowSubtitle(false); }, dur * 1000);
+    if (dur > 0) setRunTimeout(function () { reflowSubtitle(false); }, dur * 1000);
     else reflowSubtitle(false);
     return wait(dur * 1000);
   }
@@ -1299,7 +1299,7 @@
     }
     var inlineTransition = el.style.transition;
     if (cs.display === 'none') {
-      el.style.display = el.getAttribute('data-anim-display') || '';
+      el.style.display = el.getAttribute('data-vistaro-display') || '';
       if (getComputedStyle(el).display === 'none') el.style.display = 'block';
       el.style.opacity = '0';
       void el.offsetWidth;
@@ -1325,7 +1325,7 @@
     if (state.currentScreen && state.currentScreen !== el) prev = [state.currentScreen];
     else if (el.parentElement) {
       prev = Array.prototype.filter.call(el.parentElement.children, function (c) {
-        return c !== el && !(c.id && c.id.indexOf('anim-cli') === 0) && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE' && isVisible(c);
+        return c !== el && !(c.id && c.id.indexOf('vistaro') === 0) && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE' && isVisible(c);
       });
     }
     prev.forEach(function (p) {
@@ -1346,7 +1346,7 @@
     var el = state.subtitleEl;
     if (!el) {
       el = document.createElement('div');
-      el.className = 'anim-cli-sub-item';
+      el.className = 'vistaro-sub-item';
       state.subtitleLayer.appendChild(el);
       state.subtitleEl = el;
     }
@@ -1357,7 +1357,7 @@
     el.innerHTML = text;
     el.style.animation = 'none';
     void el.offsetWidth;
-    el.style.animation = 'anim-cli-subFade ' + Math.max(1, ms || SUBTITLE_HOLD_MS) + 'ms ease forwards';
+    el.style.animation = 'vistaro-subFade ' + Math.max(1, ms || SUBTITLE_HOLD_MS) + 'ms ease forwards';
     // A fresh cue is placed clear of this step's target and the cursor from the start (the entry
     // fade hides the positioning), rather than appearing over the button and jumping away.
     reflowSubtitle(true);
@@ -1377,7 +1377,7 @@
         // Under a driver, a document that was never booted/started is a navigation the driver has not
         // seen yet: refuse instead of silently booting with default options and a clock at 0
         // (which is how a step could report actualMs = 0 without an error).
-        if (window.__ANIM_DRIVEN && (!state.booted || state.t0 == null)) { reject(new Error(NOT_STARTED)); return; }
+        if (window.__VISTARO_DRIVEN && (!state.booted || state.t0 == null)) { reject(new Error(NOT_STARTED)); return; }
         if (!state.booted) boot({});
         try { runStepReady(step, o, resolve, reject); } catch (e) { reject(e); }
       });
@@ -1435,7 +1435,7 @@
     // against the restored page: the ring re-opens on a detached node and parks in the corner,
     // and el.click() lands on a document that never asked for it. play() calls stop() before it
     // schedules anything, so registering costs the clock-driven path nothing.
-    setAnimTimeout(function () {
+    setRunTimeout(function () {
       if (hasPoint) {
         // Re-measure at arrival: a camera move or a layout-expanding click during the
         // travel would leave the cursor, ripple and highlight on stale coordinates.
@@ -1448,7 +1448,7 @@
         else highlight(spotEl);
         pressCursor(point.x, point.y, pressMs);
       }
-      setAnimTimeout(function () {
+      setRunTimeout(function () {
         if (o.holdBeforeAct) {
           // Two-phase step: report the arrival (cursor pressed, spotlight on, nothing clicked yet) and
           // wait for act(token). Guides capture navigating clicks here, before the page goes away.
@@ -1547,11 +1547,11 @@
             throw new Error('unknown action: ' + action);
         }
       } catch (e) {
-        dispatch('anim:step', result);
+        dispatch('vistaro:step', result);
         reject(e);
         return;
       }
-      dispatch('anim:step', result);
+      dispatch('vistaro:step', result);
       // Resolve at the interaction; completion (typing/camera/fade finished) is tracked
       // separately and awaited with whenDone(token) / whenIdle().
       var completion = done.then(function () {
@@ -1657,7 +1657,7 @@
     stop();
     start();
     if (!steps.length) {
-      dispatch('anim:play', { steps: 0, durationMs: 0, loop: false });
+      dispatch('vistaro:play', { steps: 0, durationMs: 0, loop: false });
       return;
     }
     var prev = null, maxMs = 0;
@@ -1668,7 +1668,7 @@
       var lead = leadFor(step, prev);
       maxMs = Math.max(maxMs, t);
       state.timers.push(setTimeout(function () {
-        runStep(step, { leadMs: lead }).catch(function (e) { console.warn('[anim-cli] step ' + step.index + ': ' + e.message); });
+        runStep(step, { leadMs: lead }).catch(function (e) { console.warn('[vistaro] step ' + step.index + ': ' + e.message); });
       }, Math.max(0, t - lead)));
       prev = step;
     });
@@ -1681,7 +1681,7 @@
         else location.reload();
       }, durationMs));
     }
-    dispatch('anim:play', { steps: steps.length, durationMs: durationMs, loop: !!o.loop });
+    dispatch('vistaro:play', { steps: steps.length, durationMs: durationMs, loop: !!o.loop });
   }
   /**
    * Clone <body>'s children while the page is still in its authored state. The overlays live under
@@ -1722,24 +1722,24 @@
    * seek or loop: the cloned DOM keeps the markup and loses the wiring. Each script runs in a
    * FRESH node (a re-appended clone never executes); inline sources are wrapped in try/catch so one
    * failing script cannot kill the restore; module/importmap/JSON scripts cannot be re-run and are
-   * skipped; data-anim-rerun="false" opts a script out. A script that appended DOM at load will
+   * skipped; data-vistaro-rerun="false" opts a script out. A script that appended DOM at load will
    * append it again (the snapshot already contains its first output): guard it or opt it out.
    */
   function rerunScripts() {
     var scripts = state.snapshotScripts || [];
     for (var i = 0; i < scripts.length; i++) {
       var s = scripts[i];
-      if (s.getAttribute && s.getAttribute('data-anim-rerun') === 'false') continue;
+      if (s.getAttribute && s.getAttribute('data-vistaro-rerun') === 'false') continue;
       // Belt for pages built before the marker existed: the injected runtime block re-running
       // would re-create the scheduler and re-snapshot played state.
-      if (!s.src && s.textContent && s.textContent.indexOf('window.__anim.boot(') >= 0) continue;
+      if (!s.src && s.textContent && s.textContent.indexOf('window.__vistaro.boot(') >= 0) continue;
       var type = (s.getAttribute('type') || '').toLowerCase();
       if (type && type !== 'text/javascript' && type !== 'application/javascript') continue;
       var fresh = document.createElement('script');
       for (var a = 0; a < s.attributes.length; a++) fresh.setAttribute(s.attributes[a].name, s.attributes[a].value);
       fresh.async = false; // keep re-execution in authored order (matters for external scripts)
       if (!s.src) {
-        fresh.textContent = 'try {\n' + s.textContent + '\n} catch (e) { try { console.warn("[anim-cli] re-running an inline script failed:", e); } catch (_) {} }';
+        fresh.textContent = 'try {\n' + s.textContent + '\n} catch (e) { try { console.warn("[vistaro] re-running an inline script failed:", e); } catch (_) {} }';
       }
       document.body.appendChild(fresh);
     }
@@ -1790,7 +1790,7 @@
    *   immediate - as soon as the page is ready (the historical behaviour).
    *   inview    - when an IntersectionObserver first sees the clip, pausing when it scrolls away so
    *               several clips on one page do not all burn CPU.
-   *   message   - only when the embedding page posts {source:'anim-cli', type:'play'}.
+   *   message   - only when the embedding page posts {source:'vistaro', type:'play'}.
    * postMessage is honoured in every mode: inside an iframe the observer measures against the
    * iframe's own viewport and would report itself visible while off-screen, so the parent has the
    * only trustworthy view and must be able to override.
@@ -1798,7 +1798,7 @@
    */
   function startPlayback(tl) {
     if (prefersReducedMotion()) {
-      dispatch('anim:skipped', { reason: 'prefers-reduced-motion' });
+      dispatch('vistaro:skipped', { reason: 'prefers-reduced-motion' });
       return;
     }
     var playing = false;
@@ -1818,7 +1818,7 @@
     state.playback = { begin: begin, halt: halt, isPlaying: function () { return playing; } };
     window.addEventListener('message', function (e) {
       var d = e && e.data;
-      if (!d || d.source !== 'anim-cli') return;
+      if (!d || d.source !== 'vistaro') return;
       if (d.type === 'play') begin();
       else if (d.type === 'pause') halt();
     });
@@ -1869,7 +1869,7 @@
      *  self-removal keeps the arrays from growing across a long driven run. */
     pendingHandles: function () { return { timers: state.timers.length, intervals: state.intervals.length }; },
     moveCursor: moveCursor,
-    highlightBox: function () { var h = document.getElementById('anim-cli-highlight'); return h ? rectOf(h) : null; },
+    highlightBox: function () { var h = document.getElementById('vistaro-highlight'); return h ? rectOf(h) : null; },
     cursorAnchor: function () { var a = state.cursorAnchor; return a && a.el && a.el.isConnected ? { fx: a.fx, fy: a.fy, rect: rectOf(a.el) } : null; },
     placeCursor: placeCursor,
     anchorOf: anchorOf,
@@ -1905,5 +1905,5 @@
     showSubtitle: showSubtitle,
     hideSubtitle: hideSubtitle
   };
-  window.__anim = api;
+  window.__vistaro = api;
 })();

@@ -61,7 +61,7 @@ export async function filmstripCommand(video: string, options: FilmstripOptions 
     const output = options.output ? path.resolve(options.output) : abs.replace(/\.[^.]+$/, '') + '.strip.png';
     const diffFile = options.diff ? path.resolve(options.diff) : undefined;
 
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-strip-'));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-strip-'));
     // The launch sits inside the try (nullable, not awaited above it): a failed launch -- the
     // missing-engine refusal among them -- must still clean the tmpdir, not leak one per run.
     let browser: Browser | null = null;

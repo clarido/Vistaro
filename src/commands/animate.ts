@@ -32,10 +32,10 @@ export async function animateCommand(outputDir: string, prompt: string, options:
 
         let cursorInstruction = '';
         if (options.cursor !== 'none') {
-             cursorInstruction = `\n\nCRITICAL: A fake cursor <div id="anim-cli-cursor"></div> will be magically injected into the HTML. YOU MUST output CSS @keyframes to animate #anim-cli-cursor to simulate the user mouse movements based on the prompt!`;
+             cursorInstruction = `\n\nCRITICAL: A fake cursor <div id="vistaro-cursor"></div> will be magically injected into the HTML. YOU MUST output CSS @keyframes to animate #vistaro-cursor to simulate the user mouse movements based on the prompt!`;
         }
         let configInstruction = '';
-        const configPath = path.resolve(outputDir, 'anim.config.json');
+        const configPath = path.resolve(outputDir, 'vistaro.config.json');
         if (fs.existsSync(configPath)) {
             const configJson = fs.readFileSync(configPath, 'utf8');
             configInstruction = `\n\nCRITICAL TIMELINE CONFIG: The user has provided a strict declarative JSON timeline for the animations. You MUST translate this exactly into CSS @keyframes and animation delays so the timing matches the timeline precisely!\nTimeline definition:\n${configJson}\n`;
@@ -58,7 +58,7 @@ export async function animateCommand(outputDir: string, prompt: string, options:
         }
 
         // Inject the shared interaction runtime (cursor, ripples, spotlight highlight, camera,
-        // scroll, subtitles) driven by anim.config.json -- the same engine `build` uses.
+        // scroll, subtitles) driven by vistaro.config.json -- the same engine `build` uses.
         if (fs.existsSync(configPath)) {
             try {
                 const timeline = loadTimeline(outputDir, { locale: options.locale });
@@ -66,7 +66,7 @@ export async function animateCommand(outputDir: string, prompt: string, options:
                 animatedHtml = buildAnimatedHtml(animatedHtml, timeline, { cursor: options.cursor, loop: options.loop });
             } catch (e: any) { console.error('Error parsing timeline config', e.message); }
         } else if (options.cursor !== 'none') {
-            // No timeline: still provide #anim-cli-cursor so the LLM's keyframes have something to animate.
+            // No timeline: still provide #vistaro-cursor so the LLM's keyframes have something to animate.
             animatedHtml = buildAnimatedHtml(animatedHtml, parseTimeline([]), { cursor: options.cursor, loop: options.loop });
         }
 

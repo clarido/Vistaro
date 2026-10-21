@@ -114,7 +114,7 @@ What every one of them monetizes is **hosting, branding, analytics, lead capture
 ### 3. The product
 
 ```
- repo (index.html + anim.config.json)
+ repo (index.html + vistaro.config.json)
         │   free, unlimited, local or CI: the CLI as it is today
         ▼
  npx tsx cli.ts export|tour|build-all …  →  guide/ · tour site · reel embed · video

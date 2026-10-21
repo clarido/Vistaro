@@ -269,7 +269,7 @@ test('a screen archive unpacks under <jobDir>/project with byte-identical conten
         // directories at project.js:26.
         const entries: ZipEntry[] = [
             { name: 'index.html', data: SCREEN_HTML, method: 0 },
-            { name: 'anim.config.json', data: CONFIG_JSON, method: 0 },
+            { name: 'vistaro.config.json', data: CONFIG_JSON, method: 0 },
             { name: 'assets/app.css', data: APP_CSS, method: 8 },
             { name: 'media/logo.png', data: LOGO_BYTES, method: 0 },
             { name: 'assets/img/icons/feed.svg', data: Buffer.from('<svg></svg>\n'), method: 8 },
@@ -286,7 +286,7 @@ test('a screen archive unpacks under <jobDir>/project with byte-identical conten
         // invented, nothing dropped (sorted: readdir order is the OS's, not ours).
         assert.deepEqual(
             [...fs.readdirSync(path.join(w.jobDir, 'project'))].sort(),
-            ['anim.config.json', 'assets', 'index.html', 'media'],
+            ['assets', 'index.html', 'media', 'vistaro.config.json'],
             'the project root holds exactly the archive’s top-level shapes',
         );
     } finally {
@@ -304,7 +304,7 @@ test('everything wrapped in one top-level folder with the screen inside is unwra
     try {
         const entries: ZipEntry[] = [
             { name: 'my-site/index.html', data: SCREEN_HTML, method: 0 },
-            { name: 'my-site/anim.config.json', data: CONFIG_JSON, method: 8 },
+            { name: 'my-site/vistaro.config.json', data: CONFIG_JSON, method: 8 },
             { name: 'my-site/assets/app.css', data: APP_CSS, method: 8 },
         ];
         const result = libs.project.unpackProject(zipBytes(entries), w.jobDir);
@@ -314,7 +314,7 @@ test('everything wrapped in one top-level folder with the screen inside is unwra
         assert.deepEqual(result, { files: 3, bytes: payloadSum(entries) }, 'the counters describe the archive, not the unwrap');
         assertOnDisk(w.jobDir, [
             { name: 'index.html', data: SCREEN_HTML },
-            { name: 'anim.config.json', data: CONFIG_JSON },
+            { name: 'vistaro.config.json', data: CONFIG_JSON },
             { name: 'assets/app.css', data: APP_CSS },
         ]);
         assert.equal(
@@ -336,7 +336,7 @@ test('index.html already at the root: nothing is unwrapped — even a nested dir
         // would rename archive-screens/index.html over the root screen.
         const entries: ZipEntry[] = [
             { name: 'index.html', data: SCREEN_HTML, method: 0 },
-            { name: 'anim.config.json', data: CONFIG_JSON, method: 0 },
+            { name: 'vistaro.config.json', data: CONFIG_JSON, method: 0 },
             { name: 'archive-screens/index.html', data: Buffer.from('<!doctype html><html><body>old screen</body></html>'), method: 0 },
             { name: 'archive-screens/media/logo.png', data: LOGO_BYTES, method: 8 },
         ];
@@ -346,7 +346,7 @@ test('index.html already at the root: nothing is unwrapped — even a nested dir
         assertOnDisk(w.jobDir, entries);
         assert.deepEqual(
             [...fs.readdirSync(path.join(w.jobDir, 'project'))].sort(),
-            ['anim.config.json', 'archive-screens', 'index.html'],
+            ['archive-screens', 'index.html', 'vistaro.config.json'],
             'every authored path survives: the root screen stays the root screen',
         );
     } finally {
@@ -360,7 +360,7 @@ test('two top-level dirs: nothing is unwrapped, and the missing-screen ZipError 
     try {
         const entries: ZipEntry[] = [
             { name: 'a/index.html', data: SCREEN_HTML, method: 0 },
-            { name: 'a/anim.config.json', data: CONFIG_JSON, method: 0 },
+            { name: 'a/vistaro.config.json', data: CONFIG_JSON, method: 0 },
             { name: 'b/notes.txt', data: NOTES_TXT, method: 0 },
         ];
         // dirs.length !== 1 (project.js:43) refuses to guess between a/ and b/, so
@@ -368,7 +368,7 @@ test('two top-level dirs: nothing is unwrapped, and the missing-screen ZipError 
         assertZipError(
             libs,
             () => libs.project.unpackProject(zipBytes(entries), w.jobDir),
-            'the archive must contain a Demoforge screen at its root (missing: index.html, anim.config.json)',
+            'the archive must contain a Demoforge screen at its root (missing: index.html, vistaro.config.json)',
             'two top-level dirs are not a wrapper the code may flatten',
         );
         // Partial-state honesty: the extract loop (project.js:25-31) ran before the
@@ -390,7 +390,7 @@ test('a single top-level dir without index.html inside is not unwrapped either �
         assertZipError(
             libs,
             () => libs.project.unpackProject(zipBytes(entries), w.jobDir),
-            'the archive must contain a Demoforge screen at its root (missing: index.html, anim.config.json)',
+            'the archive must contain a Demoforge screen at its root (missing: index.html, vistaro.config.json)',
             'a screenless single dir is not unwrapped and the archive is refused',
         );
         assertOnDisk(w.jobDir, entries);
@@ -403,11 +403,11 @@ test('a single top-level dir without index.html inside is not unwrapped either �
 // requireScreenFiles (project.js:57-66): the CLI's screen contract
 // ---------------------------------------------------------------------------
 
-test('missing only index.html: the ZipError names it alone, and the extracted anim.config.json stays on disk', async () => {
+test('missing only index.html: the ZipError names it alone, and the extracted vistaro.config.json stays on disk', async () => {
     const libs = await libsP;
     const w = makeWorld();
     try {
-        const entries: ZipEntry[] = [{ name: 'anim.config.json', data: CONFIG_JSON, method: 0 }];
+        const entries: ZipEntry[] = [{ name: 'vistaro.config.json', data: CONFIG_JSON, method: 0 }];
         // A root-level file is not a wrapper candidate (dirs.length === 0 at
         // project.js:43), so this reaches the guard with exactly one screen file.
         assertZipError(
@@ -430,7 +430,7 @@ test('missing both screen files: the message is the joined pair, verbatim — th
         assertZipError(
             libs,
             () => libs.project.unpackProject(zipBytes(entries), w.jobDir),
-            'the archive must contain a Demoforge screen at its root (missing: index.html, anim.config.json)',
+            'the archive must contain a Demoforge screen at its root (missing: index.html, vistaro.config.json)',
             'the missing list is joined ", " exactly as project.js:63 writes it',
         );
         assertOnDisk(w.jobDir, entries);

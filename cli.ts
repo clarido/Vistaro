@@ -28,56 +28,57 @@ export function buildProgram(): Command {
   const program = new Command();
 
   program
-    .name('anim-cli')
-    .description('Turn a UI mockup (index.html + anim.config.json) or a live web page into a demo video, a step-by-step help guide, and their translations')
+    .name('vistaro')
+    .description('Turn a UI mockup (index.html + vistaro.config.json) or a live web page into a demo video, a step-by-step help guide, and their translations')
     .version(toolPackage().version);
 
   program.addHelpText('after', `
 =========================================
 USAGE GUIDE
 =========================================
-Inputs: a directory with index.html (the screen) and anim.config.json (the timeline:
+Inputs: a directory with index.html (the screen) and vistaro.config.json (the timeline:
 what the cursor does, when, with titles/subtitles/narration per step). Outputs: an MP4
 (with .vtt subtitles and chapters), a step guide (guide.json/md/html + frames), and the
-same for every language. Read AGENTS.md for the full manual and the file contracts.
+same for every language. Read the full manual and the file contracts in AGENTS.md
+(node_modules/vistaro/AGENTS.md after an npm install).
 
 WORKFLOW (an AI agent or a person writes the screen and the timeline; no API key):
   1. Write <dir>/index.html (a faithful mockup of the screen) and the timeline:
-       npx tsx cli.ts init-config <dir>        # scaffolds anim.config.json (object form)
+       npx vistaro init-config <dir>        # scaffolds vistaro.config.json (object form)
   2. Validate: selectors, timing, strings, and every target in a headless browser:
-       npx tsx cli.ts check <dir>
+       npx vistaro check <dir>
   3. Build the self-playing page (no LLM):
-       npx tsx cli.ts build <dir>              # writes animated.html
+       npx vistaro build <dir>              # writes animated.html
   4. Look at one frame per step, fix the timeline, repeat:
-       npx tsx cli.ts check <dir>            # also reports each camera step's framing as facts
-       npx tsx cli.ts check <dir> --trace     # writes trace.json (cursor/spotlight/subtitle/camera per step)
-       npx tsx cli.ts preview <dir>            # writes preview.png (contact sheet)
-       npx tsx cli.ts preview <dir> --step 3   # one full-size frame
-       npx tsx cli.ts preview <dir> --motion   # writes preview-motion.png (sampled during real playback)
+       npx vistaro check <dir>            # also reports each camera step's framing as facts
+       npx vistaro check <dir> --trace     # writes trace.json (cursor/spotlight/subtitle/camera per step)
+       npx vistaro preview <dir>            # writes preview.png (contact sheet)
+       npx vistaro preview <dir> --step 3   # one full-size frame
+       npx vistaro preview <dir> --motion   # writes preview-motion.png (sampled during real playback)
   5. Record the video and the guide (length comes from the timeline):
-       npx tsx cli.ts export <dir> -o demo.mp4 --guide --narration
-       npx tsx cli.ts filmstrip demo.mp4 --diff demo.motion.json   # review the exported clip without watching it
+       npx vistaro export <dir> -o demo.mp4 --guide --narration
+       npx vistaro filmstrip demo.mp4 --diff demo.motion.json   # review the exported clip without watching it
      Or build AND audit in one command (the one an agent runs):
-       npx tsx cli.ts verify <dir>             # verify.mp4 + .vtt + verify.strip.png + verify.json (exit 1 on a failed step)
+       npx vistaro verify <dir>             # verify.mp4 + .vtt + verify.strip.png + verify.json (exit 1 on a failed step)
      Or edit the timeline visually (a local web editor over the same file):
-       npx tsx cli.ts studio <dir>             # seekable preview, pick targets, effects palette;
-                                               # saves anim.config.json -- git keeps the history
+       npx vistaro studio <dir>             # seekable preview, pick targets, effects palette;
+                                               # saves vistaro.config.json -- git keeps the history
      And with NO command at all, the hub opens in your browser:
-       npx tsx cli.ts                          # the ask for your agent, the manual at /agents.md,
+       npx vistaro                          # the ask for your agent, the manual at /agents.md,
                                                # and the doors into the studio (the \`vistaro\` front door)
   6. Other languages reuse the same choreography:
-       npx tsx cli.ts localize <dir> fr        # <dir>/locales/fr/ + strings.fr.json
-       npx tsx cli.ts export <dir>/locales/fr -o demo-fr.mp4 --guide
+       npx vistaro localize <dir> fr        # <dir>/locales/fr/ + strings.fr.json
+       npx vistaro export <dir>/locales/fr -o demo-fr.mp4 --guide
   7. Many guides x languages at once, from help.catalog.json:
-       npx tsx cli.ts build-all [--changed-only] [--diff]   # see build-all --help
+       npx vistaro build-all [--changed-only] [--diff]   # see build-all --help
 
 MARKETING REELS (a silent product clip instead of a help guide):
   Set "kind": "reel" in meta. The spotlight, click ripple and subtitle bar switch off, the
   guide-shaped validation stops applying, and \`--guide\` on a reel is refused.
-    npx tsx cli.ts check   reels/ask-anything --device mobile --scale 2
-    npx tsx cli.ts preview reels/ask-anything --device mobile
-    npx tsx cli.ts export  reels/ask-anything -o clip.mp4 --device mobile --scale 2
-    npx tsx cli.ts build   reels/ask-anything --embed --device mobile
+    npx vistaro check   reels/ask-anything --device mobile --scale 2
+    npx vistaro preview reels/ask-anything --device mobile
+    npx vistaro export  reels/ask-anything -o clip.mp4 --device mobile --scale 2
+    npx vistaro build   reels/ask-anything --embed --device mobile
   \`export\` writes clip.mp4 (silent), clip.webm, clip.poster.png and clip.gif, with no .vtt and no
   chapters. \`build --embed\` adds embed-<device>.html, a self-contained page that plays when scrolled
   into view and loops, plus embed-<device>.snippet.html for the hosting page.
@@ -90,12 +91,12 @@ MARKETING REELS (a silent product clip instead of a help guide):
   easeOutBack, easeOutExpo, spring). "ease" also applies to "camera".
 
 LIVE PAGES (a real app instead of a mockup):
-  anim.config.json targets are selectors in the app (prefer data-help="..." attributes);
+  vistaro.config.json targets are selectors in the app (prefer data-help="..." attributes);
   steps may carry "waitFor" and "navigate". Sign in once with
     npx playwright codegen --save-storage auth.json <url>
-  then: npx tsx cli.ts record <dir> --url <url> --storage-state auth.json -o demo.mp4 --guide
+  then: npx vistaro record <dir> --url <url> --storage-state auth.json -o demo.mp4 --guide
 
-TIMELINE (anim.config.json, object form):
+TIMELINE (vistaro.config.json, object form):
   {
     "meta": { "title": "Create your first report", "slug": "create-first-report", "cursor": "mac" },
     "steps": [
@@ -113,23 +114,23 @@ TIMELINE (anim.config.json, object form):
   pans/zooms toward the target; scroll brings it into view.
 
 STANDALONE WITH AN LLM API KEY (GEMINI_API_KEY or ANTHROPIC_API_KEY, .env or env):
-  npx tsx cli.ts extract <image> <dir> --provider gemini|claude   # screenshot -> index.html
-  npx tsx cli.ts animate <dir> "<prompt>" --provider gemini|claude # prompt -> anim.config.json + animated.html
+  npx vistaro extract <image> <dir> --provider gemini|claude   # screenshot -> index.html
+  npx vistaro animate <dir> "<prompt>" --provider gemini|claude # prompt -> vistaro.config.json + animated.html
   Override the model with --model, GEMINI_MODEL or CLAUDE_MODEL.
 
 RECORD OF WHAT WAS DONE:
   Every command that writes something (extract, animate, build, export, record, guide,
   localize, build-all; not check, preview or init-config) appends an event to
-  <dir>/anim.manifest.json (command, options, locale, step timings, content hash / build
+  <dir>/vistaro.manifest.json (command, options, locale, step timings, content hash / build
   key). Read it before re-doing someone else's work.
 `);
 
   program
     .command('init-config')
-    .description('Scaffold an anim.config.json timeline file in the target directory')
+    .description('Scaffold an vistaro.config.json timeline file in the target directory')
     .argument('<output_dir>', 'Directory to initialize the config in')
     .option('--kind <profile>', 'Which profile to scaffold: guide (default) or reel (silent looping product clip)', 'guide')
-    .option('--force', 'Overwrite an existing anim.config.json')
+    .option('--force', 'Overwrite an existing vistaro.config.json')
     .action((dir, opts) => initConfigCommand(dir, opts));
 
   program
@@ -147,34 +148,34 @@ RECORD OF WHAT WAS DONE:
 
   program
     .command('animate')
-    .description('Write anim.config.json + animated.html from a prompt (needs an LLM API key; agents write the timeline themselves and run build)')
+    .description('Write vistaro.config.json + animated.html from a prompt (needs an LLM API key; agents write the timeline themselves and run build)')
     .argument('<output_dir>', 'Directory containing the generated HTML essence')
     .argument('<prompt>', 'Prompt describing the desired animation')
     .option('-p, --provider <provider>', 'LLM provider (gemini or claude)', 'gemini')
     .option('-m, --model <model>', 'LLM model ID (e.g. gemini-2.5-flash, claude-haiku-4-5-20251001). Defaults per provider')
     .option('-c, --cursor <style>', 'Cursor style: mac, windows, none', 'mac')
     .option('-l, --loop', 'Loop the generated HTML animation endlessly')
-    .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
+    .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in vistaro.manifest.json')
     .action((dir, prompt, opts) => animateCommand(dir, prompt, opts));
 
   program
     .command('build')
-    .description('Build animated.html from index.html + anim.config.json (no LLM, no API key)')
-    .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
+    .description('Build animated.html from index.html + vistaro.config.json (no LLM, no API key)')
+    .argument('<output_dir>', 'Directory containing index.html and vistaro.config.json')
     .option('-c, --cursor <style>', 'Cursor style: mac, windows, none (default: meta.cursor or mac)')
     .option('--device <type>', 'Which device\'s timeline to bake in (resolves "only"/"mobile"/"desktop" steps): desktop or mobile', 'desktop')
     .option('--embed', 'Also write embed-<device>.html (a framable, self-contained clip) and embed-<device>.snippet.html (the parent-side iframe snippet)')
     .option('-l, --loop', 'Loop the animation endlessly when opened in a browser')
-    .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
-    .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
+    .option('--config <file>', 'Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory')
+    .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in vistaro.manifest.json')
     .option('--force', 'Build even if the timeline has validation errors')
     .option('-o, --output <file>', 'Write the built HTML somewhere other than <output_dir>/animated.html')
     .action((dir, opts) => buildCommand(dir, opts));
 
   program
     .command('check')
-    .description('Validate anim.config.json: schema, timing, strings, and (unless --static/--live) every target selector in a headless browser; each camera step also reports its framing as facts (window, what is in frame, what is cut)')
-    .argument('<output_dir>', 'Directory containing anim.config.json (and index.html unless --live)')
+    .description('Validate vistaro.config.json: schema, timing, strings, and (unless --static/--live) every target selector in a headless browser; each camera step also reports its framing as facts (window, what is in frame, what is cut)')
+    .argument('<output_dir>', 'Directory containing vistaro.config.json (and index.html unless --live)')
     .option('--static', 'Schema and timing checks only, no browser')
     .option('--scale <n>', 'Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width')
     .option('--live', 'Validate a timeline meant for `record` (live page): navigate/waitFor allowed, no index.html needed; add --url to also probe every target against the page')
@@ -182,9 +183,9 @@ RECORD OF WHAT WAS DONE:
     .option('--storage-state <file>', 'Live probe: Playwright storage state (cookies/localStorage)')
     .option('--ignore-https-errors', 'Live probe: accept self-signed certificates')
     .option('--reset-cmd <command>', 'Live probe: shell command run before the pass')
-    .option('--allow-reset', 'Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this)')
+    .option('--allow-reset', 'Let "meta.reset" from vistaro.config.json run (a shell command out of a file; --reset-cmd never needs this)')
     .option('--guide', 'Validate as a guide: a numbered step without a "title" is an error, not a warning')
-    .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
+    .option('--config <file>', 'Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--trace', 'Record per-step overlay geometry (cursor, spotlight, subtitle chip, camera window) to <dir>/trace.json during the browser pass')
     .option('--json', 'Print the issues as JSON on stdout')
     .option('--locale <code>', 'Locale code (e.g. en, fr)')
@@ -197,10 +198,10 @@ RECORD OF WHAT WAS DONE:
   program
     .command('preview')
     .description('Render one labelled frame per step to <output_dir>/preview.png (or a single full-size frame with --step N)')
-    .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
+    .argument('<output_dir>', 'Directory containing index.html and vistaro.config.json')
     .option('-s, --step <n>', 'Write only step N (1-based) at full resolution to preview-step-N.png')
     .option('--motion', 'Sample a real playback pass into preview-motion.png instead: mid-travel framing, cursor glide and typing as they actually play')
-    .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
+    .option('--config <file>', 'Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--scale <n>', 'Pixel density used for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width')
     .option('--at <when>', 'Capture point per step: "auto" (like the guide: clicks at the interaction, typing/camera/fades at completion), "interaction", or "end"', 'auto')
     .option('-o, --output <file>', 'Output PNG path')
@@ -216,7 +217,7 @@ RECORD OF WHAT WAS DONE:
   program
     .command('export')
     .description('Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narration and step guide); the length comes from the timeline')
-    .argument('<output_dir>', 'Directory containing index.html + anim.config.json (or a legacy animated.html)')
+    .argument('<output_dir>', 'Directory containing index.html + vistaro.config.json (or a legacy animated.html)')
     .option('-d, --duration <seconds>', 'Override the export length in seconds (a bare number, e.g. 12 or 12.5; default: computed from the timeline; 5 without a config)')
     .option('-o, --output <file>', 'Output video file path (.mp4 or .gif)', 'output.mp4')
     .option('-w, --width <pixels>', 'Width of the exported video in pixels')
@@ -231,25 +232,25 @@ RECORD OF WHAT WAS DONE:
     .option('--no-chapters', 'Do not embed MP4 chapters for titled steps')
     .option('--clips <format>', 'Also cut one clip per step next to the video: mp4 or gif')
     .option('--tail <ms>', 'Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs, default 2500')
-    .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
+    .option('--config <file>', 'Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--guide', 'Also write the step-by-step guide (guide.json, guide.md, guide.html, assets/) after the video')
     .option('--guide-dir <dir>', 'Guide output directory (default: <output_dir>/guide)')
     .option('--crop <px>', 'Guide crops: padding around each step\'s box in px (default 120)')
     .option('--no-crop', 'Guide: full frames only, no crops')
     .option('--hide-cursor', 'Guide: hide the fake cursor in the step screenshots')
     .option('--force', 'Export even if the timeline has validation errors; step failures then do not fail the command')
-    .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in anim.manifest.json')
+    .option('--locale <code>', 'Locale code for this output (e.g. en, fr) -- recorded in vistaro.manifest.json')
     .action((dir, opts) => exportCommand(dir, opts));
 
   program
     .command('record')
     .description('Record the timeline against a live page (URL) instead of a local mockup: real navigations, waitFor, storage state')
-    .argument('<output_dir>', 'Directory containing anim.config.json (targets are selectors in the live app, e.g. [data-help="save"])')
-    .option('--url <url>', 'Page to open (default: meta.url in anim.config.json)')
+    .argument('<output_dir>', 'Directory containing vistaro.config.json (targets are selectors in the live app, e.g. [data-help="save"])')
+    .option('--url <url>', 'Page to open (default: meta.url in vistaro.config.json)')
     .option('--storage-state <file>', 'Playwright storage state (cookies/localStorage), e.g. from `npx playwright codegen --save-storage auth.json`')
     .option('--ignore-https-errors', 'Accept self-signed certificates (mkcert-style local HTTPS)')
     .option('--reset-cmd <command>', 'Shell command run before each pass over the app (the recording, then the --guide replay); used instead of meta.reset, and never needs --allow-reset')
-    .option('--allow-reset', 'Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this)')
+    .option('--allow-reset', 'Let "meta.reset" from vistaro.config.json run (a shell command out of a file; --reset-cmd never needs this)')
     .option('--fail-fast', 'Abandon the recording at the first waitFor timeout instead of recording the rest against the wrong page state')
     .option('-o, --output <file>', 'Output video file path (.mp4 or .gif)', 'output.mp4')
     .option('-d, --duration <seconds>', 'Override the recording length in seconds (a bare number, e.g. 12 or 12.5; default: computed from the timeline)')
@@ -263,7 +264,7 @@ RECORD OF WHAT WAS DONE:
     .option('--no-chapters', 'Do not embed MP4 chapters')
     .option('--clips <format>', 'Also cut one clip per step: mp4 or gif')
     .option('--tail <ms>', 'Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs')
-    .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
+    .option('--config <file>', 'Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--guide', 'Also capture the step guide against the live page (re-navigates, replays in step mode)')
     .option('--guide-dir <dir>', 'Guide output directory (default: <output_dir>/guide)')
     .option('--crop <px>', 'Guide crops: padding around each step\'s box in px (default 120)')
@@ -271,25 +272,25 @@ RECORD OF WHAT WAS DONE:
     .option('--hide-cursor', 'Guide: hide the fake cursor in step screenshots')
     .option('--force', 'Record even if the timeline has validation errors; step failures then do not fail the command')
     .option('--locale <code>', 'Locale code for this output (e.g. en, fr)')
-    .option('--learn <file>', '(experimental) Write the interactions the recording performed as a draft anim.config.json to <file> (plus <file>.notes.md): steps in observed order, ids step-01..., times in ms, targets re-resolved to the stablest selector (data-help > #id > tag.class > :nth-of-type); no titles -- add them before building a guide; exits 1 when nothing was captured')
+    .option('--learn <file>', '(experimental) Write the interactions the recording performed as a draft vistaro.config.json to <file> (plus <file>.notes.md): steps in observed order, ids step-01..., times in ms, targets re-resolved to the stablest selector (data-help > #id > tag.class > :nth-of-type); no titles -- add them before building a guide; exits 1 when nothing was captured')
     .action((dir, opts) => recordCommand(dir, opts));
 
   program
     .command('guide')
-    .description('Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) from index.html + anim.config.json; links the last exported video when present')
-    .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
+    .description('Write a Scribe-style step guide (guide.json, guide.md, guide.html + assets/) from index.html + vistaro.config.json; links the last exported video when present')
+    .argument('<output_dir>', 'Directory containing index.html and vistaro.config.json')
     .option('-o, --output <dir>', 'Guide output directory (default: <output_dir>/guide)')
     .option('--crop <px>', 'Padding around each step\'s box for the cropped image, in px (default 120)')
     .option('--no-crop', 'Full frames only, no crops')
     .option('--clips <format>', 'Cut one clip per step from the last exported video: mp4 or gif')
     .option('--hide-cursor', 'Hide the fake cursor in the step screenshots')
     .option('--no-marks', 'Do not burn the spotlight ring and numbered badge into the frames (rect/callout are still recorded)')
-    .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
+    .option('--config <file>', 'Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--url <url>', 'After a `record`: replay against this URL instead of the one in the manifest')
     .option('--storage-state <file>', 'After a `record`: storage state for the live replay (default: the one the record used)')
     .option('--ignore-https-errors', 'Accept self-signed certificates on the live replay')
     .option('--reset-cmd <command>', 'After a `record`: shell command run before the live replay')
-    .option('--allow-reset', 'Let "meta.reset" from anim.config.json run (a shell command out of a file; --reset-cmd never needs this)')
+    .option('--allow-reset', 'Let "meta.reset" from vistaro.config.json run (a shell command out of a file; --reset-cmd never needs this)')
     .option('--locale <code>', 'Locale code (e.g. en, fr)')
     .option('--force', 'Capture even if the timeline has validation errors; step failures then do not fail the command')
     .option('-w, --width <pixels>', 'Viewport width in pixels')
@@ -313,24 +314,24 @@ RECORD OF WHAT WAS DONE:
   program
     .command('verify')
     .description('Build and audit a demo in one command: run the export pipeline (verify.mp4 + verify.vtt beside it), then the filmstrip pass (verify.strip.png), and write verify.json (ok, durationMs, steps, chapters, issues); exit 1 when any step failed')
-    .argument('<output_dir>', 'Directory containing index.html and anim.config.json')
+    .argument('<output_dir>', 'Directory containing index.html and vistaro.config.json')
     .option('-w, --width <pixels>', 'Viewport width in pixels')
     .option('-H, --height <pixels>', 'Viewport height in pixels')
     .option('--device <type>', 'Device viewport constraints: desktop or mobile (default: `desktop`)')
     .option('--scale <n>', 'Pixel density for the recording: the viewport is multiplied by N and the page zoomed back, so media queries see the scaled width')
     .option('-t, --theme <mode>', 'Color scheme mode for Playwright: light or dark (default: `light`)')
     .option('--locale <code>', 'Locale code (e.g. en, fr)')
-    .option('--config <file>', 'Use a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
+    .option('--config <file>', 'Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory')
     .action((dir, opts) => verifyCommand(dir, opts));
 
   program
     .command('studio')
-    .description('Open a local web editor over the timeline: with no directory it serves the project picker (every demo in the workspace, recents first); with one it opens that screen directly. Edit steps with a seekable live preview, pick targets by clicking, apply effect presets, retime steps by dragging them on the timeline ruler, run check/export, and save anim.config.json (the editor is a view over the file, never a second source of truth). Running the CLI with no command at all boots the same server on the hub page (/hub: the ask for your agent, the manual at /agents.md) and opens your browser')
+    .description('Open a local web editor over the timeline: with no directory it serves the project picker (every demo in the workspace, recents first); with one it opens that screen directly. Edit steps with a seekable live preview, pick targets by clicking, apply effect presets, retime steps by dragging them on the timeline ruler, run check/export, and save vistaro.config.json (the editor is a view over the file, never a second source of truth). Running the CLI with no command at all boots the same server on the hub page (/hub: the ask for your agent, the manual at /agents.md) and opens your browser')
     .argument('[output_dir]', 'Directory containing index.html (the screen to edit a timeline for); omit it for the project picker')
     .option('-p, --port <n>', 'Port to serve the editor on (default: an ephemeral one, printed on start)')
     .option('-w, --width <pixels>', 'Authored viewport width of the preview iframe (default: 1280)')
     .option('-H, --height <pixels>', 'Authored viewport height of the preview iframe (default: 720)')
-    .option('--config <file>', 'Edit a timeline other than <dir>/anim.config.json (one screen, several scenarios); path is relative to the current directory')
+    .option('--config <file>', 'Edit a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--device <type>', 'Initial preview device: desktop or mobile (mobile also frames the preview at 390x844)')
     .action((dir, opts) => studioCommand(dir, opts));
 
@@ -352,7 +353,7 @@ RECORD OF WHAT WAS DONE:
     .option('--continue-on-error', 'Keep going after a failed guide (default: stop at the first failure)')
     .option('--dry-run', 'Print the plan per guide x locale and stop: nothing is created, written or recorded')
     .option('--verbose', 'Also stream the child commands\' stdout (their stderr is always streamed, prefixed with slug/locale)')
-    .option('--allow-reset', 'Let each guide\'s "meta.reset" run before its passes (a shell command out of its anim.config.json)')
+    .option('--allow-reset', 'Let each guide\'s "meta.reset" run before its passes (a shell command out of its vistaro.config.json)')
     .addHelpText('after', `
 CATALOG SCHEMA (help.catalog.json; paths are relative to the catalog file):
   {
@@ -377,7 +378,7 @@ CATALOG SCHEMA (help.catalog.json; paths are relative to the catalog file):
     ]
   }
   slug: lowercase-kebab, unique; it names <outputDir>/<slug>/<locale>/ and <slug>-<locale>.mp4.
-  dir: contains anim.config.json and index.html (index.html not needed with "record").
+  dir: contains vistaro.config.json and index.html (index.html not needed with "record").
   locales: a list of codes (found at <dir>/locales/<code>/, or the legacy sibling <dir>/../<code>/)
            or a { code: path } map; the base locale is the guide directory itself.
   record: build against a live page (check --live, then record); no build step.
@@ -411,7 +412,7 @@ INCREMENTAL RUNS:
     .argument('[catalog]', 'Catalog file', 'tour.catalog.json')
     .option('-o, --output <dir>', 'Directory to write the tour into (default: the catalog\'s outputDir, else tour-out)')
     .option('--force', 'Build scenarios that have validation errors')
-    .option('--embed', 'Also write embed-<slug>-<device>.html per scenario, the <anim-tour> custom element and a no-module snippet fallback')
+    .option('--embed', 'Also write embed-<slug>-<device>.html per scenario, the <vistaro-tour> custom element and a no-module snippet fallback')
     .option('--embed-origin <origin>', 'targetOrigin the embed pages use to report to the page that frames them (default: any)')
     .action((catalog, opts) => tourCommand(catalog, opts))
     .addHelpText('after', `
@@ -431,7 +432,7 @@ Catalog shape:
   }
 
   A scenario is a mockup directory plus a timeline. "config" points at a timeline other than
-  <dir>/anim.config.json, which is how several scenarios share one screen: the same index.html,
+  <dir>/vistaro.config.json, which is how several scenarios share one screen: the same index.html,
   a different choreography. Every scenario page is the mockup with the runtime and the tour
   scheduler injected -- nothing is recorded, so a scenario weighs what its HTML weighs.
 
@@ -447,12 +448,12 @@ Catalog shape:
 
   program
     .command('localize')
-    .description('Scaffold <source_dir>/locales/<locale>/ with index.html, anim.config.json, media and a pre-filled strings.<locale>.json; the choreography is reused as is')
-    .argument('<source_dir>', 'Existing output directory to localize from (contains index.html, optionally anim.config.json)')
+    .description('Scaffold <source_dir>/locales/<locale>/ with index.html, vistaro.config.json, media and a pre-filled strings.<locale>.json; the choreography is reused as is')
+    .argument('<source_dir>', 'Existing output directory to localize from (contains index.html, optionally vistaro.config.json)')
     .argument('<locale>', 'Target locale code, e.g. fr, es, pt-BR')
     .option('-o, --output-dir <dir>', 'Directory to scaffold into (default: <source_dir>/locales/<locale>)')
     .option('--sibling', 'Legacy layout: scaffold into a sibling directory named after the locale')
-    .option('--force', 'Overwrite the target\'s index.html, anim.config.json and strings.<locale>.json (translations are lost); by default they are kept and only new strings are added')
+    .option('--force', 'Overwrite the target\'s index.html, vistaro.config.json and strings.<locale>.json (translations are lost); by default they are kept and only new strings are added')
     .action((src, locale, opts) => localizeCommand(src, locale, opts));
 
   // The front door for someone who installed the CLI and typed its name: bare `vistaro` boots

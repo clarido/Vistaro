@@ -10,7 +10,7 @@ import { runTimeline, StepResult, errorMessage, LiveOptions, isNavigationError }
  * state actions such as type/camera/fadeIn: completion, see schema.captureAtFor) hide the
  * subtitle bar, hold the spotlight + numbered DOM badge on cursor targets, take the full frame
  * and an optional crop. All marks are DOM elements owned by runtime.js
- * (`__anim.beginCapture` / `markStep` / `endCapture`); no image processing.
+ * (`__vistaro.beginCapture` / `markStep` / `endCapture`); no image processing.
  */
 
 export interface Box { x: number; y: number; width: number; height: number }
@@ -157,16 +157,16 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
             // transition visibly settles; wait for the animations themselves (whole document, the
             // timeout is only a hang guard) so unedited re-runs reproduce the same pixels.
             if (SETTLE_ACTIONS.has(step.action) && !result.error && entry.capturedAt === 'completion') {
-                await page.evaluate((o) => (window as any).__anim.whenSettled(o), { timeoutMs: SETTLE_GUARD_MS });
+                await page.evaluate((o) => (window as any).__vistaro.whenSettled(o), { timeoutMs: SETTLE_GUARD_MS });
             }
             // Subtitle bar (and optionally the cursor) hidden for EVERY guide frame, the poster included:
             // a subtitle burned into the cover image would also leak the previous locale's text.
-            await page.evaluate((o) => (window as any).__anim.beginCapture(o), { hideCursor: !!opts.hideCursor });
+            await page.evaluate((o) => (window as any).__vistaro.beginCapture(o), { hideCursor: !!opts.hideCursor });
             if (!poster && opts.poster !== false) {
                 // Assigned only after the screenshot resolves: a path set before an awaited shot that
                 // throws would suppress the retake a later step owes (poster stays truthy forever).
                 const posterPath = path.join(opts.assetsDir, 'poster.png');
-                await page.evaluate(() => (window as any).__anim.nextFrames(2));
+                await page.evaluate(() => (window as any).__vistaro.nextFrames(2));
                 await page.screenshot({ path: posterPath, type: 'png' });
                 poster = posterPath;
             }
@@ -174,7 +174,7 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
             // instruction for the reader): cursor actions on the box runStep used, other actions on the
             // target's sized box. rect/callout are null only for target-less steps or failed ones.
             const marks = step.target && !result.error
-                ? await page.evaluate((o) => (window as any).__anim.markStep(o), { target: step.target, number: entry.number })
+                ? await page.evaluate((o) => (window as any).__vistaro.markStep(o), { target: step.target, number: entry.number })
                 : null;
             if (marks) {
                 // One rule for frame, rect and crop: the box the marks framed (runStep's sized ancestor).
@@ -185,11 +185,11 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
             // marks:false wants the geometry without the furniture. endCapture() would also restore
             // the subtitle bar and cursor this capture session deliberately hid, so undo just the two.
             if (marks && opts.marks === false) {
-                await page.evaluate(() => { (window as any).__anim.releaseHighlight(); (window as any).__anim.hideCallout(); });
+                await page.evaluate(() => { (window as any).__vistaro.releaseHighlight(); (window as any).__vistaro.hideCallout(); });
             }
             // The marks snap into place; anything still animating on the page is awaited once more.
-            await page.evaluate((o) => (window as any).__anim.whenSettled(o), { timeoutMs: SETTLE_GUARD_MS });
-            await page.evaluate(() => (window as any).__anim.nextFrames(2));
+            await page.evaluate((o) => (window as any).__vistaro.whenSettled(o), { timeoutMs: SETTLE_GUARD_MS });
+            await page.evaluate(() => (window as any).__vistaro.nextFrames(2));
             entry.image = base + '.png';
             await page.screenshot({ path: entry.image, type: 'png' });
             const rect = entry.rect;
@@ -228,7 +228,7 @@ export async function captureGuide(page: Page, timeline: Timeline, opts: Capture
                 if (entry.crop && !fs.existsSync(entry.crop)) entry.crop = undefined;
             }
         } finally {
-            await page.evaluate(() => (window as any).__anim.endCapture()).catch(() => {});
+            await page.evaluate(() => (window as any).__vistaro.endCapture()).catch(() => {});
         }
     };
 

@@ -4,7 +4,7 @@ import { readManifest } from '../manifest';
 import { applyStrings, readStrings, resolveLocale, stringsPath, stringsPathFor, isLocaleCode } from './strings';
 
 /**
- * Timeline schema: parsing, normalization and validation of anim.config.json.
+ * Timeline schema: parsing, normalization and validation of vistaro.config.json.
  *
  * Two on-disk forms are accepted:
  *   - legacy bare array:  [ { "time": "2s", "action": "click", ... }, ... ]
@@ -390,12 +390,20 @@ export function parseTimeline(raw: unknown): Timeline {
 
 /**
  * Which timeline file a directory means: `config` relative to `dir` (absolute passes through),
- * else `anim.config.json`. One place decides it, so the strings file, the content hash and the
+ * else `vistaro.config.json`. One place decides it, so the strings file, the content hash and the
  * output names all derive from the same answer.
  */
 export function resolveConfigPath(dir: string, config?: string): string {
-    return path.resolve(dir, config || 'anim.config.json');
+    const resolved = path.resolve(dir, config || 'vistaro.config.json');
+    // 3.0 renamed the default timeline with no fallback. A 2.x project then has a timeline the CLI
+    // would report as "not found", so name both files instead, from the one resolver every command uses.
+    if (!config && !fs.existsSync(resolved) && fs.existsSync(path.resolve(dir, LEGACY_CONFIG))) {
+        throw new Error(`${path.resolve(dir)} has ${LEGACY_CONFIG}, the Vistaro 2.x name: rename ${LEGACY_CONFIG} to vistaro.config.json (and ${LEGACY_MANIFEST}, if present, to vistaro.manifest.json) -- Vistaro 3.0 reads only the new names`);
+    }
+    return resolved;
 }
+const LEGACY_CONFIG = 'anim.config.json';
+const LEGACY_MANIFEST = 'anim.manifest.json';
 
 /**
  * A `--config` value as typed on the command line: resolved against the CWD, like every other path
@@ -416,14 +424,14 @@ export function cliConfigPath(config?: string): string | undefined {
 export function configStem(dir: string, config?: string): string | undefined {
     if (!config) return undefined;
     const p = resolveConfigPath(dir, config);
-    if (p === path.resolve(dir, 'anim.config.json')) return undefined;
+    if (p === path.resolve(dir, 'vistaro.config.json')) return undefined;
     return path.basename(p).replace(/\.json$/i, '');
 }
 
 /**
- * Read and parse the directory's timeline (`opts.config`, else `<dir>/anim.config.json`), then
+ * Read and parse the directory's timeline (`opts.config`, else `<dir>/vistaro.config.json`), then
  * overlay that timeline's strings file when one exists for
- * the resolved locale (--locale > anim.manifest.json locale > meta.locale). Every command loads
+ * the resolved locale (--locale > vistaro.manifest.json locale > meta.locale). Every command loads
  * its timeline through here, so a localized directory renders translated titles, subtitles,
  * narration, notes and translatable typed values without touching the choreography.
  * Throws with a readable message when missing or invalid.
@@ -432,9 +440,9 @@ export function loadTimeline(dir: string, opts: { locale?: string; device?: Devi
     const p = resolveConfigPath(dir, opts.config);
     if (!fs.existsSync(p)) {
         // Keyed on where it RESOLVED, not on whether an option was passed, so an explicit
-        // --config anim.config.json still gets the scaffolding hint.
-        throw new Error(p === path.resolve(dir, 'anim.config.json')
-            ? `anim.config.json not found in ${path.resolve(dir)} (run \`init-config ${dir}\` to scaffold one)`
+        // --config vistaro.config.json still gets the scaffolding hint.
+        throw new Error(p === path.resolve(dir, 'vistaro.config.json')
+            ? `vistaro.config.json not found in ${path.resolve(dir)} (run \`init-config ${dir}\` to scaffold one)`
             : `timeline not found: ${p}`);
     }
     let raw: unknown;

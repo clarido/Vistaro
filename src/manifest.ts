@@ -15,7 +15,7 @@ interface Manifest {
 }
 
 function manifestPath(outputDir: string): string {
-    return path.join(outputDir, 'anim.manifest.json');
+    return path.join(outputDir, 'vistaro.manifest.json');
 }
 
 /** Bumped per in-flight temp file so a crash between two writes cannot collide with the next one. */

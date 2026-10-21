@@ -9,15 +9,15 @@ import { runtimeSource } from '../src/engine/inject';
  * spotlight ring pulses by scaling itself, so its measured rect is a few px off wherever it was
  * positioned. A test that asserts where the ring landed must read its inline style, not
  * getBoundingClientRect()." The ring, its pulse and its hold state are defined together in
- * src/engine/runtime.js:85-88 under the one id (`#anim-cli-highlight`, `.anim-cli-pulse`,
- * `.anim-cli-hold { opacity: 1; animation: none; }`) -- which is what the identity ratchet below
+ * src/engine/runtime.js:85-88 under the one id (`#vistaro-highlight`, `.vistaro-pulse`,
+ * `.vistaro-hold { opacity: 1; animation: none; }`) -- which is what the identity ratchet below
  * pins: a ring-id rename reds HERE instead of letting the scan read a dead name.
  *
  * Discovery reads the runner's own glob (test/*.test.ts, through the shared reader's
  * readRunnerGlob -- no fixtures/, and scan-source.ts itself is out by construction) through the
  * comment-stripper, and keys a site on a rect read OF THE RING, in exactly two shapes:
- *   A -- one line containing both 'anim-cli-highlight' and '.getBoundingClientRect()';
- *   B -- a line binding a variable from 'anim-cli-highlight' and '.getBoundingClientRect()'
+ *   A -- one line containing both 'vistaro-highlight' and '.getBoundingClientRect()';
+ *   B -- a line binding a variable from 'vistaro-highlight' and '.getBoundingClientRect()'
  *        called on that exact variable within the next 2 lines.
  * The receiver tightening is the point: browser.test.ts:1137-1142 is the CORRECT pattern -- the
  * comment at :1137-1138 cites the pulse, :1139 binds the ring, :1140 reads
@@ -46,7 +46,7 @@ import { runtimeSource } from '../src/engine/inject';
  */
 
 // Runtime-assembled so this file's own text never carries a contiguous pattern (see header).
-const RING_ID = ['anim-cli', 'highlight'].join('-');
+const RING_ID = ['vistaro', 'highlight'].join('-');
 const RECT_CALL = ['.', 'getBoundingClientRect', '()'].join('');
 
 // Shape B's window: the binding line plus its 2 following lines. Ratchet -- see header.
@@ -103,7 +103,7 @@ const EXEMPT_SITES: Site[] = [
     { file: 'browser.test.ts', line: 489, shape: 'A' },
     // guide.test.ts:362 -- a ±1px position assert at :368-369, made exact by its own asserted
     // precondition: `m.animations === 0` at :367 on a spotlight held by
-    // runtime.js:87 `#anim-cli-highlight.anim-cli-hold { opacity: 1; animation: none; }`, so no
+    // runtime.js:87 `#vistaro-highlight.vistaro-hold { opacity: 1; animation: none; }`, so no
     // pulse is running to move the box.
     { file: 'guide.test.ts', line: 362, shape: 'B' },
 ];

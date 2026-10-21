@@ -38,13 +38,13 @@ const SOURCES = [
         name: 'runtime.js',
         read: runtimeSource,
         // runtime.js:1908 -- the exported api object, plain code at the IIFE's end.
-        identity: 'window.__anim = api',
+        identity: 'window.__vistaro = api',
     },
     {
         name: 'tour-bridge.js',
         read: tourBridgeSource,
         // tour-bridge.js:42 -- the post() helper's message tag, plain code.
-        identity: "source: 'anim-tour'",
+        identity: "source: 'vistaro-tour'",
     },
 ];
 
@@ -167,7 +167,7 @@ test('self-test: the stripper is load-bearing -- the raw runtime source trips, t
     // stripped text must not. If the raw scan goes clean, this proof went vacuous.
     const raw = runtimeSource();
     assert.ok(rawTokenProblems(raw).length >= 1, 'the raw runtime.js scan no longer trips on its comment tokens (runtime.js:18 "require/import") -- the stripper proof below went vacuous');
-    assertImportFree('runtime.js', raw, 'window.__anim = api');
+    assertImportFree('runtime.js', raw, 'window.__vistaro = api');
     // The stripper's contract: same length, same newlines -- offsets and line numbers stay true.
     const stripped = stripComments(raw);
     assert.equal(stripped.length, raw.length, 'stripping changed the length -- offsets would lie');

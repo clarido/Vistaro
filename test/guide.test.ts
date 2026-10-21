@@ -36,14 +36,14 @@ function subtitleBandDarkFraction(file: string): number {
 let work: string;
 before(() => {
     if (skip) return;
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-guide-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-guide-'));
     fs.cpSync(fixture, path.join(work, 'basic'), { recursive: true });
     // The fixture doubles as the `verify` contract's target (`cli.ts verify test/fixtures/basic`
     // writes verify.* and an export event into it), so a working tree can carry those artifacts.
     // A copy that still carries them is not "a directory without a video": prune what the tools
     // emit so every test below sees the authored fixture (verify.json joined .gitignore's list;
     // the manifest is tracked in real demo dirs but not in fixtures).
-    for (const f of ['anim.manifest.json', 'verify.json', 'verify.mp4', 'verify.vtt', 'verify.strip.png']) {
+    for (const f of ['vistaro.manifest.json', 'verify.json', 'verify.mp4', 'verify.vtt', 'verify.strip.png']) {
         fs.rmSync(path.join(work, 'basic', f), { force: true });
     }
 });
@@ -70,7 +70,7 @@ test('isGuideStep skips guide:false and target-less wait/camera/scroll; cropBox 
 test('renderMarkdown/renderHtml produce the documented structure', () => {
     const g: GuideJson = {
         version: 1, slug: 's', title: 'My *guide*', app: 'App', locale: 'en', baseLocale: 'en', generatedAt: '2026-01-01T00:00:00.000Z',
-        source: { dir: 'demo', contentHash: 'sha256:abc', tool: 'screenshot-animator@1.1.0' },
+        source: { dir: 'demo', contentHash: 'sha256:abc', tool: 'vistaro@1.1.0' },
         viewport: { width: 1280, height: 800, deviceScaleFactor: 2, theme: 'light' },
         video: { file: '../out.mp4', durationMs: 5000, poster: 'assets/poster.png', subtitles: '../out.vtt', narration: false, chapters: [{ startMs: 0, endMs: 2000, title: 'Overview' }] },
         steps: [
@@ -92,12 +92,12 @@ test('renderMarkdown/renderHtml produce the documented structure', () => {
 });
 
 test('hashGuideDir changes with content and ignores generated files', () => {
-    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-hash-'));
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-hash-'));
     fs.writeFileSync(path.join(d, 'index.html'), '<p>a</p>');
-    fs.writeFileSync(path.join(d, 'anim.config.json'), '[]');
+    fs.writeFileSync(path.join(d, 'vistaro.config.json'), '[]');
     const h1 = hashGuideDir(d);
     fs.writeFileSync(path.join(d, 'animated.html'), 'generated');
-    fs.writeFileSync(path.join(d, 'anim.manifest.json'), '{}');
+    fs.writeFileSync(path.join(d, 'vistaro.manifest.json'), '{}');
     assert.equal(hashGuideDir(d), h1);
     fs.writeFileSync(path.join(d, 'preview.png'), 'x');
     fs.writeFileSync(path.join(d, 'out.gif'), 'x');
@@ -127,7 +127,7 @@ function expectedCallout(rect: { x: number; y: number; width: number; height: nu
 }
 
 test('cleanStaleAssets removes only generated step files', () => {
-    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-stale-'));
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-stale-'));
     for (const f of ['step-01.png', 'step-01.crop.png', 'step-02.mp4', 'step-03.aiff', 'poster.png', 'keep.txt', 'notes-step-01.png']) fs.writeFileSync(path.join(d, f), 'x');
     const removed = cleanStaleAssets(d).sort();
     assert.deepEqual(removed, ['poster.png', 'step-01.crop.png', 'step-01.png', 'step-02.mp4', 'step-03.aiff']);
@@ -191,14 +191,14 @@ test('guide <dir> without a video: screenshots, crops, callouts, guide.json/.md/
     assert.match(md, /## 1\. Open the panel/);
     assert.match(md, /> Open it\./);
     assert.ok(fs.existsSync(path.join(dir, 'guide', 'guide.html')));
-    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8'));
     assert.equal(manifest.history.at(-1).command, 'guide');
 });
 
 test('a target that vanished keeps its guide entry with error, plain frame, no marks; exit 1', { skip }, () => {
     const dir = path.join(work, 'vanish');
     fs.cpSync(fixture, dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { cursor: 'mac' }, steps: [
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { cursor: 'mac' }, steps: [
         { time: 0, action: 'click', target: '#btn', title: 'Open' },
         { time: 1, action: 'highlight', target: '#gone', title: 'Vanished' },
         { time: 2, action: 'highlight', target: '#note', title: 'Notice' },
@@ -242,7 +242,7 @@ test('export --guide --clips: video block, chapters, poster, clips wired into gu
     const click = g.steps[0];
     // The guide does not re-time anything: its actualMs is the video pass's own measurement, so the
     // two numbers must be identical rather than merely close to the schedule.
-    const exportEvent = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const exportEvent = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     const clickStep = exportEvent.steps.find((s: any) => s.index === click.index);
     assert.equal(click.actualMs, clickStep.actualMs, 'guide actualMs comes from the video pass');
     assert.ok(click.actualMs >= 900, `and it is the real interaction moment: ${click.actualMs}ms`);
@@ -273,7 +273,7 @@ test('export --guide --clips: video block, chapters, poster, clips wired into gu
           const n = await p.evaluate(() => { const t = document.querySelector('video').textTracks; return t.length ? (t[0].cues ? t[0].cues.length : -1) : 0; });
           console.log(n); await b.close(); })();`, path.join(work, 'g', 'guide.html')], { cwd: root, encoding: 'utf8', timeout: CLI_TIMEOUT_MS, killSignal: 'SIGKILL' });
     assert.equal(parseInt(cueCount.stdout.trim(), 10) >= 2, true, `cues on file://: ${cueCount.stdout} ${cueCount.stderr}`);
-    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8'));
     const ev = manifest.history.at(-1);
     assert.equal(ev.guide, '../g', 'manifest paths are relative to the output dir');
     assert.equal(ev.output, '../out.mp4');
@@ -300,7 +300,7 @@ test('an "only" gap keeps guide lookups correct: narration maps by authored inde
       <button id="btn">Go</button>
       <input id="field">
     </body></html>`);
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { title: 'Gap', cursor: 'mac', drift: false }, steps: [
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { title: 'Gap', cursor: 'mac', drift: false }, steps: [
         { id: 'open', time: 0.5, action: 'click', target: '#btn', title: 'Open', narration: 'Open it now.' },
         { id: 'phone', time: 1.5, action: 'highlight', target: '#btn', title: 'Phone only', only: 'mobile' },
         { id: 'type', time: 2.5, action: 'type', target: '#field', value: 'Hello world', title: 'Type' },
@@ -344,21 +344,21 @@ test('guide marks never capture mid-transition: whenSettled outlasts a 3s CSS fa
         const { page } = launched;
         await page.goto(fileUrl(path.join(dir, 'index.html')), { waitUntil: 'load' });
         await ensureRuntime(page, timeline, { drift: false });
-        await page.evaluate(() => (window as any).__anim.start());
+        await page.evaluate(() => (window as any).__vistaro.start());
         // The spotlight sits on #item-3 first, so the mark on #cinematic-text has to move.
-        await page.evaluate(() => (window as any).__anim.holdHighlight(document.querySelector('#item-3')));
-        const r: any = await page.evaluate((s) => (window as any).__anim.runStep(s, { leadMs: 0 }), timeline.steps[1]);
-        await page.evaluate((t) => (window as any).__anim.whenDone(t), r.token);
+        await page.evaluate(() => (window as any).__vistaro.holdHighlight(document.querySelector('#item-3')));
+        const r: any = await page.evaluate((s) => (window as any).__vistaro.runStep(s, { leadMs: 0 }), timeline.steps[1]);
+        await page.evaluate((t) => (window as any).__vistaro.whenDone(t), r.token);
         const early = await page.evaluate(() => getComputedStyle(document.querySelector('#cinematic-text')!).opacity);
-        const settled: any = await page.evaluate(() => (window as any).__anim.whenSettled({ timeoutMs: 10000 }));
+        const settled: any = await page.evaluate(() => (window as any).__vistaro.whenSettled({ timeoutMs: 10000 }));
         const late = await page.evaluate(() => getComputedStyle(document.querySelector('#cinematic-text')!).opacity);
         assert.equal(late, '1', `opacity after whenSettled (was ${early} at completion; waited ${settled.waited}ms for ${settled.animations} animation(s))`);
         assert.equal(settled.timedOut, false);
         assert.ok(settled.waited < 9000, `did not hit the hang guard: ${settled.waited}ms`);
         const m: any = await page.evaluate(() => {
-            const a = (window as any).__anim;
+            const a = (window as any).__vistaro;
             const marks = a.markStep({ target: '#cinematic-text', number: 3 });
-            const h = document.getElementById('anim-cli-highlight')!;
+            const h = document.getElementById('vistaro-highlight')!;
             const b = h.getBoundingClientRect();
             return { rect: marks.rect, box: { x: b.left, y: b.top, width: b.width, height: b.height }, animations: h.getAnimations().length };
         });
@@ -369,7 +369,7 @@ test('guide marks never capture mid-transition: whenSettled outlasts a 3s CSS fa
         assert.ok(Math.abs(m.box.y - (m.rect.y - 6)) <= 1 && Math.abs(m.box.height - (m.rect.height + 16)) <= 1);
         // A page with an endless animation does not hold the capture for the whole guard.
         await page.evaluate(() => { const st = document.createElement('style'); st.textContent = '@keyframes spin { to { transform: rotate(360deg) } } #spinner { animation: spin 1s linear infinite; }'; document.head.appendChild(st); const d = document.createElement('div'); d.id = 'spinner'; d.textContent = 'x'; document.body.appendChild(d); });
-        const spin: any = await page.evaluate(() => (window as any).__anim.whenSettled({ timeoutMs: 10000 }));
+        const spin: any = await page.evaluate(() => (window as any).__vistaro.whenSettled({ timeoutMs: 10000 }));
         assert.equal(spin.animations, 0, 'infinite animations are skipped');
     } finally {
         await launched.close();
@@ -397,7 +397,7 @@ test('a click that hides its own target keeps the frame taken before the click; 
         });
       </script>
     </body></html>`);
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({
         meta: { title: 'Screen swap', cursor: 'mac', drift: false },
         steps: [
             { id: 'go', time: 0.5, action: 'click', target: '#go', title: 'Continue' },

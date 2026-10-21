@@ -21,7 +21,7 @@ export interface GuideOptions extends ViewportOptions {
     crop?: string | number | false;
     clips?: string;
     locale?: string;
-    /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
+    /** --config: a timeline other than <dir>/vistaro.config.json (cwd-relative on the CLI). */
     config?: string;
     force?: boolean;
     hideCursor?: boolean;
@@ -33,7 +33,7 @@ export interface GuideOptions extends ViewportOptions {
     ignoreHttpsErrors?: boolean;
     /** Live replay: shell command run before the pass (default meta.reset). */
     resetCmd?: string;
-    /** Allow `meta.reset` from anim.config.json to run (a shell command out of a file). */
+    /** Allow `meta.reset` from vistaro.config.json to run (a shell command out of a file). */
     allowReset?: boolean;
 }
 

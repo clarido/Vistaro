@@ -161,8 +161,8 @@
     line-height: 1.04;
     margin: 0 0 18px;
   }
-  .section-head { margin-bottom: var(--space-head); max-width: 760px; }
-  .section-lead { color: var(--muted); font-size: var(--text-lead); line-height: 1.6; max-width: 60ch; margin: 0; }
+  .section-head { margin-bottom: var(--space-head); max-width: 900px; }
+  .section-lead { color: var(--muted); font-size: var(--text-lead); line-height: 1.6; max-width: 74ch; margin: 0; }
 
   .text-link { color: var(--accent-hi); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
   .text-link:hover { color: var(--ink); }
@@ -311,7 +311,7 @@
     overflow: hidden;
     background: var(--panel);
   }
-  .stage-frame anim-tour { display: block; }
+  .stage-frame vistaro-tour { display: block; }
   .source-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 0; }
   .source-grid .codeblock { border: 0; border-radius: 0; }
   .source-grid .codeblock + .codeblock { border-left: 1px solid var(--line); }
@@ -407,7 +407,7 @@
     background: var(--panel);
   }
   .output-media video, .output-media > img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; background: #F4F1EA; }
-  .output-media anim-tour { display: block; }
+  .output-media vistaro-tour { display: block; }
   /* a tall artifact (the guide page) shows its top and fades out, instead of being cropped to 16:9 */
   .output-media.page { max-height: 520px; background: #F4F6FA; -webkit-mask-image: linear-gradient(#000 78%, transparent); mask-image: linear-gradient(#000 78%, transparent); }
   .output-media.page img { display: block; width: 100%; height: auto; aspect-ratio: auto; object-fit: fill; background: none; }
@@ -423,12 +423,12 @@
   .gallery-more { display: flex; flex-wrap: wrap; gap: 4px 32px; margin-top: 28px; }
 
   /* the reel panel reuses the CLI's own embed page */
-  .anim-embed { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; }
+  .vistaro-embed { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; }
   /* the reel is authored at 1280x720: render it there and scale, or a narrow frame reflows its layout */
-  .anim-embed-frame { position: absolute; top: 0; left: 0; width: 1280px; height: 720px; border: 0; transform-origin: 0 0; transform: scale(var(--reel-scale, .5)); }
-  .anim-embed-frame:focus-visible { outline-offset: -2px; }
+  .vistaro-embed-frame { position: absolute; top: 0; left: 0; width: 1280px; height: 720px; border: 0; transform-origin: 0 0; transform: scale(var(--reel-scale, .5)); }
+  .vistaro-embed-frame:focus-visible { outline-offset: -2px; }
   .reel-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .anim-embed.is-playing .reel-poster { display: none; }
+  .vistaro-embed.is-playing .reel-poster { display: none; }
   .media-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: var(--text-meta); }
   .reel-toggle {
     display: inline-flex; align-items: center; gap: 8px;
@@ -578,7 +578,7 @@
     .segmented [role="tab"] { flex: 1; padding-left: 6px; padding-right: 6px; white-space: nowrap; font-size: 14px; }
     .prompt-list { padding: 16px; gap: 20px; }
     .stage-frame { border-radius: 14px; }
-    .anim-embed, .reel-bar { display: none; }
+    .vistaro-embed, .reel-bar { display: none; }
     .reel-fallback { display: block; }
     .compare-table thead { display: none; }
     .compare-table, .compare-table tbody, .compare-table tr, .compare-table th, .compare-table td { display: block; width: auto; }
@@ -604,17 +604,17 @@
       Vistaro
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Main">
-      <a href="start.html">Get started</a>
       <a href="formats.html">Formats</a>
       <a href="animations.html">Animations</a>
       <a href="#how">How it works</a>
       <a href="#compare">Compare</a>
       <a href="#faq">FAQ</a>
-      <a class="mobile-cta" href="https://github.com/clarido/Vistaro">View on GitHub</a>
+      <a class="mobile-cta" href="start.html">Get started</a>
     </nav>
     <div class="nav-cta">
+      <a class="nav-npm" href="https://github.com/clarido/Vistaro">GitHub</a>
       <a class="nav-npm" href="https://www.npmjs.com/package/vistaro">npm</a>
-      <a class="btn btn-primary btn-sm" href="https://github.com/clarido/Vistaro">View on GitHub</a>
+      <a class="btn btn-primary btn-sm" href="start.html">Get started</a>
       <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
@@ -653,12 +653,12 @@
         </div>
       </div>
       <div class="stage-frame" role="tabpanel" id="panel-demo" aria-labelledby="tab-demo">
-        <anim-tour src="src/clarido-tour-out/" scenario="draft-response" autoplay="inview" height="760"></anim-tour>
+        <vistaro-tour src="src/clarido-tour-out/" scenario="draft-response" autoplay="inview" height="760"></vistaro-tour>
       </div>
       <div role="tabpanel" id="panel-source" aria-labelledby="tab-source" hidden>
         <div class="stage-frame source-grid">
           <div class="codeblock">
-            <div class="cb-bar"><span class="cb-dot"></span>demo/anim.config.json · the timeline</div>
+            <div class="cb-bar"><span class="cb-dot"></span>demo/vistaro.config.json · the timeline</div>
 <pre>{ <span class="k">"meta"</span><span class="p">:</span> { <span class="k">"title"</span><span class="p">:</span> <span class="s">"Draft a proposal response"</span>, <span class="k">"app"</span><span class="p">:</span> <span class="s">"Clarido"</span> },
   <span class="k">"steps"</span><span class="p">:</span> [
     { <span class="k">"id"</span><span class="p">:</span> <span class="s">"progress"</span>, <span class="k">"time"</span><span class="p">:</span> <span class="s">"2.2s"</span>, <span class="k">"action"</span><span class="p">:</span> <span class="s">"highlight"</span>,
@@ -699,7 +699,7 @@
      the agent from your UI --&gt;</span></pre>
           </div>
         </div>
-        <p class="source-foot">Trimmed for reading: 5 of the timeline's 9 steps, and the top of the screen. The full files are on GitHub: <a class="inline-link" href="https://github.com/clarido/Vistaro/blob/main/demo/anim.config.json">the timeline</a> and <a class="inline-link" href="https://github.com/clarido/Vistaro/blob/main/demo/index.html">the screen</a>. Every selector in the timeline points at the screen.</p>
+        <p class="source-foot">Trimmed for reading: 5 of the timeline's 9 steps, and the top of the screen. The full files are on GitHub: <a class="inline-link" href="https://github.com/clarido/Vistaro/blob/main/demo/vistaro.config.json">the timeline</a> and <a class="inline-link" href="https://github.com/clarido/Vistaro/blob/main/demo/index.html">the screen</a>. Every selector in the timeline points at the screen.</p>
       </div>
       <div role="tabpanel" id="panel-prompts" aria-labelledby="tab-prompts" hidden>
         <ol class="stage-frame prompt-list">
@@ -768,9 +768,9 @@
 
     <div class="output" role="tabpanel" id="out-reel" aria-labelledby="out-tab-reel" hidden>
       <div class="output-media">
-        <div class="anim-embed" id="reelEmbed">
+        <div class="vistaro-embed" id="reelEmbed">
           <img class="reel-poster" src="assets/ask-anything.poster.webp" alt="The reel's last frame: Clarido's pipeline view answering &quot;Where is churn risk hiding?&quot; with a bar chart and $310K recoverable this quarter" loading="lazy">
-          <iframe class="anim-embed-frame" src="src/ask-anything/embed-desktop.html" title="Marketing reel made with Vistaro: Ask anything" loading="lazy" tabindex="-1"></iframe>
+          <iframe class="vistaro-embed-frame" src="src/ask-anything/embed-desktop.html" title="Marketing reel made with Vistaro: Ask anything" loading="lazy" tabindex="-1"></iframe>
         </div>
         <div class="media-bar reel-bar">
           <span>10-second loop</span>
@@ -794,7 +794,7 @@
 
     <div class="output" role="tabpanel" id="out-fr" aria-labelledby="out-tab-fr" hidden>
       <div class="output-media tour-slot" id="frSlot">
-        <anim-tour src="src/clarido-tour-fr-out/" scenario="draft-response" autoplay="inview" height="560"></anim-tour>
+        <vistaro-tour src="src/clarido-tour-fr-out/" scenario="draft-response" autoplay="inview" height="560"></vistaro-tour>
         <img class="tour-poster" src="assets/clarido-fr.poster.webp" alt="" loading="lazy">
       </div>
       <div class="output-copy">
@@ -849,7 +849,7 @@
           <div class="cb-bar"><span class="cb-dot"></span>your repo, after one prompt</div>
 <pre>demo/
   index.html        <span class="c">the screen</span>
-  anim.config.json  <span class="c">the timeline</span>
+  vistaro.config.json  <span class="c">the timeline</span>
   locales/fr/       <span class="c">in French</span>
 
 demo.mp4 + .vtt     <span class="c">the video</span>
@@ -1040,7 +1040,7 @@ tour-out/           <span class="c">the tour</span></pre>
   (function () {
     var embed = document.getElementById('reelEmbed');
     if (!embed) return;
-    var frame = embed.querySelector('.anim-embed-frame');
+    var frame = embed.querySelector('.vistaro-embed-frame');
     var toggle = document.getElementById('reelToggle');
     var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     var userPaused = false;
@@ -1064,7 +1064,7 @@ tour-out/           <span class="c">the tour</span></pre>
       if (ok && inView && !userPaused && !reduced.matches) { post('play'); setPlaying(true); }
     });
     function post(type) {
-      if (frame && frame.contentWindow) frame.contentWindow.postMessage({ source: 'anim-cli', type: type }, '*');
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage({ source: 'vistaro', type: type }, '*');
     }
     function setPlaying(on) {
       embed.classList.toggle('is-playing', on);
@@ -1116,7 +1116,7 @@ tour-out/           <span class="c">the tour</span></pre>
   (function () {
     var slot = document.getElementById('frSlot');
     if (!slot) return;
-    var tour = slot.querySelector('anim-tour');
+    var tour = slot.querySelector('vistaro-tour');
     if (tour) tour.addEventListener('tourready', function () { slot.classList.add('is-ready'); });
   })();
 
@@ -1164,6 +1164,6 @@ tour-out/           <span class="c">the tour</span></pre>
     });
   })();
 </script>
-<script type="module" src="src/clarido-tour-out/anim-tour.js"></script>
+<script type="module" src="src/clarido-tour-out/vistaro-tour.js"></script>
 </body>
 </html>

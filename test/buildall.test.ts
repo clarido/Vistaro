@@ -34,7 +34,7 @@ async function cliAsync(args: string[], cwd = root): Promise<CliSpawnResult> {
 }
 
 let work: string;
-before(() => { work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-buildall-')); });
+before(() => { work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-buildall-')); });
 after(() => { if (work) fs.rmSync(work, { recursive: true, force: true }); });
 
 function png(file: string, w: number, h: number, rgb: [number, number, number]) {
@@ -60,7 +60,7 @@ test('readCatalog validates shape, dirs, slugs, locales, outputs, settings types
     assert.deepEqual(effectiveSettings({ slug: 'x', dir: 'x', crop: false, width: 800 }, { crop: 60, width: 640, height: 400 }), { width: 800, height: 400, theme: undefined, crop: false, narration: false, hideCursor: false, outputs: ['guide'], device: undefined, scale: undefined, kind: 'guide' }, 'guide values win over defaults, crop/hideCursor per guide');
     fs.writeFileSync(path.join(d, 'bad.json'), JSON.stringify({ outputDir: '', defaults: { width: '1280', theme: 'sepia', outputs: 'guide', crop: -1 }, guides: [{ slug: 'Bad Slug', dir: 'missing' }, { slug: 'g1', dir: 'g1', locales: ['nope-dir-name'], outputs: ['pdf'], narration: 'yes', hideCursor: 1, height: 0 }, { slug: 'g1', dir: 'g1', record: {} }, { slug: 'g2', dir: 'g1', record: { url: 'http://x', storageState: 'nope.json' } }, { slug: 'g3', dir: 'g1', record: { url: 'http://x' }, outputs: ['embed'] }] }));
     assert.throws(() => readCatalog(path.join(d, 'bad.json')), (e: any) => {
-        for (const needle of ['"outputDir" must be', 'lowercase-kebab', 'has no anim.config.json', 'not a locale code', 'unknown output "pdf"', 'duplicate slug "g1"', '"record" needs a "url"',
+        for (const needle of ['"outputDir" must be', 'lowercase-kebab', 'has no vistaro.config.json', 'not a locale code', 'unknown output "pdf"', 'duplicate slug "g1"', '"record" needs a "url"',
             'defaults: "width" must be a positive integer', 'defaults: "theme" must be "light" or "dark"', 'defaults: "outputs" must be an array', 'defaults: "crop" must be a padding', 'guides[1]: "narration" must be true or false', 'guides[1]: "hideCursor" must be true or false', 'guides[1]: "height" must be a positive integer', 'record.storageState', 'does not exist',
             'output "embed" cannot be combined with "record"']) assert.ok(e.message.includes(needle), `${needle} in: ${e.message}`);
         return true;
@@ -90,11 +90,11 @@ test('readCatalog validates shape, dirs, slugs, locales, outputs, settings types
     fs.mkdirSync(path.join(d, 'guides', 'foo'), { recursive: true });
     fs.cpSync(fixture, path.join(d, 'guides', 'foo'), { recursive: true });
     fs.mkdirSync(path.join(d, 'guides', 'foo-de'), { recursive: true });
-    fs.copyFileSync(path.join(g.dir, 'anim.config.json'), path.join(d, 'guides', 'foo-de', 'anim.config.json'));
+    fs.copyFileSync(path.join(g.dir, 'vistaro.config.json'), path.join(d, 'guides', 'foo-de', 'vistaro.config.json'));
     fs.writeFileSync(path.join(d, 'map.json'), JSON.stringify({ outputDir: 'out', guides: [{ slug: 'foo', dir: 'guides/foo', locales: { de: 'guides/foo-de', it: 'guides/foo-it' } }] }));
     const cm = readCatalog(path.join(d, 'map.json'));
     assert.equal(locateLocaleDir(cm.guides[0], 'de', 'en').dir, path.join(d, 'guides', 'foo-de'));
-    assert.match(locateLocaleDir(cm.guides[0], 'it', 'en').error || '', /locales\.it points at .*foo-it, which has no anim\.config\.json/, 'an explicit-map miss is its own message');
+    assert.match(locateLocaleDir(cm.guides[0], 'it', 'en').error || '', /locales\.it points at .*foo-it, which has no vistaro\.config\.json/, 'an explicit-map miss is its own message');
     // the build key changes with the sources, the settings and the tool; not with key order
     const st = effectiveSettings(cm.guides[0], { width: 640 });
     const k1 = buildKeyFor('sha256:a', st, undefined, 'tool@1');
@@ -120,9 +120,9 @@ test('init-config refuses an unknown --kind instead of silently scaffolding the 
     const r = cli(['init-config', d, '--kind', 'reels']);
     assert.equal(r.status, 1, r.stderr + r.stdout);
     assert.match(r.stderr, /unknown --kind "reels"/);
-    assert.ok(!fs.existsSync(path.join(d, 'anim.config.json')), 'nothing scaffolded for a typo');
+    assert.ok(!fs.existsSync(path.join(d, 'vistaro.config.json')), 'nothing scaffolded for a typo');
     assert.equal(cli(['init-config', d, '--kind', 'reel']).status, 0);
-    assert.match(fs.readFileSync(path.join(d, 'anim.config.json'), 'utf8'), /"kind": "reel"/);
+    assert.match(fs.readFileSync(path.join(d, 'vistaro.config.json'), 'utf8'), /"kind": "reel"/);
 });
 
 test('mergeIndexEntries keeps untouched entries, replaces touched ones, drops entries no longer in the catalog', () => {
@@ -171,10 +171,10 @@ test('build-all: guide x locale outputs, index, --changed-only skips, --diff mar
     // dry run lists the plan without running anything
     const dry = cli(['build-all', 'help.catalog.json', '--dry-run'], d);
     assert.equal(dry.status, 0, dry.stderr + dry.stdout);
-    assert.match(dry.stdout, /basic\/fr:[\s\S]*anim-cli check .*--locale fr[\s\S]*anim-cli build[\s\S]*anim-cli export .*--guide/);
+    assert.match(dry.stdout, /basic\/fr:[\s\S]*vistaro check .*--locale fr[\s\S]*vistaro build[\s\S]*vistaro export .*--guide/);
     assert.match(dry.stdout, /Dry run: 2 .*Nothing was written/);
     assert.ok(!fs.existsSync(path.join(d, 'help-out')), 'a dry run creates no output tree or index');
-    assert.ok(!fs.existsSync(path.join(d, 'basic', 'anim.manifest.json')) || !JSON.parse(fs.readFileSync(path.join(d, 'basic', 'anim.manifest.json'), 'utf8')).history.some((h: any) => h.command === 'build-all'), 'a dry run records nothing');
+    assert.ok(!fs.existsSync(path.join(d, 'basic', 'vistaro.manifest.json')) || !JSON.parse(fs.readFileSync(path.join(d, 'basic', 'vistaro.manifest.json'), 'utf8')).history.some((h: any) => h.command === 'build-all'), 'a dry run records nothing');
 
     const r = cli(['build-all', 'help.catalog.json'], d);
     assert.equal(r.status, 0, r.stderr + r.stdout);
@@ -201,7 +201,7 @@ test('build-all: guide x locale outputs, index, --changed-only skips, --diff mar
     assert.ok(en0.builtAt && !Number.isNaN(Date.parse(en0.builtAt)), 'builtAt per entry');
     assert.ok(typeof en0.durationMs === 'number' && en0.durationMs > 0, 'durationMs');
     assert.match(en0.buildKey || '', /^sha256:/);
-    const manifestEn = JSON.parse(fs.readFileSync(path.join(d, 'basic', 'anim.manifest.json'), 'utf8'));
+    const manifestEn = JSON.parse(fs.readFileSync(path.join(d, 'basic', 'vistaro.manifest.json'), 'utf8'));
     assert.match(manifestEn.contentHash.en, /^sha256:/);
     assert.equal(manifestEn.history.at(-1).command, 'build-all');
     assert.match(manifestEn.buildKey.en, /^sha256:/);
@@ -212,7 +212,7 @@ test('build-all: guide x locale outputs, index, --changed-only skips, --diff mar
     assert.equal(dry2.status, 0, dry2.stderr + dry2.stdout);
     assert.match(dry2.stdout, /basic\/en: unchanged .*would be skipped/);
     assert.equal(fs.readFileSync(path.join(d, 'help-out', 'index.json'), 'utf8'), indexBefore, 'dry run must not rewrite index.json');
-    assert.equal(JSON.parse(fs.readFileSync(path.join(d, 'basic', 'anim.manifest.json'), 'utf8')).history.length, manifestEn.history.length, 'dry run records nothing');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(d, 'basic', 'vistaro.manifest.json'), 'utf8')).history.length, manifestEn.history.length, 'dry run records nothing');
 
     // --changed-only also notices catalog render settings: a new width rebuilds even though the sources are unchanged
     const catalogFile = path.join(d, 'help.catalog.json');
@@ -220,7 +220,7 @@ test('build-all: guide x locale outputs, index, --changed-only skips, --diff mar
     fs.writeFileSync(catalogFile, catalogText.replace('"width": 640', '"width": 600'));
     const dry3 = cli(['build-all', 'help.catalog.json', '--dry-run', '--changed-only'], d);
     assert.equal(dry3.status, 0, dry3.stderr + dry3.stdout);
-    assert.match(dry3.stdout, /basic\/en: sources unchanged but the render settings or tool changed, rebuilding[\s\S]*anim-cli export .*--width 600/);
+    assert.match(dry3.stdout, /basic\/en: sources unchanged but the render settings or tool changed, rebuilding[\s\S]*vistaro export .*--width 600/);
     assert.doesNotMatch(dry3.stdout, /would be skipped/);
     fs.writeFileSync(catalogFile, catalogText);
 
@@ -229,7 +229,7 @@ test('build-all: guide x locale outputs, index, --changed-only skips, --diff mar
     assert.equal(c1.status, 0, c1.stderr + c1.stdout);
     assert.match(c1.stdout, /0 built, 2 skipped/);
     assert.doesNotMatch(c1.stdout, /→ basic/, 'no check/build/export was run');
-    assert.equal(JSON.parse(fs.readFileSync(path.join(d, 'basic', 'anim.manifest.json'), 'utf8')).history.length, manifestEn.history.length, 'skipping records nothing');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(d, 'basic', 'vistaro.manifest.json'), 'utf8')).history.length, manifestEn.history.length, 'skipping records nothing');
     const idx1: IndexJson = JSON.parse(fs.readFileSync(path.join(d, 'help-out', 'index.json'), 'utf8'));
     assert.deepEqual(idx1.guides.map(g => g.status), ['skipped', 'skipped']);
     assert.equal(idx1.guides[0].guide, 'basic/en/guide/guide.json', 'skipped entries keep their links');
@@ -266,7 +266,7 @@ test('build-all: guide x locale outputs, index, --changed-only skips, --diff mar
 
     // a failing guide: exit 1, index says failed; default stops at the first failure, --continue-on-error runs the rest
     fs.cpSync(fixture, path.join(d, 'broken'), { recursive: true });
-    fs.writeFileSync(path.join(d, 'broken', 'anim.config.json'), JSON.stringify([{ time: 0.5, action: 'click', target: '#missing', title: 'x' }]));
+    fs.writeFileSync(path.join(d, 'broken', 'vistaro.config.json'), JSON.stringify([{ time: 0.5, action: 'click', target: '#missing', title: 'x' }]));
     fs.writeFileSync(path.join(d, 'help.catalog.json'), JSON.stringify({
         outputDir: 'help-out', defaults: { locales: ['en'], width: 640, height: 400, crop: 60 }, // same render settings as before, so basic is still unchanged
         guides: [{ slug: 'broken', dir: 'broken' }, { slug: 'basic', dir: 'basic' }],
@@ -295,7 +295,7 @@ test('build-all: a record entry builds against a live page, with and without sto
         const host = new URL(app.url).hostname;
         // Without storage state: the timeline logs in (form POST + redirect) then highlights the async list.
         fs.mkdirSync(path.join(d, 'live-login'));
-        fs.writeFileSync(path.join(d, 'live-login', 'anim.config.json'), JSON.stringify({
+        fs.writeFileSync(path.join(d, 'live-login', 'vistaro.config.json'), JSON.stringify({
             meta: { title: 'Sign in', url: `${app.url}/login`, cursor: 'mac', tailMs: 500 },
             steps: [
                 { id: 'user', time: 0.5, action: 'type', target: '[data-help="login-user"]', value: 'ada', title: 'Enter your user name' },
@@ -306,7 +306,7 @@ test('build-all: a record entry builds against a live page, with and without sto
         // With storage state: the session cookie skips the login; the URL is the dashboard itself.
         fs.mkdirSync(path.join(d, 'live-auth'));
         fs.writeFileSync(path.join(d, 'auth.json'), JSON.stringify({ cookies: [{ name: 'session', value: '1', domain: host, path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' }], origins: [] }));
-        fs.writeFileSync(path.join(d, 'live-auth', 'anim.config.json'), JSON.stringify({
+        fs.writeFileSync(path.join(d, 'live-auth', 'vistaro.config.json'), JSON.stringify({
             meta: { title: 'Settings', url: `${app.url}/dashboard`, cursor: 'mac', tailMs: 500 },
             steps: [
                 { id: 'items', time: 0.8, action: 'highlight', target: '[data-help="items"] li:first-child', waitFor: '[data-help="items"] li', title: 'Your proposals' },
@@ -351,7 +351,7 @@ test('build-all: a record entry builds against a live page, with and without sto
 test('a reel catalog entry resolves its own defaults, and the build key tracks kind, device and scale', () => {
     const d = path.join(work, 'reelcat'); fs.mkdirSync(d, { recursive: true });
     fs.cpSync(fixture, path.join(d, 'clip'), { recursive: true });
-    fs.writeFileSync(path.join(d, 'clip', 'anim.config.json'), JSON.stringify({
+    fs.writeFileSync(path.join(d, 'clip', 'vistaro.config.json'), JSON.stringify({
         meta: { kind: 'reel', title: 'Clip' },
         steps: [{ id: 'a', time: 0.2, action: 'animate', target: '#btn', from: { opacity: 0 }, to: { opacity: 1 } }],
     }));

@@ -45,7 +45,7 @@ export const REEL_SCAFFOLD = {
 
 export function initConfigCommand(dir: string, options: { force?: boolean; kind?: string } = {}): void {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const target = path.join(dir, 'anim.config.json');
+    const target = path.join(dir, 'vistaro.config.json');
     if (fs.existsSync(target) && !options.force) {
         console.error(`Error: ${target} already exists (use --force to overwrite).`);
         process.exit(1);
@@ -62,9 +62,9 @@ export function initConfigCommand(dir: string, options: { force?: boolean; kind?
     fs.writeFileSync(target, JSON.stringify(reel ? REEL_SCAFFOLD : CONFIG_SCAFFOLD, null, 2) + '\n');
     console.log(`Created ${target}${reel ? ' (reel profile: silent, looping, no guide)' : ''}`);
     console.log('Edit the steps to match the element selectors in your index.html, then:');
-    console.log(`  npx tsx cli.ts check ${dir}     # validate selectors and timing`);
-    console.log(`  npx tsx cli.ts build ${dir}     # write animated.html`);
-    console.log(`  npx tsx cli.ts preview ${dir}   # one labelled frame per step`);
+    console.log(`  npx vistaro check ${dir}     # validate selectors and timing`);
+    console.log(`  npx vistaro build ${dir}     # write animated.html`);
+    console.log(`  npx vistaro preview ${dir}   # one labelled frame per step`);
     if (reel) {
         console.log('');
         console.log('Reel notes, none of which the tool can infer for you:');
@@ -75,7 +75,7 @@ export function initConfigCommand(dir: string, options: { force?: boolean; kind?
         console.log('    at 1s shows it for a full second before animating it in.');
         console.log('  - Declare <meta name="viewport" content="width=device-width, initial-scale=1"> in index.html.');
         console.log('  - Keep the mobile breakpoint above the widest recorded width (viewport x --scale).');
-        console.log(`  npx tsx cli.ts export ${dir} -o clip.mp4 --device mobile --scale 2   # mp4 + webm + poster + gif`);
-        console.log(`  npx tsx cli.ts build ${dir} --embed --device mobile                  # embed-mobile.html + snippet`);
+        console.log(`  npx vistaro export ${dir} -o clip.mp4 --device mobile --scale 2   # mp4 + webm + poster + gif`);
+        console.log(`  npx vistaro build ${dir} --embed --device mobile                  # embed-mobile.html + snippet`);
     }
 }

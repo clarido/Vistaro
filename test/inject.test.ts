@@ -13,26 +13,26 @@ test('runtime.js is plain browser JS (no require/import/TS)', () => {
     assert.ok(!/^\s*import\s/m.test(src));
     assert.ok(!/^\s*export\s/m.test(src));
     assert.ok(!/<\/script/i.test(src), 'must be safe to inline in a <script>');
-    assert.ok(src.includes('window.__anim = api'));
+    assert.ok(src.includes('window.__vistaro = api'));
 });
 
 test('buildAnimatedHtml inlines the runtime, boots with the timeline, and switches cursor', () => {
     const html = fs.readFileSync(path.join(fixture, 'index.html'), 'utf8');
-    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'anim.config.json'), 'utf8')));
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'vistaro.config.json'), 'utf8')));
     const mac = buildAnimatedHtml(html, tl, { cursor: 'mac' });
-    assert.ok(mac.includes('window.__anim'));
-    assert.ok(mac.includes('window.__anim.boot({'));
+    assert.ok(mac.includes('window.__vistaro'));
+    assert.ok(mac.includes('window.__vistaro.boot({'));
     assert.ok(mac.includes('"cursor":"mac"'));
     assert.ok(mac.includes('"defaultCps":25'));
-    assert.ok(mac.indexOf('anim-cli-runtime:start') < mac.lastIndexOf('</body>'));
+    assert.ok(mac.indexOf('vistaro-runtime:start') < mac.lastIndexOf('</body>'));
     const win = buildAnimatedHtml(html, tl, { cursor: 'windows', loop: true });
     assert.ok(win.includes('"cursor":"windows"'));
     assert.ok(win.includes('"loop":true'));
     // idempotent on its own output
     const twice = buildAnimatedHtml(mac, tl, { cursor: 'windows' });
-    assert.equal(twice.split('anim-cli-runtime:start').length, 2);
+    assert.equal(twice.split('vistaro-runtime:start').length, 2);
     assert.ok(!twice.includes('"cursor":"mac"'));
-    assert.equal(stripRuntime(mac).includes('window.__anim'), false);
+    assert.equal(stripRuntime(mac).includes('window.__vistaro'), false);
 });
 
 test('scriptJson escapes sequences that would break out of a <script>', () => {
@@ -48,7 +48,7 @@ test('meta.cursor is the default, CLI cursor overrides it, no </body> appends', 
     assert.ok(buildAnimatedHtml('<html><body></body></html>', tl, { cursor: 'none' }).includes('"cursor":"none"'));
     const out = buildAnimatedHtml('<p>no body tag</p>', tl);
     assert.ok(out.startsWith('<p>no body tag</p>'));
-    assert.ok(out.includes('window.__anim.boot('));
+    assert.ok(out.includes('window.__vistaro.boot('));
 });
 
 test('subtitleStyle resolves from the profile: stadium for a reel, glass for a guide', () => {

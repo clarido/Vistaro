@@ -14,8 +14,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const packageDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const require = createRequire(import.meta.url);
-// Either bin name installs this shim (screenshot-animator, vistaro): speak as whichever
-// command the user actually typed. Windows shims invoke node with the real file path, so the
+// The package installs this shim as `vistaro`: speak as whichever command name the user
+// actually typed (an alias, a renamed link). Windows shims invoke node with the real file path, so the
 // extension is stripped to at least degrade to the package name there.
 const invokedName = basename(process.argv[1] ?? 'vistaro').replace(/\.(mjs|cjs|js)$/i, '');
 

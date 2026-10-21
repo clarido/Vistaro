@@ -70,7 +70,7 @@ async function editorUrl(): Promise<string> {
 before(async () => {
     // The server boots even under SKIP_BROWSER: the API-only tests below have no browser of
     // their own, and the server itself spawns none unless check/export are called.
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-studio-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-studio-'));
     fs.cpSync(fixture, path.join(work, 'demo'), { recursive: true });
     // A strings file with a key on the step this suite renames: the save must move the key.
     fs.writeFileSync(path.join(work, 'demo', 'strings.en.json'),
@@ -99,7 +99,7 @@ test('studio API: PUT round-trips unknown fields and moves strings keys on an id
         body: JSON.stringify({ raw, renames: [{ from: oldId, to: 'intro-renamed' }] }),
     });
     assert.equal(put.status, 200, JSON.stringify(await put.json()));
-    const onDisk = JSON.parse(fs.readFileSync(path.join(work, 'demo', 'anim.config.json'), 'utf8'));
+    const onDisk = JSON.parse(fs.readFileSync(path.join(work, 'demo', 'vistaro.config.json'), 'utf8'));
     assert.equal(onDisk.steps[0].__custom, 'keep-me', 'unknown field round-trips');
     assert.equal(onDisk.steps[0].id, 'intro-renamed');
     const strings = JSON.parse(fs.readFileSync(path.join(work, 'demo', 'strings.en.json'), 'utf8'));
@@ -107,7 +107,7 @@ test('studio API: PUT round-trips unknown fields and moves strings keys on an id
     assert.equal(strings['steps.intro.title'], undefined, 'the old key is gone');
 
     // Invalid timelines are refused with the issue list, and the file is untouched.
-    const before = fs.readFileSync(path.join(work, 'demo', 'anim.config.json'), 'utf8');
+    const before = fs.readFileSync(path.join(work, 'demo', 'vistaro.config.json'), 'utf8');
     const bad = JSON.parse(JSON.stringify(onDisk));
     bad.steps[1].action = 'teleport';
     const refused = await fetch(server.url + '/api/timeline', {
@@ -118,12 +118,12 @@ test('studio API: PUT round-trips unknown fields and moves strings keys on an id
     assert.equal(refused.status, 422);
     const body = await refused.json();
     assert.ok(Array.isArray(body.issues) && body.issues.length > 0, 'issues come back');
-    assert.equal(fs.readFileSync(path.join(work, 'demo', 'anim.config.json'), 'utf8'), before, 'refused save wrote nothing');
+    assert.equal(fs.readFileSync(path.join(work, 'demo', 'vistaro.config.json'), 'utf8'), before, 'refused save wrote nothing');
 });
 
 test('studio preview: the full stack boots (runtime + tour bridge + studio bridge), reload swaps steps live, pick returns a selector', { skip }, async () => {
     const html = await (await fetch(server.url + '/preview')).text();
-    assert.ok(html.includes('<!-- anim-cli-runtime:end -->'), 'tour block injected');
+    assert.ok(html.includes('<!-- vistaro-runtime:end -->'), 'tour block injected');
     assert.ok(html.includes('window.__studio'), 'studio bridge injected after it');
 
     const browser = await chromium.launch();
@@ -137,23 +137,23 @@ test('studio preview: the full stack boots (runtime + tour bridge + studio bridg
             'window.addEventListener("message", function (e) { if (e.data && e.data.source) window.__seen.push(e.data); });'
         );
         await page.goto(server.url + '/preview', { waitUntil: 'networkidle' });
-        const booted = await page.evaluate('({ anim: !!window.__anim, tour: !!window.__tour, studio: !!window.__studio, total: window.__tour ? window.__tour.state().total : -1 })') as { anim: boolean; tour: boolean; studio: boolean; total: number };
-        assert.ok(booted.anim && booted.tour && booted.studio, 'runtime, tour bridge and studio bridge boot');
+        const booted = await page.evaluate('({ runtime: !!window.__vistaro, tour: !!window.__tour, studio: !!window.__studio, total: window.__tour ? window.__tour.state().total : -1 })') as { runtime: boolean; tour: boolean; studio: boolean; total: number };
+        assert.ok(booted.runtime && booted.tour && booted.studio, 'runtime, tour bridge and studio bridge boot');
         assert.equal(booted.total, 9, 'the timeline is loaded (9 steps)');
 
         // reload: swap to a two-step timeline in place; the scheduler must adopt it.
-        await page.evaluate('window.postMessage({ source: "anim-studio", type: "reload", steps: [' +
+        await page.evaluate('window.postMessage({ source: "vistaro-studio", type: "reload", steps: [' +
             '{ id: "a", time: "0s", action: "fadeIn", target: "body" },' +
             '{ id: "b", time: "1s", action: "click", target: "#btn" }], meta: {} }, location.origin)');
         await page.waitForFunction('window.__tour.state().total === 2', null, { timeout: 8000 });
-        const readyAgain = await page.evaluate('window.__seen.filter(function (m) { return m.source === "anim-tour" && m.type === "ready"; }).length') as number;
+        const readyAgain = await page.evaluate('window.__seen.filter(function (m) { return m.source === "vistaro-tour" && m.type === "ready"; }).length') as number;
         assert.ok(readyAgain >= 2, 'boot posted a fresh ready after the reload');
 
         // pick: enable, click the button in the page, expect the picked selector back.
-        await page.evaluate('window.postMessage({ source: "anim-studio", type: "pick", enable: true }, location.origin)');
+        await page.evaluate('window.postMessage({ source: "vistaro-studio", type: "pick", enable: true }, location.origin)');
         await page.waitForFunction('document.documentElement.style.cursor === "crosshair"', null, { timeout: 8000 });
         await page.locator('#btn').click();
-        await page.waitForFunction('window.__seen.some(function (m) { return m.source === "anim-studio" && m.type === "picked"; })', null, { timeout: 8000 });
+        await page.waitForFunction('window.__seen.some(function (m) { return m.source === "vistaro-studio" && m.type === "picked"; })', null, { timeout: 8000 });
         const picked = await page.evaluate('window.__seen.filter(function (m) { return m.type === "picked"; })[0]') as { selector: string };
         assert.match(picked.selector, /#btn/);
     } finally {
@@ -215,9 +215,9 @@ test('studio quick-open: ⌘K switches projects from the keyboard, and the tab t
     // beside the boot dir (outside the workspace), so it joins the index the way any outside
     // folder does: through the open endpoint.
     fs.cpSync(fixture, path.join(work, 'demo2'), { recursive: true });
-    const cfg = JSON.parse(fs.readFileSync(path.join(work, 'demo2', 'anim.config.json'), 'utf8'));
+    const cfg = JSON.parse(fs.readFileSync(path.join(work, 'demo2', 'vistaro.config.json'), 'utf8'));
     cfg.meta.title = 'Second fixture';
-    fs.writeFileSync(path.join(work, 'demo2', 'anim.config.json'), JSON.stringify(cfg, null, 2) + '\n');
+    fs.writeFileSync(path.join(work, 'demo2', 'vistaro.config.json'), JSON.stringify(cfg, null, 2) + '\n');
     const opened = await (await fetch(server.url + '/api/open', {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: path.join(work, 'demo2') }),
     })).json();
@@ -322,7 +322,7 @@ test('studio direct manipulation: a drag on the selected element authors the ani
         // Alt-drag the cursor glyph (seek to a click step parks it on its target).
         await page.locator("#steps .step").nth(2).click();
         await page.waitForTimeout(900);
-        const cursorBox = await page.frameLocator('#preview').locator('#anim-cli-cursor').boundingBox();
+        const cursorBox = await page.frameLocator('#preview').locator('#vistaro-cursor').boundingBox();
         assert.ok(cursorBox, 'the cursor glyph is on screen after the seek');
         await page.mouse.move(cursorBox!.x + 4, cursorBox!.y + 4);
         await page.keyboard.down('Alt');
@@ -581,7 +581,7 @@ test('studio ruler: dropped steps are dimmed and inert, an empty-track click see
 
 test('studio ruler: the subtitle lane collapses when no step carries a subtitle', { skip }, async () => {
     fs.cpSync(fixture, path.join(work, 'nosub'), { recursive: true });
-    const cfgPath = path.join(work, 'nosub', 'anim.config.json');
+    const cfgPath = path.join(work, 'nosub', 'vistaro.config.json');
     const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
     cfg.steps.forEach((s: { subtitle?: string }) => { delete s.subtitle; });
     fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
@@ -641,7 +641,7 @@ test('studio ruler: dragging a marker retimes the step in memory (snapped), noth
     } finally {
         await browser.close();
         const got = await (await fetch(server.url + '/api/timeline')).json();
-        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'anim.config.json'), 'utf8'));
+        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'vistaro.config.json'), 'utf8'));
         const putBack = await fetch(server.url + '/api/timeline', {
             method: 'PUT', headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ raw: fixtureRaw, mtime: got.mtimeMs }),
@@ -686,7 +686,7 @@ test('studio ruler: a drag clamps to the neighbours, snaps to 100ms, and Shift s
     } finally {
         await browser.close();
         const got = await (await fetch(server.url + '/api/timeline')).json();
-        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'anim.config.json'), 'utf8'));
+        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'vistaro.config.json'), 'utf8'));
         const putBack = await fetch(server.url + '/api/timeline', {
             method: 'PUT', headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ raw: fixtureRaw, mtime: got.mtimeMs }),
@@ -763,7 +763,7 @@ test('studio ruler: typing a time in the inspector moves the marker at once, not
     } finally {
         await browser.close();
         const got = await (await fetch(server.url + '/api/timeline')).json();
-        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'anim.config.json'), 'utf8'));
+        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'vistaro.config.json'), 'utf8'));
         const putBack = await fetch(server.url + '/api/timeline', {
             method: 'PUT', headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ raw: fixtureRaw, mtime: got.mtimeMs }),
@@ -811,7 +811,7 @@ test('studio ruler: a retime past the end keeps the marker on the ruler, and rep
     } finally {
         await browser.close();
         const got = await (await fetch(server.url + '/api/timeline')).json();
-        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'anim.config.json'), 'utf8'));
+        const fixtureRaw = JSON.parse(fs.readFileSync(path.join(root, 'test', 'fixtures', 'basic', 'vistaro.config.json'), 'utf8'));
         const putBack = await fetch(server.url + '/api/timeline', {
             method: 'PUT', headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ raw: fixtureRaw, mtime: got.mtimeMs }),
@@ -899,7 +899,7 @@ test('studio picker: the projects index lists scenarios and locales, and the pro
 });
 
 test('studio open endpoint: registers a directory the scan cannot see, joins the picker, refuses bad paths', async () => {
-    // A bare mockup with no anim.config.json: not scannable, but openable -- the editor scaffolds.
+    // A bare mockup with no vistaro.config.json: not scannable, but openable -- the editor scaffolds.
     fs.mkdirSync(path.join(work, 'bare'));
     fs.writeFileSync(path.join(work, 'bare', 'index.html'), '<!doctype html><html><body><div id="a">hi</div></body></html>');
     const post = (body: unknown) => fetch(server.url + '/api/open', {
@@ -941,7 +941,7 @@ test('studio picker: scenario stories on one screen group under the same dir', a
     const stories = list.projects.filter((p: { dir: string }) => p.dir === absDemo);
     assert.equal(stories.length, 2, 'the default timeline and the scenario both listed');
     assert.ok(stories.some((p: { configName: string }) => p.configName === 'short.json'), 'scenario by config name');
-    assert.ok(stories.some((p: { configName: string; current: boolean }) => p.configName === 'anim.config.json' && p.current), 'the default is flagged current');
+    assert.ok(stories.some((p: { configName: string; current: boolean }) => p.configName === 'vistaro.config.json' && p.current), 'the default is flagged current');
 });
 
 test('studio picker: an outside boot lists scenario stories that actually load by id', async () => {
@@ -991,10 +991,10 @@ test('scanProjects: a flat strings.<locale>.json beside the config is detected a
     // the class {backslash, w, hyphen}), so the common flat convention (strings.fr.json, no
     // locales/ directory) never matched and the picker showed no locale flags. No locales/ dir
     // here on purpose: a scaffolded locale directory would mask the loop entirely.
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-scan-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-scan-'));
     try {
         fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><html><body><div id="a">hi</div></body></html>');
-        fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { title: 'Scan fixture', locale: 'en' }, steps: [] }, null, 2) + '\n');
+        fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { title: 'Scan fixture', locale: 'en' }, steps: [] }, null, 2) + '\n');
         fs.writeFileSync(path.join(dir, 'strings.fr.json'), JSON.stringify({ 'meta.title': 'Scan fixture' }, null, 2) + '\n');
         fs.writeFileSync(path.join(dir, 'strings.pt-BR.json'), JSON.stringify({ 'meta.title': 'Scan fixture' }, null, 2) + '\n');
         const found = scanProjects(dir);
@@ -1112,7 +1112,7 @@ test('studio: Ctrl-C after a successful boot exits cleanly through the server-cl
 
 test('the vistaro bin alias ships, and the manual rides in the package with it', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-    assert.equal(pkg.bin.vistaro, 'bin/screenshot-animator.mjs', 'the friend-facing command name');
+    assert.equal(pkg.bin.vistaro, 'bin/vistaro.mjs', 'the friend-facing command name');
     assert.ok((pkg.files ?? []).includes('AGENTS.md'), 'the /agents.md route needs the manual in the tarball');
 });
 
@@ -1160,7 +1160,7 @@ test('studio stacking: Ctrl+click cycles the elements under the pointer, Esc wal
         page.on("pageerror", (e) => errors.push(String(e)));
         await page.goto(server.url + '/preview', { waitUntil: 'networkidle' });
         await page.waitForTimeout(400);
-        await page.evaluate("window.postMessage({ source: 'anim-studio', type: 'manipulate', enable: true, mode: 'layout' }, location.origin)");
+        await page.evaluate("window.postMessage({ source: 'vistaro-studio', type: 'manipulate', enable: true, mode: 'layout' }, location.origin)");
         await page.evaluate(`(function () {
           var outer = document.createElement('section');
           outer.id = 'outer-wrap';
@@ -1173,7 +1173,7 @@ test('studio stacking: Ctrl+click cycles the elements under the pointer, Esc wal
           top.style.cssText = 'position:absolute; left:0; top:0; width:300px; height:200px;';
           outer.appendChild(behind); outer.appendChild(top); document.body.appendChild(outer);
           window.__selLog = [];
-          window.addEventListener('message', function (e) { if (e.data && e.data.source === 'anim-studio' && e.data.type === 'selected') window.__selLog.push(e.data.selector); });
+          window.addEventListener('message', function (e) { if (e.data && e.data.source === 'vistaro-studio' && e.data.type === 'selected') window.__selLog.push(e.data.selector); });
         })()`);
         await page.waitForTimeout(200);
 
@@ -1197,7 +1197,7 @@ test('studio stacking: Ctrl+click cycles the elements under the pointer, Esc wal
         // Esc walks up one ancestor at a time and deselects at the body. Start from a CHILD
         // (select #box-behind, whose parent is #outer-wrap) and clear the log, so the first Esc
         // must post a fresh 'selected' -- a deleted walk would leave the log empty and fail.
-        await page.evaluate("window.postMessage({ source: 'anim-studio', type: 'select', selector: '#box-behind' }, location.origin)");
+        await page.evaluate("window.postMessage({ source: 'vistaro-studio', type: 'select', selector: '#box-behind' }, location.origin)");
         await page.waitForTimeout(200);
         await page.evaluate("window.__selLog = []");
         await page.keyboard.press('Escape');
@@ -1226,7 +1226,7 @@ test('studio layers panel: the tree posts, hover highlights, and a row click sel
         page.on("pageerror", (e) => errors.push(String(e)));
         await page.goto(server.url + '/preview', { waitUntil: 'networkidle' });
         await page.waitForTimeout(400);
-        await page.evaluate("window.postMessage({ source: 'anim-studio', type: 'manipulate', enable: true, mode: 'layout' }, location.origin)");
+        await page.evaluate("window.postMessage({ source: 'vistaro-studio', type: 'manipulate', enable: true, mode: 'layout' }, location.origin)");
         // Plant a hidden child so the hidden flag has something to flag on this fixture.
         await page.evaluate(`(function () {
           var box = document.createElement('div');
@@ -1241,7 +1241,7 @@ test('studio layers panel: the tree posts, hover highlights, and a row click sel
         })()`);
 
         // The tree request answers with the planted box + hidden child, with depth nesting.
-        const tree = await page.evaluate("new Promise(function (resolve) { window.addEventListener('message', function h(e) { if (e.data && e.data.type === 'layers-tree') { window.removeEventListener('message', h); resolve(e.data.nodes); } }); window.postMessage({ source: 'anim-studio', type: 'layers' }, location.origin); setTimeout(function () { resolve(null); }, 4000); })") as any[] | null;
+        const tree = await page.evaluate("new Promise(function (resolve) { window.addEventListener('message', function h(e) { if (e.data && e.data.type === 'layers-tree') { window.removeEventListener('message', h); resolve(e.data.nodes); } }); window.postMessage({ source: 'vistaro-studio', type: 'layers' }, location.origin); setTimeout(function () { resolve(null); }, 4000); })") as any[] | null;
         assert.ok(tree, 'the layers tree came back');
         const boxRow = tree!.find(n => n.selector === '#layers-probe-box');
         const ghostRow = tree!.find(n => n.selector === '#layers-probe-hidden');
@@ -1250,13 +1250,13 @@ test('studio layers panel: the tree posts, hover highlights, and a row click sel
         assert.ok(ghostRow!.depth === boxRow!.depth + 1, 'nesting carries depth');
 
         // select-by-selector (the panel's click) selects, through the same frame path.
-        await page.evaluate("window.__selLog = []; window.addEventListener('message', function (e) { if (e.data && e.data.source === 'anim-studio' && e.data.type === 'selected') window.__selLog.push(e.data.selector); })");
-        await page.evaluate("window.postMessage({ source: 'anim-studio', type: 'select', selector: '#layers-probe-box' }, location.origin)");
+        await page.evaluate("window.__selLog = []; window.addEventListener('message', function (e) { if (e.data && e.data.source === 'vistaro-studio' && e.data.type === 'selected') window.__selLog.push(e.data.selector); })");
+        await page.evaluate("window.postMessage({ source: 'vistaro-studio', type: 'select', selector: '#layers-probe-box' }, location.origin)");
         await page.waitForTimeout(200);
         assert.equal(await page.evaluate('window.__selLog[window.__selLog.length - 1]'), '#layers-probe-box');
 
         // highlight-by-selector (the panel's hover) outlines and self-clears.
-        await page.evaluate("window.postMessage({ source: 'anim-studio', type: 'highlight', selector: '#layers-probe-box' }, location.origin)");
+        await page.evaluate("window.postMessage({ source: 'vistaro-studio', type: 'highlight', selector: '#layers-probe-box' }, location.origin)");
         await page.waitForTimeout(100);
         assert.equal(await page.evaluate(`(function () { var el = document.querySelector('#layers-probe-box'); return el.style.outline.indexOf('dashed') !== -1; })()`), true, 'hover outline applied');
         await page.waitForTimeout(900);

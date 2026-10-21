@@ -23,10 +23,10 @@ const cli = (args: string[]) => { const res = spawnSync(process.execPath, ['--im
 
 let work: string;
 /** A copy of the fixture: `tour` records a manifest event into the source dir, and a test must
- *  never write into test/fixtures (a stray anim.manifest.json there leaks into other suites). */
+ *  never write into test/fixtures (a stray vistaro.manifest.json there leaks into other suites). */
 let screen: string;
 before(() => {
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-tour-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-tour-'));
     screen = path.join(work, 'screen');
     fs.cpSync(fixture, screen, { recursive: true });
 });
@@ -44,11 +44,29 @@ const basicScenario = (extra: any = {}) => ({ slug: 'basic', dir: screen, label:
 // --- the compatibility invariant -------------------------------------------------------------
 
 test('an explicit default config resolves and hashes exactly like no config at all', () => {
-    assert.equal(resolveConfigPath(fixture), path.join(fixture, 'anim.config.json'));
-    assert.equal(resolveConfigPath(fixture, 'anim.config.json'), path.join(fixture, 'anim.config.json'));
+    assert.equal(resolveConfigPath(fixture), path.join(fixture, 'vistaro.config.json'));
+    assert.equal(resolveConfigPath(fixture, 'vistaro.config.json'), path.join(fixture, 'vistaro.config.json'));
     // Every cached contentHash and buildKey in existence depends on this staying true.
-    assert.equal(hashGuideDir(fixture), hashGuideDir(fixture, { config: 'anim.config.json' }));
-    assert.deepEqual(guideSourceFiles(fixture), guideSourceFiles(fixture, { config: 'anim.config.json' }));
+    assert.equal(hashGuideDir(fixture), hashGuideDir(fixture, { config: 'vistaro.config.json' }));
+    assert.deepEqual(guideSourceFiles(fixture), guideSourceFiles(fixture, { config: 'vistaro.config.json' }));
+});
+
+test('a 2.x project that still has anim.config.json is told what to rename, not "not found"', () => {
+    // 3.0 renamed the timeline file with no fallback; the one thing an upgrading user needs is the
+    // old and new names in the error, from every command that resolves the default timeline.
+    const legacy = 'anim.config.json';
+    const dir = path.join(work, 'legacy');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(path.join(fixture, 'index.html'), path.join(dir, 'index.html'));
+    fs.copyFileSync(path.join(fixture, 'vistaro.config.json'), path.join(dir, legacy));
+    assert.throws(() => resolveConfigPath(dir), /anim\.config\.json[\s\S]*vistaro\.config\.json/);
+    const res = cli(['check', dir, '--static']);
+    assert.notEqual(res.status, 0, 'check refuses the legacy file');
+    assert.match(res.stdout + res.stderr, /rename anim\.config\.json to vistaro\.config\.json/);
+    // An explicit --config and an already-migrated project are untouched.
+    assert.equal(resolveConfigPath(dir, legacy), path.join(dir, legacy));
+    fs.copyFileSync(path.join(fixture, 'vistaro.config.json'), path.join(dir, 'vistaro.config.json'));
+    assert.equal(resolveConfigPath(dir), path.join(dir, 'vistaro.config.json'));
 });
 
 test('an alternate timeline hashes itself, not the directory default', () => {
@@ -63,13 +81,13 @@ test('an alternate timeline hashes itself, not the directory default', () => {
     assert.ok(names.includes('alt.json'), 'its own timeline is hashed');
     assert.ok(names.includes('index.html'), 'the shared screen is hashed');
     // Folding in the default timeline would make an edit to one scenario rebuild every other one.
-    assert.ok(!names.includes('anim.config.json'), 'the default timeline is not');
+    assert.ok(!names.includes('vistaro.config.json'), 'the default timeline is not');
     assert.ok(!names.includes('strings.en.json'), "nor the default timeline's strings");
     assert.notEqual(hashGuideDir(dir, { config: 'scenarios/alt.json' }), hashGuideDir(dir));
 });
 
 test('strings belong to a timeline, not to a directory', () => {
-    assert.equal(stringsPathFor('/x/anim.config.json', 'fr'), path.join('/x', 'strings.fr.json'));
+    assert.equal(stringsPathFor('/x/vistaro.config.json', 'fr'), path.join('/x', 'strings.fr.json'));
     assert.equal(stringsPathFor('/x/scenarios/export-word.json', 'fr'), path.join('/x/scenarios', 'export-word.strings.fr.json'));
 
     const dir = path.join(work, 'strings');
@@ -77,7 +95,7 @@ test('strings belong to a timeline, not to a directory', () => {
     fs.writeFileSync(path.join(dir, 'strings.fr.json'), '{}', 'utf8');
     // Two timelines in one tree must not see each other's translations: the keys are steps.<id>.<field>,
     // so a shared file would translate a different scenario's step of the same id.
-    assert.equal(localizedStringsFiles(path.join(dir, 'anim.config.json')).length, 1);
+    assert.equal(localizedStringsFiles(path.join(dir, 'vistaro.config.json')).length, 1);
     assert.equal(localizedStringsFiles(path.join(dir, 'scenarios', 'alt.json')).length, 0);
 });
 
@@ -117,7 +135,7 @@ test('check validates a scenario timeline, and still names whichever file it rea
 
     const dflt = cli(['check', dir, '--static']);
     assert.equal(dflt.status, 0, dflt.stderr + dflt.stdout);
-    assert.match(dflt.stdout, /anim\.config\.json \(9 steps/, 'the default path is untouched');
+    assert.match(dflt.stdout, /vistaro\.config\.json \(9 steps/, 'the default path is untouched');
 });
 
 test('a --config that does not exist fails loudly instead of recording a blind legacy video', () => {
@@ -155,7 +173,7 @@ test('a guide links the video its own timeline produced, not the sibling scenari
     fs.writeFileSync(path.join(dir, 'default.mp4'), 'x', 'utf8');
     fs.writeFileSync(path.join(dir, 'alt.mp4'), 'x', 'utf8');
     // Two exports from one directory. Without scoping, both timelines resolve to the newest.
-    fs.writeFileSync(path.join(dir, 'anim.manifest.json'), JSON.stringify({ history: [
+    fs.writeFileSync(path.join(dir, 'vistaro.manifest.json'), JSON.stringify({ history: [
         { command: 'export', driven: true, output: 'default.mp4', duration: 1, steps: [] },
         { command: 'export', driven: true, output: 'alt.mp4', duration: 1, steps: [], config: 'scenarios/alt.json' },
     ] }), 'utf8');
@@ -190,8 +208,8 @@ test('a broken catalog reports every problem in one run', () => {
 test('a reel is refused with the reason, not with one error per untitled step', () => {
     const dir = path.join(work, 'reel');
     fs.cpSync(fixture, dir, { recursive: true });
-    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(dir, 'anim.config.json'), 'utf8')));
-    fs.writeFileSync(path.join(dir, 'anim.config.json'),
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.config.json'), 'utf8')));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'),
         JSON.stringify({ meta: { ...tl.meta, kind: 'reel' }, steps: tl.steps.map(s => ({ ...s, title: undefined })) }), 'utf8');
     const file = writeCatalog('reel', { outputDir: path.join(work, 'reel-out'), scenarios: [{ slug: 'reel', dir }] });
 
@@ -229,7 +247,7 @@ test('a scenario page carries the scheduler and leaves playback to the shell', (
     const timeline = loadTimeline(fixture);
     const html = buildTourPage('<html><body><div id="app"></div></body></html>', timeline);
     assert.ok(html.includes('window.__tour'), 'the tour scheduler is injected');
-    assert.ok(html.includes('window.__anim.boot('), 'so is the runtime');
+    assert.ok(html.includes('window.__vistaro.boot('), 'so is the runtime');
     assert.match(html, /"autoplay":\s*"message"/, 'the page never starts on its own');
     assert.match(html, /"subtitles":\s*false/, 'the shell draws the caption, not the page');
     assert.ok(html.includes('__tour.boot('), 'the timeline travels with the page for instant replay');
@@ -272,7 +290,7 @@ test('tour builds a shell plus one page per scenario, and records an event per s
     // 1-based authored indexes like guide.json and the manifest, not 0-based array positions.
     assert.deepEqual(variant.steps.map((s: any) => s.index), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.equal(ev.command, 'tour');
     assert.equal(ev.scenario, 'basic');
     assert.ok(ev.contentHash.startsWith('sha256:'));
@@ -297,7 +315,7 @@ test('the tour scheduler plays, seeks, and rewinds the page state with it', { sk
         await page.addInitScript(() => {
             (window as any).__msgs = [];
             window.addEventListener('message', (e: any) => {
-                if (e.data && e.data.source === 'anim-tour') (window as any).__msgs.push(e.data);
+                if (e.data && e.data.source === 'vistaro-tour') (window as any).__msgs.push(e.data);
             });
         });
         await page.goto(fileUrl(path.join(out, 'scenarios', 'basic', 'index-desktop.html')));
@@ -308,7 +326,7 @@ test('the tour scheduler plays, seeks, and rewinds the page state with it', { sk
         assert.equal(ready.steps[2].id, 'name');
 
         const send = (type: string, extra: any = {}) =>
-            page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type, ...extra });
+            page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type, ...extra });
         const index = () => page.evaluate(() => (window as any).__tour.state().index);
 
         await send('play');
@@ -340,9 +358,9 @@ test('a step that cannot run reports an error instead of hanging the tour', { sk
     // never reaches advance() and the shell waits forever with no state, no end and no error.
     const dir = path.join(work, 'broken');
     fs.cpSync(fixture, dir, { recursive: true });
-    const tl = JSON.parse(fs.readFileSync(path.join(dir, 'anim.config.json'), 'utf8'));
+    const tl = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.config.json'), 'utf8'));
     tl.steps[1].target = '#does-not-exist';
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(tl), 'utf8');
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify(tl), 'utf8');
 
     const out = path.join(work, 'broken-out');
     const file = writeCatalog('broken', { outputDir: out, scenarios: [{ slug: 'broken', dir }] });
@@ -357,14 +375,14 @@ test('a step that cannot run reports an error instead of hanging the tour', { sk
         await page.addInitScript(() => {
             (window as any).__msgs = [];
             window.addEventListener('message', (e: any) => {
-                if (e.data && e.data.source === 'anim-tour') (window as any).__msgs.push(e.data);
+                if (e.data && e.data.source === 'vistaro-tour') (window as any).__msgs.push(e.data);
             });
         });
         page.on('pageerror', () => { /* the rejected step is expected to surface */ });
         await page.goto(fileUrl(path.join(out, 'scenarios', 'broken', 'index-desktop.html')));
         await page.waitForFunction(() => (window as any).__msgs.some((m: any) => m.type === 'ready'), null, { timeout: 15000 });
 
-        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'goto', index: 3 });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'goto', index: 3 });
         await page.waitForFunction(() => (window as any).__msgs.some((m: any) => m.type === 'error'), null, { timeout: 20000 });
 
         // The error REPLACES the state message for its turn: a state right after it used to make
@@ -397,17 +415,17 @@ test('a play arriving during a seek replay resumes AT the seeked step, not past 
         await page.addInitScript(() => {
             (window as any).__states = [];
             window.addEventListener('message', (e: any) => {
-                if (e.data && e.data.source === 'anim-tour' && e.data.type === 'state') (window as any).__states.push({ index: e.data.index, playing: e.data.playing });
+                if (e.data && e.data.source === 'vistaro-tour' && e.data.type === 'state') (window as any).__states.push({ index: e.data.index, playing: e.data.playing });
             });
         });
         await page.goto(fileUrl(path.join(out, 'scenarios', 'basic', 'index-desktop.html')));
         await page.waitForFunction(() => (window as any).__tour && (window as any).__tour.state().total === 9, null, { timeout: 15000 });
-        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'goto', index: 3 });
-        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'play' });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'goto', index: 3 });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'play' });
         // However the interleaving lands, step 3 must at some point be the one PLAYING; the bug
         // jumped straight to 4 (or re-seeked to a stale index) without ever playing 3.
         await page.waitForFunction(() => (window as any).__states.some((s: any) => s.index === 3 && s.playing), null, { timeout: 20000 });
-        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'pause' });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'pause' });
         await context.close();
     } finally {
         if (browser) await browser.close();
@@ -416,14 +434,14 @@ test('a play arriving during a seek replay resumes AT the seeked step, not past 
 
 test('pause during a camera pan resumes by replaying the step, not skipping past it', { skip }, async (t) => {
     watchOrphans(t);
-    // A camera step completes through a timer __anim.stop() cannot cancel (the CSS transition
+    // A camera step completes through a timer __vistaro.stop() cannot cancel (the CSS transition
     // keeps painting to its end), so its completion resolves AFTER the pause and clears inFlight:
     // the next play used to take the advance(index + 1) branch and skip the step -- the replay
     // contract held for type steps only. pausedMidStep arms the replay whatever the completion
     // of the interrupted step does.
     const dir = path.join(work, 'pan');
     fs.cpSync(fixture, dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { title: 'Pan', drift: false }, steps: [
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { title: 'Pan', drift: false }, steps: [
         { id: 'open', time: 0.2, action: 'click', target: '#btn', title: 'Open' },
         { id: 'pan', time: 1.0, action: 'camera', target: '#field', scale: 1.4, duration: 2, title: 'Pan' },
         { id: 'after', time: 4.0, action: 'highlight', target: '#note', title: 'After' },
@@ -439,7 +457,7 @@ test('pause during a camera pan resumes by replaying the step, not skipping past
         await page.addInitScript(() => {
             (window as any).__states = [];
             window.addEventListener('message', (e: any) => {
-                if (e.data && e.data.source === 'anim-tour' && e.data.type === 'state') (window as any).__states.push({ index: e.data.index, playing: e.data.playing });
+                if (e.data && e.data.source === 'vistaro-tour' && e.data.type === 'state') (window as any).__states.push({ index: e.data.index, playing: e.data.playing });
             });
         });
         await page.goto(fileUrl(path.join(out, 'scenarios', 'pan', 'index-desktop.html')));
@@ -447,21 +465,21 @@ test('pause during a camera pan resumes by replaying the step, not skipping past
         // Seek to the pan and START it: goto alone plays the destination but reports playing:false
         // (only an explicit play turns the flag on), so the play is what makes the first playing
         // state exist. The second one can then only come from the resume, which is what is tested.
-        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'goto', index: 1 });
-        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'play' });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'goto', index: 1 });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'play' });
         await page.waitForFunction(() => (window as any).__states.some((s: any) => s.index === 1 && s.playing), null, { timeout: 20000 });
         // The state is emitted BEFORE the step runs, and the step's own lead (950ms) precedes the
         // interaction: pausing at ~1.5s lands after the pan has STARTED (interaction ~0.95s, pan
         // 2s) -- the window where its completion will outlive the pause and clear inFlight.
         await page.waitForTimeout(1500);
-        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'pause' });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'pause' });
         // Well past the pan's settle (lead 950ms + pan 2s from the step's start): the resume must
         // land after the completion has cleared inFlight, which is exactly the window where the
         // missing replay flag used to skip the step.
         await page.waitForTimeout(2600);
-        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'play' });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'play' });
         await page.waitForFunction(() => (window as any).__states.filter((s: any) => s.index === 1 && s.playing).length >= 2, null, { timeout: 20000 });
-        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'pause' });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'pause' });
         await context.close();
     } finally {
         if (browser) await browser.close();
@@ -476,12 +494,12 @@ test('play while playing is a no-op; pause stops the in-flight step and resume r
     // pause into. The duplicate play used to orphan the typing step and start the next one on top
     // of it; the pause used to leave the typing and the interaction running behind a "paused" UI.
     const dir = path.join(work, 'reentry'); fs.cpSync(fixture, dir, { recursive: true });
-    const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'anim.config.json'), 'utf8'));
+    const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.config.json'), 'utf8'));
     cfg.steps = [
         { id: 'fill', time: '0.2s', action: 'type', target: '#field', value: 'x'.repeat(20), cps: 5, title: 'Fill' },
         { id: 'after', time: '6s', action: 'highlight', target: '#btn', title: 'After' },
     ];
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(cfg), 'utf8');
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify(cfg), 'utf8');
     const out = path.join(work, 'reentry-out');
     const file = writeCatalog('reentry', { outputDir: out, scenarios: [{ slug: 'reentry', dir }] });
     const r = cli(['tour', file]);
@@ -494,7 +512,7 @@ test('play while playing is a no-op; pause stops the in-flight step and resume r
         const page = await context.newPage();
         await page.goto(fileUrl(path.join(out, 'scenarios', 'reentry', 'index-desktop.html')));
         await page.waitForFunction(() => (window as any).__tour && (window as any).__tour.state().total === 2, null, { timeout: 15000 });
-        const send = (type: string) => page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type });
+        const send = (type: string) => page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type });
         const value = () => page.evaluate(() => (document.getElementById('field') as HTMLInputElement).value);
 
         await send('play');
@@ -531,7 +549,7 @@ test('a scenario with no steps still answers: ready then end, and every command 
     // An empty timeline used to leave the protocol silent: enabled controls that do nothing,
     // forever, and an autoplaying embed whose veil never lifted.
     const dir = path.join(work, 'emptysteps'); fs.cpSync(fixture, dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { title: 'Empty' }, steps: [] }), 'utf8');
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { title: 'Empty' }, steps: [] }), 'utf8');
     const out = path.join(work, 'empty-out');
     const file = writeCatalog('empty', { outputDir: out, scenarios: [{ slug: 'empty', dir }] });
     const r = cli(['tour', file]);
@@ -544,13 +562,13 @@ test('a scenario with no steps still answers: ready then end, and every command 
         const page = await context.newPage();
         await page.addInitScript(() => {
             (window as any).__msgs = [];
-            window.addEventListener('message', (e: any) => { if (e.data && e.data.source === 'anim-tour') (window as any).__msgs.push(e.data); });
+            window.addEventListener('message', (e: any) => { if (e.data && e.data.source === 'vistaro-tour') (window as any).__msgs.push(e.data); });
         });
         await page.goto(fileUrl(path.join(out, 'scenarios', 'empty', 'index-desktop.html')));
         await page.waitForFunction(() => (window as any).__msgs.some((m: any) => m.type === 'ready'), null, { timeout: 15000 });
         const endsAtBoot = await page.evaluate(() => (window as any).__msgs.filter((m: any) => m.type === 'end').length);
         assert.ok(endsAtBoot >= 1, 'an empty scenario announces its end as soon as it is ready');
-        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'play' });
+        await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'play' });
         await page.waitForFunction((n) => (window as any).__msgs.filter((m: any) => m.type === 'end').length > n, endsAtBoot, { timeout: 5000 });
         await context.close();
     } finally {
@@ -585,9 +603,9 @@ test('a failed tours.json fetch is not cached forever: a later element retries i
     const port = (server.address() as any).port;
 
     fs.writeFileSync(path.join(out, 'host.html'), `<!doctype html><meta charset="utf-8"><title>host</title>
-<div id="one"><anim-tour src="./" scenario="basic"></anim-tour></div>
+<div id="one"><vistaro-tour src="./" scenario="basic"></vistaro-tour></div>
 <div id="two"></div>
-<script type="module" src="anim-tour.js"></script>`, 'utf8');
+<script type="module" src="vistaro-tour.js"></script>`, 'utf8');
 
     let browser: Browser | undefined;
     try {
@@ -609,7 +627,7 @@ test('a failed tours.json fetch is not cached forever: a later element retries i
         toursJsonOk = true;
         // A NEW element for the same root must fetch the manifest again, not inherit the failure.
         await page.evaluate(() => {
-            const el = document.createElement('anim-tour');
+            const el = document.createElement('vistaro-tour');
             el.setAttribute('src', './');
             el.setAttribute('scenario', 'basic');
             document.getElementById('two')!.appendChild(el);
@@ -636,11 +654,11 @@ test('commands sent before ready queue in order (goto then play), and an unknown
         // while the frame is still loading -- before it reports ready.
         fs.writeFileSync(path.join(out, 'host.html'), `<!doctype html><meta charset="utf-8"><title>host</title>
 <div id="one"></div>
-<script type="module" src="anim-tour.js"></script>
+<script type="module" src="vistaro-tour.js"></script>
 <script>
   window.__ev = [];
   window.__make = function (scenario) {
-    var el = document.createElement('anim-tour');
+    var el = document.createElement('vistaro-tour');
     el.setAttribute('src', './');
     el.setAttribute('scenario', scenario);
     el.setAttribute('autoplay', 'none');
@@ -652,7 +670,7 @@ test('commands sent before ready queue in order (goto then play), and an unknown
   };
 </script>`, 'utf8');
         await page.goto(`http://127.0.0.1:${server.port}/host.html`);
-        await page.waitForFunction(() => typeof (window as any).__make === 'function' && !!customElements.get('anim-tour'), null, { timeout: 15000 });
+        await page.waitForFunction(() => typeof (window as any).__make === 'function' && !!customElements.get('vistaro-tour'), null, { timeout: 15000 });
         // goto(1) then play(), both before the frame reports ready: a single-slot queue used to
         // lose the goto to last-write-wins and play from step 0.
         await page.evaluate(() => { const el = (window as any).__make('basic'); el.goto(1); el.play(); });
@@ -773,12 +791,12 @@ test('--embed writes a page per device, the custom element and a snippet; a plai
 
     const plain = cli(['tour', file]);
     assert.equal(plain.status, 0, plain.stderr + plain.stdout);
-    assert.ok(!fs.existsSync(path.join(out, 'anim-tour.js')), 'the element is not shipped when nothing embeds it');
+    assert.ok(!fs.existsSync(path.join(out, 'vistaro-tour.js')), 'the element is not shipped when nothing embeds it');
     assert.ok(!fs.readdirSync(out).some(f => f.startsWith('embed-')), 'no embed pages without --embed');
 
     const r = cli(['tour', file, '--embed']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
-    for (const f of ['anim-tour.js', 'embed-basic-desktop.html', 'embed-basic.snippet.html']) {
+    for (const f of ['vistaro-tour.js', 'embed-basic-desktop.html', 'embed-basic.snippet.html']) {
         assert.ok(fs.existsSync(path.join(out, f)), `${f} written`);
     }
     const page = fs.readFileSync(path.join(out, 'embed-basic-desktop.html'), 'utf8');
@@ -792,7 +810,7 @@ test('--embed writes a page per device, the custom element and a snippet; a plai
     // The observer must be in the PARENT: inside the frame it measures against the frame's own
     // viewport and reports an embed far below the fold as fully visible.
     assert.match(snippet, /IntersectionObserver/);
-    assert.match(snippet, /anim-tour-host/);
+    assert.match(snippet, /vistaro-tour-host/);
     // Only desktop was built, so the phone branch may not point at a page that does not exist.
     assert.match(snippet, /data-mobile="embed-basic-desktop\.html"/);
 });
@@ -843,9 +861,9 @@ test('a scenario that fails keeps the embed pages a customer may be framing', ()
     assert.ok(fs.existsSync(path.join(out, 'embed-flaky-desktop.html')));
 
     // Titles are what the shell's ticks and captions are built from, so losing them is a build error.
-    const t = JSON.parse(fs.readFileSync(path.join(broken, 'anim.config.json'), 'utf8'));
+    const t = JSON.parse(fs.readFileSync(path.join(broken, 'vistaro.config.json'), 'utf8'));
     for (const step of t.steps) delete step.title;
-    fs.writeFileSync(path.join(broken, 'anim.config.json'), JSON.stringify(t, null, 2), 'utf8');
+    fs.writeFileSync(path.join(broken, 'vistaro.config.json'), JSON.stringify(t, null, 2), 'utf8');
 
     const r = cli(['tour', file, '--embed']);
     assert.equal(r.status, 1, 'the failure is still reported');
@@ -884,7 +902,7 @@ async function serve(dir: string): Promise<{ port: number; close: () => Promise<
     return { port: (server.address() as any).port, close: () => new Promise<void>(r => server.close(() => r())) };
 }
 
-test('<anim-tour> loads lazily, emits its events, and survives being moved in the DOM', { skip }, async (t) => {
+test('<vistaro-tour> loads lazily, emits its events, and survives being moved in the DOM', { skip }, async (t) => {
     watchOrphans(t);
     const out = path.join(work, 'element-out');
     const file = writeCatalog('element', { outputDir: out, scenarios: [basicScenario()] });
@@ -894,10 +912,10 @@ test('<anim-tour> loads lazily, emits its events, and survives being moved in th
     // 404: `device="mobile"` is asked for and `embed-basic-desktop.html` is what may load.
     fs.writeFileSync(path.join(out, 'host.html'), `<!doctype html><meta charset="utf-8"><title>host</title>
 <div style="height:1400px"></div>
-<anim-tour id="t" src="./" scenario="basic" device="mobile" autoplay="inview"></anim-tour>
+<vistaro-tour id="t" src="./" scenario="basic" device="mobile" autoplay="inview"></vistaro-tour>
 <div style="height:1400px"></div>
 <div id="elsewhere"></div>
-<script type="module" src="anim-tour.js"></script>
+<script type="module" src="vistaro-tour.js"></script>
 <script>
   window.__ev = [];
   for (const n of ['tourready', 'tourstep', 'tourend', 'tourerror'])
@@ -963,8 +981,8 @@ test('an embed relays to its host, takes commands from it, and reports a height 
 <iframe id="f" src="embed-basic-desktop.html" style="width:900px;height:${FRAME_H}px;border:0"></iframe>
 <script>
   window.__got = [];
-  addEventListener('message', function (e) { if (e.data && e.data.source === 'anim-tour-embed') window.__got.push(e.data); });
-  window.__send = function (type) { document.getElementById('f').contentWindow.postMessage({ source: 'anim-tour-host', type: type }, '*'); };
+  addEventListener('message', function (e) { if (e.data && e.data.source === 'vistaro-tour-embed') window.__got.push(e.data); });
+  window.__send = function (type) { document.getElementById('f').contentWindow.postMessage({ source: 'vistaro-tour-host', type: type }, '*'); };
 </script>`, 'utf8');
 
     let browser: Browser | undefined;

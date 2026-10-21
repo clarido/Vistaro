@@ -12,7 +12,7 @@ import { AddressInfo } from 'net';
  *   GET  /details/1    third page with a textarea
  *   GET  /flash        white page; the button turns the background red (frame alignment checks)
  *   GET  /hang-link    page with a link to /hang, which never responds (navigation timeout checks)
- *   GET  /own-anim     page that defines its own window.__anim (foreign runtime detection)
+ *   GET  /own-runtime     page that defines its own window.__vistaro (foreign runtime detection)
  *   GET  /controlled   the React-style controlled input from test/fixtures/controlled (value tracker)
  *   GET  /learn        plain form targets with no data-help (#id, class, bare-tag buttons) for `record --learn`
  *   GET  /once         a Save button that works once per server process (a non-idempotent step);
@@ -126,8 +126,8 @@ export function startLiveApp(opts: { listDelayMs?: number; respDelayMs?: number 
   });`));
             return;
         }
-        if (url.pathname === '/own-anim') {
-            send(200, `<!doctype html><html><head><meta charset="utf-8"><script>window.__anim = { version: 'theirs' };</script></head><body><main><h1 data-help="title">Own runtime</h1></main></body></html>`);
+        if (url.pathname === '/own-runtime') {
+            send(200, `<!doctype html><html><head><meta charset="utf-8"><script>window.__vistaro = { version: 'theirs' };</script></head><body><main><h1 data-help="title">Own runtime</h1></main></body></html>`);
             return;
         }
         if (!authed) { send(302, '', { location: '/login' }); return; }

@@ -32,7 +32,7 @@ function optionRow(o: Option): string {
 /** Markdown for one command: heading, usage line, description, arguments, options. */
 export function renderCommand(cmd: Command): string {
     const args = cmd.registeredArguments;
-    const usage = ['npx tsx cli.ts', cmd.name(), ...args.map(argumentSyntax), cmd.options.length ? '[options]' : ''].filter(Boolean).join(' ');
+    const usage = ['npx vistaro', cmd.name(), ...args.map(argumentSyntax), cmd.options.length ? '[options]' : ''].filter(Boolean).join(' ');
     const lines: string[] = [`### \`${cmd.name()}\``, '', '```bash', usage, '```', '', cmd.description(), ''];
     if (args.length) {
         lines.push('| Argument | Description |', '|---|---|');
@@ -52,7 +52,7 @@ export function renderReference(program: Command = buildProgram()): string {
     const commands = program.commands.filter(c => !c.name().startsWith('help'));
     const toc = commands.map(c => `[\`${c.name()}\`](#${c.name().replace(/[^a-z0-9-]/g, '')})`).join(' · ');
     const head = [
-        `Generated from \`cli.ts\` by \`npm run docs\`; do not edit by hand. \`npx tsx cli.ts <command> --help\` prints the same, plus the usage guide (\`--help\`) and the catalog schema (\`build-all --help\`).`,
+        `Generated from \`cli.ts\` by \`npm run docs\`; do not edit by hand. \`npx vistaro <command> --help\` prints the same, plus the usage guide (\`--help\`) and the catalog schema (\`build-all --help\`).`,
         '',
         toc,
         '',

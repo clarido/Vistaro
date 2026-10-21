@@ -33,7 +33,7 @@ let work: string;
 before(async () => {
     if (skip) return;
     app = await startLiveApp({});
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-learn-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-learn-'));
 });
 after(async () => {
     if (app) await app.close();
@@ -43,7 +43,7 @@ after(async () => {
 function writeDir(name: string, config: unknown): string {
     const dir = path.join(work, name);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(config, null, 2));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify(config, null, 2));
     return dir;
 }
 
@@ -121,7 +121,7 @@ test('record --learn: the observed interactions are written as a valid, schema-p
     assert.match(notes, /no titles on purpose/);
     // The recording itself is untouched: the video, manifest event and learned path are all recorded.
     assert.ok(fs.existsSync(path.join(work, 'learned.mp4')));
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.equal(ev.command, 'record');
     assert.equal(ev.learn, '../learned.json');
     for (const s of ev.steps) assert.equal(s.error, undefined, `step ${s.index}: ${s.error}`);
@@ -137,7 +137,7 @@ test('record --learn: the observed interactions are written as a valid, schema-p
 });
 
 test('learn: the synthesizer sorts by observed time, names steps step-01..., and refuses an empty capture', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-learn-unit-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-learn-unit-'));
     try {
         const out = path.join(dir, 'draft.json');
         assert.throws(() => writeLearnDraft(out, [], { url: 'http://127.0.0.1:9/x', failed: 0, skipped: 0 }), /nothing was captured/);

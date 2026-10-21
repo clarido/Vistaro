@@ -62,7 +62,7 @@ export async function verifyCommand(outputDir: string, options: VerifyOptions = 
         // deliverable, not a duplicated throw).
         const configPath = options.config ? path.resolve(options.config) : resolveConfigPath(outputDir);
         if (!fs.existsSync(configPath)) {
-            issues.push(`no anim.config.json in ${displayPath(outputDir)}: nothing to audit per step (run \`init-config\`, or use export directly)`);
+            issues.push(`no vistaro.config.json in ${displayPath(outputDir)}: nothing to audit per step (run \`init-config\`, or use export directly)`);
             errorCount++;
         } else {
             try {

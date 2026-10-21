@@ -12,7 +12,7 @@ import { runExport } from './export';
 import { displayPath } from '../catalog';
 
 /**
- * `studio <dir>`: the local web editor over the timeline -- a view over anim.config.json, never a
+ * `studio <dir>`: the local web editor over the timeline -- a view over vistaro.config.json, never a
  * second source of truth. Serves, on 127.0.0.1:
  *
  *   GET  /               the editor page (src/studio/app/*, served from disk)
@@ -35,7 +35,7 @@ import { displayPath } from '../catalog';
  */
 
 /** ------------------------------------------------------------------ project scanner
- * The index of everything editable: screens (index.html + anim.config.json), the scenario
+ * The index of everything editable: screens (index.html + vistaro.config.json), the scenario
  * timelines beside them, and anything a catalog names. This is what the picker shows, what
  * `demos` prints, and what the editor's scenario switcher lists. */
 export interface ScannedProject {
@@ -45,7 +45,7 @@ export interface ScannedProject {
     dir: string;
     /** Absolute config path (the server's own key; never sent to the page). */
     configFile: string;
-    /** Config basename when this is a scenario timeline (else 'anim.config.json'). */
+    /** Config basename when this is a scenario timeline (else 'vistaro.config.json'). */
     configName: string;
     title: string;
     kind: 'guide' | 'reel';
@@ -96,10 +96,10 @@ export function scanProjects(root: string): ScannedProject[] {
         }
         // A screen: both files at this level (the pair rule filters every output dir).
         const hasScreen = entries.some(e => e.name === 'index.html' && e.isFile());
-        const hasDefaultConfig = entries.some(e => e.name === 'anim.config.json' && e.isFile());
+        const hasDefaultConfig = entries.some(e => e.name === 'vistaro.config.json' && e.isFile());
         if (!hasScreen || !hasDefaultConfig) return;
 
-        const configs: string[] = [path.join(abs, 'anim.config.json')];
+        const configs: string[] = [path.join(abs, 'vistaro.config.json')];
         // Scenario timelines: the scenarios/ convention + anything a catalog names in this dir.
         const scenariosDir = path.join(abs, 'scenarios');
         try {
@@ -148,7 +148,7 @@ export function scanProjects(root: string): ScannedProject[] {
             }
             // Recency: the manifest's newest history timestamp, else the config's mtime.
             let lastTouched: string | null = null;
-            const manifest = readJson(path.join(abs, 'anim.manifest.json'));
+            const manifest = readJson(path.join(abs, 'vistaro.manifest.json'));
             if (manifest && Array.isArray(manifest.history)) {
                 for (const ev of manifest.history) {
                     if (ev && typeof ev.timestamp === 'string' && (!lastTouched || ev.timestamp > lastTouched)) lastTouched = ev.timestamp;
@@ -365,7 +365,7 @@ function availableLocales(absDir: string, configFile: string): string[] {
 }
 
 /** The directory a `localize`-scaffolded locale lives in, when it is THIS config's locale home:
- *  localize copies the default anim.config.json (never scenario configs, localize.ts:61-74), so a
+ *  localize copies the default vistaro.config.json (never scenario configs, localize.ts:61-74), so a
  *  stem config must fall through to the beside-config strings file even when a locales/ dir exists. */
 function localeDir(absDir: string, configFile: string, locale: string): string | null {
     const dir = path.join(absDir, 'locales', locale);
@@ -782,7 +782,7 @@ export async function studioCommand(dir: string | undefined, options: StudioOpti
         }
         const absDir = projectEntry.dirAbs;
         const configFile = projectEntry.configFile;
-        const configArg = projectEntry.configName === 'anim.config.json' ? undefined : configFile;
+        const configArg = projectEntry.configName === 'vistaro.config.json' ? undefined : configFile;
         const indexHtmlPath = path.join(absDir, 'index.html');
 
 
@@ -827,10 +827,10 @@ export async function studioCommand(dir: string | undefined, options: StudioOpti
             // Anchor on the tour block's END marker, never on "</body>": the runtime's own header
             // comment contains that literal text, and a first-match splice lands the bridge in the
             // middle of the runtime source, terminating its <script> early (found the hard way).
-            const ANCHOR = '<!-- anim-cli-runtime:end -->';
+            const ANCHOR = '<!-- vistaro-runtime:end -->';
             const withBridge = page.includes(ANCHOR)
-                ? page.replace(ANCHOR, `${ANCHOR}\n<script data-anim-rerun="false">\n${bridge}\n</script>`)
-                : page + `\n<script data-anim-rerun="false">\n${bridge}\n</script>\n`;
+                ? page.replace(ANCHOR, `${ANCHOR}\n<script data-vistaro-rerun="false">\n${bridge}\n</script>`)
+                : page + `\n<script data-vistaro-rerun="false">\n${bridge}\n</script>\n`;
             res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
             res.end(withBridge);
             return;
@@ -1088,7 +1088,7 @@ export async function studioCommand(dir: string | undefined, options: StudioOpti
             const addr = server.address();
             const port = typeof addr === 'object' && addr ? addr.port : portNumber;
             const opened = defaultProjectId ? registry.get(defaultProjectId) : null;
-            console.log(`studio listening on http://127.0.0.1:${port}${opened ? `  (editing ${displayPath(opened.dirAbs)}${opened.configName !== 'anim.config.json' ? `, ${opened.configName}` : ''})` : '  (project picker -- ' + registry.size + ' found)'}`);
+            console.log(`studio listening on http://127.0.0.1:${port}${opened ? `  (editing ${displayPath(opened.dirAbs)}${opened.configName !== 'vistaro.config.json' ? `, ${opened.configName}` : ''})` : '  (project picker -- ' + registry.size + ' found)'}`);
             if (options.hub) {
                 console.log(`vistaro hub at http://127.0.0.1:${port}/hub  -- the ask for your agent, the manual at /agents.md, the studio`);
             }

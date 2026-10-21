@@ -61,7 +61,7 @@ before(async () => {
     if (skip) return;
     app = await startLiveApp({ listDelayMs: 300 });
     slowApp = await startLiveApp({ listDelayMs: 1800 });
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-record-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-record-'));
     browser = await chromium.launch({ headless: true });
 });
 after(async () => {
@@ -74,7 +74,7 @@ after(async () => {
 function writeDir(name: string, config: unknown): string {
     const dir = path.join(work, name);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(config, null, 2));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify(config, null, 2));
     return dir;
 }
 
@@ -84,7 +84,7 @@ test('record: login flow with navigations, waitFor, SPA route and link; every st
     const r = await cli(['record', dir, '-o', out, '--width', '1280', '--height', '800']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
     assert.match(r.stdout, /Survived 2 navigations/);
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.equal(ev.command, 'record');
     assert.equal(ev.url, `${app.url}/login`);
     assert.equal(ev.navigations, 2);
@@ -113,7 +113,7 @@ test('record: waitFor absorbs an async delay and later steps keep their relative
     const r = await cli(['record', dir, '-o', out, '--width', '1280', '--height', '800']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
     assert.match(r.stdout, /waitFor delays shifted the timeline by \d+ms; recording \d+(\.\d+)?s instead of/);
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     const items = ev.steps[3], settings = ev.steps[4], submit = ev.steps[2];
     assert.equal(items.error, undefined, items.error);
     // the list appears ~1.8s after the dashboard loaded (~2.3s), i.e. after the written 3.2s
@@ -137,7 +137,7 @@ test('record: with --storage-state the login is skipped and the dashboard flow r
     const hitsBefore = app.hits.length;
     const r = await cli(['record', dir, '-o', out, '--storage-state', state, '--width', '1280', '--height', '800']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.equal(ev.steps.length, 5);
     for (const s of ev.steps) assert.equal(s.error, undefined, `step ${s.index}: ${s.error}`);
     assert.equal(ev.storageState, '../auth.json');
@@ -164,7 +164,7 @@ test('record --guide: badges on the post-navigation pages, video linked, actual 
     assert.ok(note.callout && note.rect && note.rect.width > 100, JSON.stringify(note));
     // Same invariant as the local guide: the times come from the recording pass, not from the schedule
     // (a live page's waitFor can legitimately push every later step out).
-    const recordEvent = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const recordEvent = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     const itemsStep = recordEvent.steps.find((s: any) => s.id === 'items');
     assert.equal(items.actualMs, itemsStep.actualMs, 'guide actualMs comes from the recording');
     const submitStep = recordEvent.steps.find((s: any) => s.id === 'submit');
@@ -209,7 +209,7 @@ test('record: a navigation that commits during the next step\'s waitFor (script 
     const out = path.join(work, 'delayed.mp4');
     const r = await cli(['record', dir, '-o', out, '--width', '640', '--height', '400', '--no-chapters', '--no-subtitles']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     const flash = ev.steps[1];
     assert.equal(flash.error, undefined, flash.error);
     assert.ok(flash.actualMs > 1200, `flash step measured on the re-booted page: ${flash.actualMs}ms`);
@@ -228,7 +228,7 @@ test('record: with a slow server (400ms latency) the first changed frame still l
             const out = path.join(work, `latency${n}.mp4`);
             const r = await cli(['record', dir, '-o', out, '--width', '320', '--height', '200', '--no-chapters', '--no-subtitles']);
             assert.equal(r.status, 0, r.stderr + r.stdout);
-            const actualMs: number = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1).steps[0].actualMs;
+            const actualMs: number = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1).steps[0].actualMs;
             const frames = samplePixels(out, 300, 190);
             const first = frames.findIndex(f => f.r > 200 && f.g < 80);
             assert.ok(first > 0, `a red frame exists after a white one (${frames.length} frames)`);
@@ -279,17 +279,17 @@ test('record: a navigation that never completes is stopped, reported, exits 1, a
     assert.ok(took < 25000, `navigate path finished in ${took}ms`);
     assert.ok(!/only runs under `record`/.test(r.stderr), 'no misleading static navigate warning during record');
     await new Promise(res => setTimeout(res, 2000)); // let teardown land; the orphan check asserts once in t.after
-    const ev = JSON.parse(fs.readFileSync(path.join(dir2, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir2, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.match(ev.steps[0].error, /navigate/);
     assert.equal(ev.steps[1].error, undefined, 'the step after the abandoned navigation still runs on the stopped page');
 });
 
-test('record: a page that defines its own window.__anim is refused and the CLI exits', { skip }, async () => {
-    const dir = writeDir('own', { meta: { url: `${app.url}/own-anim`, cursor: 'mac' }, steps: [{ time: 0.5, action: 'highlight', target: '[data-help="title"]' }] });
+test('record: a page that defines its own window.__vistaro is refused and the CLI exits', { skip }, async () => {
+    const dir = writeDir('own', { meta: { url: `${app.url}/own-runtime`, cursor: 'mac' }, steps: [{ time: 0.5, action: 'highlight', target: '[data-help="title"]' }] });
     const started = Date.now();
     const r = await cli(['record', dir, '-o', path.join(work, 'own.mp4'), '--width', '320', '--height', '200']);
     assert.equal(r.status, 1);
-    assert.match(r.stderr, /page defines its own window\.__anim/);
+    assert.match(r.stderr, /page defines its own window\.__vistaro/);
     assert.ok(Date.now() - started < 30000, 'browser closed, process exited');
 });
 
@@ -318,7 +318,7 @@ test('runTimeline(live): cursor re-appears at its last point after a navigation;
         const pointsBefore: Record<string, { x: number; y: number } | null> = {};
         const results = await runTimeline(driven.page, tl, {
             mode: 'step', settleMs: 50, live: { boot: bootOptions(tl, { drift: false }, false) }, state,
-            beforeStep: async (s) => { pointsBefore[s.id] = await driven.page.evaluate(() => (window as any).__anim.getState().point); },
+            beforeStep: async (s) => { pointsBefore[s.id] = await driven.page.evaluate(() => (window as any).__vistaro.getState().point); },
         });
         for (const r of results) assert.equal(r.error, undefined, `step ${r.index}: ${r.error}`);
         assert.equal(state.navigations, 2);
@@ -364,7 +364,7 @@ test('record: typing into a React-style controlled input goes through the keyboa
     const dir = writeDir('controlled', controlledFlow(app.url));
     const r = await cli(['record', dir, '-o', path.join(work, 'controlled.mp4'), '--width', '1280', '--height', '800']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     for (const s of ev.steps) assert.equal(s.error, undefined, `step ${s.index}: ${s.error}`);
     assert.ok(ev.steps[0].completedMs - ev.steps[0].actualMs >= 6 * 40 - 60, 'typing time measured on the driver path');
     assert.equal(ev.steps[2].waitedMs < 1500, true, 'the tag appeared without waiting for the timeout');
@@ -379,7 +379,7 @@ test('record: a timed-out waitFor is reported as a warning naming the step, sepa
     assert.match(r.stderr, /warning\s+waitFor timed out on step 3 \(highlight \[data-help="never"\], waited \d+ms\): the steps after it probably ran against the wrong page state/);
     assert.doesNotMatch(r.stdout, /waitFor delays shifted the timeline/, 'a timeout is not reported as a load shift');
     assert.match(r.stdout, /because of the waitFor timeout/);
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.ok(ev.steps[2].waitedMs >= 800 && ev.steps[2].waitedMs < 2500, `per-step waitForTimeoutMs honoured: ${ev.steps[2].waitedMs}`);
     assert.match(ev.steps[2].error, /not found within 800ms/);
     assert.deepEqual(ev.timedOutSteps, [3], 'which step gave up is persisted, not only in its error text');
@@ -390,7 +390,7 @@ test('record: a timed-out waitFor is reported as a warning naming the step, sepa
     assert.match(f.stderr, /fail-fast: step 3 .*waitFor .*not found within 800ms.*recording was abandoned/);
     assert.equal(fs.existsSync(out), false, 'no video is written when the recording is abandoned');
     // An abandoned run still records what it did, so it is as auditable as a finished one.
-    const ab = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ab = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.equal(ab.command, 'record');
     assert.equal(ab.output, undefined, 'no video path is claimed');
     assert.match(ab.aborted, /fail-fast: step 3 .*recording was abandoned/);
@@ -402,7 +402,7 @@ test('record: a timed-out waitFor is reported as a warning naming the step, sepa
     fs.writeFileSync(out, 'bytes of an earlier export');
     const f2 = await cli(['record', dir, '-o', out, '--fail-fast', '--width', '1280', '--height', '800']);
     assert.equal(f2.status, 1);
-    const ab2 = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ab2 = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.equal(ab2.output, undefined, "a stale file at -o is not this aborted run's output");
     assert.equal(fs.readFileSync(out, 'utf8'), 'bytes of an earlier export', 'and the file was never touched');
 });
@@ -431,7 +431,7 @@ test('record --guide: a step that succeeded in the recording but fails on the gu
     assert.match(ok.stdout, /Resetting the app before the recording/);
     assert.match(ok.stdout, /Resetting the app before the guide replay/);
     assert.equal(saves() - before, 2, 'both passes saved after a reset');
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.equal(ev.reset, true);
     // meta.reset is a shell command out of a config file, so it needs --allow-reset and refuses
     // rather than silently skipping a reset the timeline depends on (--reset-cmd above needed no flag).

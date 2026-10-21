@@ -1,6 +1,6 @@
 /**
  * Tour shell. Generic: everything it renders comes from tours.json, and everything it drives goes
- * over the 'anim-tour' postMessage protocol implemented by src/engine/tour-bridge.js. There is no
+ * over the 'vistaro-tour' postMessage protocol implemented by src/engine/tour-bridge.js. There is no
  * per-product code in here, and adding a scenario means adding a catalog entry, not editing this.
  */
 (function () {
@@ -323,20 +323,20 @@
     // Queued, not dropped, until the frame reports ready -- the big play button is clickable while
     // the veil is up, which is exactly while the scenario is still loading.
     if (!ready) { pending.push({ type: type, extra: extra }); return; }
-    var msg = { source: 'anim-tour', type: type };
+    var msg = { source: 'vistaro-tour', type: type };
     if (extra) for (var k in extra) msg[k] = extra[k];
     frame.contentWindow.postMessage(msg, DOWN);
   }
 
   /**
    * Outward relay. The bridge posts to ITS parent, which is this page, so an embedding host hears
-   * nothing at all without this. Two things a host can act on: playback events (anim-tour.js turns
+   * nothing at all without this. Two things a host can act on: playback events (vistaro-tour.js turns
    * them into `tourstep` / `tourend` DOM events for analytics) and the page height, which is the
    * only way it can size a frame whose content it is not allowed to measure.
    */
   function toHost(type, extra) {
     if (!embedded) return;
-    var msg = { source: 'anim-tour-embed', type: type, scenario: solo, device: soloDevice || '' };
+    var msg = { source: 'vistaro-tour-embed', type: type, scenario: solo, device: soloDevice || '' };
     if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) msg[k] = extra[k];
     try { parent.postMessage(msg, hostOrigin); } catch (e) { /* the host navigated away */ }
   }
@@ -363,7 +363,7 @@
    */
   addEventListener('message', function (e) {
     var d = e && e.data;
-    if (!d || d.source !== 'anim-tour-host' || !embedded || e.source !== parent) return;
+    if (!d || d.source !== 'vistaro-tour-host' || !embedded || e.source !== parent) return;
     if (d.type === 'next') step(1);
     else if (d.type === 'prev') step(-1);
     else if (d.type === 'goto' && typeof d.index === 'number') send('goto', { index: d.index });
@@ -373,7 +373,7 @@
   // ---- messages from the scenario page ------------------------------------
   addEventListener('message', function (e) {
     var d = e && e.data;
-    if (!d || d.source !== 'anim-tour') return;
+    if (!d || d.source !== 'vistaro-tour') return;
     if (!frame || e.source !== frame.contentWindow) return;   // ignore any other frame on the page
     if (d.type === 'ready') {
       ready = true; steps = d.steps || []; buildTicks(); syncButtons(); toHost('ready', { total: d.total });

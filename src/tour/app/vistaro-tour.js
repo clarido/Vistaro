@@ -1,8 +1,8 @@
 /**
- * <anim-tour> — the documented way to put a tour scenario on someone else's page.
+ * <vistaro-tour> — the documented way to put a tour scenario on someone else's page.
  *
- *   <script type="module" src="https://host/tour/anim-tour.js"></script>
- *   <anim-tour src="https://host/tour/" scenario="draft-response" autoplay="inview"></anim-tour>
+ *   <script type="module" src="https://host/tour/vistaro-tour.js"></script>
+ *   <vistaro-tour src="https://host/tour/" scenario="draft-response" autoplay="inview"></vistaro-tour>
  *
  * It is a wrapper around an iframe, not a replacement for one, and that is deliberate. runtime.js
  * owns `document.body`: the camera transforms it, and restart() EMPTIES it and rebuilds it from a
@@ -28,7 +28,7 @@
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 const PHONE = matchMedia('(max-width: 768px)');
 
-class AnimTour extends HTMLElement {
+class VistaroTour extends HTMLElement {
     static get observedAttributes() { return ['src', 'scenario', 'device', 'autoplay', 'height']; }
 
     connectedCallback() {
@@ -63,7 +63,7 @@ class AnimTour extends HTMLElement {
                 // Reported here rather than in _load(), which is also reached before a
                 // framework has set its attributes. By the time the element has scrolled
                 // into view a missing scenario is a real misconfiguration.
-                if (!this.getAttribute('scenario')) console.error('<anim-tour> needs a scenario attribute');
+                if (!this.getAttribute('scenario')) console.error('<vistaro-tour> needs a scenario attribute');
                 this._load();
             }, { rootMargin: '400px' });
             this._loader.observe(this);
@@ -119,13 +119,13 @@ class AnimTour extends HTMLElement {
      * the rest of the session (one transient 502 at first load, then 404 frames on every phone).
      */
     async _manifest(root) {
-        AnimTour._manifests = AnimTour._manifests || {};
-        if (!AnimTour._manifests[root]) {
-            AnimTour._manifests[root] = fetch(root + 'tours.json')
+        VistaroTour._manifests = VistaroTour._manifests || {};
+        if (!VistaroTour._manifests[root]) {
+            VistaroTour._manifests[root] = fetch(root + 'tours.json')
                 .then(r => (r.ok ? r.json() : Promise.reject(new Error('tours.json: HTTP ' + r.status))))
-                .catch(e => { delete AnimTour._manifests[root]; return null; });
+                .catch(e => { delete VistaroTour._manifests[root]; return null; });
         }
-        return AnimTour._manifests[root];
+        return VistaroTour._manifests[root];
     }
 
     async _load() {
@@ -147,7 +147,7 @@ class AnimTour extends HTMLElement {
         // hiccup: say so and fire tourerror rather than framing a 404 (a blank box with no surface).
         const entry = data && (data.scenarios || []).find(s => s.slug === scenario);
         if (data && !entry) {
-            const message = `<anim-tour> scenario "${scenario}" is not in ${root}tours.json`;
+            const message = `<vistaro-tour> scenario "${scenario}" is not in ${root}tours.json`;
             console.error(message);
             this.dispatchEvent(new CustomEvent('tourerror', { detail: { message, scenario }, bubbles: true }));
             return;
@@ -181,12 +181,12 @@ class AnimTour extends HTMLElement {
         // lazy loader means the frame may not even have started loading yet.
         if (!this._ready) { (this._pending = this._pending || []).push({ type, extra }); this._load(); return; }
         if (!this._frame || !this._frame.contentWindow) return;
-        this._frame.contentWindow.postMessage({ source: 'anim-tour-host', type, ...extra }, '*');
+        this._frame.contentWindow.postMessage({ source: 'vistaro-tour-host', type, ...extra }, '*');
     }
 
     _receive(e) {
         const d = e && e.data;
-        if (!d || d.source !== 'anim-tour-embed') return;
+        if (!d || d.source !== 'vistaro-tour-embed') return;
         if (!this._frame || e.source !== this._frame.contentWindow) return;   // not our frame
         if (d.type === 'size') {
             if (d.height > 0) this._frame.style.height = d.height + 'px';
@@ -217,5 +217,5 @@ class AnimTour extends HTMLElement {
     goto(index) { this._send('goto', { index }); }
 }
 
-if (!customElements.get('anim-tour')) customElements.define('anim-tour', AnimTour);
-export { AnimTour };
+if (!customElements.get('vistaro-tour')) customElements.define('vistaro-tour', VistaroTour);
+export { VistaroTour };

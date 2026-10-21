@@ -7,7 +7,7 @@ import { TimelineKind, TIMELINE_KINDS, DeviceKind, DEVICE_KINDS, resolveConfigPa
 
 /**
  * Files that define a guide's content: index.html, its timeline (`opts.config`, else
- * anim.config.json), that timeline's strings.*.json, and only
+ * vistaro.config.json), that timeline's strings.*.json, and only
  * the local media files index.html actually references (src/href/url()). Generated outputs
  * (animated.html, manifest, preview*.png, exports, guide/) never count.
  */
@@ -17,9 +17,9 @@ export function guideSourceFiles(dir: string, opts: { config?: string } = {}): s
     const addFull = (full: string) => { if (fs.existsSync(full) && fs.statSync(full).isFile()) out.add(full); };
     add('index.html');
     const config = resolveConfigPath(dir, opts.config);
-    if (config === path.resolve(dir, 'anim.config.json')) {
+    if (config === path.resolve(dir, 'vistaro.config.json')) {
         // The historical set, byte for byte: every cached contentHash depends on it not moving.
-        add('anim.config.json');
+        add('vistaro.config.json');
         for (const name of fs.readdirSync(dir)) if (/^strings\.[a-z0-9-]+\.json$/i.test(name)) add(name);
     } else {
         // A scenario hashes its own timeline and its own strings only. Folding in the directory's
@@ -142,7 +142,7 @@ export interface CatalogGuide extends RenderSettings {
     kind?: TimelineKind;
     /** Reels only: build one row per device, e.g. ["desktop", "mobile"]. */
     devices?: DeviceKind[];
-    /** Source directory (index.html + anim.config.json); relative to the catalog file, absolute after readCatalog. */
+    /** Source directory (index.html + vistaro.config.json); relative to the catalog file, absolute after readCatalog. */
     dir: string;
     /** Shown in the index; defaults to the timeline's meta.title. */
     title?: string;
@@ -267,7 +267,9 @@ export function readCatalog(file: string, warn: (m: string) => void = () => {}):
         if (typeof g.dir !== 'string' || !g.dir) errors.push(`${where}: "dir" is required`);
         else {
             const dir = path.resolve(base, g.dir);
-            if (!fs.existsSync(path.join(dir, 'anim.config.json'))) errors.push(`${where} (${g.slug}): ${dir} has no anim.config.json`);
+            // resolveConfigPath names a 2.x anim.config.json instead of reporting the folder empty.
+            try { if (!fs.existsSync(resolveConfigPath(dir))) errors.push(`${where} (${g.slug}): ${dir} has no vistaro.config.json`); }
+            catch (e: any) { errors.push(`${where} (${g.slug}): ${e.message}`); }
             if (!g.record && !fs.existsSync(path.join(dir, 'index.html'))) errors.push(`${where} (${g.slug}): ${dir} has no index.html (and no "record" url)`);
         }
         let locales = g.locales;
@@ -322,18 +324,19 @@ export interface LocaleResolution { dir?: string; error?: string }
 /**
  * Directory holding `locale` for a guide: an explicit map entry (absolute after readCatalog), else
  * `<dir>/locales/<code>/`, else the legacy sibling `<dir>/../<code>/`; the base locale is the guide
- * directory itself. Returns the reason on a miss: an explicit path without anim.config.json is its
+ * directory itself. Returns the reason on a miss: an explicit path without vistaro.config.json is its
  * own error, anything else is the hint to run `localize`.
  */
 export function locateLocaleDir(guide: CatalogGuide, locale: string, baseLocale: string): LocaleResolution {
     if (locale === baseLocale) return { dir: guide.dir };
     if (guide.locales && !Array.isArray(guide.locales) && guide.locales[locale]) {
         const p = path.resolve(guide.locales[locale]);
-        if (fs.existsSync(path.join(p, 'anim.config.json'))) return { dir: p };
-        return { error: `locales.${locale} points at ${p}, which has no anim.config.json` };
+        try { if (fs.existsSync(resolveConfigPath(p))) return { dir: p }; }
+        catch (e: any) { return { error: `locales.${locale}: ${e.message}` }; }
+        return { error: `locales.${locale} points at ${p}, which has no vistaro.config.json` };
     }
     for (const candidate of [localeDirFor(guide.dir, locale), localeDirFor(guide.dir, locale, { sibling: true })]) {
-        if (fs.existsSync(path.join(candidate, 'anim.config.json'))) return { dir: candidate };
+        if (fs.existsSync(path.join(candidate, 'vistaro.config.json'))) return { dir: candidate };
     }
     return { error: `no directory for locale "${locale}"` };
 }
@@ -359,7 +362,7 @@ export interface IndexEntry {
     dir: string;
     /** Output directory relative to outputDir. */
     output: string;
-    /** sha256 of the guide's sources (index.html, anim.config.json, strings, referenced media). */
+    /** sha256 of the guide's sources (index.html, vistaro.config.json, strings, referenced media). */
     contentHash?: string;
     /** What --changed-only compares: contentHash + effective render settings + tool version. */
     buildKey?: string;
@@ -449,9 +452,9 @@ export function writeIndex(outputDir: string, index: IndexJson): { json: string;
 export function toolPackage(): { name: string; version: string } {
     try {
         const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-        if (typeof pkg?.version === 'string') return { name: pkg.name || 'screenshot-animator', version: pkg.version };
+        if (typeof pkg?.version === 'string') return { name: pkg.name || 'vistaro', version: pkg.version };
     } catch { /* not readable from here (bundled?): fall through */ }
-    return { name: 'screenshot-animator', version: '0.0.0' };
+    return { name: 'vistaro', version: '0.0.0' };
 }
 
 /** `name@version`, stamped into guide.json and index.json. */

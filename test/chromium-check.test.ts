@@ -30,7 +30,7 @@ function expectedCommand(): string {
 
 /** A temp dir playwright will find no browser under. */
 function emptyBrowsersDir(): string {
-    return fs.mkdtempSync(path.join(os.tmpdir(), 'anim-no-chromium-'));
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-no-chromium-'));
 }
 
 /**
@@ -53,7 +53,7 @@ function partialBrowsersRoot(keep: 'chromium' | 'shell'): string {
         ? path.basename(dir)
         : fs.readdirSync(root).find((name) => /^chromium_headless_shell-\d+$/.test(name));
     assert.ok(wanted, `no ${keep === 'chromium' ? 'chromium' : 'headless-shell'} binary found under ${root} -- run the browser install first`);
-    const partial = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-partial-'));
+    const partial = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-partial-'));
     fs.symlinkSync(path.join(root, wanted), path.join(partial, wanted));
     return partial;
 }

@@ -86,7 +86,7 @@ test('escaped entities decode once, not twice: &amp;lt; keeps its literal text',
 });
 
 test('synthesize writes through a temp file: a failed run leaves nothing for the cache to poison itself with', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-tts-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-tts-'));
     try {
         const base = path.join(dir, 'clip');
         const boom = async () => { throw new Error('tts exploded'); };
@@ -110,7 +110,7 @@ test('synthesize writes through a temp file: a failed run leaves nothing for the
 // but 1.12M at 9:19.5, which shipped mobile reel GIFs ~3.7x heavier than the desktop ones they were
 // meant to undercut. The cap belongs on the long edge, whichever edge that is.
 test('encodeGif caps the long edge in either orientation', { skip: process.env.SKIP_BROWSER === '1' }, () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-gif-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-gif-'));
     try {
         const dims = (file: string) => {
             const m = /,\s(\d{2,5}x\d{2,5})[\s,]/.exec(run(['-i', file], { allowFailure: true }).stderr);

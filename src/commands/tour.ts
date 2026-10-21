@@ -14,7 +14,7 @@ export interface TourScenario {
     label?: string;
     blurb?: string;
     group?: string;
-    /** A timeline other than <dir>/anim.config.json, so one screen can carry several scenarios. */
+    /** A timeline other than <dir>/vistaro.config.json, so one screen can carry several scenarios. */
     config?: string;
     cursor?: string;
     locale?: string;
@@ -52,11 +52,11 @@ export interface TourCatalog {
 const APP_DIR = path.join(__dirname, '..', 'tour', 'app');
 const APP_FILES = ['index.html', 'app.css', 'app.js'];
 /** Copied only with --embed: without the embed pages it would advertise files that do not exist. */
-const EMBED_FILES = ['anim-tour.js'];
+const EMBED_FILES = ['vistaro-tour.js'];
 
 /**
  * The parent-side fallback, for a CMS that strips module scripts. It is a small copy of what
- * anim-tour.js does, and it exists for the same reason build.ts:38 writes one for a reel: an
+ * vistaro-tour.js does, and it exists for the same reason build.ts:38 writes one for a reel: an
  * IntersectionObserver INSIDE the frame measures against the frame's own viewport, so an embed
  * below the fold reports itself fully visible and plays to nobody. Only the host can see where
  * the frame really is, so only the host can decide when it plays.
@@ -65,27 +65,27 @@ function tourEmbedSnippet(slug: string, label: string, devices: DeviceKind[], he
     const desktop = devices.includes('desktop') ? `embed-${slug}-desktop.html` : `embed-${slug}-${devices[0]}.html`;
     const mobile = devices.includes('mobile') ? `embed-${slug}-mobile.html` : desktop;
     return `<!-- Paste where the tour should appear, and serve the tour directory from the same origin or any https host.
-     Prefer <anim-tour> (anim-tour.js) unless your CMS strips module scripts; this is the fallback. -->
-<div class="anim-tour-embed" data-desktop="${desktop}" data-mobile="${mobile}" style="max-width: 100%;">
-  <iframe class="anim-tour-frame" title="${label.replace(/"/g, '&quot;')}" scrolling="no" allowfullscreen
+     Prefer <vistaro-tour> (vistaro-tour.js) unless your CMS strips module scripts; this is the fallback. -->
+<div class="vistaro-tour-embed" data-desktop="${desktop}" data-mobile="${mobile}" style="max-width: 100%;">
+  <iframe class="vistaro-tour-frame" title="${label.replace(/"/g, '&quot;')}" scrolling="no" allowfullscreen
           style="display: block; width: 100%; height: ${height}px; border: 0;"></iframe>
 </div>
 <script>
   (function () {
-    var boxes = document.querySelectorAll('.anim-tour-embed');
+    var boxes = document.querySelectorAll('.vistaro-tour-embed');
     var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     Array.prototype.forEach.call(boxes, function (box) {
-      var frame = box.querySelector('.anim-tour-frame');
+      var frame = box.querySelector('.vistaro-tour-frame');
       var phone = matchMedia('(max-width: 768px)').matches;
       frame.src = box.getAttribute(phone ? 'data-mobile' : 'data-desktop');
       // The frame reports its own height; the host cannot measure across the boundary.
       addEventListener('message', function (e) {
         var d = e.data;
-        if (!d || d.source !== 'anim-tour-embed' || e.source !== frame.contentWindow) return;
+        if (!d || d.source !== 'vistaro-tour-embed' || e.source !== frame.contentWindow) return;
         if (d.type === 'size' && d.height > 0) frame.style.height = d.height + 'px';
         if (d.type === 'ready' && play && !reduced) send('play');
       });
-      function send(type) { if (frame.contentWindow) frame.contentWindow.postMessage({ source: 'anim-tour-host', type: type }, '*'); }
+      function send(type) { if (frame.contentWindow) frame.contentWindow.postMessage({ source: 'vistaro-tour-host', type: type }, '*'); }
       var play = false;
       if (!('IntersectionObserver' in window) || reduced) return;
       new IntersectionObserver(function (entries) {
@@ -212,7 +212,7 @@ function copyMedia(srcDir: string, outDir: string, log: (m: string) => void): nu
 export interface TourOptions {
     output?: string;
     force?: boolean;
-    /** Also write the per-scenario embed pages, the <anim-tour> element and the snippet fallbacks. */
+    /** Also write the per-scenario embed pages, the <vistaro-tour> element and the snippet fallbacks. */
     embed?: boolean;
     /** targetOrigin the embed pages use when they report to their host. Public content, so '*' by default. */
     embedOrigin?: string;
@@ -464,12 +464,12 @@ export async function tourCommand(catalogFile: string, options: TourOptions = {}
     }, null, 2) + '\n', 'utf8');
 
     const embedCount = scenarios.reduce((n, s) => n + s.devices.length, 0);
-    console.log(`\nWrote ${displayPath(outDir)}: index.html + tours.json + ${scenarios.length} scenario page(s)${options.embed ? ` + ${embedCount} embed page(s) + anim-tour.js` : ''}.`);
+    console.log(`\nWrote ${displayPath(outDir)}: index.html + tours.json + ${scenarios.length} scenario page(s)${options.embed ? ` + ${embedCount} embed page(s) + vistaro-tour.js` : ''}.`);
     const rel = relPosix(process.cwd(), outDir);
     console.log(`  serve it:  npx http-server ${rel.startsWith('..') ? displayPath(outDir) : rel} -p 8080   (any static host works)`);
     if (options.embed) {
-        console.log(`  embed it:  <script type="module" src=".../anim-tour.js"></script>`);
-        console.log(`             <anim-tour src="<tour url>/" scenario="${scenarios[0].slug}" autoplay="inview"></anim-tour>`);
+        console.log(`  embed it:  <script type="module" src=".../vistaro-tour.js"></script>`);
+        console.log(`             <vistaro-tour src="<tour url>/" scenario="${scenarios[0].slug}" autoplay="inview"></vistaro-tour>`);
     }
     if (failures) { console.error(`\n${failures} scenario(s) failed.`); process.exitCode = 1; }
 }

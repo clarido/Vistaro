@@ -53,9 +53,9 @@ function hasScreenFiles(dir) {
   return fs.existsSync(path.join(dir, 'index.html'));
 }
 
-/** The CLI's contract is a directory with index.html (+ anim.config.json for export). */
+/** The CLI's contract is a directory with index.html (+ vistaro.config.json for export). */
 function requireScreenFiles(projectDir) {
-  const missing = ['index.html', 'anim.config.json'].filter(
+  const missing = ['index.html', 'vistaro.config.json'].filter(
     (f) => !fs.existsSync(path.join(projectDir, f)),
   );
   if (missing.length > 0) {

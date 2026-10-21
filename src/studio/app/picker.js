@@ -71,7 +71,7 @@
     title.textContent = p.title;
     var where = document.createElement('span');
     where.className = 'where';
-    where.textContent = p.dir + (p.configName !== 'anim.config.json' ? ' \u00b7 ' + p.configName : '');
+    where.textContent = p.dir + (p.configName !== 'vistaro.config.json' ? ' \u00b7 ' + p.configName : '');
     row1.appendChild(title);
     row1.appendChild(where);
 

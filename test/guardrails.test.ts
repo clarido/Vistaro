@@ -13,7 +13,7 @@ import * as path from 'path';
  * parameters, so the planted self-tests exercise exactly what the real assertions run.
  *
  *   A. SHIPPED-HOOK INTEGRITY — every hook the wiring names exists, is executable and starts
- *      with a #!/usr/bin/env node shebang (the bin/screenshot-animator.mjs precedent); the
+ *      with a #!/usr/bin/env node shebang (the bin/vistaro.mjs precedent); the
  *      typecheck hook checks types and never edits them; every spawning script names its own
  *      timeout budget (AGENTS.md, «Nothing in a run may wait forever», made greppable);
  *      package.json grows no npm-install-time hook wiring.
@@ -107,7 +107,7 @@ function integrityProblems(base: string, settings: SettingsShape): string[] {
         if (!stat.isFile()) problems.push(`${rel}: not a regular file`);
         if (!(stat.mode & 0o100)) problems.push(`${rel}: not executable — chmod +x it, the harness cannot run a hook without its exec bit`);
         if (stat.isFile() && firstLineOf(abs) !== '#!/usr/bin/env node') {
-            problems.push(`${rel}: first line is not "#!/usr/bin/env node" — hooks ship a node shebang (bin/screenshot-animator.mjs precedent)`);
+            problems.push(`${rel}: first line is not "#!/usr/bin/env node" — hooks ship a node shebang (bin/vistaro.mjs precedent)`);
         }
     }
     return problems;
@@ -215,7 +215,7 @@ const KNOWN_DOCS_REFS: ReadonlyArray<KnownRef> = [
     { token: '.githooks/claude/pre-tool-use-guard.mjs', at: '.githooks/claude/pre-tool-use-guard.mjs', why: 'discipline.md guardrails row: the Bash guard — denies a bare commit and stash, asks before push/merge/branch, fails open' },
     { token: '.githooks/claude/settings.example.json', at: '.githooks/claude/settings.example.json', why: 'discipline.md canary + guardrails + ACTIVATION rows: the shipped hook wiring the guardrails canary audits' },
     { token: '.githooks/pre-push', at: '.githooks/pre-push', why: 'discipline.md guardrails row: the pre-push tier (tsc + docs:check + the twelve static canaries, never the suite)' },
-    { token: 'anim-tour.js', at: 'src/tour/app/anim-tour.js', why: 'AGENTS.md Layout / Tours: the <anim-tour> custom element shipped by tour --embed' },
+    { token: 'vistaro-tour.js', at: 'src/tour/app/vistaro-tour.js', why: 'AGENTS.md Layout / Tours: the <vistaro-tour> custom element shipped by tour --embed' },
     { token: 'app.css', at: 'src/tour/app/app.css', why: 'AGENTS.md Tours output: the tour shell assets copied verbatim' },
     { token: 'app.js', at: 'src/tour/app/app.js', why: 'AGENTS.md Tours output: the tour shell assets copied verbatim' },
     { token: 'build-all.ts', at: 'src/commands/build-all.ts', why: 'AGENTS.md bounds note: CHILD_TIMEOUT_MS lives there' },
@@ -306,8 +306,12 @@ const NOT_REPO_REFS: ReadonlyArray<NotRepoRef> = [
     { token: '.vtt', why: 'a file-extension illustration, not a file' },
     { token: '/', why: 'the path-separator literal (outputDir may not be /), not a path' },
     { token: '/v1/*', why: 'the SaaS API path pattern, a URL illustration' },
-    { token: 'anim.config.json', why: 'an authored per-demo timeline — lives inside demo/fixture dirs, never at the repo root' },
-    { token: 'anim.manifest.json', why: 'generated: the per-demo manifest every command appends to' },
+    { token: 'vistaro.config.json', why: 'an authored per-demo timeline — lives inside demo/fixture dirs, never at the repo root' },
+    { token: 'vistaro.manifest.json', why: 'generated: the per-demo manifest every command appends to' },
+    { token: 'vistaro:*', why: 'the runtime\'s window event names (vistaro:ready, vistaro:step, …) in the 2.x upgrade table, not a path' },
+    { token: 'anim.config.json', why: 'the 2.x timeline name, quoted in the upgrade table: 3.0 deliberately no longer has it' },
+    { token: 'anim.manifest.json', why: 'the 2.x manifest name, quoted in the upgrade table: 3.0 deliberately no longer has it' },
+    { token: 'anim-tour.js', why: 'the 2.x custom-element script name, quoted in the upgrade table: 3.0 ships vistaro-tour.js instead' },
     { token: 'animated.html', why: 'generated: build output (a full copy of runtime.js each time)' },
     { token: 'ask-anything-en-mobile.mp4', why: 'illustration: a device-expanded reel filename from the catalog docs' },
     { token: 'assets/', why: 'generated: the guide assets directory' },
@@ -346,7 +350,7 @@ const NOT_REPO_REFS: ReadonlyArray<NotRepoRef> = [
 // anyway. The new guardrail files themselves are pinned harder by block A (exec bit + shebang).
 const REPO_INFRA: ReadonlyArray<{ at: string; why: string }> = [
     { at: 'scripts/gen-cli-reference.ts', why: 'the file behind the docs / docs:check scripts the command oracle resolves' },
-    { at: 'bin/screenshot-animator.mjs', why: 'the repo precedent for node-shebang executables, cited by the hooks' },
+    { at: 'bin/vistaro.mjs', why: 'the repo precedent for node-shebang executables, cited by the hooks' },
     { at: 'demo', why: 'AGENTS.md tours: «demo is the worked example» — named bare, so the path scan never sees it' },
 ];
 

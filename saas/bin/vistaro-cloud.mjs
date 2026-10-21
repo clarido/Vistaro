@@ -23,7 +23,7 @@ const { writeZip } = require('../lib/zipwrite.js');
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 // Never shipped: VCS, dependencies, and the CLI's own scratch/diff state.
 const SKIP_DIRS = new Set(['.git', 'node_modules', '.temp-video', '.cache', '.previous']);
-const SKIP_FILES = /(^|\/)(\.DS_Store|anim\.manifest\.json|.*\.tmp)$/;
+const SKIP_FILES = /(^|\/)(\.DS_Store|vistaro\.manifest\.json|.*\.tmp)$/;
 
 function usage(code) {
   process.stderr.write(`usage:

@@ -21,7 +21,7 @@ export interface BuildAllOptions {
     dryRun?: boolean;
     /** Also stream the children's stdout (stderr is always streamed, prefixed with slug/locale). */
     verbose?: boolean;
-    /** Let a guide's `meta.reset` (a shell command from its anim.config.json) run before each pass. */
+    /** Let a guide's `meta.reset` (a shell command from its vistaro.config.json) run before each pass. */
     allowReset?: boolean;
 }
 
@@ -40,7 +40,7 @@ interface StepRun { cmd: string[]; status: number | null; stdout: string; stderr
  * Bumping it invalidates every cached key, so the next `--changed-only` run is a full rebuild.
  * That is the point: it is the cheapest way to say "what this tool emits is not what it emitted".
  */
-export const OUTPUT_REVISION = 10;
+export const OUTPUT_REVISION = 11;
 
 /**
  * What --changed-only compares: the sources of the locale dir, the effective render settings that
@@ -300,7 +300,7 @@ export async function buildAllCommand(catalogFile: string | undefined, options: 
             // Print only: no output tree, no index, no manifest entry.
             entry.status = 'skipped';
             if (unchanged) { console.log(`${rowLabel}: ${unchanged}, would be skipped`); continue; }
-            console.log(`${rowLabel}:\n  ${plan.map(p => (p[0] === 'gif' ? `ffmpeg ${path.relative(catalogDir, p[1])} -> ${path.relative(catalogDir, p[2])}` : 'anim-cli ' + p.join(' '))).join('\n  ')}`);
+            console.log(`${rowLabel}:\n  ${plan.map(p => (p[0] === 'gif' ? `ffmpeg ${path.relative(catalogDir, p[1])} -> ${path.relative(catalogDir, p[2])}` : 'vistaro ' + p.join(' '))).join('\n  ')}`);
             continue;
         }
         if (unchanged) {

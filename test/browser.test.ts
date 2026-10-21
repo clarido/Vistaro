@@ -31,7 +31,7 @@ let builtPath: string;
 
 before(async () => {
     if (skip) return;
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-test-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-test-'));
     fs.cpSync(fixture, path.join(work, 'basic'), { recursive: true });
     const r = cli(['build', path.join(work, 'basic')]);
     assert.equal(r.status, 0, r.stderr + r.stdout);
@@ -50,15 +50,15 @@ after(async () => {
     if (work) fs.rmSync(work, { recursive: true, force: true });
 });
 
-test('built page self-plays: anim:step fires within 100ms of each time, real handlers run', { skip }, async () => {
+test('built page self-plays: vistaro:step fires within 100ms of each time, real handlers run', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     await page.addInitScript(() => {
         (window as any).__events = [];
-        window.addEventListener('anim:step', (e: any) => (window as any).__events.push(e.detail));
+        window.addEventListener('vistaro:step', (e: any) => (window as any).__events.push(e.detail));
     });
     await page.goto(fileUrl(builtPath));
-    assert.equal(await page.evaluate(() => typeof (window as any).__anim), 'object');
+    assert.equal(await page.evaluate(() => typeof (window as any).__vistaro), 'object');
     await page.waitForFunction(() => (window as any).__events.length >= 9, null, { timeout: 15000 });
     const events: any[] = await page.evaluate(() => (window as any).__events);
     for (const ev of events) {
@@ -70,32 +70,32 @@ test('built page self-plays: anim:step fires within 100ms of each time, real han
     await page.waitForFunction(() => getComputedStyle(document.getElementById('screen2')!).display === 'block', null, { timeout: 3000 });
     assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('screen1')!).display), 'none');
     // overlays live on <html>, not the transformed <body>
-    assert.equal(await page.evaluate(() => document.getElementById('anim-cli-cursor')!.parentElement!.tagName), 'HTML');
+    assert.equal(await page.evaluate(() => document.getElementById('vistaro-cursor')!.parentElement!.tagName), 'HTML');
     await context.close();
 });
 
-test('built page does not self-play when __ANIM_DRIVEN is set before load', { skip }, async () => {
+test('built page does not self-play when __VISTARO_DRIVEN is set before load', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     await page.addInitScript(() => {
-        (window as any).__ANIM_DRIVEN = true;
+        (window as any).__VISTARO_DRIVEN = true;
         (window as any).__events = [];
-        window.addEventListener('anim:step', (e: any) => (window as any).__events.push(e.detail));
+        window.addEventListener('vistaro:step', (e: any) => (window as any).__events.push(e.detail));
     });
     await page.goto(fileUrl(builtPath));
     await page.waitForTimeout(1500);
     assert.equal(await page.evaluate(() => (window as any).__events.length), 0);
     assert.equal(await page.getAttribute('body', 'data-clicks'), null);
-    assert.equal(await page.evaluate(() => (window as any).__anim.isReady()), true);
+    assert.equal(await page.evaluate(() => (window as any).__vistaro.isReady()), true);
     await context.close();
 });
 
 test('runTimeline(step) returns measured results and consecutive camera steps do not compound', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
-    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'anim.config.json'), 'utf8')));
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'vistaro.config.json'), 'utf8')));
     await ensureRuntime(page, tl, { drift: false });
     const transforms: Record<string, string> = {};
     const seen: number[] = [];
@@ -122,23 +122,23 @@ test('runTimeline(step) returns measured results and consecutive camera steps do
 });
 
 test('subtitle chip is sized to the recorded frame (~4% of height) and is scale-stable', { skip }, async () => {
-    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'anim.config.json'), 'utf8')));
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'vistaro.config.json'), 'utf8')));
     // No inner functions inside: this whole callback is serialized into the page (AGENTS.md).
     // Computed max-width returns Chromium's unevaluated min() expression, so the wrap width is
     // read back from the custom property sizeSubtitleLayer() set.
     const readChip = () => {
-        const chip = document.querySelector('.anim-cli-sub-item') as HTMLDivElement;
+        const chip = document.querySelector('.vistaro-sub-item') as HTMLDivElement;
         const cs = getComputedStyle(chip);
-        const layer = getComputedStyle(document.getElementById('anim-cli-subtitle-layer')!);
-        return { fs: parseFloat(cs.fontSize), max: parseFloat(layer.getPropertyValue('--anim-sub-max')), pad: parseFloat(cs.paddingLeft) };
+        const layer = getComputedStyle(document.getElementById('vistaro-subtitle-layer')!);
+        return { fs: parseFloat(cs.fontSize), max: parseFloat(layer.getPropertyValue('--vistaro-sub-max')), pad: parseFloat(cs.paddingLeft) };
     };
     const subtitleAt = async (width: number, height: number, zoom = 1) => {
         const context = await browser.newContext({ viewport: { width, height } });
-        await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+        await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
         const page = await context.newPage();
         await page.goto(fileUrl(path.join(fixture, 'index.html')));
         await ensureRuntime(page, tl, { drift: false, zoom });
-        await page.evaluate(() => (window as any).__anim.showSubtitle('Click the primary button.'));
+        await page.evaluate(() => (window as any).__vistaro.showSubtitle('Click the primary button.'));
         const styles = await page.evaluate(readChip);
         await context.close();
         return styles;
@@ -167,23 +167,23 @@ test('subtitle chip is sized to the recorded frame (~4% of height) and is scale-
 });
 
 test('subtitle chip re-sizes when the viewer resizes the window (animated.html)', { skip }, async () => {
-    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'anim.config.json'), 'utf8')));
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'vistaro.config.json'), 'utf8')));
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
     await ensureRuntime(page, tl, { drift: false });
-    await page.evaluate(() => (window as any).__anim.showSubtitle('Welcome.'));
+    await page.evaluate(() => (window as any).__vistaro.showSubtitle('Welcome.'));
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.waitForTimeout(100);
-    const fontPx = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.anim-cli-sub-item')!).fontSize));
+    const fontPx = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.vistaro-sub-item')!).fontSize));
     assert.ok(Math.abs(fontPx - 30.24) < 0.5, `font follows a window resize to 30.24px, got ${fontPx}`);
     await context.close();
 });
 
 test('subtitle chip dodges the spotlighted target and the cursor', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.setContent(`<!doctype html><html><head></head><body style="margin:0">
         <button id="bottom-mid" style="position:fixed; left:490px; bottom:70px; width:300px; height:50px;">Save</button>
@@ -191,32 +191,32 @@ test('subtitle chip dodges the spotlighted target and the cursor', { skip }, asy
     </body></html>`);
     const tl = parseTimeline({ meta: { cursor: 'mac' }, steps: [] });
     await ensureRuntime(page, tl, { drift: false });
-    const placeOf = () => document.querySelector('.anim-cli-sub-item')!.getAttribute('data-place');
+    const placeOf = () => document.querySelector('.vistaro-sub-item')!.getAttribute('data-place');
     const clearOf = (sel: string) => {
-        const chip = document.querySelector('.anim-cli-sub-item')!.getBoundingClientRect();
+        const chip = document.querySelector('.vistaro-sub-item')!.getBoundingClientRect();
         const el = document.querySelector(sel)!.getBoundingClientRect();
         return chip.left >= el.right + 16 || chip.right <= el.left - 16 || chip.top >= el.bottom + 16 || chip.bottom <= el.top - 16;
     };
     // Nothing on screen to protect: the cue sits at its home position.
-    await page.evaluate(() => (window as any).__anim.showSubtitle('Watch closely.'));
+    await page.evaluate(() => (window as any).__vistaro.showSubtitle('Watch closely.'));
     assert.equal(await page.evaluate(placeOf), 'bottom');
     // A highlight landing under the chip pushes the held cue to the top band, clear of the button.
-    await page.evaluate(() => (window as any).__anim.highlight(document.getElementById('bottom-mid')));
+    await page.evaluate(() => (window as any).__vistaro.highlight(document.getElementById('bottom-mid')));
     assert.equal(await page.evaluate(placeOf), 'top');
     assert.equal(await page.evaluate(clearOf, '#bottom-mid'), true, 'chip is clear of the spotlighted button');
     // The obstacle model protects the CURRENT spotlight: once the ring moves to the top button the
     // bottom band is clear again and the chip comes home instead of hiding in a corner forever.
-    await page.evaluate(() => (window as any).__anim.highlight(document.getElementById('top-mid')));
+    await page.evaluate(() => (window as any).__vistaro.highlight(document.getElementById('top-mid')));
     assert.equal(await page.evaluate(placeOf), 'bottom');
     // Both bands blocked at once (spotlight on top, cursor parking on the bottom band): the chip
     // takes the first clear corner.
-    await page.evaluate(() => (window as any).__anim.moveCursor(640, 700, 10));
+    await page.evaluate(() => (window as any).__vistaro.moveCursor(640, 700, 10));
     await page.waitForTimeout(50);
     assert.equal(await page.evaluate(placeOf), 'bottom-left');
     assert.equal(await page.evaluate(clearOf, '#top-mid'), true, 'chip is clear of the top button');
     // The cursor moving onto the corner chip moves it again -- back home, now that the bottom
     // band's only blocker was that same cursor.
-    await page.evaluate(() => (window as any).__anim.moveCursor(200, 700, 10));
+    await page.evaluate(() => (window as any).__vistaro.moveCursor(200, 700, 10));
     await page.waitForTimeout(50);
     assert.equal(await page.evaluate(placeOf), 'bottom');
     await context.close();
@@ -224,17 +224,17 @@ test('subtitle chip dodges the spotlighted target and the cursor', { skip }, asy
 
 test('a reel draws the stadium bar: near-opaque capsule, 5% of frame height, one-line-first wrap', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1440, height: 810 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.setContent(`<!doctype html><html><head></head><body style="margin:0"><p>Clarido</p></body></html>`);
     const tl = parseTimeline({ meta: { kind: 'reel', reel: { subtitles: true } }, steps: [] });
     await ensureRuntime(page, tl, { drift: false });
     // Short enough that ONE line holds in any metric font stack CI may resolve sans-serif to
     // (DejaVu bold runs ~10% wider than SF; a 38-char sentence was within 4% of the wrap bound).
-    await page.evaluate(() => (window as any).__anim.showSubtitle('Clarido prépare la soumission.'));
+    await page.evaluate(() => (window as any).__vistaro.showSubtitle('Clarido prépare la soumission.'));
     const styles = await page.evaluate(() => {
-        const layer = document.getElementById('anim-cli-subtitle-layer')!;
-        const chip = document.querySelector('.anim-cli-sub-item') as HTMLDivElement;
+        const layer = document.getElementById('vistaro-subtitle-layer')!;
+        const chip = document.querySelector('.vistaro-sub-item') as HTMLDivElement;
         const cs = getComputedStyle(chip);
         const lines = Math.round((chip.offsetHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / parseFloat(cs.lineHeight));
         return {
@@ -245,11 +245,11 @@ test('a reel draws the stadium bar: near-opaque capsule, 5% of frame height, one
             blur: cs.backdropFilter,
             weight: cs.fontWeight,
             fs: parseFloat(cs.fontSize),
-            max: parseFloat(getComputedStyle(layer).getPropertyValue('--anim-sub-max')),
+            max: parseFloat(getComputedStyle(layer).getPropertyValue('--vistaro-sub-max')),
             lines: lines,
         };
     });
-    assert.equal(styles.cls, 'anim-cli-sub-stadium', 'the layer carries the reel style class');
+    assert.equal(styles.cls, 'vistaro-sub-stadium', 'the layer carries the reel style class');
     assert.equal(styles.bg, 'rgba(15, 18, 24, 0.92)', 'near-opaque: separation by construction, nothing showing through');
     assert.equal(styles.shadow, 'none');
     assert.equal(styles.blur, 'none', 'no backdrop blur to dither in the GIF or merge with dark cards');
@@ -263,7 +263,7 @@ test('a reel draws the stadium bar: near-opaque capsule, 5% of frame height, one
 
 test('a camera push makes the chip dodge the content it framed; a pull-back lets it come home', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     // The camera centring law puts the step's target mid-frame; content around it slides toward
     // the frame edges. Targeting the TOP of a card column leaves the upper frame background and
@@ -278,29 +278,29 @@ test('a camera push makes the chip dodge the content it framed; a pull-back lets
     const tl = parseTimeline({ meta: { cursor: 'none' }, steps: [] });
     await ensureRuntime(page, tl, { drift: false, cursor: 'none' });
     // runStep's driven guard requires a started clock; ensureRuntime only boots.
-    await page.evaluate(() => (window as any).__anim.start());
-    const placeOf = () => document.querySelector('.anim-cli-sub-item')!.getAttribute('data-place');
+    await page.evaluate(() => (window as any).__vistaro.start());
+    const placeOf = () => document.querySelector('.vistaro-sub-item')!.getAttribute('data-place');
     // No camera yet: the cue sits at its home position over the un-pushed column.
-    await page.evaluate(() => (window as any).__anim.showSubtitle('Les pièces à joindre.'));
+    await page.evaluate(() => (window as any).__vistaro.showSubtitle('Les pièces à joindre.'));
     assert.equal(await page.evaluate(placeOf), 'bottom');
     // The 1.3x push onto the top of the column frames content across the lower frame: the cue
     // must leave the bottom band for the free top band.
-    await page.evaluate(() => (window as any).__anim.runStep({ index: 1, id: 'zoom', time: 1, action: 'camera', target: '#first', scale: 1.3, duration: 0 }, { instant: true }));
+    await page.evaluate(() => (window as any).__vistaro.runStep({ index: 1, id: 'zoom', time: 1, action: 'camera', target: '#first', scale: 1.3, duration: 0 }, { instant: true }));
     await page.waitForTimeout(50);
     assert.equal(await page.evaluate(placeOf), 'top', 'the chip dodges the framed content, not just the centred target');
     // A pull-back shows the whole page again (a held chip would keep its clear top spot by
     // design), so prove the framed obstacle is gone with a FRESH cue, which always re-evaluates
     // from the bottom home: nothing may block it there any more.
-    await page.evaluate(() => (window as any).__anim.runStep({ index: 2, id: 'back', time: 2, action: 'camera', target: '#first', scale: 1, duration: 0 }, { instant: true }));
+    await page.evaluate(() => (window as any).__vistaro.runStep({ index: 2, id: 'back', time: 2, action: 'camera', target: '#first', scale: 1, duration: 0 }, { instant: true }));
     await page.waitForTimeout(50);
-    await page.evaluate(() => (window as any).__anim.showSubtitle('Repartons du bas.'));
+    await page.evaluate(() => (window as any).__vistaro.showSubtitle('Repartons du bas.'));
     assert.equal(await page.evaluate(placeOf), 'bottom', 'after a pull-back a fresh cue sits home again');
     await context.close();
 });
 
 test('subtitlePlace pins the cue where the author put it; the collision is still reported', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     const cards = Array.from({ length: 8 }, () => `<div style="height:100px; margin:0 20px 16px; background:#fff; border:1px solid #dde;"></div>`).join('');
     await page.setContent(`<!doctype html><html><head></head><body style="margin:0">
@@ -311,40 +311,40 @@ test('subtitlePlace pins the cue where the author put it; the collision is still
     </body></html>`);
     const tl = parseTimeline({ meta: { cursor: 'none' }, steps: [] });
     await ensureRuntime(page, tl, { drift: false, cursor: 'none' });
-    await page.evaluate(() => (window as any).__anim.start());
-    const placeOf = () => document.querySelector('.anim-cli-sub-item')!.getAttribute('data-place');
-    await page.evaluate(() => (window as any).__anim.runStep({ index: 1, id: 'zoom', time: 1, action: 'camera', target: '#first', scale: 1.3, duration: 0 }, { instant: true }));
+    await page.evaluate(() => (window as any).__vistaro.start());
+    const placeOf = () => document.querySelector('.vistaro-sub-item')!.getAttribute('data-place');
+    await page.evaluate(() => (window as any).__vistaro.runStep({ index: 1, id: 'zoom', time: 1, action: 'camera', target: '#first', scale: 1.3, duration: 0 }, { instant: true }));
     await page.waitForTimeout(50);
     // The pin overrides the dodge even where the dodge would move: the author knows the composition.
-    await page.evaluate(() => (window as any).__anim.showSubtitle('Pinned en bas.', 4000, 'bottom'));
+    await page.evaluate(() => (window as any).__vistaro.showSubtitle('Pinned en bas.', 4000, 'bottom'));
     assert.equal(await page.evaluate(placeOf), 'bottom', 'the pin keeps the bottom despite the framed content');
     // A mid-hold recheck (a highlight landing) must not move a pinned cue either.
-    await page.evaluate(() => (window as any).__anim.highlight(document.getElementById('first')));
+    await page.evaluate(() => (window as any).__vistaro.highlight(document.getElementById('first')));
     assert.equal(await page.evaluate(placeOf), 'bottom');
     // And check still sees the truth: the pinned chip covers the framed content.
-    const hits: { what: string }[] | null = await page.evaluate(() => (window as any).__anim.subtitleCollisions());
+    const hits: { what: string }[] | null = await page.evaluate(() => (window as any).__vistaro.subtitleCollisions());
     assert.ok(hits && hits.some(h => h.what === 'framed content'), `collisions name the framed content, got ${JSON.stringify(hits)}`);
     // The next cue, unpinned, dodges again; an unknown place value is ignored, not fatal.
-    await page.evaluate(() => (window as any).__anim.showSubtitle('Libre.'));
+    await page.evaluate(() => (window as any).__vistaro.showSubtitle('Libre.'));
     assert.equal(await page.evaluate(placeOf), 'top');
-    await page.evaluate(() => (window as any).__anim.showSubtitle('Ignoré.', 4000, 'middle'));
+    await page.evaluate(() => (window as any).__vistaro.showSubtitle('Ignoré.', 4000, 'middle'));
     assert.equal(await page.evaluate(placeOf), 'top', 'an unvalidated place falls back to the dodge, not an error');
     await context.close();
 });
 
 test('meta.subtitleScale multiplies the automatic subtitle size', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.setContent('<!doctype html><html><head></head><body style="margin:0"><p>Hello</p></body></html>');
     const tl = parseTimeline({ meta: { subtitleScale: 1.5 }, steps: [] });
     await ensureRuntime(page, tl, { drift: false });
-    await page.evaluate(() => (window as any).__anim.showSubtitle('A bigger cue.'));
+    await page.evaluate(() => (window as any).__vistaro.showSubtitle('A bigger cue.'));
     const chip = await page.evaluate(() => {
-        const el = document.querySelector('.anim-cli-sub-item')!;
+        const el = document.querySelector('.vistaro-sub-item')!;
         const cs = getComputedStyle(el);
-        const layer = getComputedStyle(document.getElementById('anim-cli-subtitle-layer')!);
-        return { fs: parseFloat(cs.fontSize), max: parseFloat(layer.getPropertyValue('--anim-sub-max')) };
+        const layer = getComputedStyle(document.getElementById('vistaro-subtitle-layer')!);
+        return { fs: parseFloat(cs.fontSize), max: parseFloat(layer.getPropertyValue('--vistaro-sub-max')) };
     });
     assert.ok(Math.abs(chip.fs - 68.04) < 0.5, `1.5 x 45.36px = 68.04px, got ${chip.fs}`);
     assert.ok(Math.abs(chip.max - 1215) < 4, `wrap width scales with the font (810 x 1.5), got ${chip.max}`);
@@ -357,21 +357,21 @@ test('subtitle dodge follows the real step path (lastSpot) and is zoom-stable', 
     ] });
     const run = async (width: number, height: number, zoom: number) => {
         const context = await browser.newContext({ viewport: { width, height } });
-        await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+        await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
         const page = await context.newPage();
         await page.setContent(`<!doctype html><html><head></head><body style="margin:0">
             <button id="band-btn" style="position:absolute; left:490px; top:690px; width:300px; height:50px;">Save</button>
         </body></html>`);
         await ensureRuntime(page, tl, { drift: false, zoom });
-        await page.evaluate(() => (window as any).__anim.start());
-        const result = await page.evaluate((s: any) => (window as any).__anim.runStep(s, { leadMs: 120 }), tl.steps[0]);
+        await page.evaluate(() => (window as any).__vistaro.start());
+        const result = await page.evaluate((s: any) => (window as any).__vistaro.runStep(s, { leadMs: 120 }), tl.steps[0]);
         // getBoundingClientRect here (not offset*): both boxes are settled by now, and the visual
         // rects are what the viewer sees -- the clearest possible statement of "does not cover".
         const out = await page.evaluate(() => {
-            const chip = document.querySelector('.anim-cli-sub-item')!.getBoundingClientRect();
+            const chip = document.querySelector('.vistaro-sub-item')!.getBoundingClientRect();
             const btn = document.getElementById('band-btn')!.getBoundingClientRect();
             return {
-                place: document.querySelector('.anim-cli-sub-item')!.getAttribute('data-place'),
+                place: document.querySelector('.vistaro-sub-item')!.getAttribute('data-place'),
                 clear: chip.right <= btn.left || chip.left >= btn.right || chip.bottom <= btn.top || chip.top >= btn.bottom,
             };
         });
@@ -393,10 +393,10 @@ test('subtitle dodge follows the real step path (lastSpot) and is zoom-stable', 
 
 test('runTimeline(timed): interactions land within 100ms of schedule, results carry completedMs', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
-    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'anim.config.json'), 'utf8')));
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(fixture, 'vistaro.config.json'), 'utf8')));
     await ensureRuntime(page, tl, { drift: false });
     const results = await runTimeline(page, tl, { mode: 'timed' });
     assert.equal(results.length, 9);
@@ -421,7 +421,7 @@ test('runTimeline(timed): interactions land within 100ms of schedule, results ca
 
 test('runTimeline never rejects on throwing hooks; the error lands in result.error', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
     const tl = parseTimeline([
@@ -456,7 +456,7 @@ test('runTimeline never rejects on throwing hooks; the error lands in result.err
 
 test('press step sends a real key through page.keyboard at the interaction', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
     await page.evaluate(() => { document.addEventListener('keydown', (e) => document.body.setAttribute('data-key', e.key)); });
@@ -474,22 +474,22 @@ test('press step sends a real key through page.keyboard at the interaction', { s
 
 test('0x0 typing target: spotlight uses the sized ancestor, caret is scrolled into view, text is visible', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
     const tl = parseTimeline([{ time: 0, action: 'type', target: '#caret', value: 'hello there', cps: 50 }]);
     await ensureRuntime(page, tl, { drift: false });
-    const before = await page.evaluate(() => (window as any).__anim.isClipped(document.getElementById('caret')));
+    const before = await page.evaluate(() => (window as any).__vistaro.isClipped(document.getElementById('caret')));
     assert.equal(before, true, '#caret starts scrolled out of view inside #log');
     let boxAtCapture: any;
     const results = await runTimeline(page, tl, {
         mode: 'step', settleMs: 100,
         afterStep: async () => {
             boxAtCapture = await page.evaluate(() => {
-                const h = document.getElementById('anim-cli-highlight')!.getBoundingClientRect();
+                const h = document.getElementById('vistaro-highlight')!.getBoundingClientRect();
                 const log = document.getElementById('log')!.getBoundingClientRect();
                 const caret = document.getElementById('caret')!.getBoundingClientRect();
-                return { h: { x: h.x, y: h.y, width: h.width, height: h.height }, log: { x: log.x, y: log.y, width: log.width, height: log.height }, caret: { x: caret.x, y: caret.y, width: caret.width }, opacity: getComputedStyle(document.getElementById('anim-cli-highlight')!).opacity, typed: document.getElementById('caret')!.textContent };
+                return { h: { x: h.x, y: h.y, width: h.width, height: h.height }, log: { x: log.x, y: log.y, width: log.width, height: log.height }, caret: { x: caret.x, y: caret.y, width: caret.width }, opacity: getComputedStyle(document.getElementById('vistaro-highlight')!).opacity, typed: document.getElementById('caret')!.textContent };
             });
         },
     });
@@ -501,14 +501,14 @@ test('0x0 typing target: spotlight uses the sized ancestor, caret is scrolled in
     assert.ok(parseFloat(boxAtCapture.opacity) > 0.5, 'spotlight visible at the capture point');
     assert.ok(boxAtCapture.typed.length >= 1, 'first characters typed at capture');
     assert.ok(boxAtCapture.caret.y >= boxAtCapture.log.y && boxAtCapture.caret.y <= boxAtCapture.log.y + boxAtCapture.log.height, 'caret scrolled into the visible part of #log');
-    assert.equal(await page.evaluate(() => (window as any).__anim.isClipped(document.getElementById('caret'))), false);
+    assert.equal(await page.evaluate(() => (window as any).__vistaro.isClipped(document.getElementById('caret'))), false);
     assert.equal(await page.textContent('#caret'), 'hello there');
     await context.close();
 });
 
 test('a target removed mid-run still reaches afterStep with the error (no silent skip)', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
     const tl = parseTimeline([
@@ -528,13 +528,13 @@ test('a target removed mid-run still reaches afterStep with the error (no silent
     assert.ok(Number.isNaN(results[1].actualMs));
     assert.equal(results[2].error, undefined);
     // the guide badge never shows during a plain run
-    assert.equal(await page.evaluate(() => { const c = document.getElementById('anim-cli-callout'); return !c || getComputedStyle(c).display === 'none'; }), true);
+    assert.equal(await page.evaluate(() => { const c = document.getElementById('vistaro-callout'); return !c || getComputedStyle(c).display === 'none'; }), true);
     await context.close();
 });
 
 test('runTimeline reports a missing target as a per-step error and keeps going', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
     const tl = parseTimeline([
@@ -550,14 +550,14 @@ test('runTimeline reports a missing target as a per-step error and keeps going',
 
 test('runtime tolerates document-start injection (addInitScript)', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     await context.addInitScript({ path: path.join(root, 'src', 'engine', 'runtime.js') });
-    await context.addInitScript(() => { (window as any).__anim.boot({ cursor: 'windows', drift: false }); });
+    await context.addInitScript(() => { (window as any).__vistaro.boot({ cursor: 'windows', drift: false }); });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
-    await page.waitForFunction(() => (window as any).__anim.isReady());
-    assert.equal(await page.evaluate(() => !!document.getElementById('anim-cli-cursor')), true);
-    assert.equal(await page.evaluate(() => !!document.getElementById('anim-cli-runtime-style')), true);
+    await page.waitForFunction(() => (window as any).__vistaro.isReady());
+    assert.equal(await page.evaluate(() => !!document.getElementById('vistaro-cursor')), true);
+    assert.equal(await page.evaluate(() => !!document.getElementById('vistaro-runtime-style')), true);
     await context.close();
 });
 
@@ -574,7 +574,7 @@ test('check: clean fixture exits 0; broken copy lists every error with step/time
 
     const broken = path.join(work, 'broken');
     fs.cpSync(fixture, broken, { recursive: true });
-    fs.writeFileSync(path.join(broken, 'anim.config.json'), JSON.stringify([
+    fs.writeFileSync(path.join(broken, 'vistaro.config.json'), JSON.stringify([
         { time: 2, action: 'click', target: '#does-not-exist' },
         { time: 3, action: 'type', target: '#field' },
         { time: 1, action: 'explode' },
@@ -592,7 +592,7 @@ test('check: clean fixture exits 0; broken copy lists every error with step/time
     assert.ok(issues.every((i: any) => i.level && i.message));
 
     // browser pass catches the missing selector
-    fs.writeFileSync(path.join(broken, 'anim.config.json'), JSON.stringify([
+    fs.writeFileSync(path.join(broken, 'vistaro.config.json'), JSON.stringify([
         { time: 1, action: 'click', target: '#does-not-exist' },
         { time: 2, action: 'click', target: '#btn' },
     ]));
@@ -605,7 +605,7 @@ test('check: clean fixture exits 0; broken copy lists every error with step/time
 test('build: legacy array and numeric times build; unknown action fails without --force', { skip }, () => {
     const legacy = path.join(work, 'legacy');
     fs.cpSync(fixture, legacy, { recursive: true });
-    fs.writeFileSync(path.join(legacy, 'anim.config.json'), JSON.stringify([
+    fs.writeFileSync(path.join(legacy, 'vistaro.config.json'), JSON.stringify([
         { time: '0s', action: 'fadeIn', target: 'body', subtitle: 'Hi' },
         { time: '1s', action: 'click', target: '#btn' },
         { time: 2, action: 'showText', target: '#banner' },
@@ -615,10 +615,10 @@ test('build: legacy array and numeric times build; unknown action fails without 
     const html = fs.readFileSync(path.join(legacy, 'animated.html'), 'utf8');
     assert.ok(html.includes('"cursor":"windows"'));
     assert.ok(html.includes('"action":"fadeIn"'));
-    const manifest = JSON.parse(fs.readFileSync(path.join(legacy, 'anim.manifest.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(legacy, 'vistaro.manifest.json'), 'utf8'));
     assert.equal(manifest.history.at(-1).command, 'build');
 
-    fs.writeFileSync(path.join(legacy, 'anim.config.json'), JSON.stringify([{ time: '1s', action: 'jump', target: '#btn' }]));
+    fs.writeFileSync(path.join(legacy, 'vistaro.config.json'), JSON.stringify([{ time: '1s', action: 'jump', target: '#btn' }]));
     fs.rmSync(path.join(legacy, 'animated.html'));
     const bad = cli(['build', legacy]);
     assert.equal(bad.status, 1);
@@ -654,7 +654,7 @@ test('camera carries the cursor: it lands on the anchor element\'s transformed c
     // The cursor is position:fixed in the overlay layer, so a transform on <body> moves the page out
     // from under it; after a zoom it used to sit wherever it was before, off the element it clicked.
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
     const timeline = parseTimeline({ meta: { cursor: 'mac', drift: false }, steps: [
@@ -665,7 +665,7 @@ test('camera carries the cursor: it lands on the anchor element\'s transformed c
     // The cursor's hotspot is its top-left corner (transform-origin: top left, top/left 0), so its
     // bounding rect corner IS the pointer position.
     const cursorPoint = () => page.evaluate(() => {
-        const c = document.getElementById('anim-cli-cursor')!.getBoundingClientRect();
+        const c = document.getElementById('vistaro-cursor')!.getBoundingClientRect();
         return { x: c.left, y: c.top };
     });
     const targetCentre = () => page.evaluate(() => {
@@ -676,7 +676,7 @@ test('camera carries the cursor: it lands on the anchor element\'s transformed c
     const results = await runTimeline(page, timeline, { mode: 'step', settleMs: 0 });
     assert.deepEqual(results.map(r => r.error), [undefined, undefined]);
 
-    const before = await page.evaluate(() => (window as any).__anim.cursorAnchor());
+    const before = await page.evaluate(() => (window as any).__vistaro.cursorAnchor());
     assert.ok(before && Math.abs(before.fx - 0.5) < 0.2 && Math.abs(before.fy - 0.5) < 0.2, `anchored on #btn: ${JSON.stringify(before)}`);
     const centre = await targetCentre();
     const cursor = await cursorPoint();
@@ -696,10 +696,10 @@ test('camera carries the cursor: it lands on the anchor element\'s transformed c
 });
 
 test('camera carries the spotlight too: the ring frames the element\'s transformed box, not its old one', { skip }, async () => {
-    // Same defect as the cursor: #anim-cli-highlight is position:fixed outside the transformed
+    // Same defect as the cursor: #vistaro-highlight is position:fixed outside the transformed
     // stage, so a camera push left the ring behind over empty background (measured ~1090px adrift).
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(fixture, 'index.html')));
     const timeline = parseTimeline({ meta: { cursor: 'mac', drift: false }, steps: [
@@ -710,7 +710,7 @@ test('camera carries the spotlight too: the ring frames the element\'s transform
     const results = await runTimeline(page, timeline, { mode: 'step', settleMs: 0 });
     assert.deepEqual(results.map(r => r.error), [undefined, undefined]);
     // The ring glides on the camera's curve; wait for it to land before measuring.
-    await page.evaluate(() => (window as any).__anim.whenSettled({ timeoutMs: 5000 }));
+    await page.evaluate(() => (window as any).__vistaro.whenSettled({ timeoutMs: 5000 }));
 
     const measured = await page.evaluate(() => {
         const r = document.querySelector('#btn')!.getBoundingClientRect();
@@ -721,7 +721,7 @@ test('camera carries the spotlight too: the ring frames the element\'s transform
         return {
             target: { x: r.left, y: r.top, width: r.width, height: r.height },
             untransformed: { x: plain.left, y: plain.top },
-            ring: (window as any).__anim.highlightBox(),
+            ring: (window as any).__vistaro.highlightBox(),
         };
     });
     // The ring is drawn 6px outside the box, and its own 2px border falls outside that again.
@@ -761,10 +761,10 @@ test('self-playing page types into a React-style controlled input: the framework
 
 test('with a driver attached, `type` goes through the real keyboard: keydown events, framework onChange, progress and completion still measured', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(controlled, 'index.html')));
-    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(controlled, 'anim.config.json'), 'utf8')));
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(controlled, 'vistaro.config.json'), 'utf8')));
     await ensureRuntime(page, tl, { drift: false });
     const enabledAfterTyping: boolean[] = [];
     const results = await runTimeline(page, tl, {
@@ -791,7 +791,7 @@ test('with a driver attached, `type` goes through the real keyboard: keydown eve
 
 test('driver typing only claims fields the keyboard can fill: a date input and a readonly one keep the in-page path', { skip }, async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.setContent('<body><input id="d" type="date"><input id="ro" readonly><textarea id="t"></textarea></body>');
     const tl = parseTimeline([
@@ -822,7 +822,7 @@ test('check warns a reel about the two silent mobile authoring traps', { skip },
       body { margin: 0; font: 16px sans-serif; } #a { padding: 40px; }
       @media (max-width: 768px) { #a { padding: 10px; } }
     </style></head><body><div id="a">No viewport meta here</div></body></html>`);
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({
         meta: { kind: 'reel', title: 'Trap', cursor: 'none' },
         steps: [{ id: 'a', time: '0.2s', action: 'animate', target: '#a', from: { opacity: 0 }, to: { opacity: 1 } }],
     }));
@@ -868,7 +868,7 @@ const writeCase = (name: string, config: any) => {
     const dir = path.join(work, name);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'index.html'), CROP_PAGE);
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(config));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify(config));
     return dir;
 };
 
@@ -945,7 +945,7 @@ const writeFraming = (name: string, html: string, config: any) => {
     const dir = path.join(work, name);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'index.html'), html);
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(config));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify(config));
     return dir;
 };
 
@@ -1119,7 +1119,7 @@ test('the spotlight is clamped to what a clipping ancestor lets through, and nev
     // ringed well outside the app window, pointing at pixels the frame does not contain.
     const dir = writeCase('spot-clamp', { meta: { title: 'Clamp' }, steps: [] });
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(dir, 'index.html')));
     const tl = parseTimeline([
@@ -1136,7 +1136,7 @@ test('the spotlight is clamped to what a clipping ancestor lets through, and nev
             boxes[String(step.target)] = await page.evaluate(() => {
                 // The ring's inline style, not its rect: the pulse animation scales the box, so a
                 // measured rect is a few px off whatever it was positioned at.
-                const h = document.getElementById('anim-cli-highlight') as HTMLElement;
+                const h = document.getElementById('vistaro-highlight') as HTMLElement;
                 const top = parseFloat(h.style.top), height = parseFloat(h.style.height);
                 const r = (document.querySelector((window as any).__lastSel) as HTMLElement).getBoundingClientRect();
                 return { spot: { top: Math.round(top + 6), bottom: Math.round(top + height - 6) }, own: { top: Math.round(r.top), bottom: Math.round(r.bottom) } };
@@ -1162,19 +1162,19 @@ test('a camera push is distinguishable from the drift transform', { skip }, asyn
     // transform instead would answer "yes" from boot whenever drift is on, silently disabling them.
     const dir = writeCase('camera-flag', { meta: { title: 'Flag' }, steps: [] });
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     const page = await context.newPage();
     await page.goto(fileUrl(path.join(dir, 'index.html')));
     const tl = parseTimeline([{ time: 0, action: 'camera', target: '#fine', scale: 1.3, duration: 0 }]);
     await ensureRuntime(page, tl, { drift: true });
     const drifted = await page.evaluate(() => ({
         bodyTransform: getComputedStyle(document.body).transform,
-        camera: (window as any).__anim.cameraActive(),
+        camera: (window as any).__vistaro.cameraActive(),
     }));
     assert.notEqual(drifted.bodyTransform, 'none', 'drift does put a transform on the body');
     assert.equal(drifted.camera, false, 'but that is not a camera');
     await runTimeline(page, tl, { mode: 'step' });
-    assert.equal(await page.evaluate(() => (window as any).__anim.cameraActive()), true, 'a camera step sets it');
+    assert.equal(await page.evaluate(() => (window as any).__vistaro.cameraActive()), true, 'a camera step sets it');
     await context.close();
 });
 
@@ -1202,7 +1202,7 @@ test('restart() re-executes classic body scripts, so addEventListener wiring sur
                     window.__clicks = (window.__clicks || 0) + 1;
                 });
             </script>
-            <script data-anim-rerun="false">
+            <script data-vistaro-rerun="false">
                 window.__optoutRan = (window.__optoutRan || 0) + 1;
             </script>
         </body></html>`);
@@ -1210,25 +1210,25 @@ test('restart() re-executes classic body scripts, so addEventListener wiring sur
         // Boot like a tour page: a timeline (so a snapshot is taken) under autoplay 'message', so
         // nothing self-plays and the test owns every runStep.
         await page.addScriptTag({ content: runtimeSource() });
-        await page.evaluate((tl) => (window as any).__anim.boot({ cursor: 'none', autoplay: 'message', timeline: tl }), { meta: {}, steps: timeline.steps });
-        await page.waitForFunction(() => (window as any).__anim.isReady());
+        await page.evaluate((tl) => (window as any).__vistaro.boot({ cursor: 'none', autoplay: 'message', timeline: tl }), { meta: {}, steps: timeline.steps });
+        await page.waitForFunction(() => (window as any).__vistaro.isReady());
         assert.equal(await page.evaluate(() => (window as any).__wired), 1);
         assert.equal(await page.evaluate(() => (window as any).__optoutRan), 1);
 
-        const r1: any = await page.evaluate((s) => (window as any).__anim.runStep(s, { leadMs: 0 }), timeline.steps[0]);
-        await page.evaluate((t) => (window as any).__anim.whenDone(t), r1.token);
+        const r1: any = await page.evaluate((s) => (window as any).__vistaro.runStep(s, { leadMs: 0 }), timeline.steps[0]);
+        await page.evaluate((t) => (window as any).__vistaro.whenDone(t), r1.token);
         assert.equal(await page.evaluate(() => (window as any).__clicks), 1, 'the page\'s own listener ran via el.click()');
 
-        await page.evaluate(() => (window as any).__anim.restart());
+        await page.evaluate(() => (window as any).__vistaro.restart());
         assert.equal(await page.evaluate(() => (window as any).__wired), 2, 'the classic script re-executed on the rebuilt DOM');
         assert.equal(await page.evaluate(() => (window as any).__nestedWired), 2, 'a script NESTED in a wrapper element re-executed too (screens live in sections)');
-        assert.equal(await page.evaluate(() => (window as any).__optoutRan), 1, 'the data-anim-rerun="false" script did not');
-        const r2: any = await page.evaluate((s) => (window as any).__anim.runStep(s, { leadMs: 0 }), timeline.steps[0]);
-        await page.evaluate((t) => (window as any).__anim.whenDone(t), r2.token);
+        assert.equal(await page.evaluate(() => (window as any).__optoutRan), 1, 'the data-vistaro-rerun="false" script did not');
+        const r2: any = await page.evaluate((s) => (window as any).__vistaro.runStep(s, { leadMs: 0 }), timeline.steps[0]);
+        await page.evaluate((t) => (window as any).__vistaro.whenDone(t), r2.token);
         assert.equal(await page.evaluate(() => (window as any).__clicks), 2, 'the listener on the FRESH button fires after the restart');
         // The nested script's own wiring works again on the rebuilt DOM (a click step targets it).
-        const r3: any = await page.evaluate((s) => (window as any).__anim.runStep({ ...s, target: '#nested-btn' }, { leadMs: 0 }), timeline.steps[0]);
-        await page.evaluate((t) => (window as any).__anim.whenDone(t), r3.token);
+        const r3: any = await page.evaluate((s) => (window as any).__vistaro.runStep({ ...s, target: '#nested-btn' }, { leadMs: 0 }), timeline.steps[0]);
+        await page.evaluate((t) => (window as any).__vistaro.whenDone(t), r3.token);
         assert.equal(await page.evaluate(() => (window as any).__nestedClicks), 1, 'the nested section\'s listener fires on the fresh clone');
     } finally {
         await context.close();
@@ -1247,14 +1247,14 @@ test('runtime timers and intervals remove themselves once fired (no unbounded gr
             { id: 'd', time: 0.4, action: 'highlight', target: '#btn' },
         ] });
         await page.addScriptTag({ content: runtimeSource() });
-        await page.evaluate((tl) => (window as any).__anim.boot({ autoplay: 'message', timeline: tl }), { meta: {}, steps: timeline.steps });
-        await page.waitForFunction(() => (window as any).__anim.isReady());
+        await page.evaluate((tl) => (window as any).__vistaro.boot({ autoplay: 'message', timeline: tl }), { meta: {}, steps: timeline.steps });
+        await page.waitForFunction(() => (window as any).__vistaro.isReady());
         for (const s of timeline.steps) {
-            const r: any = await page.evaluate((st) => (window as any).__anim.runStep(st, { leadMs: 0 }), s);
-            await page.evaluate((t) => (window as any).__anim.whenDone(t), r.token);
+            const r: any = await page.evaluate((st) => (window as any).__vistaro.runStep(st, { leadMs: 0 }), s);
+            await page.evaluate((t) => (window as any).__vistaro.whenDone(t), r.token);
         }
         await page.waitForTimeout(500); // let every fired timer's self-removal callback run
-        const handles: any = await page.evaluate(() => (window as any).__anim.pendingHandles());
+        const handles: any = await page.evaluate(() => (window as any).__vistaro.pendingHandles());
         assert.equal(handles.timers, 0, `pending timers after a 4-step run: ${JSON.stringify(handles)}`);
         assert.equal(handles.intervals, 0, 'pending intervals after a type step');
     } finally {

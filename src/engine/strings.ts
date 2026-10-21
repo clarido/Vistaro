@@ -3,13 +3,13 @@ import * as path from 'path';
 import type { Timeline, Step } from './schema';
 
 /**
- * Localization strings: a flat map `strings.<locale>.json` next to anim.config.json.
+ * Localization strings: a flat map `strings.<locale>.json` next to vistaro.config.json.
  *
  *   { "meta.title": "…", "steps.<id>.title": "…", "steps.<id>.subtitle": "…",
  *     "steps.<id>.narration": "…", "steps.<id>.note": "…", "steps.<id>.value": "…" }
  *
  * `value` is only extracted/applied for steps marked `translatable: true` (typed text that is
- * language-specific). Missing or empty keys fall back to the inline text in anim.config.json.
+ * language-specific). Missing or empty keys fall back to the inline text in vistaro.config.json.
  */
 
 export type StringMap = Record<string, string>;
@@ -32,18 +32,18 @@ export function stringsFileName(locale: string): string {
 
 /**
  * The strings file for a timeline FILE. The default name is unchanged
- * (<dir>/anim.config.json -> <dir>/strings.<locale>.json); any other timeline in the same directory
+ * (<dir>/vistaro.config.json -> <dir>/strings.<locale>.json); any other timeline in the same directory
  * gets its own file beside it (scenarios/export-word.json -> scenarios/export-word.strings.fr.json).
  *
  * Per-config rather than per-directory because the keys are `steps.<step.id>.<field>`: two timelines
  * sharing one file would silently translate each other's step of the same id. Deriving from the
  * config path alone (not from dir + name) is what keeps a localized directory working, where the
- * config really is <dir>/anim.config.json.
+ * config really is <dir>/vistaro.config.json.
  */
 export function stringsPathFor(configFile: string, locale: string): string {
     const dir = path.dirname(configFile);
     const base = path.basename(configFile);
-    if (base === 'anim.config.json') return path.join(dir, stringsFileName(locale));
+    if (base === 'vistaro.config.json') return path.join(dir, stringsFileName(locale));
     return path.join(dir, `${base.replace(/\.json$/i, '')}.strings.${locale}.json`);
 }
 
@@ -51,7 +51,7 @@ export function stringsPathFor(configFile: string, locale: string): string {
 export function localizedStringsFiles(configFile: string): string[] {
     const dir = path.dirname(configFile);
     const base = path.basename(configFile);
-    const stem = base === 'anim.config.json' ? '' : base.replace(/\.json$/i, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\.';
+    const stem = base === 'vistaro.config.json' ? '' : base.replace(/\.json$/i, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\.';
     const re = new RegExp(`^${stem}strings\\.[A-Za-z0-9-]+\\.json$`);
     let names: string[];
     try { names = fs.readdirSync(dir); } catch { return []; }
@@ -59,7 +59,7 @@ export function localizedStringsFiles(configFile: string): string[] {
 }
 
 export function stringsPath(dir: string, locale: string): string {
-    return stringsPathFor(path.join(dir, 'anim.config.json'), locale);
+    return stringsPathFor(path.join(dir, 'vistaro.config.json'), locale);
 }
 
 /** Every translatable string of a timeline, keyed as documented above (inline values). */

@@ -332,7 +332,7 @@ async function main() {
 
     // 5. Upload a real zip (built above) → 202, queued; runner disabled so no CLI
     const indexHtml = '<!doctype html><meta charset="utf-8"><title>smoke screen</title><button id="go">go</button>';
-    const animConfig = JSON.stringify({
+    const timelineConfig = JSON.stringify({
       meta: { title: 'Smoke screen', slug: 'smoke', tailMs: 500 },
       steps: [
         { id: 'intro', time: '0s', action: 'fadeIn', target: 'body' },
@@ -341,7 +341,7 @@ async function main() {
     });
     const zip = zipOf([
       { name: 'index.html', data: Buffer.from(indexHtml), deflate: false },
-      { name: 'anim.config.json', data: Buffer.from(animConfig), deflate: true },
+      { name: 'vistaro.config.json', data: Buffer.from(timelineConfig), deflate: true },
     ]);
     res = await fetch(`${base}/v1/builds`, {
       method: 'POST',

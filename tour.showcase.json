@@ -19,7 +19,7 @@
   },
   "rail": {
     "title": "Pick an animation type",
-    "subtitle": "Each scenario demonstrates one step action from anim.config.json, on the same mockup."
+    "subtitle": "Each scenario demonstrates one step action from vistaro.config.json, on the same mockup."
   },
   "groups": [
     { "id": "overview", "label": "Start here" },

@@ -123,7 +123,7 @@ Auth is either the dashboard session cookie (writes must send `x-vistaro-csrf: 1
 
 Every HTML file of a release is served with `window.__vistaro` (the demo id, the release, which chrome to draw) and `/_v/v.js` injected before `</body>`. The script:
 - counts the view and the dwell time;
-- reports **tour** steps by listening to the tour shell's `anim-tour` messages, per scenario;
+- reports **tour** steps by listening to the tour shell's `vistaro-tour` messages, per scenario;
 - reports **guide** steps as each `section.step` comes into view;
 - reports **video** completion on `ended`;
 - draws the badge (Free), the CTA (Pro) and the lead gate (Pro).
@@ -133,7 +133,7 @@ It sets no cookies. A visit is a random id in `sessionStorage`.
 ## Operator surface (`/v1`, `SAAS_API_KEYS`)
 
 - `PUT /v1/workspaces/<slug>/plan {"plan": "enterprise"}`: set a plan by hand (sales-led deals, comps, support).
-- `POST /v1/builds`, `GET /v1/builds[/<id>]`, `GET /embed/<id>/…`, `GET /ops`: the **render runner**, which runs `npx tsx cli.ts export` on an uploaded project, serially. It is an operator tool for self-hosted installs and internal use. It is **not** sold and has no place in any plan, because Vistaro does not sell rendering. Its contract is unchanged from the MVP (zip body with `index.html` + `anim.config.json`; one export at a time; `SAAS_DISABLE_RUNNER=1` queues without running; `SAAS_EXPORT_TIMEOUT_MS` bounds each job).
+- `POST /v1/builds`, `GET /v1/builds[/<id>]`, `GET /embed/<id>/…`, `GET /ops`: the **render runner**, which runs `npx tsx cli.ts export` on an uploaded project, serially. It is an operator tool for self-hosted installs and internal use. It is **not** sold and has no place in any plan, because Vistaro does not sell rendering. Its contract is unchanged from the MVP (zip body with `index.html` + `vistaro.config.json`; one export at a time; `SAAS_DISABLE_RUNNER=1` queues without running; `SAAS_EXPORT_TIMEOUT_MS` bounds each job).
 - `POST /v1/billing/checkout`: the legacy single-price checkout stub (`STRIPE_PRICE_BUILDER`/`STRIPE_PRICE_TEAM`), kept for compatibility. The dashboard uses `/api/w/<ws>/billing/checkout`.
 
 ## Deploying

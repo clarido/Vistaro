@@ -70,8 +70,8 @@ test('resolveLocale precedence: requested > manifest > meta', () => {
 });
 
 test('loadTimeline applies strings.<locale>.json for the resolved locale', () => {
-    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-strings-'));
-    fs.writeFileSync(path.join(d, 'anim.config.json'), JSON.stringify({ meta: { title: 'T', locale: 'en' }, steps: [{ id: 'a', time: 0, action: 'wait', subtitle: 'Hello' }] }));
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-strings-'));
+    fs.writeFileSync(path.join(d, 'vistaro.config.json'), JSON.stringify({ meta: { title: 'T', locale: 'en' }, steps: [{ id: 'a', time: 0, action: 'wait', subtitle: 'Hello' }] }));
     writeStrings(path.join(d, 'strings.fr.json'), { 'steps.a.subtitle': 'Bonjour', 'steps.b.subtitle': 'stray' });
     writeStrings(path.join(d, 'strings.en.json'), { 'steps.a.subtitle': 'Hello there' });
     assert.equal(loadTimeline(d).steps[0].subtitle, 'Hello there', 'meta.locale en -> strings.en.json');
@@ -79,14 +79,14 @@ test('loadTimeline applies strings.<locale>.json for the resolved locale', () =>
     assert.equal(fr.steps[0].subtitle, 'Bonjour');
     assert.equal(fr.locale, 'fr');
     assert.deepEqual(fr.strings!.unknown, ['steps.b.subtitle']);
-    fs.writeFileSync(path.join(d, 'anim.manifest.json'), JSON.stringify({ locale: 'fr', history: [] }));
+    fs.writeFileSync(path.join(d, 'vistaro.manifest.json'), JSON.stringify({ locale: 'fr', history: [] }));
     assert.equal(loadTimeline(d).steps[0].subtitle, 'Bonjour', 'manifest locale wins over meta.locale');
     assert.equal(loadTimeline(d, { locale: 'de' }).steps[0].subtitle, 'Hello', 'no strings.de.json -> inline text');
     fs.rmSync(d, { recursive: true, force: true });
 });
 
 test('localize scaffolds locales/<code>/ with copies, base + target strings, manifest locale; build/check use the strings', () => {
-    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-localize-'));
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-localize-'));
     const dir = path.join(work, 'guide');
     fs.cpSync(fixture, dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'shot.png'), 'png');
@@ -97,7 +97,7 @@ test('localize scaffolds locales/<code>/ with copies, base + target strings, man
     assert.equal(r.status, 0, r.stderr + r.stdout);
     const fr = path.join(dir, 'locales', 'fr');
     assert.ok(fs.existsSync(path.join(fr, 'index.html')));
-    assert.ok(fs.existsSync(path.join(fr, 'anim.config.json')));
+    assert.ok(fs.existsSync(path.join(fr, 'vistaro.config.json')));
     assert.ok(fs.existsSync(path.join(fr, 'shot.png')), 'referenced media copied');
     assert.ok(!fs.existsSync(path.join(fr, 'preview.png')) && !fs.existsSync(path.join(fr, 'unreferenced.png')), 'generated/unreferenced files are not copied');
     assert.ok(!fs.existsSync(path.join(fr, 'locales')), 'locales/ is never copied into itself');
@@ -106,7 +106,7 @@ test('localize scaffolds locales/<code>/ with copies, base + target strings, man
     assert.deepEqual(target, base, 'target strings pre-filled with the base text');
     assert.equal(base['steps.open.title'], 'Open the panel');
     assert.equal(base['steps.open.subtitle'], 'Open it.');
-    const manifest = JSON.parse(fs.readFileSync(path.join(fr, 'anim.manifest.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(fr, 'vistaro.manifest.json'), 'utf8'));
     assert.equal(manifest.locale, 'fr');
     assert.equal(manifest.baseLocale, 'en');
     assert.match(r.stdout, /Translate the values in .*strings\.fr\.json/);
@@ -132,31 +132,31 @@ test('localize scaffolds locales/<code>/ with copies, base + target strings, man
     assert.ok(fs.readFileSync(path.join(work, 'src-fr.html'), 'utf8').includes('Ouvrez-le.'));
     // a translator's edits to the target index.html and config survive a re-run (blocker fix)
     fs.appendFileSync(path.join(fr, 'index.html'), '<!-- traduit -->');
-    const cfgFr = JSON.parse(fs.readFileSync(path.join(fr, 'anim.config.json'), 'utf8'));
+    const cfgFr = JSON.parse(fs.readFileSync(path.join(fr, 'vistaro.config.json'), 'utf8'));
     cfgFr.meta.note = 'edited in the locale';
-    fs.writeFileSync(path.join(fr, 'anim.config.json'), JSON.stringify(cfgFr));
+    fs.writeFileSync(path.join(fr, 'vistaro.config.json'), JSON.stringify(cfgFr));
     // re-running localize merges (keeps translations, adds new keys) unless --force
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(dir, 'anim.config.json'), 'utf8')), steps: [...JSON.parse(fs.readFileSync(path.join(dir, 'anim.config.json'), 'utf8')).steps, { id: 'extra', time: 6, action: 'wait', title: 'Extra' }] }));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.config.json'), 'utf8')), steps: [...JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.config.json'), 'utf8')).steps, { id: 'extra', time: 6, action: 'wait', title: 'Extra' }] }));
     const again = cli(['localize', dir, 'fr']);
     assert.equal(again.status, 0, again.stderr);
     const merged = readStrings(path.join(fr, 'strings.fr.json'));
     assert.equal(merged['steps.open.subtitle'], 'Ouvrez-le.', 'translation kept');
     assert.equal(merged['steps.extra.title'], 'Extra', 'new key added');
     assert.ok(fs.readFileSync(path.join(fr, 'index.html'), 'utf8').includes('<!-- traduit -->'), 'translated index.html kept');
-    assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'anim.config.json'), 'utf8')).meta.note, 'edited in the locale', 'edited config kept');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'vistaro.config.json'), 'utf8')).meta.note, 'edited in the locale', 'edited config kept');
     assert.match(again.stdout, /Kept existing index\.html/);
     assert.match(again.stdout, /Base strings changed since the last run[\s\S]*\+ steps\.extra\.title/);
     assert.equal(readStrings(path.join(dir, 'strings.en.json'))['steps.extra.title'], 'Extra', 'base strings regenerated');
     // manifest events of a locale build record the resolved locale, not the source meta.locale
     const bFr = cli(['build', fr]);
     assert.equal(bFr.status, 0, bFr.stderr);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'anim.manifest.json'), 'utf8')).history.at(-1).locale, 'fr');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'vistaro.manifest.json'), 'utf8')).history.at(-1).locale, 'fr');
     // --force overwrites the target files
     const forced = cli(['localize', dir, 'fr', '--force']);
     assert.equal(forced.status, 0, forced.stderr);
     assert.ok(!fs.readFileSync(path.join(fr, 'index.html'), 'utf8').includes('<!-- traduit -->'), '--force overwrote index.html');
     assert.match(forced.stderr, /Overwrote existing index\.html \(--force\)/);
-    assert.match(forced.stderr, /Overwrote existing anim\.config\.json \(--force\)/);
+    assert.match(forced.stderr, /Overwrote existing vistaro\.config\.json \(--force\)/);
     assert.match(forced.stderr, /Overwrote existing strings\.fr\.json \(translations lost\) \(--force\)/);
     assert.equal(readStrings(path.join(fr, 'strings.fr.json'))['steps.open.subtitle'], 'Open it.', '--force reset the strings');
     // locateLocaleDir finds the locales/<code> layout; an absent locale reports why
@@ -176,12 +176,12 @@ test('localize scaffolds locales/<code>/ with copies, base + target strings, man
     const caStrings = readStrings(path.join(fr, 'locales', 'fr-CA', 'strings.fr-CA.json'));
     assert.equal(caStrings['steps.open.subtitle'], 'Ouvrez-le.', 'seeded from the localized source');
     assert.ok(!fs.existsSync(path.join(fr, 'strings.en.json')), 'a locale dir gets no base strings file');
-    assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'locales', 'fr-CA', 'anim.manifest.json'), 'utf8')).baseLocale, 'en');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'locales', 'fr-CA', 'vistaro.manifest.json'), 'utf8')).baseLocale, 'en');
     fs.rmSync(work, { recursive: true, force: true });
 });
 
 test('localize prunes keys whose step is gone instead of keeping them forever', () => {
-    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-localize-prune-'));
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-localize-prune-'));
     try {
         const dir = path.join(work, 'guide');
         fs.mkdirSync(dir, { recursive: true });
@@ -190,7 +190,7 @@ test('localize prunes keys whose step is gone instead of keeping them forever', 
             { id: 'keep', time: 0, action: 'click', target: '#a', title: 'Keep me' },
             { id: 'gone', time: 2, action: 'click', target: '#a', title: 'Delete me' },
         ] };
-        fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(cfg));
+        fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify(cfg));
         assert.equal(cli(['localize', dir, 'fr']).status, 0);
         const fr = path.join(dir, 'locales', 'fr', 'strings.fr.json');
         const t = readStrings(fr);
@@ -198,7 +198,7 @@ test('localize prunes keys whose step is gone instead of keeping them forever', 
         t['steps.gone.title'] = 'Supprime';
         writeStrings(fr, t);
         cfg.steps = cfg.steps.slice(0, 1);
-        fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(cfg));
+        fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify(cfg));
         const again = cli(['localize', dir, 'fr']);
         assert.equal(again.status, 0, again.stderr);
         const merged = readStrings(fr);
@@ -211,8 +211,8 @@ test('localize prunes keys whose step is gone instead of keeping them forever', 
 });
 
 test('strings edge cases: invalid JSON names the strings file, dotted ids, locale code validation, legacy baseLocale ignored', () => {
-    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-strings-edge-'));
-    fs.writeFileSync(path.join(d, 'anim.config.json'), JSON.stringify({ meta: { locale: 'en' }, steps: [{ id: 'a.b', time: 0, action: 'wait', subtitle: 'Hi' }, { time: 1, action: 'wait', subtitle: 'Auto id' }] }));
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-strings-edge-'));
+    fs.writeFileSync(path.join(d, 'vistaro.config.json'), JSON.stringify({ meta: { locale: 'en' }, steps: [{ id: 'a.b', time: 0, action: 'wait', subtitle: 'Hi' }, { time: 1, action: 'wait', subtitle: 'Auto id' }] }));
     fs.writeFileSync(path.join(d, 'strings.fr.json'), '{ not json');
     assert.throws(() => loadTimeline(d, { locale: 'fr' }), /strings\.fr\.json: invalid JSON/);
     writeStrings(path.join(d, 'strings.fr.json'), { 'steps.a.b.subtitle': 'Salut', 'steps.step-02.subtitle': 'Id auto' });
@@ -224,7 +224,7 @@ test('strings edge cases: invalid JSON names the strings file, dotted ids, local
     const c = cli(['check', d, '--static', '--locale', 'fr']);
     assert.match(c.stdout, /auto-generated ids \(step-02\)/);
     // legacy manifest baseLocale holding a directory name is not trusted
-    fs.writeFileSync(path.join(d, 'anim.manifest.json'), JSON.stringify({ locale: 'fr', baseLocale: 'my-guide-dir', history: [] }));
+    fs.writeFileSync(path.join(d, 'vistaro.manifest.json'), JSON.stringify({ locale: 'fr', baseLocale: 'my-guide-dir', history: [] }));
     assert.equal(loadTimeline(d).baseLocale, 'en');
     assert.equal(loadTimeline(d).locale, 'fr');
     assert.ok(isLocaleCode('fr') && isLocaleCode('pt-BR') && isLocaleCode('zh-Hant-TW'));

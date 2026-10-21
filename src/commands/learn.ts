@@ -13,7 +13,7 @@ import { sanitizeUrl } from '../browser';
  * (click/type/press/navigate), re-resolving each target to the stablest selector the page can
  * offer -- the same preference order the manual tells app authors to design for:
  * `[data-help="..."]`, then `#id`, then `tag.class`, then a positional `tag:nth-of-type()` fallback.
- * Afterwards the observations are synthesized into a DRAFT anim.config.json (ids step-01..., times
+ * Afterwards the observations are synthesized into a DRAFT vistaro.config.json (ids step-01..., times
  * in ms, no titles -- tool-written titles would leak English boilerplate into localized guides),
  * pushed through the same parse/validation the CLI uses, and written beside a short human note.
  *
@@ -267,7 +267,7 @@ function notesMarkdown(draftName: string, draft: { meta: Record<string, any>; st
         '- give every numbered step a `title`, and a `subtitle` / `narration` when the video should speak;',
         '- set `meta.title` (the guide\'s H1);',
         '- hide pure choreography with `"guide": false`;',
-        '- probe the draft against the app first: `npx tsx cli.ts check <dir> --live --url <url>`.',
+        '- probe the draft against the app first: `npx vistaro check <dir> --live --url <url>`.',
         '',
     );
     return lines.join('\n');

@@ -1,6 +1,6 @@
 # Vistaro
 
-> Product demos as code, built for your coding agent. You describe a demo in one sentence; an agent (Claude Code, Codex or Antigravity) writes two text files in your repo — a screen (`index.html`) and a timeline (`anim.config.json`) — and the Vistaro CLI compiles them into demo videos, step-by-step help guides, marketing reels, interactive tours and every locale. Free and open source (ISC). Runs locally and headless with no API key and no account; ffmpeg is bundled and Chromium comes via Playwright. Requires Node.js 20.6+.
+> Product demos as code, built for your coding agent. You describe a demo in one sentence; an agent (Claude Code, Codex or Antigravity) writes two text files in your repo — a screen (`index.html`) and a timeline (`vistaro.config.json`) — and the Vistaro CLI compiles them into demo videos, step-by-step help guides, marketing reels, interactive tours and every locale. Free and open source (ISC). Runs locally and headless with no API key and no account; ffmpeg is bundled and Chromium comes via Playwright. Requires Node.js 20.6+.
 
 ## How it works
 
@@ -14,7 +14,7 @@
 - Demo videos (MP4) with subtitles (.vtt), chapters and optional narration.
 - Step-by-step help guide sites (guide.json / guide.md / guide.html + frames).
 - Marketing reels: short, silent, looping product clips for desktop and phone (portrait), as MP4/WebM/poster/GIF or an embeddable page.
-- Interactive tours: a scenario rail plus a canvas that plays each scenario step by step; embeddable via an `<anim-tour>` custom element.
+- Interactive tours: a scenario rail plus a canvas that plays each scenario step by step; embeddable via an `<vistaro-tour>` custom element.
 - Localization: the same artifacts in every language from one shared choreography.
 
 ## Getting started

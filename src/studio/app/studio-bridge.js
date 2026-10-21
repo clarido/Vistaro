@@ -1,6 +1,6 @@
 // The studio's preview bridge: the editor's hands inside the mockup. Injected after the tour
 // scheduler in the preview page the `studio` command serves. The editor drives transport with the
-// unchanged 'anim-tour' protocol and talks to THIS bridge over 'anim-studio' for everything an
+// unchanged 'vistaro-tour' protocol and talks to THIS bridge over 'vistaro-studio' for everything an
 // editor needs that a tour does not:
 //
 //   parent -> { type: 'reload', steps, meta }        swap the timeline in place (fresh 'ready')
@@ -30,7 +30,7 @@
   var UP = location.origin && location.origin !== 'null' ? location.origin : '*';
 
   function post(type, extra) {
-    var msg = { source: 'anim-studio', type: type };
+    var msg = { source: 'vistaro-studio', type: type };
     if (extra) for (var k in extra) msg[k] = extra[k];
     parent.postMessage(msg, UP);
   }
@@ -38,16 +38,16 @@
   /** Painted px -> authored px (root zoom times an active camera scale). */
   function authoredFactor() {
     var z = 1, s = 1;
-    try { z = ((window.__anim.getState() || {}).opts || {}).zoom || 1; } catch (e) { /* keep 1 */ }
+    try { z = ((window.__vistaro.getState() || {}).opts || {}).zoom || 1; } catch (e) { /* keep 1 */ }
     try {
-      var cam = window.__anim.overlayState().camera;
+      var cam = window.__vistaro.overlayState().camera;
       if (cam && cam.scale) s = cam.scale;
     } catch (e) { /* keep 1 */ }
     return z * s;
   }
   /** Painted px -> cursor-overlay px (the cursor lives outside the camera; only root zoom applies). */
   function cursorFactor() {
-    try { return ((window.__anim.getState() || {}).opts || {}).zoom || 1; } catch (e) { return 1; }
+    try { return ((window.__vistaro.getState() || {}).opts || {}).zoom || 1; } catch (e) { return 1; }
   }
 
   // ---- pick mode (unchanged contract) -----------------------------------------
@@ -80,7 +80,7 @@
     setPick(false);
     if (!el || el === document.documentElement || el === document.body) return;
     var selector = '';
-    try { selector = window.__anim.selectorOf(el); } catch (err) { selector = ''; }
+    try { selector = window.__vistaro.selectorOf(el); } catch (err) { selector = ''; }
     post('picked', {
       selector: selector,
       tag: el.tagName ? el.tagName.toLowerCase() : '',
@@ -182,7 +182,7 @@
   function select(el) {
     deselect();
     var selector = '';
-    try { selector = window.__anim.selectorOf(el); } catch (err) { selector = ''; }
+    try { selector = window.__vistaro.selectorOf(el); } catch (err) { selector = ''; }
     sel = {
       el: el,
       selector: selector,
@@ -228,7 +228,7 @@
   }
 
   function cursorElement() {
-    return document.getElementById('anim-cli-cursor');
+    return document.getElementById('vistaro-cursor');
   }
 
   // ---- layers panel ---------------------------------------------------------
@@ -258,7 +258,7 @@
       for (var i = 0; i < el.children.length; i++) {
         var child = el.children[i];
         if (SKIP_TAGS[child.tagName]) continue;
-        if (child.id && /^anim-cli-/.test(child.id)) continue;
+        if (child.id && /^vistaro-/.test(child.id)) continue;
         if (child.getAttribute && child.getAttribute('data-studio-frame') !== null) continue;
         var hidden = false;
         if (typeof child.checkVisibility === 'function') {
@@ -268,7 +268,7 @@
           hidden = cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0';
         }
         nodes.push({
-          selector: window.__anim.selectorOf(child),
+          selector: window.__vistaro.selectorOf(child),
           label: labelOf(child),
           text: ownText(child),
           depth: depth,
@@ -314,7 +314,7 @@
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
       if (!el || el === document.documentElement || el === document.body) continue;
-      if (el.id && /^anim-cli-/.test(el.id)) continue;
+      if (el.id && /^vistaro-/.test(el.id)) continue;
       if (el.getAttribute && el.getAttribute('data-studio-frame') !== null) continue;
       if (el.closest && el.closest('[data-studio-frame]')) continue;
       out.push(el);
@@ -370,7 +370,7 @@
     if (!sel) return;
     if (manipMode === 'layout') {
       var camActive = false;
-      try { camActive = !!window.__anim.cameraActive(); } catch (err) { camActive = false; }
+      try { camActive = !!window.__vistaro.cameraActive(); } catch (err) { camActive = false; }
       if (camActive) {
         post('layout-refused', {
           reason: 'a camera zoom is active at this step \u2014 move boxes from a step where the camera is at scale 1 (or after a pull-back), so the geometry you drag is the geometry that ships',
@@ -564,14 +564,14 @@
   window.addEventListener('message', function (e) {
     if (e.source !== parent) return;
     var d = e.data || {};
-    if (d.source !== 'anim-studio') return;
+    if (d.source !== 'vistaro-studio') return;
     if (d.type === 'reload') {
       // A fresh timeline invalidates any selection (its element was just been rebuilt).
       deselect();
       try {
-        window.__anim.stop();
-        var restored = window.__anim.restart(); // authored DOM back from the boot snapshot
-        window.__anim.start(0);
+        window.__vistaro.stop();
+        var restored = window.__vistaro.restart(); // authored DOM back from the boot snapshot
+        window.__vistaro.start(0);
         window.__tour.boot({ steps: d.steps || [], meta: d.meta || {} }); // posts a fresh 'ready'
         if (!restored) post('reload-failed', { message: 'no boot snapshot to restore' });
       } catch (err) {

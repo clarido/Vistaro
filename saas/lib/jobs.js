@@ -4,7 +4,7 @@
  *
  *   <id>/job.json     bookkeeping (status, artifacts, log tail)
  *   <id>/upload.zip   the uploaded project, kept for re-runs/debugging
- *   <id>/project/     the unzipped screen (index.html + anim.config.json + media)
+ *   <id>/project/     the unzipped screen (index.html + vistaro.config.json + media)
  *   <id>/out/         CLI output (demo.mp4, demo.vtt)
  *
  * The CLI is invoked with <id>/project as its project directory, so its guide

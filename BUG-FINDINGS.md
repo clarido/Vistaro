@@ -47,7 +47,7 @@ hardened) the plan note.
 | B11 | truncated `say` clip poisons the TTS cache | A | done |
 | B12 | aborted run claims a previous run's `output` | A | done |
 | B13 | `--tail`/`--duration` partial parses accepted | A | done |
-| B14 | `<anim-tour>` caches a failed manifest forever | C | done |
+| B14 | `<vistaro-tour>` caches a failed manifest forever | C | done |
 | B15 | `_pending` single slot drops queued `goto` | C | done |
 | B16 | unknown scenario slug → silent 404 frame | C | done |
 | B17 | Space key hijacks focused buttons | C | done |
@@ -116,14 +116,14 @@ bump (see Cross-cutting rules).
 
 1. **B6 — how far to go restoring page scripts after `restart()`.** Option A (recommended):
    auto re-execute classic scripts with per-script try/catch and an opt-out; Option B: opt-in
-   `__anim.onRestore(fn)` hook only. Options and hazards spelled out under B6.
+   `__vistaro.onRestore(fn)` hook only. Options and hazards spelled out under B6.
 2. **B29 — propose wontfix.** Display-only rounding; fixing it churns every human-readable timing
    line for no functional gain. Say the word and it gets fixed instead.
 3. **B13 — accepted flag grammar.** Recommended: `--tail` accepts bare ms or explicit-unit time
    strings; `--duration` stays strict bare seconds. Details under B13.
 4. **Delivery split** — single PR with commit-per-batch (recommended) vs one PR per batch.
 5. **B24 — corrupt-manifest aside file.** The fix renames an unparsable manifest to
-   `anim.manifest.json.corrupt-<timestamp>` (recovery over silent wipe). Check you're happy with that
+   `vistaro.manifest.json.corrupt-<timestamp>` (recovery over silent wipe). Check you're happy with that
    file appearing beside the manifest.
 
 ## Definition of done (per finding)
@@ -195,7 +195,7 @@ boundary, wrong narration. For `c.index === 4`, `steps[3]` is `undefined` → `n
 throws `TypeError`, killing `export --guide` **after** the recording has completed. With `--clips` it
 dies earlier, in `actualOf(s)`.
 
-**Repro:** `anim.config.json` with 4 numbered steps, step 2 given `"only": "mobile"`; run
+**Repro:** `vistaro.config.json` with 4 numbered steps, step 2 given `"only": "mobile"`; run
 `npx tsx cli.ts export <dir> -o demo.mp4 --guide` (desktop). Guide build crashes on the last step;
 earlier steps carry the wrong step's narration.
 
@@ -255,7 +255,7 @@ flight bumps `seq` (orphaning N's completion continuation) and immediately start
 already scheduled in `state.timers` and nothing cancels them — so two steps run at once: two
 interactions fire, the cursor is fought over by two moves.
 
-Realistic triggers: an `<anim-tour autoplay="inview">` bouncing around the 0.4 intersection threshold
+Realistic triggers: an `<vistaro-tour autoplay="inview">` bouncing around the 0.4 intersection threshold
 re-fires `play` mid-step; a host button wired to `element.play()` double-clicked; a host sending
 `play` twice over the message protocol.
 
@@ -272,7 +272,7 @@ state: `inFlight = true` before `runOne`, cleared in both of its settling callba
   mid-step pause replays the interrupted step (the seek path already restarts the DOM) instead of
   skipping to `index + 1` with the interaction never landed. Paused during the dwell *between*
   steps (`inFlight === false`) keeps the current "advance to next" resume.
-- `pause` (see B5): add `window.__anim.stop()` to cancel the runtime's travel/press/typing timers.
+- `pause` (see B5): add `window.__vistaro.stop()` to cancel the runtime's travel/press/typing timers.
 Tests in `test/tour.test.ts` against the served scenario page: second `play` mid-`type` starts
 nothing new (single interaction fires); `pause` mid-`type` stops the text; resume replays the
 interrupted step. The protocol comment at the top of tour-bridge.js is updated in the same commit.
@@ -287,7 +287,7 @@ case 'pause':
 ```
 
 `clearTimer()` only cancels the bridge's own dwell timer. The runtime step's timers (cursor travel,
-`typeInto`'s interval, the interaction) are registered in `state.timers` precisely so `__anim.stop()`
+`typeInto`'s interval, the interaction) are registered in `state.timers` precisely so `__vistaro.stop()`
 can cancel them (`runtime.js:877-882` comment, `stop()` at `runtime.js:1236-1241`) — the bridge never
 calls it. `seq++` abandons the promise continuation but not the animation. Press pause during a long
 `type` step and the text keeps appearing and the click still fires while the shell shows "paused".
@@ -296,7 +296,7 @@ Compounds with B4: the abandoned step's interaction fires on top of the next one
 **Repro:** play a scenario with a multi-second `type` step; press pause mid-typing; watch the text
 continue and the interaction fire.
 
-**Fix direction:** on `pause`, also call `window.__anim.stop()`; on `play` after a pause, `seek(index)`
+**Fix direction:** on `pause`, also call `window.__vistaro.stop()`; on `play` after a pause, `seek(index)`
 (replay the interrupted step) instead of jumping to `index + 1`.
 
 **Plan note (Batch C):** accepted consequence, to be documented: `stop()` clears `typeInto`'s
@@ -316,8 +316,8 @@ does **not** re-execute (`already-started`), while inline `onclick="…"` attrib
 which `export`'s docs explicitly support ("real `el.click()` so the page's own handlers run") — loses
 that behavior after the first `restart()`.
 
-**Failure mode:** a tour seek (tour-bridge `seek()` always calls `__anim.restart()`), an
-`anim-tour`/reel embed loop restore, or `animated.html`'s loop replay all rebuild the DOM without
+**Failure mode:** a tour seek (tour-bridge `seek()` always calls `__vistaro.restart()`), an
+`vistaro-tour`/reel embed loop restore, or `animated.html`'s loop replay all rebuild the DOM without
 listeners. A replayed `click` step then calls `el.click()` into the void: the guide's claim that
 "the page always agrees with itself" (AGENTS.md, Tours) is broken for script-driven mockups, and
 worst of all the replay **succeeds silently** — no error anywhere.
@@ -328,7 +328,7 @@ reacts. (Or: `build --loop` and let it loop once.)
 
 **Fix direction:** preserve script behavior across restart — e.g. re-execute the snapshot's inline
 scripts after re-appending (create fresh `<script>` clones so they run), or snapshot/restore an
-explicit "wiring" hook the mockup can register (`__anim.onRestore(fn)`), and document the constraint
+explicit "wiring" hook the mockup can register (`__vistaro.onRestore(fn)`), and document the constraint
 for mockup authors.
 
 **Plan note (Batch C — the one real design decision):**
@@ -337,10 +337,10 @@ for mockup authors.
   creating a fresh `<script>` clone (a re-appended clone of an already-executed script does not run —
   verified in the audit probe — so a fresh node is required). Skip `type="module"`, importmaps and
   JSON types; wrap each in try/catch so one failing script cannot kill the restore; opt-out via
-  `data-anim-rerun="false"` on the script tag or a boot flag. Documented hazard: a script that
+  `data-vistaro-rerun="false"` on the script tag or a boot flag. Documented hazard: a script that
   appends nodes to `<body>` at load will append a second copy on every restart, because the snapshot
   already contains its output — authors opt out or append outside `<body>`.
-- **Option B (most conservative): opt-in hook only.** `__anim.onRestore(fn)`; nothing auto-reruns.
+- **Option B (most conservative): opt-in hook only.** `__vistaro.onRestore(fn)`; nothing auto-reruns.
   No double-apply hazard, but existing broken mockups stay broken silently — the status quo this bug
   exists to fix.
 Test: browser test with an `addEventListener` mockup: click step → seek back → replay → the handler's
@@ -501,27 +501,27 @@ the unit — one accepted grammar per flag, no silent unit inference. Implement 
 helpers (e.g. `parseTailMs`, `parseDurationS`) so they unit-test without a browser; update both
 `--help` strings (regenerates via `npm run docs`).
 
-### B14 · `<anim-tour>`: a failed `tours.json` fetch is cached for the life of the page [code-read]
+### B14 · `<vistaro-tour>`: a failed `tours.json` fetch is cached for the life of the page [code-read]
 
-**Where:** `src/tour/app/anim-tour.js:122-132`.
+**Where:** `src/tour/app/vistaro-tour.js:122-132`.
 
 ```js
-AnimTour._manifests[root] = fetch(root + 'tours.json')
+VistaroTour._manifests[root] = fetch(root + 'tours.json')
     .then(r => (r.ok ? r.json() : Promise.reject(...)))
     .catch(() => null);
 ```
 
 The `.catch(() => null)` result is stored in the per-root cache and never evicted. One transient
-failure while the first embed loads (offline blip, 502) means every `<anim-tour>` with that root, for
-the whole session, gets `built = null` and requests the raw wanted device (`anim-tour.js:151`) — a 404
+failure while the first embed loads (offline blip, 502) means every `<vistaro-tour>` with that root, for
+the whole session, gets `built = null` and requests the raw wanted device (`vistaro-tour.js:151`) — a 404
 blank frame on a phone for a desktop-only tour, with no retry.
 
-**Fix direction:** on failure, `delete AnimTour._manifests[root]` before returning null so the next
+**Fix direction:** on failure, `delete VistaroTour._manifests[root]` before returning null so the next
 embed retries.
 
-### B15 · `<anim-tour>`: `_pending` is a single slot — a queued `goto` is lost [code-read]
+### B15 · `<vistaro-tour>`: `_pending` is a single slot — a queued `goto` is lost [code-read]
 
-**Where:** `src/tour/app/anim-tour.js:169-177`.
+**Where:** `src/tour/app/vistaro-tour.js:169-177`.
 
 Before `ready`, `_send` stores `{ type, extra }` — last write wins, not a queue. A host calling
 `element.goto(2)` then `element.play()` before the frame boots plays from step 0; `next()` followed by
@@ -530,9 +530,9 @@ Before `ready`, `_send` stores `{ type, extra }` — last write wins, not a queu
 **Fix direction:** keep a small array of pending commands (or merge a `goto` with a later transport
 command instead of overwriting).
 
-### B16 · Unknown `scenario` attribute on `<anim-tour>` → silent 404 blank frame [code-read]
+### B16 · Unknown `scenario` attribute on `<vistaro-tour>` → silent 404 blank frame [code-read]
 
-**Where:** `src/tour/app/anim-tour.js:129-131` and `:149-155`.
+**Where:** `src/tour/app/vistaro-tour.js:129-131` and `:149-155`.
 
 For a slug that is not in the manifest, `_builtDevices` returns `null` — indistinguishable from
 "manifest unreadable" — so `_load` happily sets `src` to `embed-<typo>-desktop.html` → 404 → a blank
@@ -540,7 +540,7 @@ For a slug that is not in the manifest, `_builtDevices` returns `null` — indis
 *missing* attribute, not an unknown one). The full shell handles this case (`app.js:51-54`); the
 element does not.
 
-**Repro:** `<anim-tour src="…" scenario="draft-responce">` → empty frame, nothing in the console from
+**Repro:** `<vistaro-tour src="…" scenario="draft-responce">` → empty frame, nothing in the console from
 the element, no `tourerror`.
 
 **Fix direction:** when the manifest loaded but the slug is absent, fire `tourerror`/`console.error`
@@ -570,7 +570,7 @@ target is the document body).
 `play-big` is clickable while the scenario iframe is still loading, but `send()` posts into
 `frame.contentWindow` with no queue — before the bridge script (end of body, after the whole mockup
 DOM) has run, the message is delivered to a document with no listener and dropped. `ready` does not
-replay the lost click. `anim-tour.js` solves exactly this with `_pending` (`:174`); the shell has no
+replay the lost click. `vistaro-tour.js` solves exactly this with `_pending` (`:174`); the shell has no
 equivalent.
 
 **Repro:** open the tour page and click the big ▶ while the iframe is still fetching — nothing
@@ -665,7 +665,7 @@ return block.text;
 
 (a) an empty `content` array (refusal, or `max_tokens` hit before any block) makes `content[0]`
 `undefined` → `TypeError` instead of a readable error; (b) the SDK can split a long answer into
-multiple `text` blocks — only the first is returned, so a generated `anim.config.json` is silently
+multiple `text` blocks — only the first is returned, so a generated `vistaro.config.json` is silently
 truncated mid-JSON; (c) `stop_reason` is never checked, so a `max_tokens` truncation of a long
 timeline is reported as success and fails later as a JSON parse error.
 
@@ -690,7 +690,7 @@ Every key in `existing` survives, including keys whose steps or fields were dele
 are matched by step id, a deleted-then-re-added step id also silently resurrects the outdated
 translation instead of the fresh source text.
 
-**Repro:** `localize <dir> fr`, translate, delete a step from `anim.config.json`, re-run
+**Repro:** `localize <dir> fr`, translate, delete a step from `vistaro.config.json`, re-run
 `localize <dir> fr` — the removed step's keys are still in `locales/fr/strings.fr.json`.
 
 **Fix direction:** intersect `existing` with `Object.keys(seed)` before merging, and report the
@@ -704,7 +704,7 @@ the base-file churn message at `localize.ts:92-96`). Changing that contract woul
 not a bug fix. Test in `test/strings.test.ts` / the localize tests: deleted step's keys vanish,
 surviving translations survive.
 
-### B24 · A corrupt `anim.manifest.json` silently wipes the whole audit trail [code-read]
+### B24 · A corrupt `vistaro.manifest.json` silently wipes the whole audit trail [code-read]
 
 **Where:** `src/manifest.ts:21-38` (read with silent fallthrough; non-atomic `writeFileSync`).
 
@@ -715,15 +715,15 @@ warning. `localize`'s `locale`/`baseLocale` fields reset too, changing subsequen
 The manifest is the documented "record of what was done" (AGENTS.md), so silent loss contradicts the
 contract.
 
-**Repro:** truncate `anim.manifest.json` to invalid JSON, run `build <dir>`, observe the file now
+**Repro:** truncate `vistaro.manifest.json` to invalid JSON, run `build <dir>`, observe the file now
 holds exactly one history event.
 
 **Fix direction:** warn loudly when an existing manifest fails to parse, and write atomically (temp
 file + rename).
 
-**Plan note (Batch A):** atomic write = `anim.manifest.json.tmp` in the same directory + `renameSync`
+**Plan note (Batch A):** atomic write = `vistaro.manifest.json.tmp` in the same directory + `renameSync`
 (same-volume rename is atomic); on unparsable existing content, rename it aside to
-`anim.manifest.json.corrupt-<ISO timestamp>` with a stderr warning before starting fresh, so the
+`vistaro.manifest.json.corrupt-<ISO timestamp>` with a stderr warning before starting fresh, so the
 damaged file is recoverable instead of silently overwritten. Test in a fast fs test: corrupt the
 file, run `recordEvent`, assert the aside exists, the new manifest has one event, and a warning was
 printed; plus a crash-safety sanity check that no `.tmp` file is left behind by a successful write.
@@ -778,10 +778,10 @@ it is the kind of thing a profile shows as steady growth during a long `record`.
 **Fix direction:** remove each handle from the array once it fires (or store a generation counter and
 compact on each step).
 
-**Plan note (Batch C):** wrap, don't scan: a `setAnimTimeout(fn, ms)` helper whose callback removes
+**Plan note (Batch C):** wrap, don't scan: a `setRunTimeout(fn, ms)` helper whose callback removes
 its own id (splice by indexOf) before running, used at the `runStepReady` push sites; `typeInto`
 removes its interval when it clears it. `stop()` unchanged. Add a test-only debug accessor
-(`__anim._pendingHandles()` or similar, named with the leading underscore and documented as
+(`__vistaro._pendingHandles()` or similar, named with the leading underscore and documented as
 non-public) so a browser test can assert the count returns to baseline after a timeline completes —
 timing semantics must not move (see Cross-cutting rule 2).
 
@@ -836,9 +836,9 @@ the todo list unless the reviewer says otherwise.
   the browser on every path; `runCli`'s timeout/kill double-resolve handling; `reset.ts` bounds.
 - **tour-bridge `gapAfter` math** (`tour-bridge.js:52-56`) matches runtime's `leadFor`
   (`min(950, span)` mirrors the lead cap; 450 floor intentional).
-- **Embed height reporting** (`app.js:209-214`, `anim-tour.js:183-185`): measured from `main`, cannot
-  ratchet; file:// origin handling (`UP`/`DOWN`) correct; `anim-tour` listener add/remove balanced;
-  768px breakpoint consistent between `app.js:131` and `anim-tour.js:29`.
+- **Embed height reporting** (`app.js:209-214`, `vistaro-tour.js:183-185`): measured from `main`, cannot
+  ratchet; file:// origin handling (`UP`/`DOWN`) correct; `vistaro-tour` listener add/remove balanced;
+  768px breakpoint consistent between `app.js:131` and `vistaro-tour.js:29`.
 - **Tour outDir guards** (`tour.ts:212-225`): root/home/catalog-dir/overlap refusals all present.
 
 ## Notes for whoever fixes these
@@ -864,13 +864,13 @@ Status table above and the Implementation record below for what actually happene
 Where the landed code diverged from or hardened the plan notes above — read this before reviewing
 the diff:
 
-1. **B6 needed a marker the plan did not foresee.** The anim-cli-injected script block
+1. **B6 needed a marker the plan did not foresee.** The vistaro-injected script block
    (runtime + bridge + boot) is itself a `<script>` inside `<body>`, so the first version of
    `rerunScripts()` re-executed **it** on restart, re-creating `window.__tour` and re-booting the
    runtime (observed as a second `ready` after `play` and a scheduler whose index read -1 while
    typing ran). Fix: `buildAnimatedHtml`/`buildTourPage` now emit their block with
-   `data-anim-rerun="false"`, and `rerunScripts()` additionally skips any inline script whose text
-   contains `window.__anim.boot(` — a belt for tour/reel pages built before the marker existed.
+   `data-vistaro-rerun="false"`, and `rerunScripts()` additionally skips any inline script whose text
+   contains `window.__vistaro.boot(` — a belt for tour/reel pages built before the marker existed.
 2. **B4/B5's `inFlight` spans more than `runStep`.** `runStep` resolves at the *interaction* (first
    typed character), not at completion, so clearing `inFlight` there made `pause` skip `stop()` while
    typing was still running (caught by the test: the field kept growing). `inFlight` now clears only

@@ -11,16 +11,16 @@ export interface LocalizeOptions {
     outputDir?: string;
     /** Legacy layout: scaffold into a sibling directory named after the locale (`../<locale>`). */
     sibling?: boolean;
-    /** Overwrite the target's index.html, anim.config.json and strings.<locale>.json (translations are lost). */
+    /** Overwrite the target's index.html, vistaro.config.json and strings.<locale>.json (translations are lost). */
     force?: boolean;
 }
 
 /**
  * `localize <source_dir> <locale>`: scaffold `<source_dir>/locales/<locale>/` (or --output-dir, or
- * the legacy sibling `<locale>/` with --sibling) with index.html, anim.config.json and the media
+ * the legacy sibling `<locale>/` with --sibling) with index.html, vistaro.config.json and the media
  * index.html references copied as a starting point, regenerate `strings.<baseLocale>.json` in the
  * source from the inline text, and write/merge a pre-filled `strings.<locale>.json` in the target.
- * Re-running is safe: a translator's index.html, anim.config.json and translations are kept
+ * Re-running is safe: a translator's index.html, vistaro.config.json and translations are kept
  * (new keys are added) unless --force. The choreography (time, action, target) is never edited.
  */
 export function localizeCommand(sourceDir: string, locale: string, options: LocalizeOptions = {}) {
@@ -58,7 +58,7 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
     // Copy the UI markup and timeline as a translation starting point (never over a translator's edits).
     copyUnlessPresent(srcIndex, 'index.html');
 
-    const srcConfig = path.resolve(sourceDir, 'anim.config.json');
+    const srcConfig = path.resolve(sourceDir, 'vistaro.config.json');
     const srcManifest = readManifest(sourceDir);
     // A source that is itself a locale (fr -> fr-CA): its strings are seeded from its localized view and
     // no strings.<base>.json is written into it.
@@ -71,7 +71,7 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
     let baseLocale = 'en';
     let sourceStringsFile: string | undefined;
     if (fs.existsSync(srcConfig)) {
-        copyUnlessPresent(srcConfig, 'anim.config.json');
+        copyUnlessPresent(srcConfig, 'vistaro.config.json');
         // Keys always come from the inline text (the authored source).
         const inline = parseTimeline(JSON.parse(fs.readFileSync(srcConfig, 'utf8')));
         reel = isReel(inline);
@@ -144,18 +144,18 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
     console.log(`\nScaffolded locale "${locale}" at ${rel(targetDir)}: copied ${copied.join(', ') || 'nothing new'}${mediaCopied ? `, ${mediaCopied} media file(s)` : ''}${targetStringsFile ? `; ${Object.keys(baseStrings!).length} strings` : ''}.`);
     for (const k of kept) console.log(`Kept existing ${k} (use --force to overwrite).`);
     for (const o of overwritten) console.error(`warning  Overwrote existing ${o} (--force): the previous content is gone.`);
-    if (sourceStringsFile) console.log(`Base strings (${baseLocale}): ${rel(sourceStringsFile)} (regenerated from anim.config.json).`);
+    if (sourceStringsFile) console.log(`Base strings (${baseLocale}): ${rel(sourceStringsFile)} (regenerated from vistaro.config.json).`);
     console.log(`\nNext steps:`);
-    if (targetStringsFile) console.log(`  1. Translate the values in ${rel(targetStringsFile)} (titles, subtitles, narration, notes, translatable typed text). Keys and anim.config.json stay as they are.`);
+    if (targetStringsFile) console.log(`  1. Translate the values in ${rel(targetStringsFile)} (titles, subtitles, narration, notes, translatable typed text). Keys and vistaro.config.json stay as they are.`);
     console.log(`  ${targetStringsFile ? 2 : 1}. Edit ${rel(path.join(targetDir, 'index.html'))} -- translate the visible text, keep element IDs/classes unchanged.`);
     console.log(`  ${targetStringsFile ? 3 : 2}. Check, build and export the locale (strings apply automatically through the manifest's locale):`);
-    console.log(`     npx tsx cli.ts check ${rel(targetDir)}`);
+    console.log(`     npx vistaro check ${rel(targetDir)}`);
     if (reel) {
-        console.log(`     npx tsx cli.ts export ${rel(targetDir)} -o clip-${locale}.mp4 --device mobile --scale 2   # mp4 + webm + poster + gif`);
-        console.log(`     npx tsx cli.ts build ${rel(targetDir)} --embed --device mobile                  # embed-mobile.html + snippet`);
+        console.log(`     npx vistaro export ${rel(targetDir)} -o clip-${locale}.mp4 --device mobile --scale 2   # mp4 + webm + poster + gif`);
+        console.log(`     npx vistaro build ${rel(targetDir)} --embed --device mobile                  # embed-mobile.html + snippet`);
     } else {
-        console.log(`     npx tsx cli.ts build ${rel(targetDir)}`);
-        console.log(`     npx tsx cli.ts export ${rel(targetDir)} --output demo-${locale}.mp4 --narration --guide`);
+        console.log(`     npx vistaro build ${rel(targetDir)}`);
+        console.log(`     npx vistaro export ${rel(targetDir)} --output demo-${locale}.mp4 --narration --guide`);
     }
     console.log(`  Re-run \`localize\` after adding steps: new keys are added, your edits are kept.`);
     // Sanity: the target loads with the strings applied.

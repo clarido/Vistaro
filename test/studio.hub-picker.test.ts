@@ -39,7 +39,7 @@ before(async () => {
             // picker.js reads. Two cards: the repro needs a card for the cursor to land on.
             const project = (id: string, title: string) => ({
                 id, dir: 'work/' + title.toLowerCase().replace(/\W+/g, '-'), title,
-                configName: 'anim.config.json', kind: 'guide', tour: false,
+                configName: 'vistaro.config.json', kind: 'guide', tour: false,
                 locales: ['en'], devices: ['desktop'], steps: 3, lastTouched: null, current: false,
             });
             res.writeHead(200, { 'content-type': 'application/json' });

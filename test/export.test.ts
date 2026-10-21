@@ -22,7 +22,7 @@ const cli = (args: string[], env: Record<string, string> = {}) => {
 let work: string;
 before(() => {
     if (skip) return;
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-export-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-export-'));
     fs.cpSync(fixture, path.join(work, 'basic'), { recursive: true });
 });
 after(() => { if (work) fs.rmSync(work, { recursive: true, force: true }); });
@@ -33,7 +33,7 @@ test('export: driven recording, auto duration, .vtt, chapters, manifest', { skip
     const r = cli(['export', dir, '-o', out, '--width', '1280', '--height', '800']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
     assert.ok(fs.existsSync(out));
-    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(dir, 'anim.config.json'), 'utf8')));
+    const tl = parseTimeline(JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.config.json'), 'utf8')));
     const estimate = computeDurationMs(tl);
     assert.equal(estimate, 6300);
     // #banner has `transition: opacity 3s`, so the fadeIn at 4s completes at ~7s: export must hold
@@ -52,7 +52,7 @@ test('export: driven recording, auto duration, .vtt, chapters, manifest', { skip
     assert.equal(chapters[0].title, 'Overview');
     assert.equal(chapters[1].title, 'Open the panel');
 
-    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8'));
     const last = manifest.history.at(-1);
     // Chapters are cut at the moment the step actually ran in this recording, not at its scheduled
     // time: comparing the two same-run numbers holds whatever the machine was doing.
@@ -85,7 +85,7 @@ test('export: --duration override, --no-subtitles, --no-chapters, gif output', {
 test('export: validation errors exit 1 without --force; legacy dir without config still records', { skip }, () => {
     const bad = path.join(work, 'bad');
     fs.cpSync(fixture, bad, { recursive: true });
-    fs.writeFileSync(path.join(bad, 'anim.config.json'), JSON.stringify([{ time: 1, action: 'jump', target: '#btn' }]));
+    fs.writeFileSync(path.join(bad, 'vistaro.config.json'), JSON.stringify([{ time: 1, action: 'jump', target: '#btn' }]));
     const r = cli(['export', bad, '-o', path.join(work, 'bad.mp4'), '--width', '320', '--height', '200']);
     assert.equal(r.status, 1);
     assert.match(r.stderr, /unknown action "jump"/);
@@ -104,7 +104,7 @@ test('export: validation errors exit 1 without --force; legacy dir without confi
 test('export: a step that fails outright (missing target) still writes the video but exits 1 and names the step', { skip }, () => {
     const dir = path.join(work, 'failing');
     fs.cpSync(fixture, dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify([
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify([
         { time: 0.5, action: 'click', target: '#definitely-not-here', title: 'Missing' },
         { time: 1.5, action: 'click', target: '#btn', title: 'Real' },
     ]));
@@ -114,7 +114,7 @@ test('export: a step that fails outright (missing target) still writes the video
     assert.match(r.stderr, /FAILED: 1 step\(s\) failed during the recording: step 1 \(click #definitely-not-here\)/);
     assert.ok(!/Success!/.test(r.stdout));
     assert.ok(fs.existsSync(out), 'the video is still written for inspection');
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.match(ev.steps[0].error, /target not found/);
     assert.equal(ev.steps[1].error, undefined);
 });
@@ -123,9 +123,9 @@ test('export: a built page without a config self-plays during the blind wait', {
     const dir = path.join(work, 'selfplay');
     fs.mkdirSync(dir);
     fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><html><head><style>body{margin:0;background:#fff;height:100vh}</style></head><body><button id="b" onclick="document.body.style.background=\'#f00\'">go</button></body></html>');
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { tailMs: 400, cursor: 'none', drift: false }, steps: [{ time: 0.5, action: 'click', target: '#b' }] }));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { tailMs: 400, cursor: 'none', drift: false }, steps: [{ time: 0.5, action: 'click', target: '#b' }] }));
     assert.equal(cli(['build', dir]).status, 0);
-    fs.rmSync(path.join(dir, 'anim.config.json'));
+    fs.rmSync(path.join(dir, 'vistaro.config.json'));
     const out = path.join(work, 'selfplay.mp4');
     const r = cli(['export', dir, '-o', out, '--duration', '1.5', '--width', '320', '--height', '200']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
@@ -139,7 +139,7 @@ test('export records index.html with the runtime injected, never a stale animate
     fs.mkdirSync(dir);
     const page = (bg: string) => `<!doctype html><html><head><style>body{margin:0;background:${bg};height:100vh}</style></head><body><button id="b">go</button></body></html>`;
     fs.writeFileSync(path.join(dir, 'index.html'), page('#fff'));
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { tailMs: 400, cursor: 'none', drift: false }, steps: [{ time: 0.5, action: 'click', target: '#b' }] }));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { tailMs: 400, cursor: 'none', drift: false }, steps: [{ time: 0.5, action: 'click', target: '#b' }] }));
     assert.equal(cli(['build', dir]).status, 0);
     assert.match(fs.readFileSync(path.join(dir, 'animated.html'), 'utf8'), /#fff/);
     // Edit the source after the build: the video must show blue, which only index.html has.
@@ -165,11 +165,11 @@ test('export: the first changed video frame lands within one frame of the measur
     const dir = path.join(work, 'flash');
     fs.mkdirSync(dir);
     fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><html><head><style>body{margin:0;background:#fff;height:100vh}button{position:absolute;left:10px;top:10px}</style></head><body><button id="b" onclick="document.body.style.background=\'#f00\'">go</button></body></html>');
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { tailMs: 600, cursor: 'none', drift: false }, steps: [{ time: 1, action: 'click', target: '#b' }] }));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { tailMs: 600, cursor: 'none', drift: false }, steps: [{ time: 1, action: 'click', target: '#b' }] }));
     const out = path.join(work, 'flash.mp4');
     const r = cli(['export', dir, '-o', out, '--width', '320', '--height', '200', '--no-chapters', '--no-subtitles']);
     assert.equal(r.status, 0, r.stderr + r.stdout);
-    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8'));
     const actualMs: number = manifest.history.at(-1).steps[0].actualMs;
     const frames = samplePixels(out, 300, 190);
     assert.ok(frames.length > 20, `frames: ${frames.length}`);
@@ -205,7 +205,7 @@ test('a reel export ships mp4 + webm + poster + gif, silent, with no subtitles o
       body { margin: 0; background: #fff; height: 100vh; }
       #card { margin: 40px; height: 120px; background: #4F46E5; opacity: 0; }
     </style></head><body><div id="card"></div></body></html>`);
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({
         meta: { kind: 'reel', title: 'Clip', cursor: 'none', tailMs: 300, reel: { loop: true } },
         steps: [
             { id: 'in', time: '0.3s', action: 'animate', target: '#card', from: { opacity: 0, y: 20 }, to: { opacity: 1, y: 0 }, duration: 0.4 },
@@ -231,7 +231,7 @@ test('a reel export ships mp4 + webm + poster + gif, silent, with no subtitles o
     assert.ok(!/Stream .*Audio/.test(info), `no audio stream: ${info.split('\n').filter(l => /Stream/.test(l)).join(' | ')}`);
     assert.match(info, /1[68]0x200|320x200/, 'encoded at the requested viewport');
 
-    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'anim.manifest.json'), 'utf8')).history.at(-1);
+    const ev = JSON.parse(fs.readFileSync(path.join(dir, 'vistaro.manifest.json'), 'utf8')).history.at(-1);
     assert.equal(ev.command, 'export');
     assert.equal(ev.subtitles, false, 'the manifest records that no subtitle file was written');
 });
@@ -251,7 +251,7 @@ test('preview and export render a reel under the same emulation, and a guide und
         const dir = path.join(work, name);
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(path.join(dir, 'index.html'), page);
-        fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta, steps }));
+        fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta, steps }));
         return dir;
     };
     const reelDir = mk('emu-reel', { kind: 'reel', title: 'Reel', cursor: 'none', tailMs: 300 });

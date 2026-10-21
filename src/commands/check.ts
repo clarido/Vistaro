@@ -19,13 +19,13 @@ export interface CheckOptions extends ViewportOptions {
     ignoreHttpsErrors?: boolean;
     /** Live probe: reset command run before the pass (default meta.reset). */
     resetCmd?: string;
-    /** Allow `meta.reset` from anim.config.json to run (a shell command out of a file). */
+    /** Allow `meta.reset` from vistaro.config.json to run (a shell command out of a file). */
     allowReset?: boolean;
     /** Validate as a guide: a numbered step without a title is an error, not a warning. */
     guide?: boolean;
     json?: boolean;
     locale?: string;
-    /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
+    /** --config: a timeline other than <dir>/vistaro.config.json (cwd-relative on the CLI). */
     config?: string;
     /** --trace: record per-step overlay geometry to <dir>/trace.json during the browser pass. */
     trace?: boolean;
@@ -110,14 +110,14 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 const rendered = typeof (el as any).checkVisibility === 'function'
                     ? (el as any).checkVisibility({ visibilityProperty: true })
                     : cs.display !== 'none' && cs.visibility !== 'hidden';
-                var anim = (window as any).__anim;
-                var anchor = anim.anchorOf(el);
+                var runtime = (window as any).__vistaro;
+                var anchor = runtime.anchorOf(el);
                 var ar = anchor.getBoundingClientRect();
                 // The faintest opacity on the chain self -> documentElement, and whether any
                 // transform on that chain collapses the element away: a card pre-hidden by a
                 // wrapper's opacity 0 or by scale(0) -- its own or an ancestor's -- is as
                 // invisible as one hiding itself, and the reveal warning below must not call it
-                // visible. The transform test lives in the runtime (anim.transformHidden): a
+                // visible. The transform test lives in the runtime (runtime.transformHidden): a
                 // NON-collapsed transform (the translate(-50%, -50%) centering idiom) hides
                 // nothing and must not suppress the warning.
                 var effOpacity = parseFloat(cs.opacity);
@@ -132,8 +132,8 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 // helper that does not exist inside the page (the callback is serialized by Playwright).
                 // The runtime scrolls a clipped target into view before interacting; mirror that here
                 // so the warning only fires when scrolling cannot reveal it.
-                let clipped = anim.isClipped(el);
-                if (clipped) { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); clipped = anim.isClipped(el); }
+                let clipped = runtime.isClipped(el);
+                if (clipped) { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); clipped = runtime.isClipped(el); }
                 // How much of the rect falls outside the viewport, and outside any ancestor that
                 // clips. isClipped above only tests the centre point, so an element cropped along one
                 // edge passes it while half of it is missing from the frame.
@@ -142,7 +142,7 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 // viewport" is the intended framing rather than a fault. Ask the runtime rather than
                 // reading the <body> transform: drift puts one there at boot (`check --live` keeps
                 // drift when meta.drift is true), which would disable this check for the whole run.
-                var cameraActive = !!(anim.cameraActive && anim.cameraActive());
+                var cameraActive = !!(runtime.cameraActive && runtime.cameraActive());
                 var outsideViewport = Math.max(0, -rr.left) + Math.max(0, rr.right - window.innerWidth)
                     + Math.max(0, -rr.top) + Math.max(0, rr.bottom - window.innerHeight);
                 var clippedBy = '';
@@ -167,25 +167,25 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                         var over = 0;
                         if (hidesX) { over += Math.max(0, abox.left - rr.left) + Math.max(0, rr.right - abox.right); vl = Math.max(vl, abox.left); vr2 = Math.min(vr2, abox.right); }
                         if (hidesY) { over += Math.max(0, abox.top - rr.top) + Math.max(0, rr.bottom - abox.bottom); vt = Math.max(vt, abox.top); vb = Math.min(vb, abox.bottom); }
-                        if (over > clipOverflow) { clipOverflow = over; clippedBy = anim.selectorOf(anc); }
+                        if (over > clipOverflow) { clipOverflow = over; clippedBy = runtime.selectorOf(anc); }
                     }
                     anc = anc.parentElement;
                 }
                 return {
                     count: all.length, width: r.width, height: r.height, rendered, clipped,
-                    descriptor: typeof anim.describeEl === 'function' ? anim.describeEl(el) : el.tagName.toLowerCase(),
-                    transformHidden: typeof anim.transformHidden === 'function' ? !!anim.transformHidden(el) : false,
+                    descriptor: typeof runtime.describeEl === 'function' ? runtime.describeEl(el) : el.tagName.toLowerCase(),
+                    transformHidden: typeof runtime.transformHidden === 'function' ? !!runtime.transformHidden(el) : false,
                     effectiveOpacity: effOpacity,
                     outsideViewport: Math.round(outsideViewport), clipOverflow: Math.round(clipOverflow), clippedBy, cameraActive,
                     visibleFraction: rr.width && rr.height
                         ? (Math.max(0, vr2 - vl) * Math.max(0, vb - vt)) / (rr.width * rr.height) : 0,
                     anchored: anchor !== el && ar.width > 0 && ar.height > 0,
-                    anchorSelector: anchor !== el ? anim.selectorOf(anchor) : undefined,
+                    anchorSelector: anchor !== el ? runtime.selectorOf(anchor) : undefined,
                     display: cs.display, visibility: cs.visibility, opacity: parseFloat(cs.opacity),
                     inViewport: r.bottom > 0 && r.right > 0 && r.top < window.innerHeight && r.left < window.innerWidth,
                 };
             }, step.target);
-            if (process.env.ANIM_DEBUG) console.error(`probe step ${step.index} ${step.target}: ${JSON.stringify(probe)}`);
+            if (process.env.VISTARO_DEBUG) console.error(`probe step ${step.index} ${step.target}: ${JSON.stringify(probe)}`);
             if (probe.error) {
                 issues.push(issueFor(step, 'error', `invalid selector ${JSON.stringify(step.target)}: ${probe.error}`));
                 return;
@@ -281,7 +281,7 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 // A record survives even when the page cannot answer (a live navigation destroyed
                 // the context mid-step): the geometry fields are null and the step keeps its row,
                 // so trace.json never silently loses steps.
-                const overlays = await page.evaluate(() => (window as any).__anim.overlayState()).catch(() => null);
+                const overlays = await page.evaluate(() => (window as any).__vistaro.overlayState()).catch(() => null);
                 const o = overlays || { cursor: null, spotlight: null, subtitle: null, camera: null };
                 trace.push({
                     index: step.index, id: step.id, action: step.action, target: step.target,
@@ -296,7 +296,7 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
             // ends up looking at as FACTS -- window, what is in frame, what is cut, how much of the
             // window is content -- which an author diffs against the timeline's intent as text.
             if (step.action === 'camera') {
-                const report: FramingReport | null = await page.evaluate((sel: string | null) => (window as any).__anim.framingReport(sel), step.target ?? null);
+                const report: FramingReport | null = await page.evaluate((sel: string | null) => (window as any).__vistaro.framingReport(sel), step.target ?? null);
                 if (report) {
                     const w = report.window;
                     const parts = [`framing after the move: scale ${report.scale}, window ${w.w}x${w.h} at (${w.x}, ${w.y})`];
@@ -319,7 +319,7 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
             // its own; a collision here means every placement overlapped and the least-bad one was
             // taken (a crowded frame) -- unless the step pinned the cue, in which case the pin won.
             if (typeof step.subtitle === 'string' && step.subtitle.trim()) {
-                const hits: { what: string; areaPx: number }[] | null = await page.evaluate(() => (window as any).__anim.subtitleCollisions());
+                const hits: { what: string; areaPx: number }[] | null = await page.evaluate(() => (window as any).__vistaro.subtitleCollisions());
                 if (hits && hits.length) {
                     // The browser pass runs even with schema errors, so an invalid place value (which
                     // the runtime ignores) must not claim the pin won; the dodge ran in that case.
@@ -496,7 +496,7 @@ export async function checkCommand(dir: string, options: CheckOptions = {}): Pro
         if (trace && trace.length) {
             const stem = configStem(dir, cliConfigPath(options.config));
             const out = path.join(dir, stem ? `trace.${stem}.json` : 'trace.json');
-            fs.writeFileSync(out, JSON.stringify({ generatedAt: new Date().toISOString(), source: { dir: path.basename(path.resolve(dir)), config: path.basename(timeline.configFile ?? 'anim.config.json') }, steps: trace }, null, 2) + '\n');
+            fs.writeFileSync(out, JSON.stringify({ generatedAt: new Date().toISOString(), source: { dir: path.basename(path.resolve(dir)), config: path.basename(timeline.configFile ?? 'vistaro.config.json') }, steps: trace }, null, 2) + '\n');
             log(`Wrote ${out} (${trace.length} step records: cursor, spotlight, subtitle and camera geometry per step).`);
         } else if (options.trace) {
             log('No trace written: the browser pass did not run (fix the errors above, or drop --static).');

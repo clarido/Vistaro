@@ -75,7 +75,7 @@ function normalizeCursor(c: unknown): CursorStyle {
     return c === 'windows' || c === 'none' ? c : 'mac';
 }
 
-/** Resolve the options handed to `__anim.boot` from timeline meta + CLI overrides. */
+/** Resolve the options handed to `__vistaro.boot` from timeline meta + CLI overrides. */
 export function bootOptions(timeline: Timeline, opts: InjectOptions = {}, withTimeline = true): BootOptions {
     const meta = timeline.meta || {};
     // The profile resolves the chrome; a CLI override still wins over it.
@@ -107,8 +107,8 @@ export function scriptJson(value: unknown): string {
     return JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 }
 
-const START = '<!-- anim-cli-runtime:start -->';
-const END = '<!-- anim-cli-runtime:end -->';
+const START = '<!-- vistaro-runtime:start -->';
+const END = '<!-- vistaro-runtime:end -->';
 
 /** Remove a previously injected runtime block so build is idempotent on its own output. */
 export function stripRuntime(html: string): string {
@@ -119,16 +119,16 @@ export function stripRuntime(html: string): string {
 }
 
 /**
- * Inline the runtime plus a `__anim.boot({...})` call before </body>.
+ * Inline the runtime plus a `__vistaro.boot({...})` call before </body>.
  * The page self-plays when opened directly; a Playwright driver sets
- * `window.__ANIM_DRIVEN = true` before load to keep the in-page scheduler off.
+ * `window.__VISTARO_DRIVEN = true` before load to keep the in-page scheduler off.
  */
 export function buildAnimatedHtml(html: string, timeline: Timeline, opts: InjectOptions = {}): string {
     const boot = bootOptions(timeline, opts, true);
-    // data-anim-rerun="false": restart() re-executes classic body scripts (so a mockup's listeners
+    // data-vistaro-rerun="false": restart() re-executes classic body scripts (so a mockup's listeners
     // survive a replay), and this block must never re-run -- a second boot would re-create the
     // scheduler and re-snapshot the already-played state.
-    const block = `\n${START}\n<script data-anim-rerun="false">\n${runtimeSource()}\nwindow.__anim.boot(${scriptJson(boot)});\n</script>\n${END}\n`;
+    const block = `\n${START}\n<script data-vistaro-rerun="false">\n${runtimeSource()}\nwindow.__vistaro.boot(${scriptJson(boot)});\n</script>\n${END}\n`;
     let out = stripRuntime(html);
     if (/<\/body>/i.test(out)) out = out.replace(/<\/body>/i, `${block}</body>`);
     else out += block;
@@ -157,10 +157,10 @@ export function buildTourPage(html: string, timeline: Timeline, opts: InjectOpti
         drift: opts.drift ?? (timeline.meta.drift !== undefined ? !!timeline.meta.drift : false),
     }, true);
     const payload = { meta: { tailMs: timeline.meta?.tailMs }, steps: timeline.steps };
-    // data-anim-rerun="false" for the same reason as buildAnimatedHtml: a restart() must not
+    // data-vistaro-rerun="false" for the same reason as buildAnimatedHtml: a restart() must not
     // re-create the tour scheduler.
-    const block = `\n${START}\n<script data-anim-rerun="false">\n${runtimeSource()}\n${tourBridgeSource()}\n`
-        + `window.__anim.boot(${scriptJson(boot)});\nwindow.__tour.boot(${scriptJson(payload)});\n</script>\n${END}\n`;
+    const block = `\n${START}\n<script data-vistaro-rerun="false">\n${runtimeSource()}\n${tourBridgeSource()}\n`
+        + `window.__vistaro.boot(${scriptJson(boot)});\nwindow.__tour.boot(${scriptJson(payload)});\n</script>\n${END}\n`;
     let out = stripRuntime(html);
     if (/<\/body>/i.test(out)) out = out.replace(/<\/body>/i, `${block}</body>`);
     else out += block;

@@ -22,7 +22,7 @@ export async function recordCommand(dir: string, options: RecordOptions): Promis
     try {
         const timeline = loadTimeline(dir, { locale: options.locale, config: cliConfigPath(options.config) });
         const url = options.url || timeline.meta.url;
-        if (!url) throw new Error('no URL: pass --url <url> or set meta.url in anim.config.json');
+        if (!url) throw new Error('no URL: pass --url <url> or set meta.url in vistaro.config.json');
         if (options.storageState && !fs.existsSync(options.storageState)) throw new Error(`storage state file not found: ${options.storageState}`);
         await assertReachable(url, { ignoreHttpsErrors: options.ignoreHttpsErrors });
         const session: LiveSession = { url, storageState: options.storageState, command: 'record', timeline };

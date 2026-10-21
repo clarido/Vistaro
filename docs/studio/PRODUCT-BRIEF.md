@@ -6,7 +6,7 @@
 
 ## One line
 
-A local web editor over the demo timeline: pick what to make, edit it with your hands — drag elements, grab the cursor, translate the copy — while the file it saves stays the plain `anim.config.json` that agents, CI and the CLI already read.
+A local web editor over the demo timeline: pick what to make, edit it with your hands — drag elements, grab the cursor, translate the copy — while the file it saves stays the plain `vistaro.config.json` that agents, CI and the CLI already read.
 
 ## The problem it solves
 

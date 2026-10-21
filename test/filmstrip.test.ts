@@ -20,7 +20,7 @@ let work: string;
 let video: string;
 
 test.before(() => {
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-strip-test-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-strip-test-'));
     // A synthetic clip: testsrc never stops moving, so the diff facts have something to find, and
     // lavfi costs milliseconds where exporting a real timeline would cost a browser session.
     video = path.join(work, 'clip.mp4');

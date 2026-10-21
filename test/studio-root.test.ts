@@ -24,7 +24,7 @@ function tmpTree(name: string): string {
 function writeScreen(dir: string): void {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><html><body><main id="app">screen</main></body></html>');
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), MINIMAL_CONFIG);
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), MINIMAL_CONFIG);
 }
 
 test('pickWorkspaceRoot: a package dir that scans to at least one screen is the root, even when the cwd differs', () => {
@@ -45,7 +45,7 @@ test('pickWorkspaceRoot: an installed-looking package dir (no screens anywhere u
     const cwd = tmpTree('cwd');
     try {
         // Dirs and files an installed package really has -- none of it is a screen (the pair
-        // rule wants index.html + anim.config.json in the same directory).
+        // rule wants index.html + vistaro.config.json in the same directory).
         fs.mkdirSync(path.join(packageDir, 'dist'), { recursive: true });
         fs.mkdirSync(path.join(packageDir, 'src', 'commands'), { recursive: true });
         fs.writeFileSync(path.join(packageDir, 'package.json'), '{"name":"vistaro"}');

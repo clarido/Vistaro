@@ -6,12 +6,12 @@
  * clock. A tour needs a third: one step at a time, driven by messages from the parent frame, so the
  * shell can offer play/pause and per-step navigation.
  *
- * Seeking works by replaying rather than rewinding: __anim.restart() puts the authored DOM back,
+ * Seeking works by replaying rather than rewinding: __vistaro.restart() puts the authored DOM back,
  * every earlier step is re-run with {instant: true} (which every duration-bearing action honours),
  * and the requested step then plays at full speed. That is why the page always agrees with itself --
  * there is no separate "state at step N" to drift out of sync.
  *
- * Protocol, both ways, on window.postMessage with source 'anim-tour':
+ * Protocol, both ways, on window.postMessage with source 'vistaro-tour':
  *   in : {type:'play'|'pause'|'next'|'prev'|'restart'} | {type:'goto', index:n}
  *   out: {type:'ready', total, steps} | {type:'state', index, playing, ...} | {type:'end'} | {type:'error', index, message}
  * `play` while already playing is a no-op (it would otherwise start the NEXT step on top of the one
@@ -26,7 +26,7 @@
   var seeking = false;    // a seek's instant replay is between steps (inFlight is false in the gaps)
   // Pause struck while a step was in flight (or a seek half-done). inFlight alone is not enough to
   // resume by replay: camera/fade/transitionScreen/animate steps complete through timers and
-  // animations that __anim.stop() cannot cancel (a CSS transition keeps painting), so their
+  // animations that __vistaro.stop() cannot cancel (a CSS transition keeps painting), so their
   // completion resolves after the pause and clears inFlight -- the step is still the one to replay.
   var pausedMidStep = false;
   var timer = null;
@@ -39,7 +39,7 @@
   var UP = (location.protocol !== 'file:' && location.origin && location.origin !== 'null') ? location.origin : '*';
 
   function post(type, extra) {
-    var msg = { source: 'anim-tour', type: type };
+    var msg = { source: 'vistaro-tour', type: type };
     if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) msg[k] = extra[k];
     try { parent.postMessage(msg, UP); } catch (e) { /* not framed */ }
   }
@@ -78,7 +78,7 @@
 
   function settle() {
     // runStep resolves at the interaction; a fade/camera/typing is only over at its completion.
-    return window.__anim.whenIdle();
+    return window.__vistaro.whenIdle();
   }
 
   function runOne(i, instant) {
@@ -86,7 +86,7 @@
     // animating until settle()/whenIdle), because pause must stop an animating step and a resume
     // must replay it -- not merely one whose first keystroke has landed.
     inFlight = true;
-    var done = window.__anim.runStep(steps[i], { instant: !!instant || reduced }).then(settle);
+    var done = window.__vistaro.runStep(steps[i], { instant: !!instant || reduced }).then(settle);
     done.then(function () { inFlight = false; }, function () { inFlight = false; });
     return done;
   }
@@ -128,7 +128,7 @@
     seeking = true;
     var token = seq;
     clearTimer();
-    window.__anim.restart();
+    window.__vistaro.restart();
     var chain = Promise.resolve();
     for (var i = 0; i < n; i++) (function (k) {
       chain = chain.then(function () { if (token === seq) return runOne(k, true); });
@@ -144,7 +144,7 @@
   }
 
   function handle(d) {
-    if (!d || d.source !== 'anim-tour') return;
+    if (!d || d.source !== 'vistaro-tour') return;
     // An empty timeline still answers every command: without this the bridge posted nothing at
     // all, and the shell's controls sat enabled but dead forever (no state, no end).
     if (!steps.length) {
@@ -181,7 +181,7 @@
         // goes through seek(), and restart() resets the completions it would ever resolve into.
         // (A camera/fade transition itself cannot be frozen by stop(); its completion resolves
         // harmlessly into a stale token, and pausedMidStep is what makes the resume replay.)
-        if (inFlight) { try { window.__anim.stop(); } catch (e) { /* not booted */ } }
+        if (inFlight) { try { window.__vistaro.stop(); } catch (e) { /* not booted */ } }
         emit();
         break;
       case 'next':
@@ -223,7 +223,7 @@
       steps = (payload && payload.steps) || [];
       meta = (payload && payload.meta) || {};
       try { reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { reduced = false; }
-      window.__anim.start(0);
+      window.__vistaro.start(0);
       // The shell decides what to show and when to start; the page only announces it is ready.
       post('ready', {
         total: steps.length,

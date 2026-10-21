@@ -14,7 +14,7 @@ export interface PreviewOptions extends ViewportOptions {
     output?: string;
     cursor?: string;
     locale?: string;
-    /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
+    /** --config: a timeline other than <dir>/vistaro.config.json (cwd-relative on the CLI). */
     config?: string;
     force?: boolean;
 }
@@ -86,7 +86,7 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
         // show is what the video does, subtitles and all.
         if (options.motion) {
             const durationMs = computeDurationMs(timeline);
-            await page.evaluate((tl) => { (window as any).__anim.play(tl, {}); }, timeline);
+            await page.evaluate((tl) => { (window as any).__vistaro.play(tl, {}); }, timeline);
             const shots: SheetFrame[] = [];
             const started = Date.now();
             // Enough cadence to catch a 0.3s camera pan, few enough tiles to keep the sheet readable.
@@ -128,7 +128,7 @@ export async function previewCommand(dir: string, options: PreviewOptions = {}):
             const spec = reelOptions(timeline).poster;
             // 'last' is the default and lands exactly here, with every step complete and settled.
             // Any other setting names a different moment, so the tile says which one it approximates.
-            await page.evaluate((o) => (window as any).__anim.whenSettled(o), { timeoutMs: 10000 });
+            await page.evaluate((o) => (window as any).__vistaro.whenSettled(o), { timeoutMs: 10000 });
             const label = spec === 'last' ? 'poster (last step, as exported)'
                 : `poster — approximated: meta.reel.poster is ${JSON.stringify(spec)}, shown at the end of the timeline`;
             frames.push({ label, png: await page.screenshot({ type: 'png' }) });

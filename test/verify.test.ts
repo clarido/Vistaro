@@ -46,7 +46,7 @@ let work: string;
 
 before(() => {
     if (skip) return;
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-verify-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-verify-'));
     fs.cpSync(fixture, path.join(work, 'basic'), { recursive: true });
 });
 after(() => { if (work) fs.rmSync(work, { recursive: true, force: true }); });
@@ -73,7 +73,7 @@ test('verify: builds the demo and audits it (verify.json contract, strip beside 
 test('verify: a failed step lands in verify.json with its error and exits 1', { skip }, async () => {
     const dir = path.join(work, 'failing');
     fs.cpSync(fixture, dir, { recursive: true });
-    const configPath = path.join(dir, 'anim.config.json');
+    const configPath = path.join(dir, 'vistaro.config.json');
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     const open = config.steps.find((s: { id: string }) => s.id === 'open');
     assert.ok(open, 'fixture carries the open click step this test breaks');

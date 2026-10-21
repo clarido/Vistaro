@@ -203,7 +203,7 @@
 
   /* ---------- format blocks ---------- */
   .fmt { padding: 72px 0; border-bottom: 1px solid var(--line-soft); scroll-margin-top: 62px; }
-  .fmt-head { max-width: 760px; margin-bottom: 32px; }
+  .fmt-head { max-width: 900px; margin-bottom: 32px; }
   .cmd-chip .q { color: var(--faint); }
   .cmd-chip {
     display: inline-block;
@@ -216,7 +216,7 @@
     margin-bottom: 14px;
   }
   .fmt-head h2 { font-size: clamp(27px, 3.6vw, 38px); font-weight: 700; letter-spacing: -.028em; line-height: 1.06; margin: 0 0 12px; }
-  .fmt-head p { color: var(--muted); font-size: var(--text-lead); line-height: 1.6; margin: 0; max-width: 62ch; }
+  .fmt-head p { color: var(--muted); font-size: var(--text-lead); line-height: 1.6; margin: 0; max-width: 74ch; }
   .fmt-head p b { color: var(--ink); font-weight: 600; }
 
   .fmt-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 40px; align-items: start; }
@@ -232,7 +232,7 @@
     background: var(--panel);
   }
   .media video, .media > img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; background: #F4F1EA; }
-  .media anim-tour { display: block; }
+  .media vistaro-tour { display: block; }
   /* a tall artifact (the guide page) shows its top and fades out, instead of being cropped to 16:9 */
   .media.page { max-height: 520px; background: #F4F6FA; -webkit-mask-image: linear-gradient(#000 78%, transparent); mask-image: linear-gradient(#000 78%, transparent); }
   .media.page img { aspect-ratio: auto; object-fit: fill; background: none; }
@@ -320,11 +320,11 @@
   .codeblock .pr { color: var(--faint); user-select: none; }
 
   /* ---------- reels: the CLI's own embed pages, scaled from their authored size ---------- */
-  .anim-embed { position: relative; width: 100%; aspect-ratio: var(--embed-ratio, 16 / 9); overflow: hidden; background: #EEF2F8; }
-  .anim-embed-frame { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; transform: scale(var(--embed-scale, .5)); }
-  .anim-embed-frame:focus-visible { outline-offset: -2px; }
+  .vistaro-embed { position: relative; width: 100%; aspect-ratio: var(--embed-ratio, 16 / 9); overflow: hidden; background: #EEF2F8; }
+  .vistaro-embed-frame { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; transform: scale(var(--embed-scale, .5)); }
+  .vistaro-embed-frame:focus-visible { outline-offset: -2px; }
   .reel-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .anim-embed.is-playing .reel-poster { display: none; }
+  .vistaro-embed.is-playing .reel-poster { display: none; }
   .media-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: var(--text-meta); }
   .reel-toggle {
     display: inline-flex; align-items: center; gap: 8px;
@@ -396,17 +396,17 @@
       Vistaro
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Main">
-      <a href="start.html">Get started</a>
       <a href="formats.html" aria-current="page">Formats</a>
       <a href="animations.html">Animations</a>
       <a href="index.html#how">How it works</a>
       <a href="index.html#compare">Compare</a>
       <a href="index.html#faq">FAQ</a>
-      <a class="mobile-cta" href="https://github.com/clarido/Vistaro">View on GitHub</a>
+      <a class="mobile-cta" href="start.html">Get started</a>
     </nav>
     <div class="nav-cta">
+      <a class="nav-npm" href="https://github.com/clarido/Vistaro">GitHub</a>
       <a class="nav-npm" href="https://www.npmjs.com/package/vistaro">npm</a>
-      <a class="btn btn-primary btn-sm" href="https://github.com/clarido/Vistaro">View on GitHub</a>
+      <a class="btn btn-primary btn-sm" href="start.html">Get started</a>
       <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
@@ -521,9 +521,9 @@
       <div class="duo">
         <figure class="landscape">
           <div class="media reel" data-file="assets/ask-anything.mp4">
-            <div class="anim-embed" data-w="1280" data-h="720">
+            <div class="vistaro-embed" data-w="1280" data-h="720">
               <img class="reel-poster" src="assets/ask-anything.poster.webp" alt="The desktop reel's last frame: Clarido's pipeline view answering &quot;Where is churn risk hiding?&quot; with a bar chart and $310K recoverable this quarter" loading="lazy">
-              <iframe class="anim-embed-frame" src="src/ask-anything/embed-desktop.html" title="Desktop marketing reel made with Vistaro: Ask anything" loading="lazy" tabindex="-1"></iframe>
+              <iframe class="vistaro-embed-frame" src="src/ask-anything/embed-desktop.html" title="Desktop marketing reel made with Vistaro: Ask anything" loading="lazy" tabindex="-1"></iframe>
             </div>
             <div class="media-bar">
               <span>Desktop · 10 s</span>
@@ -535,9 +535,9 @@
         <figure>
           <div class="phone">
             <div class="media reel" data-file="assets/ask-anything-mobile.mp4">
-              <div class="anim-embed" data-w="390" data-h="844">
+              <div class="vistaro-embed" data-w="390" data-h="844">
                 <img class="reel-poster" src="assets/ask-anything-mobile.poster.webp" alt="The phone reel's last frame: the same pipeline answer, stacked for a portrait screen" loading="lazy">
-                <iframe class="anim-embed-frame" src="src/ask-anything/embed-mobile.html" title="Phone marketing reel made with Vistaro: Ask anything" loading="lazy" tabindex="-1"></iframe>
+                <iframe class="vistaro-embed-frame" src="src/ask-anything/embed-mobile.html" title="Phone marketing reel made with Vistaro: Ask anything" loading="lazy" tabindex="-1"></iframe>
               </div>
               <div class="media-bar">
                 <span>Phone · 9 s</span>
@@ -579,14 +579,14 @@
         <div class="duo">
           <figure class="landscape">
             <div class="media">
-              <anim-tour src="src/clarido-tour-out/" scenario="whats-left" device="desktop" autoplay="inview" height="520"></anim-tour>
+              <vistaro-tour src="src/clarido-tour-out/" scenario="whats-left" device="desktop" autoplay="inview" height="520"></vistaro-tour>
             </div>
             <figcaption>Desktop.</figcaption>
           </figure>
           <figure>
             <div class="phone">
               <div class="media">
-                <anim-tour src="src/clarido-tour-out/" scenario="whats-left" device="mobile" autoplay="inview" height="600"></anim-tour>
+                <vistaro-tour src="src/clarido-tour-out/" scenario="whats-left" device="mobile" autoplay="inview" height="600"></vistaro-tour>
               </div>
             </div>
             <figcaption>Phone, same scenario.</figcaption>
@@ -594,18 +594,18 @@
         </div>
         <div class="codeblock">
           <div class="cb-bar"><span class="cb-dot"></span>on your page
-            <button class="cb-copy" type="button" data-copy='&lt;script type="module" src="https://your-site.com/tour/anim-tour.js"&gt;&lt;/script&gt;&#10;&lt;anim-tour src="https://your-site.com/tour/" scenario="draft-response" autoplay="inview"&gt;&lt;/anim-tour&gt;'>Copy</button>
+            <button class="cb-copy" type="button" data-copy='&lt;script type="module" src="https://your-site.com/tour/vistaro-tour.js"&gt;&lt;/script&gt;&#10;&lt;vistaro-tour src="https://your-site.com/tour/" scenario="draft-response" autoplay="inview"&gt;&lt;/vistaro-tour&gt;'>Copy</button>
           </div>
-<pre><span class="p">&lt;</span><span class="k">script</span> <span class="n">type</span>=<span class="s">"module"</span> <span class="n">src</span>=<span class="s">"https://your-site.com/tour/anim-tour.js"</span><span class="p">&gt;&lt;/</span><span class="k">script</span><span class="p">&gt;</span>
-<span class="p">&lt;</span><span class="k">anim-tour</span> <span class="n">src</span>=<span class="s">"https://your-site.com/tour/"</span>
-           <span class="n">scenario</span>=<span class="s">"draft-response"</span> <span class="n">autoplay</span>=<span class="s">"inview"</span><span class="p">&gt;&lt;/</span><span class="k">anim-tour</span><span class="p">&gt;</span></pre>
+<pre><span class="p">&lt;</span><span class="k">script</span> <span class="n">type</span>=<span class="s">"module"</span> <span class="n">src</span>=<span class="s">"https://your-site.com/tour/vistaro-tour.js"</span><span class="p">&gt;&lt;/</span><span class="k">script</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="k">vistaro-tour</span> <span class="n">src</span>=<span class="s">"https://your-site.com/tour/"</span>
+           <span class="n">scenario</span>=<span class="s">"draft-response"</span> <span class="n">autoplay</span>=<span class="s">"inview"</span><span class="p">&gt;&lt;/</span><span class="k">vistaro-tour</span><span class="p">&gt;</span></pre>
         </div>
       </div>
       <div class="fmt-copy">
         <h3>What you get</h3>
         <ul class="files">
           <li><code>index.html</code>the full tour, every scenario in a list</li>
-          <li><code>anim-tour.js</code>the one-tag embed</li>
+          <li><code>vistaro-tour.js</code>the one-tag embed</li>
           <li><code>embed-*.snippet.html</code>for a CMS that strips scripts</li>
           <li><code>tourstep · tourend</code>events for your analytics</li>
         </ul>
@@ -629,7 +629,7 @@
     </div>
     <div class="fmt-grid">
       <div class="media">
-        <anim-tour src="src/clarido-tour-fr-out/" scenario="draft-response" device="desktop" autoplay="inview" height="560"></anim-tour>
+        <vistaro-tour src="src/clarido-tour-fr-out/" scenario="draft-response" device="desktop" autoplay="inview" height="560"></vistaro-tour>
       </div>
       <div class="fmt-copy">
         <h3>What you get</h3>
@@ -656,7 +656,7 @@
     </div>
     <div class="fmt-grid">
       <div class="codeblock">
-        <div class="cb-bar"><span class="cb-dot"></span>anim.config.json · a step in your app</div>
+        <div class="cb-bar"><span class="cb-dot"></span>vistaro.config.json · a step in your app</div>
 <pre>{ <span class="k">"id"</span><span class="p">:</span> <span class="s">"save"</span>, <span class="k">"time"</span><span class="p">:</span> <span class="s">"6s"</span>, <span class="k">"action"</span><span class="p">:</span> <span class="s">"click"</span>,
   <span class="k">"target"</span><span class="p">:</span> <span class="s">"[data-help='save']"</span>,
   <span class="k">"waitFor"</span><span class="p">:</span> <span class="s">"[data-help='editor']"</span>,
@@ -727,7 +727,7 @@
 
 <span id="copy-status" class="visually-hidden" role="status" aria-live="polite"></span>
 
-<script type="module" src="src/clarido-tour-out/anim-tour.js"></script>
+<script type="module" src="src/clarido-tour-out/vistaro-tour.js"></script>
 <script>
   // Mobile nav — same behaviour as index.html.
   (function () {
@@ -766,8 +766,8 @@
     var ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
     var ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
     Array.prototype.forEach.call(document.querySelectorAll('.reel'), function (reel) {
-      var embed = reel.querySelector('.anim-embed');
-      var frame = embed && embed.querySelector('.anim-embed-frame');
+      var embed = reel.querySelector('.vistaro-embed');
+      var frame = embed && embed.querySelector('.vistaro-embed-frame');
       var toggle = reel.querySelector('.reel-toggle');
       if (!embed || !frame) return;
       var w = Number(embed.getAttribute('data-w'));
@@ -784,7 +784,7 @@
       var inView = false;
       var frameState = 'loading';
       function post(type) {
-        if (frame.contentWindow) frame.contentWindow.postMessage({ source: 'anim-cli', type: type }, '*');
+        if (frame.contentWindow) frame.contentWindow.postMessage({ source: 'vistaro', type: type }, '*');
       }
       function setPlaying(on) {
         embed.classList.toggle('is-playing', on);

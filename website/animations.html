@@ -198,7 +198,7 @@
   .live-chip .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(52, 211, 153, .18); }
 
   /* ---------- animation blocks ---------- */
-  .anim-group { padding: 64px 0 8px; }
+  .vistaro-group { padding: 64px 0 8px; }
   .group-label {
     display: flex;
     align-items: center;
@@ -210,9 +210,9 @@
   }
   .group-label::after { content: ""; height: 1px; flex: 1; background: var(--line); }
 
-  .anim-block { padding: 56px 0 64px; border-bottom: 1px solid var(--line-soft); }
-  .anim-block:last-of-type { border-bottom: 0; }
-  .anim-head { max-width: 720px; margin: 0 auto 28px; text-align: center; }
+  .vistaro-block { padding: 56px 0 64px; border-bottom: 1px solid var(--line-soft); }
+  .vistaro-block:last-of-type { border-bottom: 0; }
+  .vistaro-head { max-width: 900px; margin: 0 auto 28px; text-align: center; }
   .action-chip {
     display: inline-block;
     font: 600 12px/1 var(--mono);
@@ -224,18 +224,18 @@
     margin-bottom: 14px;
   }
   .action-chip .q { color: var(--faint); }
-  .anim-head h2 {
+  .vistaro-head h2 {
     font-size: clamp(27px, 3.6vw, 38px);
     font-weight: 700;
     letter-spacing: -.028em;
     line-height: 1.06;
     margin: 0 0 12px;
   }
-  .anim-head p { color: var(--muted); font-size: var(--text-body); line-height: 1.6; margin: 0 auto; max-width: 62ch; }
-  .anim-head p b { color: var(--ink); font-weight: 600; }
-  .anim-head p code { font: 500 .84em/1 var(--mono); color: var(--str); background: var(--panel2); border: 1px solid var(--line-soft); padding: 2px 6px; border-radius: 5px; }
+  .vistaro-head p { color: var(--muted); font-size: var(--text-body); line-height: 1.6; margin: 0 auto; max-width: 74ch; }
+  .vistaro-head p b { color: var(--ink); font-weight: 600; }
+  .vistaro-head p code { font: 500 .84em/1 var(--mono); color: var(--str); background: var(--panel2); border: 1px solid var(--line-soft); padding: 2px 6px; border-radius: 5px; }
 
-  anim-tour {
+  vistaro-tour {
     display: block;
     max-width: 980px;
     margin: 0 auto;
@@ -277,17 +277,17 @@
       Vistaro
     </a>
     <nav class="nav-links" id="navLinks">
-      <a href="start.html">Get started</a>
       <a href="formats.html">Formats</a>
       <a href="animations.html" aria-current="page">Animations</a>
       <a href="index.html#how">How it works</a>
       <a href="index.html#compare">Compare</a>
       <a href="index.html#faq">FAQ</a>
-      <a class="mobile-cta" href="https://github.com/clarido/Vistaro">View on GitHub</a>
+      <a class="mobile-cta" href="start.html">Get started</a>
     </nav>
     <div class="nav-cta">
+      <a class="nav-npm" href="https://github.com/clarido/Vistaro">GitHub</a>
       <a class="nav-npm" href="https://www.npmjs.com/package/vistaro">npm</a>
-      <a class="btn btn-primary btn-sm" href="https://github.com/clarido/Vistaro">View on GitHub</a>
+      <a class="btn btn-primary btn-sm" href="start.html">Get started</a>
       <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
@@ -309,150 +309,150 @@
 </section>
 
 <!-- ======================= MEDLEY ======================= -->
-<div class="anim-block" id="medley">
+<div class="vistaro-block" id="medley">
   <div class="container">
-    <div class="anim-head">
-      <span class="action-chip">anim.config.json <span class="q">·</span> 9 steps <span class="q">·</span> 20 s</span>
+    <div class="vistaro-head">
+      <span class="action-chip">vistaro.config.json <span class="q">·</span> 9 steps <span class="q">·</span> 20 s</span>
       <h2>Everything at once</h2>
       <p>The 20-second overview: a highlight, a real click, character-by-character typing, a camera push, a staggered chart build and a closing fade. One timeline, in the order you'd tell the story.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="medley" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="medley" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
 <!-- ======================= INTERACTIONS ======================= -->
-<section class="anim-group" aria-label="Interactions">
+<section class="vistaro-group" aria-label="Interactions">
   <div class="container"><div class="group-label">Interactions</div></div>
 </section>
 
-<div class="anim-block" id="click">
+<div class="vistaro-block" id="click">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "click"</span>
       <h2>Click</h2>
       <p>The cursor travels with a human drift, a spotlight frames the target, a ripple marks the press. Then a real <code>el.click()</code> fires, so the page's own handlers react.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="click" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="click" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
-<div class="anim-block" id="type">
+<div class="vistaro-block" id="type">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "type"</span>
       <h2>Type</h2>
       <p>Text lands character by character at a human pace, through real key events. React-style controlled inputs see genuine keystrokes, not a pasted value.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="type" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="type" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
-<div class="anim-block" id="focus">
+<div class="vistaro-block" id="focus">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "focus"</span>
       <h2>Focus</h2>
       <p>The element takes the page's real focus, so its own focus ring lights up. Works on anything focusable: inputs, buttons, links.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="focus" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="focus" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
-<div class="anim-block" id="hover">
+<div class="vistaro-block" id="hover">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "hover"</span>
       <h2>Hover</h2>
       <p>The cursor glides onto an element and its <code>:hover</code> styles respond. The lift, the shadow and the color change all come from the mockup's own CSS.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="hover" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="hover" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
-<div class="anim-block" id="press">
+<div class="vistaro-block" id="press">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "press"</span>
       <h2>Press</h2>
       <p>No cursor and no target, just the keyboard: <code>Enter</code>, <code>Tab</code>, or a chord like <code>Control+K</code>. Where <b>type</b> fills the field, <b>press</b> submits it.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="press" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="press" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
-<div class="anim-block" id="highlight">
+<div class="vistaro-block" id="highlight">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "highlight"</span>
       <h2>Highlight</h2>
       <p>A spotlight pulse that says <b>notice this</b>. Nothing gets clicked and nothing changes. The ring sizes itself to whatever you point at.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="highlight" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="highlight" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
 <!-- ======================= CAMERA & MOVEMENT ======================= -->
-<section class="anim-group" aria-label="Camera and movement">
+<section class="vistaro-group" aria-label="Camera and movement">
   <div class="container"><div class="group-label">Camera &amp; movement</div></div>
 </section>
 
-<div class="anim-block" id="camera">
+<div class="vistaro-block" id="camera">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "camera"</span>
       <h2>Camera</h2>
       <p>Push in on a detail, glide to the next one without a cut, then pull back to the full frame. The cursor and spotlight ride along.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="camera" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="camera" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
-<div class="anim-block" id="scroll">
+<div class="vistaro-block" id="scroll">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "scroll"</span>
       <h2>Scroll</h2>
       <p>Smooth-scroll a buried element into view, inside any scrollable container or the page itself.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="scroll" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="scroll" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
 <!-- ======================= REVEALS & MOTION ======================= -->
-<section class="anim-group" aria-label="Reveals and motion">
+<section class="vistaro-group" aria-label="Reveals and motion">
   <div class="container"><div class="group-label">Reveals &amp; motion</div></div>
 </section>
 
-<div class="anim-block" id="fade-in">
+<div class="vistaro-block" id="fade-in">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "fadeIn"</span>
       <h2>Fade in</h2>
       <p>Reveal anything hidden in CSS on cue: a result card, a toast, or the whole page as an opening beat. <code>display</code> and <code>opacity</code> are handled together.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="fade-in" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="fade-in" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
-<div class="anim-block" id="transition-screen">
+<div class="vistaro-block" id="transition-screen">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "transitionScreen"</span>
       <h2>Transition screen</h2>
       <p>Cross-fade between two screens authored in one file. You get a multi-screen story with no real page load, and every other action keeps working on the new screen.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="transition-screen" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="transition-screen" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
-<div class="anim-block" id="animate">
+<div class="vistaro-block" id="animate">
   <div class="container">
-    <div class="anim-head">
+    <div class="vistaro-head">
       <span class="action-chip"><span class="q">"action":</span> "animate"</span>
       <h2>Animate</h2>
       <p>The free-form one. It animates from a <code>from</code> state to a <code>to</code> state with Web Animations: transforms that compose, any CSS property, every match of a selector with a <code>stagger</code>, and seven named easings from <code>linear</code> to <code>spring</code>.</p>
     </div>
-    <anim-tour src="src/showcase-out/" scenario="animate" device="desktop" autoplay="inview" height="640"></anim-tour>
+    <vistaro-tour src="src/showcase-out/" scenario="animate" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 
@@ -492,7 +492,7 @@
 
 <span id="copy-status" class="visually-hidden" role="status" aria-live="polite"></span>
 
-<script type="module" src="src/showcase-out/anim-tour.js"></script>
+<script type="module" src="src/showcase-out/vistaro-tour.js"></script>
 <script>
   // Mobile nav — same behaviour as index.html.
   (function () {

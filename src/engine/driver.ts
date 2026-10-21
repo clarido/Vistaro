@@ -9,9 +9,9 @@ import { runtimeSource, bootOptions, InjectOptions } from './inject';
  *     not inside the page; Playwright serializes the callback source, so the page throws
  *     "ReferenceError: __name is not defined" (silently, if the caller swallows hook errors).
  *   - Anything non-trivial lives in src/engine/runtime.js (plain JS, injected as text) and is
- *     called through window.__anim (e.g. __anim.anchorOf, __anim.selectorOf, __anim.markStep).
+ *     called through window.__vistaro (e.g. __vistaro.anchorOf, __vistaro.selectorOf, __vistaro.markStep).
  *
- * Node-side scheduler: drives `window.__anim.runStep` in a Playwright page.
+ * Node-side scheduler: drives `window.__vistaro.runStep` in a Playwright page.
  *
  * - timed mode: each step starts at `timeMs - leadMs` on the wall clock (video export).
  * - step mode: steps run back-to-back with a fixed lead, awaiting each one (check/preview/guide).
@@ -23,12 +23,12 @@ import { runtimeSource, bootOptions, InjectOptions } from './inject';
  *   successful interaction that navigated.
  * - two-phase steps: with `captureBeforeAct(step)` true the driver runs the step up to the arrival
  *   (cursor pressed, spotlight on), calls `afterStep` there, then performs the interaction with
- *   `__anim.act(token)`; guides use it for clicks that navigate.
+ *   `__vistaro.act(token)`; guides use it for clicks that navigate.
  *
  * `runStep` resolves at the INTERACTION moment (click, first typed char, camera start);
  * the step's completion (typing done, camera/fade finished) is awaited separately via
- * `__anim.whenDone(token)`. `actualMs` / `completedMs` are measured in the page relative
- * to `__anim.start()`. VTT/chapters/guide data derive from `actualMs`.
+ * `__vistaro.whenDone(token)`. `actualMs` / `completedMs` are measured in the page relative
+ * to `__vistaro.start()`. VTT/chapters/guide data derive from `actualMs`.
  *
  * Hooks (`beforeStep`/`afterStep`) never reject the run: a throwing hook is recorded in
  * `result.error` so callers with `finally` cleanup (export) always get their results.
@@ -133,7 +133,7 @@ export interface RunOptions {
     afterStep?: (step: Step, result: StepResult) => void | Promise<void>;
 }
 
-const OWN_ANIM_MESSAGE = 'page defines its own window.__anim (not the anim-cli runtime); it cannot be driven';
+const OWN_VISTARO_MESSAGE = 'page defines its own window.__vistaro (not the vistaro runtime); it cannot be driven';
 
 /** Thrown when `failFast` abandoned the run, carrying the results gathered before it stopped. */
 export class RunAbortedError extends Error {
@@ -147,8 +147,8 @@ export class RunAbortedError extends Error {
 
 /** Make sure the runtime is present and booted (without a timeline, so it never self-plays). */
 export async function ensureRuntime(page: Page, timeline: Timeline, opts: InjectOptions = {}): Promise<void> {
-    const kind: string = await page.evaluate(() => { const a = (window as any).__anim; return !a ? 'none' : (typeof a.boot === 'function' && typeof a.runStep === 'function' ? 'ours' : 'foreign'); });
-    if (kind === 'foreign') throw new Error(OWN_ANIM_MESSAGE);
+    const kind: string = await page.evaluate(() => { const a = (window as any).__vistaro; return !a ? 'none' : (typeof a.boot === 'function' && typeof a.runStep === 'function' ? 'ours' : 'foreign'); });
+    if (kind === 'foreign') throw new Error(OWN_VISTARO_MESSAGE);
     const present = kind === 'ours';
     if (!present) await page.addScriptTag({ content: runtimeSource() });
     const boot: Record<string, any> = bootOptions(timeline, opts, false);
@@ -159,8 +159,8 @@ export async function ensureRuntime(page: Page, timeline: Timeline, opts: Inject
         if (opts.drift === undefined) delete boot.drift;
         if (opts.resetFocusStyles === undefined) delete boot.resetFocusStyles;
     }
-    await page.evaluate((o) => { (window as any).__anim.boot(o); }, boot);
-    await page.waitForFunction(() => (window as any).__anim && (window as any).__anim.isReady());
+    await page.evaluate((o) => { (window as any).__vistaro.boot(o); }, boot);
+    await page.waitForFunction(() => (window as any).__vistaro && (window as any).__vistaro.isReady());
 }
 
 export function errorMessage(e: any): string {
@@ -219,16 +219,16 @@ export async function ensureLive(page: Page, live: LiveOptions, state: RunState)
             await stopLoading(page);
             throw new Error(`navigation did not load within ${timeoutMs}ms (stopped): ${errorMessage(e)}`);
         }
-        const kind: string = await page.evaluate(() => { const a = (window as any).__anim; return !a ? 'none' : (typeof a.boot === 'function' && typeof a.runStep === 'function' ? (a.isReady() ? 'ready' : 'ours') : 'foreign'); }).catch(() => 'none');
-        if (kind === 'foreign') throw new Error(OWN_ANIM_MESSAGE);
+        const kind: string = await page.evaluate(() => { const a = (window as any).__vistaro; return !a ? 'none' : (typeof a.boot === 'function' && typeof a.runStep === 'function' ? (a.isReady() ? 'ready' : 'ours') : 'foreign'); }).catch(() => 'none');
+        if (kind === 'foreign') throw new Error(OWN_VISTARO_MESSAGE);
         // A booted runtime means the document is the same one (a new document has no boot); the
         // framenavigated flag also fires for same-document navigations (pushState), so it never
         // forces a re-boot by itself.
         if (kind === 'ready') { state.needsReboot = false; return false; }
         if (kind === 'none') await page.addScriptTag({ content: runtimeSource() });
-        await page.evaluate((o) => { (window as any).__anim.boot(o); }, { ...live.boot, cursorPoint: state.lastPoint });
-        await page.waitForFunction(() => (window as any).__anim && (window as any).__anim.isReady(), null, { timeout: timeoutMs });
-        await page.evaluate((elapsed) => { (window as any).__anim.start(elapsed); }, Date.now() - state.t0Wall);
+        await page.evaluate((o) => { (window as any).__vistaro.boot(o); }, { ...live.boot, cursorPoint: state.lastPoint });
+        await page.waitForFunction(() => (window as any).__vistaro && (window as any).__vistaro.isReady(), null, { timeout: timeoutMs });
+        await page.evaluate((elapsed) => { (window as any).__vistaro.start(elapsed); }, Date.now() - state.t0Wall);
         state.needsReboot = false;
         state.navigations++;
         return true;
@@ -251,7 +251,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
 
     // t0 on the page's clock (epoch ms), not Date.now() after the round trip: export trims the video
     // to this instant and an evaluate round trip alone can cost a frame or two.
-    state.t0Wall = await page.evaluate(() => { const a = (window as any).__anim; a.start(); const s = a.getState(); return s.timeOrigin + s.t0; });
+    state.t0Wall = await page.evaluate(() => { const a = (window as any).__vistaro; a.start(); const s = a.getState(); return s.timeOrigin + s.t0; });
     const t0 = state.t0Wall;
 
     const onNavigated = (frame: Frame) => { if (frame === page.mainFrame()) state.needsReboot = true; };
@@ -337,7 +337,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
         };
         const evaluateStep = () => withTimeout(
             page.evaluate(
-                ([s, o]) => (window as any).__anim.runStep(s, o),
+                ([s, o]) => (window as any).__vistaro.runStep(s, o),
                 [step, { leadMs, instant: !!opts.instant, holdBeforeAct: twoPhase, driverTypes: true }] as [Step, { leadMs: number; instant: boolean; holdBeforeAct: boolean; driverTypes: boolean }],
             ),
             stepTimeoutMs,
@@ -369,7 +369,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
                 }
                 afterStepDone = true;
                 const acted: StepResult & { token?: number } = await withTimeout(
-                    page.evaluate((t) => (window as any).__anim.act(t), holdToken),
+                    page.evaluate((t) => (window as any).__vistaro.act(t), holdToken),
                     stepTimeoutMs,
                     `${label(step)} act`,
                 );
@@ -404,7 +404,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
             // spotlight is re-tracked every few characters, like the in-page typist does.
             const text = String(step.value ?? '');
             const cps = typeof step.cps === 'number' && step.cps > 0 ? step.cps : DEFAULT_CPS;
-            const progress = () => page.evaluate((t) => (window as any).__anim.typingProgress(t), token).catch(() => {});
+            const progress = () => page.evaluate((t) => (window as any).__vistaro.typingProgress(t), token).catch(() => {});
             const typeAll = async () => {
                 if (opts.instant) { await page.keyboard.insertText(text); return; }
                 for (let at = 0; at < text.length; at += 5) {
@@ -423,7 +423,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
             } finally {
                 // Always release the step, or whenDone(token) would wait for the completion timeout.
                 // typingDone answers with what the field actually holds now.
-                const landed: string | null = await page.evaluate((t) => (window as any).__anim.typingDone(t), token).catch(() => null);
+                const landed: string | null = await page.evaluate((t) => (window as any).__vistaro.typingDone(t), token).catch(() => null);
                 // An empty field means the keystrokes never reached it (focus stolen by the app, a
                 // target the keyboard cannot fill). Deliberately not an equality check: input masks and
                 // framework formatters legitimately rewrite what was typed.
@@ -459,7 +459,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
             const completionTimeoutMs = live ? Math.min(stepTimeoutMs, live.navigationTimeoutMs ?? 15000) : stepTimeoutMs;
             try {
                 result.completedMs = await withTimeout(
-                    page.evaluate((t) => (window as any).__anim.whenDone(t), token),
+                    page.evaluate((t) => (window as any).__vistaro.whenDone(t), token),
                     completionTimeoutMs,
                     `${label(step)} completion`,
                 );

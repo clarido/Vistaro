@@ -170,7 +170,7 @@ test('no inner function inside a page.evaluate/page.waitForFunction callback (sr
     assert.deepEqual(result.violations, [], [
         'an evaluate/waitForFunction callback declares a named function or assigns a function/arrow to a binding.',
         'tsx/esbuild adds a __name helper that does not exist inside the page, so the callback throws silently.',
-        'Hoist the helper beside the callback, or move the work into runtime.js and call it by name (__anim.*).',
+        'Hoist the helper beside the callback, or move the work into runtime.js and call it by name (__vistaro.*).',
     ].join(' '));
 });
 
@@ -233,7 +233,7 @@ test('self-test: the legal shapes classify as nothing', () => {
         `  try { all = document.querySelectorAll(sel); } catch (e: any) { return { error: e.message, count: 0 }; }`,
         `  const el = all[0];`,
         `  const r = el.getBoundingClientRect();`,
-        `  var anim = (window as any).__anim;`,
+        `  var runtime = (window as any).__vistaro;`,
         `  var effOpacity = parseFloat(getComputedStyle(el).opacity);`,
         `  var opAnc = el.parentElement;`,
         `  while (opAnc && opAnc !== document.documentElement && effOpacity > 0) {`,
@@ -268,14 +268,14 @@ test('self-test: the legal shapes classify as nothing', () => {
     const commented = [
         `await page${EVALUATE_OPENER}() => {`,
         `  // No inner function declarations here: a __name helper would not exist inside the page.`,
-        `  return (window as any).__anim.getState();`,
+        `  return (window as any).__vistaro.getState();`,
         `});`,
     ].join('\n');
     assert.deepEqual(scan([{ name: 'planted.test.ts', text: commented }]).violations, [], 'a rule-shaped sentence in a comment is documentation, not code');
 
     // driver.ts:254-264's shape: Node-side helpers just below an evaluate -- outside the span.
     const nodeSide = [
-        `state.t0Wall = await page${EVALUATE_OPENER}() => { const a = (window as any).__anim; a.start(); return a.getState().t0; });`,
+        `state.t0Wall = await page${EVALUATE_OPENER}() => { const a = (window as any).__vistaro; a.start(); return a.getState().t0; });`,
         `const onNavigated = (frame: Frame) => { state.needsReboot = true; };`,
         'const label = (step: Step) => `step ${step.index}`;',
         `const prepare = async (i: number): Promise<StepResult> => { return steps[i]; };`,
@@ -310,7 +310,7 @@ test('self-test: the legal shapes classify as nothing', () => {
     // studio.test.ts:133-150's shape: string-form callbacks -- authored page code, never
     // compiled by tsx/esbuild, so their shapes are no hazard (but they are still sites).
     const stringForm = [
-        `const booted = await page${EVALUATE_OPENER}'({ anim: !!window.__anim })') as { anim: boolean };`,
+        `const booted = await page${EVALUATE_OPENER}'({ runtime: !!window.__vistaro })') as { runtime: boolean };`,
         `await page${WAIT_FUNCTION_OPENER}'window.__seen.some(function (m) { return m.type === "picked"; })', null, { timeout: 8000 });`,
     ].join('\n');
     const stringScan = scan([{ name: 'planted.test.ts', text: stringForm }]);

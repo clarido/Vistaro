@@ -29,7 +29,7 @@ export interface ContextOptions extends ViewportOptions {
     storageState?: string;
     /** Inject src/engine/runtime.js at document start on every navigation (live pages). */
     runtime?: boolean;
-    /** Set `window.__ANIM_DRIVEN = true` before every document loads so built pages never self-play. Default true. */
+    /** Set `window.__VISTARO_DRIVEN = true` before every document loads so built pages never self-play. Default true. */
     driven?: boolean;
     /** Accept self-signed / mkcert certificates (local HTTPS). */
     ignoreHttpsErrors?: boolean;
@@ -86,7 +86,7 @@ async function newContext(browser: Browser, opts: LaunchOptions): Promise<{ cont
         ...(opts.recordVideoDir ? { recordVideo: { dir: opts.recordVideoDir, size: { width, height } } } : {}),
     });
     if (opts.driven !== false) {
-        await context.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+        await context.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     }
     if (opts.runtime) {
         // Same runtime file as `build` inlines; delivered at document start so it survives real navigations.

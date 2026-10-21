@@ -15,7 +15,7 @@ import { runResetCommand, resolveResetCommand } from '../reset';
 import { learnCollector, writeLearnDraft, LearnSummary } from './learn';
 
 export interface ExportOptions extends ViewportOptions {
-    /** Seconds; overrides the computed timeline length. Required when there is no anim.config.json (default 5). */
+    /** Seconds; overrides the computed timeline length. Required when there is no vistaro.config.json (default 5). */
     duration?: string;
     output: string;
     voiceover?: string;
@@ -28,7 +28,7 @@ export interface ExportOptions extends ViewportOptions {
     tail?: string;
     force?: boolean;
     locale?: string;
-    /** --config: a timeline other than <dir>/anim.config.json (cwd-relative on the CLI). */
+    /** --config: a timeline other than <dir>/vistaro.config.json (cwd-relative on the CLI). */
     config?: string;
     /** Also capture the step-by-step guide (guide.json/.md/.html + assets) after the video. */
     guide?: boolean;
@@ -41,7 +41,7 @@ export interface ExportOptions extends ViewportOptions {
     resetCmd?: string;
     /** Live pages: abandon the recording at the first `waitFor` timeout. */
     failFast?: boolean;
-    /** Allow `meta.reset` from anim.config.json to run (a shell command out of a file). */
+    /** Allow `meta.reset` from vistaro.config.json to run (a shell command out of a file). */
     allowReset?: boolean;
     /** `record --learn <file>`: write the interactions the recording performed as a draft timeline. Set by the record command only; `export` never passes it. */
     learn?: string;
@@ -105,7 +105,7 @@ export function reportOutcome(verb: string, summary: ExportSummary, extra = ''):
         if (failed) parts.push(`${failed} step(s) failed during the recording: ${summary.failedSteps.map(r => `step ${r.index} (${r.action}${r.target ? ' ' + r.target : ''})`).join(', ')}`);
         if (summary.failedGuideSteps) parts.push(`${summary.failedGuideSteps} guide step(s) failed during capture (see guide.json "error" fields)`);
         const head = summary.force ? 'warning  (--force)' : 'FAILED:';
-        console.error(`\n${head} ${parts.join('; ')}. ${verb} ${rel(summary.output)} (${formatTime(summary.durationMs)}${extra})${details}, but it is missing what those steps were meant to show; see anim.manifest.json for per-step errors.`);
+        console.error(`\n${head} ${parts.join('; ')}. ${verb} ${rel(summary.output)} (${formatTime(summary.durationMs)}${extra})${details}, but it is missing what those steps were meant to show; see vistaro.manifest.json for per-step errors.`);
         if (!summary.force) process.exitCode = 1;
         return;
     }
@@ -140,7 +140,7 @@ export async function exportCommand(outputDir: string, options: ExportOptions): 
 }
 
 export async function runExport(outputDir: string, options: ExportOptions, tempVideoDir: string, session?: LiveSession): Promise<ExportSummary> {
-    // Input page (a live session has no local page): with anim.config.json present, index.html is
+    // Input page (a live session has no local page): with vistaro.config.json present, index.html is
     // always recorded with the runtime injected, so an edit to index.html after `build` can never
     // produce a video that disagrees with check/preview; animated.html is the self-playing page for
     // humans. Without a timeline, a built animated.html keeps the legacy blind-wait path.
@@ -157,9 +157,9 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         if ((!hasConfig || !fs.existsSync(htmlPath)) && fs.existsSync(animated)) htmlPath = animated;
         if (!fs.existsSync(htmlPath)) throw new Error(`could not find index.html or animated.html in ${outputDir}`);
     }
-    const hasRuntime = session ? true : fs.readFileSync(htmlPath, 'utf8').includes('window.__anim');
+    const hasRuntime = session ? true : fs.readFileSync(htmlPath, 'utf8').includes('window.__vistaro');
 
-    // Timeline (optional for legacy directories without anim.config.json; required for a live session).
+    // Timeline (optional for legacy directories without vistaro.config.json; required for a live session).
     let timeline: Timeline | undefined;
     if (session && !hasConfig) throw new Error(`timeline not found: ${displayPath(configPath)} (record needs a timeline)`);
     if (hasConfig) {
@@ -199,7 +199,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         throw new Error(`unsupported output format ${JSON.stringify('.' + ext)}: use ${VIDEO_FORMATS.map(e => '.' + e).join(', ')}`);
     }
     const isGif = ext === 'gif';
-    if (!session && !driven && hasRuntime) console.log('Note: no anim.config.json next to animated.html; recording with a blind wait (the page self-plays).');
+    if (!session && !driven && hasRuntime) console.log('Note: no vistaro.config.json next to animated.html; recording with a blind wait (the page self-plays).');
     if (!session && !driven && !hasRuntime) console.log(`Note: ${path.basename(htmlPath)} has no timeline runtime; recording a blind ${formatTime(durationMs)} wait. Run \`build\` for driven exports (auto duration, subtitles, chapters).`);
     if (isGif && (options.narration || options.voiceover || options.clips || options.guide || options.subtitles !== false || options.chapters !== false)) {
         console.error('warning  .gif output has no audio, chapters or subtitle track: --narration/--voiceover/subtitles/chapters are ignored, and there is no video link/clips for .gif output in the guide.');
@@ -212,14 +212,14 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     if (reel && session) {
         console.error('warning  recording a reel against a live page: the reel profile only changes the chrome; delivery extras (webm/poster/gif) are written for local exports.');
     }
-    if (options.guide && !driven) throw new Error('--guide needs anim.config.json (guide steps come from the timeline)');
+    if (options.guide && !driven) throw new Error('--guide needs vistaro.config.json (guide steps come from the timeline)');
     if (options.guide && timeline && isReel(timeline)) throw new Error('--guide: the timeline is kind: "reel" and guides are not produced for reels (a reel is a silent marketing clip with no numbered steps); drop --guide, or set meta.kind to "guide"');
     if (options.learn && !session) throw new Error('--learn is a `record` flag: there is nothing to learn from a local mockup the timeline already describes');
 
     // Fail fast (before a long recording) on things we can check now.
     const voice: VoiceOptions = {};
     if (!isGif && options.narration) {
-        if (!driven) throw new Error('--narration needs anim.config.json (narration text comes from the steps)');
+        if (!driven) throw new Error('--narration needs vistaro.config.json (narration text comes from the steps)');
         const engine = ttsEngine(); // throws with a clear message on Linux without OPENAI_API_KEY
         if (options.voice) { if (engine === 'openai') voice.openai = options.voice; else voice.say = options.voice; }
     } else if (!isGif && options.voiceover) {
@@ -231,7 +231,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     const resetCmd = session ? resolveResetCommand({ explicit: options.resetCmd, fromTimeline: timeline?.meta.reset, allowReset: options.allowReset }) : undefined;
     if (resetCmd) runResetCommand(resetCmd, 'recording');
     console.log(`Starting video ${session ? 'recording' : 'export'}. Duration: ${formatTime(durationMs)}. Device: ${options.device || 'desktop'}.`);
-    // __ANIM_DRIVEN only when the Node driver runs the timeline; a built page without a config self-plays.
+    // __VISTARO_DRIVEN only when the Node driver runs the timeline; a built page without a config self-plays.
     // Live pages get the runtime at document start (survives navigations) and the auth storage state.
     // The zoom that pairs with a scaled viewport. A live page keeps its own breakpoints, so `record`
     // stays at 1x: zooming a real app would reflow it into a layout its CSS was never written for.
@@ -333,9 +333,9 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         const closeStart = Date.now();
         await closeWithWatchdog(() => page.close(), 'page');
         closeWall = Date.now();
-        if (process.env.ANIM_DEBUG) console.error(`page.close took ${closeWall - closeStart}ms`);
+        if (process.env.VISTARO_DEBUG) console.error(`page.close took ${closeWall - closeStart}ms`);
         await closeWithWatchdog(() => launched.context.close(), 'context'); // flushes the webm to disk; the browser stays up for --guide
-        if (process.env.ANIM_DEBUG) console.error(`context close took ${Date.now() - closeWall}ms; load->t0 ${t0Wall - loadWall}ms`);
+        if (process.env.VISTARO_DEBUG) console.error(`context close took ${Date.now() - closeWall}ms; load->t0 ${t0Wall - loadWall}ms`);
     }
     return await encodeAndFinish();
     } catch (e: any) {
@@ -401,7 +401,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         // timestamp so ffmpeg keeps that frame: the cut error is then within half a frame either way.
         const frames = Math.round(Math.max(0, t0Wall - anchor) / RECORD_FRAME_MS);
         startOffsetMs = frames > 0 ? frames * RECORD_FRAME_MS - 1 : 0;
-        if (process.env.ANIM_DEBUG) {
+        if (process.env.VISTARO_DEBUG) {
             console.error(`trim: first-paint -> t0 ${Math.round(t0Wall - firstPaintWall)}ms, load -> t0 ${Math.round(t0Wall - loadWall)}ms, t0 -> close ${Math.round(closeWall - t0Wall)}ms, recorded ${probeDurationMs(webmFile)}ms, offset ${startOffsetMs}ms`);
             fs.copyFileSync(webmFile, path.resolve(options.output).replace(/\.[^.]+$/, '') + '.debug.webm');
         }
@@ -589,9 +589,9 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), guide: guideDir ? relToDir(guideDir) : undefined,
         contentHash: driven ? hashGuideDir(outputDir, { config: cliConfigPath(options.config) }) : undefined,
         // Which timeline produced this video: guide --config must not link a sibling scenario's.
-        // Normalized through configStem so an explicit `--config anim.config.json` records nothing,
+        // Normalized through configStem so an explicit `--config vistaro.config.json` records nothing,
         // the same way it derives no stem -- otherwise a later plain `guide <dir>` compares
-        // undefined against "anim.config.json", finds no video, and silently writes a guide with
+        // undefined against "vistaro.config.json", finds no video, and silently writes a guide with
         // no clips and no chapters.
         config: configStem(outputDir, cliConfigPath(options.config)) ? relPosix(path.resolve(outputDir), configPath) : undefined,
         learn: summary.learn?.output ? relToDir(summary.learn.output) : undefined,

@@ -1,8 +1,8 @@
-// Demoforge studio -- the editor over anim.config.json. A view, never a second source of truth:
+// Demoforge studio -- the editor over vistaro.config.json. A view, never a second source of truth:
 // the file's JSON is the state; the studio holds a dirty in-memory copy, saves are explicit, and
 // unknown fields (the schema is open) round-trip untouched. The preview is the mockup as a
-// tour-style page in an iframe: transport speaks the unchanged 'anim-tour' protocol, and the two
-// editor extensions ('reload', 'pick') speak 'anim-studio' via the injected studio-bridge.
+// tour-style page in an iframe: transport speaks the unchanged 'vistaro-tour' protocol, and the two
+// editor extensions ('reload', 'pick') speak 'vistaro-studio' via the injected studio-bridge.
 (function () {
   'use strict';
 
@@ -160,7 +160,7 @@
 
   // ---------------------------------------------------------------- plumbing
   function postTour(type, extra) {
-    var msg = { source: 'anim-tour', type: type };
+    var msg = { source: 'vistaro-tour', type: type };
     if (extra) for (var k in extra) msg[k] = extra[k];
     // An outgoing seek invalidates the pause rule's "same index" test: goto to the CURRENT step
     // re-plays it and emits a same-index, not-playing state that must re-anchor, not freeze.
@@ -168,7 +168,7 @@
     els.preview.contentWindow.postMessage(msg, location.origin);
   }
   function postStudio(type, extra) {
-    var msg = { source: 'anim-studio', type: type };
+    var msg = { source: 'vistaro-studio', type: type };
     if (extra) for (var k in extra) msg[k] = extra[k];
     els.preview.contentWindow.postMessage(msg, location.origin);
   }
@@ -176,7 +176,7 @@
   window.addEventListener('message', function (e) {
     if (e.source !== els.preview.contentWindow) return;
     var d = e.data || {};
-    if (d.source === 'anim-tour') {
+    if (d.source === 'vistaro-tour') {
       if (d.type === 'ready') {
         S.total = d.total || 0;
         S.current = -1;
@@ -198,7 +198,7 @@
         // the playhead where it is and give the transport its play button back.
         S.playing = false; stopPlayheadLoop(); updateTransport();
       }
-    } else if (d.source === 'anim-studio') {
+    } else if (d.source === 'vistaro-studio') {
       if (d.type === 'picked') {
         setPickMode(false);
         if (S.selected >= 0) {
@@ -1829,7 +1829,7 @@
       siblings.forEach(function (p) {
         var opt = document.createElement('option');
         opt.value = p.id;
-        opt.textContent = p.configName !== 'anim.config.json' ? p.title : p.title + ' (main)';
+        opt.textContent = p.configName !== 'vistaro.config.json' ? p.title : p.title + ' (main)';
         if (p.current) opt.selected = true;
         els.scenario.appendChild(opt);
       });
@@ -1872,7 +1872,7 @@
       row.setAttribute('aria-selected', i === QO.cursor ? 'true' : 'false');
       var t = document.createElement('span'); t.className = 't'; t.textContent = p.title;
       var w = document.createElement('span'); w.className = 'w';
-      w.textContent = p.dir + (p.configName !== 'anim.config.json' ? ' \u00b7 ' + p.configName : '');
+      w.textContent = p.dir + (p.configName !== 'vistaro.config.json' ? ' \u00b7 ' + p.configName : '');
       var k = document.createElement('span'); k.className = 'k'; k.textContent = p.kind;
       row.appendChild(t); row.appendChild(w); row.appendChild(k);
       row.addEventListener('click', function () { qoGo(p); });
