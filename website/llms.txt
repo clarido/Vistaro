@@ -19,9 +19,9 @@
 
 ## Getting started
 
-- Clone https://github.com/clarido/Vistaro next to your project and run `npm install` (which also downloads Chromium). ffmpeg is bundled; no API key needed.
-- If an agent drives it, paste one instruction (e.g. "Create a product demo of my site. Use the CLI to generate everything.") — the agent reads its manual (AGENTS.md) from the repo and runs everything locally.
-- To drive it yourself: `npx tsx cli.ts init-config demo`, then `check`, `preview`, `export`.
+- Install in your project: `npm install --save-dev vistaro`, then `npx playwright install chromium` (the browser it records with, about 150 MB; npm 12 and pnpm skip install scripts, so this line is required). ffmpeg is bundled; no API key needed.
+- If an agent drives it, paste one instruction: "Install vistaro as a dev dependency (npm install --save-dev vistaro, then npx playwright install chromium), read node_modules/vistaro/AGENTS.md, and create a product demo of my site." The agent reads its manual (AGENTS.md) and runs everything locally.
+- To drive it yourself: `npx vistaro init-config demo`, then `check`, `preview`, `export`. From a clone of the repository, the same commands are `npx tsx cli.ts …`.
 
 ## Links
 
@@ -30,5 +30,6 @@
 - Every format (videos, guides, reels for desktop and phone, embeddable tours, languages, live apps): https://vistaro.dev/formats.html
 - Animation showcase (interactive): https://vistaro.dev/animations.html
 - Source code: https://github.com/clarido/Vistaro
+- npm package: https://www.npmjs.com/package/vistaro
 - License: ISC (open source, free for commercial use)
 - Questions and bug reports: https://github.com/clarido/Vistaro/issues

@@ -88,6 +88,8 @@
   .nav-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 15px; font-weight: 500; transition: color .15s; white-space: nowrap; }
   .nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--ink); }
   .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .nav-npm { color: var(--muted); font-size: 15px; font-weight: 500; }
+  .nav-npm:hover { color: var(--ink); }
   .nav-links .mobile-cta { display: none; }
   .burger { display: none; background: none; border: 0; color: var(--ink); width: 44px; height: 44px; padding: 11px; margin-right: -11px; cursor: pointer; }
   .burger svg { width: 22px; height: 22px; display: block; }
@@ -131,6 +133,7 @@
     color: var(--accent-hi);
   }
   .steps h2, .extra h2 { margin: 6px 0 12px; font-size: clamp(24px, 2.6vw, 30px); font-weight: 700; letter-spacing: -.02em; line-height: 1.12; }
+  .steps h3 { margin: 22px 0 10px; font: 600 16px/1.3 var(--sans); color: var(--ink); }
   .steps p, .extra p { margin: 0 0 14px; color: var(--muted); }
   .steps p b, .extra p b { color: var(--ink); font-weight: 600; }
   .checks { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
@@ -193,6 +196,7 @@
       <a class="mobile-cta" href="https://github.com/clarido/Vistaro">View on GitHub</a>
     </nav>
     <div class="nav-cta">
+      <a class="nav-npm" href="https://www.npmjs.com/package/vistaro">npm</a>
       <a class="btn btn-primary btn-sm" href="https://github.com/clarido/Vistaro">View on GitHub</a>
       <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -208,7 +212,7 @@
       <p>How to go from nothing to a first product demo. The demo itself takes one sentence to your coding agent; this page covers the setup around it and what to ask for next.</p>
       <ul class="toc" aria-label="On this page">
         <li><a href="#need">What you need</a></li>
-        <li><a href="#code">Get the code</a></li>
+        <li><a href="#install">Install</a></li>
         <li><a href="#ask">Ask your agent</a></li>
         <li><a href="#next">Ask for more</a></li>
         <li><a href="#cli">Drive it yourself</a></li>
@@ -221,23 +225,36 @@
       <li id="need">
         <h2>What you need</h2>
         <ul class="checks">
-          <li><b>Node 20.6 or later</b> on macOS or Linux. Windows is untested.</li>
+          <li><b>Node 20.6 or later</b> on macOS or Linux, and about 150 MB for Chromium. Windows is untested.</li>
           <li><b>A coding agent</b>: Claude Code, Codex or Antigravity.</li>
           <li><b>The project you want to demo</b>, open in that agent. A running app helps but is not required: the agent can work from your code or from screenshots.</li>
         </ul>
         <p>No account, no API key, no credit card. ffmpeg is bundled.</p>
       </li>
 
-      <li id="code">
-        <h2>Get the code</h2>
-        <p>The code is on <a class="inline-link" href="https://github.com/clarido/Vistaro">GitHub</a>. Clone it <b>next to your project</b> and install it. The install also downloads the Chromium that Vistaro records with.</p>
+      <li id="install">
+        <h2>Install</h2>
+        <p>Vistaro is on <a class="inline-link" href="https://www.npmjs.com/package/vistaro">npm</a>. Install it <b>in your project</b>: the version is pinned in your <code>package.json</code>, so your agent always runs the same Vistaro, and its manual lands at a known path.</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>in your project · recommended</div>
+<pre><span class="pr">$</span> npm install --save-dev vistaro
+<span class="pr">$</span> npx playwright install chromium    <span class="c"># one time: the browser Vistaro records with</span>
+<span class="pr">$</span> npx vistaro --help</pre>
+        </div>
+        <h3>Or once for the whole machine</h3>
         <div class="codeblock">
           <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
-<pre><span class="pr">$</span> git clone https://github.com/clarido/Vistaro.git vistaro
-<span class="pr">$</span> cd vistaro
-<span class="pr">$</span> npm install    <span class="c"># also fetches Chromium</span></pre>
+<pre><span class="pr">$</span> npm install -g vistaro
+<span class="pr">$</span> npx playwright install chromium
+<span class="pr">$</span> vistaro --help</pre>
         </div>
-        <p>If an agent drives it, you can skip this step: the prompt below tells it to do the install.</p>
+        <h3>Or try it without installing</h3>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> npx playwright install chromium
+<span class="pr">$</span> npx vistaro@latest init-config demo</pre>
+        </div>
+        <p>Don't skip the Chromium line: recent npm versions and pnpm don't run install scripts, so it is what downloads the browser. If it's missing, Vistaro stops and prints the command to run. If an agent drives it, you can skip this whole step: the prompt below tells it to install.</p>
       </li>
 
       <li id="ask">
@@ -245,9 +262,9 @@
         <p>Open your project in your coding agent and paste this. Vistaro's manual (<code>AGENTS.md</code>) is written for agents, so this is all it needs.</p>
         <div class="codeblock">
           <div class="cb-bar"><span class="cb-dot"></span>the prompt
-            <button class="cb-copy" type="button" data-copy="Clone https://github.com/clarido/Vistaro.git into ../vistaro if it is not there yet and run npm install in it, then read ../vistaro/AGENTS.md and create a product demo of my site.">Copy</button>
+            <button class="cb-copy" type="button" data-copy="Install vistaro as a dev dependency (npm install --save-dev vistaro, then npx playwright install chromium), read node_modules/vistaro/AGENTS.md, and create a product demo of my site.">Copy</button>
           </div>
-<pre class="wrap">Clone https://github.com/clarido/Vistaro.git into ../vistaro if it is not there yet and run npm install in it, then read ../vistaro/AGENTS.md and create a product demo of my site.</pre>
+<pre class="wrap">Install vistaro as a dev dependency (npm install --save-dev vistaro, then npx playwright install chromium), read node_modules/vistaro/AGENTS.md, and create a product demo of my site.</pre>
         </div>
         <p>The agent writes two files, a screen that mirrors your UI and a timeline of steps, then checks them and looks at the frames, fixing whatever is off before it renders. You get a video with subtitles and a step-by-step help guide. <b>Review it like any other change</b>: read the diff, ask for a different wording or timing, and it renders again.</p>
       </li>
@@ -266,17 +283,30 @@
 
       <li id="cli">
         <h2>Drive it yourself</h2>
-        <p>Prefer the command line? From the cloned folder, with your demo in <code>demo/</code>:</p>
+        <p>Prefer the command line? From your project, with your demo in <code>demo/</code>:</p>
         <div class="codeblock">
           <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
-<pre><span class="pr">$</span> npx tsx cli.ts init-config demo    <span class="c"># scaffold the timeline</span>
-<span class="pr">$</span> npx tsx cli.ts check demo          <span class="c"># probe every step's target</span>
-<span class="pr">$</span> npx tsx cli.ts preview demo        <span class="c"># one labelled frame per step</span>
-<span class="pr">$</span> npx tsx cli.ts export demo -o demo.mp4 --guide</pre>
+<pre><span class="pr">$</span> npx vistaro init-config demo    <span class="c"># scaffold the timeline</span>
+<span class="pr">$</span> npx vistaro check demo          <span class="c"># probe every step's target</span>
+<span class="pr">$</span> npx vistaro preview demo        <span class="c"># one labelled frame per step</span>
+<span class="pr">$</span> npx vistaro export demo -o demo.mp4 --guide</pre>
         </div>
-        <p>Every command prints what it wrote. <code>npx tsx cli.ts --help</code> lists them all, and <code>AGENTS.md</code> in the repository is the full manual.</p>
+        <p>Every command prints what it wrote. <code>npx vistaro --help</code> lists them all, and <code>node_modules/vistaro/AGENTS.md</code> is the full manual.</p>
       </li>
     </ol>
+
+    <section class="extra" aria-labelledby="source">
+      <h2 id="source">From source</h2>
+      <p>To contribute, or to run the latest unreleased code, clone <a class="inline-link" href="https://github.com/clarido/Vistaro">the repository</a> instead. Inside it, every command is <code>npx tsx cli.ts</code> where the npm package says <code>npx vistaro</code>.</p>
+      <div class="codeblock">
+        <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> git clone https://github.com/clarido/Vistaro.git vistaro
+<span class="pr">$</span> cd vistaro
+<span class="pr">$</span> npm install
+<span class="pr">$</span> npx playwright install chromium
+<span class="pr">$</span> npx tsx cli.ts --help</pre>
+      </div>
+    </section>
 
     <section class="extra" aria-labelledby="stuck">
       <h2 id="stuck">If something goes wrong</h2>
@@ -287,7 +317,7 @@
         </div>
         <div>
           <dt>Chromium is not found</dt>
-          <dd>The install skipped the browser download. Run <code>npx playwright install chromium</code> in the Vistaro folder.</dd>
+          <dd>The install skipped the browser download. Run <code>npx playwright install chromium</code>.</dd>
         </div>
         <div>
           <dt>Anything else</dt>
@@ -321,6 +351,7 @@
         <h3>Contact</h3>
         <a href="https://github.com/clarido/Vistaro/issues">Questions and bugs</a>
         <a href="https://github.com/clarido/Vistaro">GitHub</a>
+        <a href="https://www.npmjs.com/package/vistaro">npm</a>
       </div>
     </div>
     <div class="foot-bottom">

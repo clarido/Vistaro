@@ -43,6 +43,7 @@
       "description": "A command-line tool that turns two text files in your repo (a screen and a timeline) into demo videos, step-by-step help guides, marketing reels, interactive tours and every language. Built to be driven by coding agents such as Claude Code, Codex or Antigravity. Runs locally with no API key.",
       "url": "https://vistaro.dev/",
       "codeRepository": "https://github.com/clarido/Vistaro",
+      "downloadUrl": "https://www.npmjs.com/package/vistaro",
       "license": "https://opensource.org/licenses/ISC",
       "isAccessibleForFree": true,
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
@@ -54,7 +55,7 @@
         { "@type": "Question", "name": "Does it need an API key, or any LLM?", "acceptedAnswer": { "@type": "Answer", "text": "No. Vistaro itself runs locally with no key and no account. The thinking happens in the coding agent you already use. It writes the two files; Vistaro checks them and renders them. That is also why it runs in CI with no secrets." } },
         { "@type": "Question", "name": "Can it record our real app, not just a mockup?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The same timeline can run against your live app: real page loads, a signed-in session, and a reset step between runs so saved data does not break the second pass. It can also watch you click through a flow once and draft the timeline for you (experimental)." } },
         { "@type": "Question", "name": "Can we keep demos of unreleased features private?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, by default. Everything runs on your machine or in your own CI. Nothing is uploaded to us or anyone else." } },
-        { "@type": "Question", "name": "What do I need to run it?", "acceptedAnswer": { "@type": "Answer", "text": "Node 20.6 or later on macOS or Linux (Windows is untested). Your agent clones the repo and runs npm install, which also downloads the Chromium used for recording. ffmpeg is bundled. Narration is optional: OpenAI voices when a key is set, otherwise the macOS voice." } }
+        { "@type": "Question", "name": "What do I need to run it?", "acceptedAnswer": { "@type": "Answer", "text": "Node 20.6 or later on macOS or Linux (Windows is untested). Your agent installs it with npm install --save-dev vistaro, then npx playwright install chromium for the browser used for recording (about 150 MB). ffmpeg is bundled. Narration is optional: OpenAI voices when a key is set, otherwise the macOS voice." } }
       ]
     }
   ]
@@ -185,6 +186,8 @@
   .nav-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 15px; font-weight: 500; transition: color .15s; white-space: nowrap; }
   .nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--ink); }
   .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .nav-npm { color: var(--muted); font-size: 15px; font-weight: 500; }
+  .nav-npm:hover { color: var(--ink); }
   .nav-links .mobile-cta { display: none; }
   .burger { display: none; background: none; border: 0; color: var(--ink); width: 44px; height: 44px; padding: 11px; margin-right: -11px; cursor: pointer; }
   .burger svg { width: 22px; height: 22px; display: block; }
@@ -600,6 +603,7 @@
       <a class="mobile-cta" href="https://github.com/clarido/Vistaro">View on GitHub</a>
     </nav>
     <div class="nav-cta">
+      <a class="nav-npm" href="https://www.npmjs.com/package/vistaro">npm</a>
       <a class="btn btn-primary btn-sm" href="https://github.com/clarido/Vistaro">View on GitHub</a>
       <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -798,11 +802,11 @@
           <h3>Ask your agent</h3>
           <p>One sentence in Claude Code, Codex or Antigravity, from your project. The agent reads Vistaro's manual and takes it from there.</p>
           <div class="codeblock">
-            <div class="cb-bar"><span class="cb-dot"></span>the prompt · ready at launch</div>
+            <div class="cb-bar"><span class="cb-dot"></span>the prompt</div>
 <pre class="wrap">Create a product demo of my site with Vistaro.</pre>
           </div>
           <!-- TODO: add the time to a first demo here once it has been measured -->
-          <p class="fine">The code is <a class="inline-link" href="https://github.com/clarido/Vistaro">on GitHub</a>. Until the npm package ships, clone it first: <a class="inline-link" href="start.html#code">Get started</a> has the three commands. Needs Node 20.6 or later; the agent installs the rest.</p>
+          <p class="fine">The agent installs it with <code>npm install --save-dev vistaro</code>; <a class="inline-link" href="start.html#install">Get started</a> has the details. Needs Node 20.6 or later.</p>
         </li>
         <li>
           <h3>It writes two files</h3>
@@ -879,7 +883,7 @@ tour-out/           <span class="c">the tour</span></pre>
       </details>
       <details>
         <summary>What do I need to run it?</summary>
-        <div class="a">Node 20.6 or later on macOS or Linux (Windows is untested). Your agent clones the repo and runs <code>npm install</code>, which also downloads the Chromium used for recording. ffmpeg is bundled. Narration is optional: OpenAI voices when a key is set, otherwise the macOS voice.</div>
+        <div class="a">Node 20.6 or later on macOS or Linux (Windows is untested). Your agent installs it with <code>npm install --save-dev vistaro</code>, then <code>npx playwright install chromium</code> for the browser used for recording (about 150 MB). ffmpeg is bundled. Narration is optional: OpenAI voices when a key is set, otherwise the macOS voice.</div>
       </details>
     </div>
   </div>
@@ -922,6 +926,7 @@ tour-out/           <span class="c">the tour</span></pre>
         <h3>Contact</h3>
         <a href="https://github.com/clarido/Vistaro/issues">Questions and bugs</a>
         <a href="https://github.com/clarido/Vistaro">GitHub</a>
+        <a href="https://www.npmjs.com/package/vistaro">npm</a>
       </div>
     </div>
     <div class="foot-bottom">
