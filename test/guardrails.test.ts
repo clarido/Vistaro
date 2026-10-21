@@ -208,6 +208,8 @@ function discoverDocRefs(docs: ReadonlyArray<Doc>): string[] {
 // path is what must exist; bare names (schema.ts, media/ffmpeg.ts) resolve where the docs' own
 // context puts them (Layout for engine files, the src-sync row for media/).
 const KNOWN_DOCS_REFS: ReadonlyArray<KnownRef> = [
+    { token: 'scripts/release.ts', at: 'scripts/release.ts', why: 'AGENTS.md contributor notes: «Releasing is one command: npm run release»' },
+    { token: 'package.json', at: 'package.json', why: 'AGENTS.md contributor notes: the release bumps package.json and the lockfile' },
     { token: '.github/workflows', at: '.github/workflows', why: 'discipline.md CI row: «reads every .yml under .github/workflows»' },
     { token: '.github/workflows/test.yml', at: '.github/workflows/test.yml', why: 'AGENTS.md contributor notes: CI runs the three checks on every push' },
     { token: '.githooks/claude/', at: '.githooks/claude', why: 'discipline.md known gap 2: the shipped home of the Claude Code tier — .claude/ is gitignored local data' },
