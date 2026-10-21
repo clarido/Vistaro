@@ -16,7 +16,7 @@ and a guide with one numbered frame per step, cropped to whatever the reader has
 
 <img src="website/assets/guide-excerpt.webp" width="550" alt="Steps 2 and 3 of the generated guide: &quot;Check what is left&quot; and &quot;Open the section&quot;, each with a numbered badge on the highlighted element">
 
-Both come out of one command: `npx tsx cli.ts export demo -o demo.mp4 --guide` (see [Quick start](#quick-start)).
+Both come out of one command: `npx vistaro export demo -o demo.mp4 --guide` (see [Quick start](#quick-start)).
 
 ## Why not just record your screen
 
@@ -49,28 +49,43 @@ A step in the generated `guide.md` looks like this:
 
 ## Setup
 
+In your project:
+
+```bash
+npm install --save-dev vistaro
+npx playwright install chromium      # one time: the browser Vistaro records with
+npx vistaro --help
+```
+
+Or once for the whole machine with `npm install -g vistaro` (then `vistaro --help`), or without installing anything with `npx vistaro@latest <command>`. Run the Chromium line in every case: npm 12 and pnpm skip install scripts by default, so the download usually does not happen on its own. If it is missing, the CLI stops and prints the command to run.
+
+Node >= 20.6, macOS or Linux (Windows is untested). The manual is installed with the package at `node_modules/vistaro/AGENTS.md`. Optional keys in `.env` or the environment: `OPENAI_API_KEY` (narration; falls back to macOS `say`), `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` (only for the standalone `extract` and `animate` commands).
+
+From source, to contribute or to run unreleased code:
+
 ```bash
 git clone https://github.com/clarido/Vistaro.git
 cd Vistaro
-npm install        # also downloads Playwright's Chromium
+npm install
+npx playwright install chromium
 ```
 
-Node >= 20.6. The package is not on npm yet, so commands run from the clone through `npx tsx cli.ts`. If the Chromium download was skipped (`--ignore-scripts`, a proxy), run `npx playwright install chromium`. Optional keys in `.env` or the environment: `OPENAI_API_KEY` (narration; falls back to macOS `say`), `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` (only for the standalone `extract` and `animate` commands).
+In a clone, every `npx vistaro` in this README is `npx tsx cli.ts`, which is also the form the generated [CLI reference](#cli-reference) and the CLI's own hints print.
 
 ## Quick start
 
-Run the sample that ships in [`demo/`](demo/):
+Run the sample in [`demo/`](demo/). It lives in the repository, not in the npm package: copy its `index.html` and `anim.config.json` into a `demo` folder in your project, or run these from a clone.
 
 ```bash
-npx tsx cli.ts check demo                # schema, timing, and every target in a headless browser
-npx tsx cli.ts build demo                # demo/animated.html: a self-playing page to open in a browser
-npx tsx cli.ts preview demo              # demo/preview.png: one labelled frame per step
-npx tsx cli.ts export demo -o demo.mp4 --guide
+npx vistaro check demo                # schema, timing, and every target in a headless browser
+npx vistaro build demo                # demo/animated.html: a self-playing page to open in a browser
+npx vistaro preview demo              # demo/preview.png: one labelled frame per step
+npx vistaro export demo -o demo.mp4 --guide
 ```
 
 `export` writes `demo.mp4`, `demo.vtt`, the chapters and `demo/guide/` (`guide.json`, `guide.md`, `guide.html`, `assets/step-NN.png`). The video is as long as the timeline. Add `--narration` for a spoken track (`OPENAI_API_KEY`, or macOS `say`). `animated.html` is a generated file, so run `build` again after you edit `index.html`. `export` doesn't use it: it records `index.html` directly, which keeps the video identical to what `check` and `preview` saw.
 
-For your own screen, put its `index.html` in a new folder, run `npx tsx cli.ts init-config <folder>` to scaffold a timeline next to it, then run the same commands on that folder.
+For your own screen, put its `index.html` in a new folder, run `npx vistaro init-config <folder>` to scaffold a timeline next to it, then run the same commands on that folder.
 
 A timeline is a list of timed interactions on CSS selectors:
 
@@ -98,32 +113,32 @@ An agent can't watch a video, so everything about motion is also reported as tex
 ### Other languages
 
 ```bash
-npx tsx cli.ts localize ./demo fr        # ./demo/locales/fr/ + strings.fr.json, pre-filled
+npx vistaro localize ./demo fr        # ./demo/locales/fr/ + strings.fr.json, pre-filled
 # translate strings.fr.json and the visible text of locales/fr/index.html
-npx tsx cli.ts export ./demo/locales/fr -o demo-fr.mp4 --guide
+npx vistaro export ./demo/locales/fr -o demo-fr.mp4 --guide
 ```
 
 ### A whole help site
 
 ```bash
-npx tsx cli.ts build-all                 # every guide x locale of help.catalog.json -> help-out/
-npx tsx cli.ts build-all --changed-only --diff
-npx tsx cli.ts build-all --help          # catalog schema
+npx vistaro build-all                 # every guide x locale of help.catalog.json -> help-out/
+npx vistaro build-all --changed-only --diff
+npx vistaro build-all --help          # catalog schema
 ```
 
 ### A live app instead of a mockup
 
 ```bash
 npx playwright codegen --save-storage auth.json https://app.local/login   # sign in once
-npx tsx cli.ts record ./guides/save --url https://app.local/save --storage-state auth.json -o save.mp4 --guide
+npx vistaro record ./guides/save --url https://app.local/save --storage-state auth.json -o save.mp4 --guide
 ```
 
 ### Standalone, with an LLM API key
 
 ```bash
-npx tsx cli.ts extract screenshot.png ./demo --provider gemini      # screenshot -> index.html
-npx tsx cli.ts animate ./demo "Fade in, then click the primary button" --provider claude
-npx tsx cli.ts export ./demo -o demo.mp4
+npx vistaro extract screenshot.png ./demo --provider gemini      # screenshot -> index.html
+npx vistaro animate ./demo "Fade in, then click the primary button" --provider claude
+npx vistaro export ./demo -o demo.mp4
 ```
 
 ## Tech
