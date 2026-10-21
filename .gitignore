@@ -70,3 +70,6 @@ skills-lock.json
 
 # Vistaro Cloud runtime state (accounts, releases, analytics) -- never source
 saas/data/
+
+# ZCode session notes (coordination state, plans, commit drafts): local only
+.zcode/

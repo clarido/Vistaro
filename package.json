@@ -13,7 +13,10 @@
   "homepage": "https://vistaro.dev",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/screenshot-animator.git"
+    "url": "git+https://github.com/clarido/Vistaro.git"
+  },
+  "bugs": {
+    "url": "https://github.com/clarido/Vistaro/issues"
   },
   "files": [
     "bin/",

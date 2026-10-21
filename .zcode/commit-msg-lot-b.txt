@@ -1,3 +1,0 @@
-Un test qui bloque est maintenant nommé et arrêté net, au lieu de suspendre toute la suite de vérifications.
-
-Lot b de la discipline de tests : un garde partagé (test/assert-ran.ts) remplace les sept copies locales et gagne les quatre lanceurs asynchrones, qui apprennent aussi à régler une erreur de démarrage au lieu d'attendre indéfiniment ; un canari (test/spawn-bounds.test.ts) vérifie que chaque lancement du CLI dans test/ porte ses trois garde-fous (délai, SIGKILL, garde nommé), avec autopreuve et preuve par mutation ; la ligne correspondante de l'inventaire du manuel de discipline est tenue à jour, et la phrase d'AGENTS.md sur le garde nommé redevient exacte grâce à ce lot.
