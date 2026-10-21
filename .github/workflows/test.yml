@@ -6,11 +6,13 @@
 # Two more jobs:
 # - release: a v* tag publishes the package to npm through trusted publishing (OIDC, no token).
 #   It waits for the suite, so a red build can never be published.
-# - deploy-website: a push to main that touches website/ rsyncs vistaro.dev to the VPS as the
-#   restricted vistaro-deploy user (secret VISTARO_DEPLOY_KEY). "Run workflow" on main (Actions
-#   tab, workflow_dispatch) always deploys. It does not wait for the suite: the site's demos are
-#   built by the CLI itself, so a broken CLI already fails the deploy at its build step, and the
-#   site goes live in minutes instead of after the 15-minute suite.
+# - deploy-website: every push to main (and "Run workflow" on main, workflow_dispatch) rsyncs
+#   vistaro.dev to the VPS as the restricted vistaro-deploy user (secret VISTARO_DEPLOY_KEY).
+#   Every push, not only website/ changes: the site's videos and tours are built from demo/,
+#   reels/ and showcase/ too, and unchanged demos come from the cache, so a deploy costs about a
+#   minute. It does not wait for the suite: the demos are built by the CLI itself, so a broken CLI
+#   already fails the deploy at its build step, and the site goes live in minutes instead of after
+#   the 15-minute suite. The run's summary page says what was deployed.
 # They live here rather than in their own files because test/ci-workflow.test.ts requires every
 # workflow to carry the three checks.
 name: test
@@ -67,22 +69,6 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Did website/ change?
-        id: changed
-        env:
-          BEFORE: ${{ github.event.before }}
-        run: |
-          # A manual run, a new branch or a force push has no usable "before": deploy rather than guess.
-          if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
-             || [ -n "$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- website/)" ]; then
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "website/ unchanged since $BEFORE: nothing to deploy"
-          fi
 
       # The demos the pages play (videos, embeds, tours) are generated and gitignored, so the
       # checkout never has them. They are cached under a hash of everything they are built from:
@@ -90,7 +76,6 @@ jobs:
       # anim.manifest.json is excluded because each build appends to it.
       - name: Restore the built demos
         id: demos
-        if: steps.changed.outputs.deploy == 'true'
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -106,27 +91,27 @@ jobs:
           key: website-demos-v1-${{ hashFiles('src/**', 'cli.ts', 'package-lock.json', 'demo/**', 'showcase/**', 'reels/**', 'website/src/reel/**', 'tour.showcase.json', 'tour.website.json', 'tour.website-fr.json', '.github/workflows/test.yml', '!**/anim.manifest.json') }}
 
       - uses: actions/setup-node@v4
-        if: steps.changed.outputs.deploy == 'true' && steps.demos.outputs.cache-hit != 'true'
+        if: steps.demos.outputs.cache-hit != 'true'
         with:
           node-version: '20.x'
           cache: npm
 
-      - if: steps.changed.outputs.deploy == 'true' && steps.demos.outputs.cache-hit != 'true'
+      - if: steps.demos.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Cache Playwright browsers
-        if: steps.changed.outputs.deploy == 'true' && steps.demos.outputs.cache-hit != 'true'
+        if: steps.demos.outputs.cache-hit != 'true'
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Chromium
-        if: steps.changed.outputs.deploy == 'true' && steps.demos.outputs.cache-hit != 'true'
+        if: steps.demos.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Build the reel
-        if: steps.changed.outputs.deploy == 'true' && steps.demos.outputs.cache-hit != 'true'
+        if: steps.demos.outputs.cache-hit != 'true'
         run: |
           npx tsx cli.ts build website/src/reel --embed --device desktop
           npx tsx cli.ts export website/src/reel -o website/assets/reel.mp4 -w 1280 -H 720 --scale 2
@@ -134,7 +119,7 @@ jobs:
       # The stage is mirrored with --delete, so a demo neither restored nor rebuilt here would
       # vanish from vistaro.dev (the stage step's file list refuses that).
       - name: Build the tours, the demo video and the product reel
-        if: steps.changed.outputs.deploy == 'true' && steps.demos.outputs.cache-hit != 'true'
+        if: steps.demos.outputs.cache-hit != 'true'
         run: |
           npx tsx cli.ts tour tour.showcase.json --embed -o website/src/showcase-out
           npx tsx cli.ts tour tour.website.json --embed
@@ -151,7 +136,7 @@ jobs:
 
       # Same paths as the restore step; saved only after every build above succeeded.
       - name: Save the built demos
-        if: steps.changed.outputs.deploy == 'true' && steps.demos.outputs.cache-hit != 'true'
+        if: steps.demos.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
@@ -167,7 +152,6 @@ jobs:
           key: ${{ steps.demos.outputs.cache-primary-key }}
 
       - name: Stage the site
-        if: steps.changed.outputs.deploy == 'true'
         run: |
           rsync -a --exclude '.DS_Store' --exclude 'reel.gif' --exclude 'reel.poster.png' \
             --exclude 'reel.webm' --exclude '*.snippet.html' --exclude 'src/reel/animated.html' \
@@ -183,7 +167,6 @@ jobs:
           done
 
       - name: Upload to vistaro.dev
-        if: steps.changed.outputs.deploy == 'true'
         env:
           DEPLOY_KEY: ${{ secrets.VISTARO_DEPLOY_KEY }}
         run: |
@@ -198,6 +181,11 @@ jobs:
           # that folder. No symlinks travel: Caddy serves this folder and a link could expose /data.
           rsync -rpt --delete --no-links -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
             "$RUNNER_TEMP/site/" vistaro-deploy@158.69.214.113:./
+          # A green job must say what it did: write the result on the run's summary page.
+          files=$(find "$RUNNER_TEMP/site" -type f | wc -l | tr -d ' ')
+          size=$(du -sh "$RUNNER_TEMP/site" | cut -f1)
+          demos=$([ "${{ steps.demos.outputs.cache-hit }}" = "true" ] && echo "restored from cache" || echo "rebuilt")
+          echo "Deployed https://vistaro.dev from ${GITHUB_SHA:0:7}: $files files, $size, demos $demos." >> "$GITHUB_STEP_SUMMARY"
 
   test:
     runs-on: ubuntu-latest
