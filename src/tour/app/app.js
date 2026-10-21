@@ -123,6 +123,11 @@
     if (p.accent) document.documentElement.style.setProperty('--accent', p.accent);
     applyTheme(data.theme);
     if (p.name) { setText('product-name', p.name); if (!solo) document.title = fmt(S.metaTitle, { name: p.name }); }
+    // Only a web or relative address becomes a link: the catalog is data, and a javascript: url
+    // in it must not turn the brand into a script trigger.
+    // Embed pages run this file in solo mode with no brand at all, so the element may be missing.
+    var brand = el('brand');
+    if (brand && p.url && /^(https?:\/\/|\/|\.\.?\/)/i.test(String(p.url))) brand.setAttribute('href', p.url);
     var n = (data.scenarios || []).length;
     // Tour context, not the marketing tagline: while the visitor is being taught, the header
     // answers "what is this page", not "what is this product".

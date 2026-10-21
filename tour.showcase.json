@@ -3,7 +3,8 @@
   "product": {
     "name": "Vistaro",
     "tagline": "Every animation type, played live on one screen",
-    "accent": "#E4632B"
+    "accent": "#E4632B",
+    "url": "https://vistaro.dev/"
   },
   "theme": {
     "accent": "#E4632B",

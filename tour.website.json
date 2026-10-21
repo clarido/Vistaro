@@ -1,13 +1,14 @@
 {
   "outputDir": "website/src/clarido-tour-out",
   "product": {
-    "name": "Clarido",
+    "name": "Vistaro",
     "tagline": "Proposal writing for public-sector bids",
-    "accent": "#E4632B"
+    "accent": "#E4632B",
+    "url": "https://vistaro.dev/"
   },
   "rail": {
     "title": "What would you like to see?",
-    "subtitle": "Pick a scenario and it plays on the left."
+    "subtitle": "A sample proposal-writing app, built to show what Vistaro makes. Pick a scenario and it plays on the left."
   },
   "theme": {
     "accent": "#E4632B",

@@ -271,6 +271,10 @@
   /* the demo sits at 80% of the content width, centred; phones keep the full width */
   .stage { margin: clamp(36px, 4vw, 48px) auto 0; max-width: 80%; }
   @media (max-width: 960px) { .stage { max-width: none; } }
+  /* the prompts tab: the conversation that builds the demo, one prompt per step */
+  .prompt-list { list-style: none; margin: 0; padding: 24px; display: grid; gap: 24px; }
+  .prompt-list p { margin: 10px 0 0; color: var(--muted); font-size: var(--text-dense); }
+  .prompt-list p b { color: var(--ink); font-weight: 600; }
   .stage-bar {
     display: flex;
     align-items: center;
@@ -311,7 +315,8 @@
   .source-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 0; }
   .source-grid .codeblock { border: 0; border-radius: 0; }
   .source-grid .codeblock + .codeblock { border-left: 1px solid var(--line); }
-  .source-grid .codeblock pre { max-height: 560px; overflow: auto; }
+  /* the timeline wraps rather than scrolls sideways: a cut-off line hides the file the page is about */
+  .source-grid .codeblock pre { max-height: 560px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
   .source-foot { margin: 14px 0 0; color: var(--faint); font-size: var(--text-meta); }
   .source-foot code { font: 500 .86em/1 var(--mono); color: var(--muted); }
 
@@ -567,7 +572,11 @@
     .hero-ctas .btn { width: 100%; }
     .claims { flex-direction: column; align-items: center; gap: 8px; }
     .stage-bar { flex-direction: column; align-items: stretch; }
-    .segmented [role="tab"] { flex: 1; }
+    /* the format tabs do not fit a phone: wrap them rather than hide the last ones off-screen */
+    .gallery-tabs { flex-wrap: wrap; overflow: visible; }
+    .gallery-tabs [role="tab"], .gallery-tabs [role="tab"]:first-child { padding: 0 14px 0 0; }
+    .segmented [role="tab"] { flex: 1; padding-left: 6px; padding-right: 6px; white-space: nowrap; font-size: 14px; }
+    .prompt-list { padding: 16px; gap: 20px; }
     .stage-frame { border-radius: 14px; }
     .anim-embed, .reel-bar { display: none; }
     .reel-fallback { display: block; }
@@ -595,6 +604,7 @@
       Vistaro
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Main">
+      <a href="start.html">Get started</a>
       <a href="formats.html">Formats</a>
       <a href="animations.html">Animations</a>
       <a href="#how">How it works</a>
@@ -619,12 +629,13 @@
     <div class="hero-copy">
       <h1>Show. Don't Tell.</h1>
       <p class="sub">
-        Vistaro is a <b>command-line tool</b> that turns two text files, written by your coding agent,
-        into product videos, help guides, marketing reels and interactive tours, in every language.
-        When your UI changes, <b>it rebuilds them</b>.
+        Vistaro is a <b>command-line tool</b> for your coding agent. The agent writes an HTML copy of your
+        app's screen and a script of clicks, typing and captions; Vistaro turns them into product videos,
+        help guides, marketing reels and interactive tours, in every language. No screen recording,
+        and when your UI changes, <b>it rebuilds them</b>.
       </p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="https://github.com/clarido/Vistaro">View on GitHub</a>
+        <a class="btn btn-primary" href="start.html">Get started</a>
         <a class="btn btn-ghost" href="#outputs">See what it makes</a>
       </div>
       <ul class="claims" aria-label="In short">
@@ -638,6 +649,7 @@
         <div class="segmented" role="tablist" aria-label="The demo and its source">
           <button type="button" role="tab" id="tab-demo" aria-selected="true" aria-controls="panel-demo">The demo</button>
           <button type="button" role="tab" id="tab-source" aria-selected="false" aria-controls="panel-source" tabindex="-1">The source</button>
+          <button type="button" role="tab" id="tab-prompts" aria-selected="false" aria-controls="panel-prompts" tabindex="-1">The prompt</button>
         </div>
       </div>
       <div class="stage-frame" role="tabpanel" id="panel-demo" aria-labelledby="tab-demo">
@@ -687,7 +699,21 @@
      the agent from your UI --&gt;</span></pre>
           </div>
         </div>
-        <p class="source-foot">Trimmed for reading: 5 of the timeline's 9 steps, and the top of the screen. The full files are <code>demo/anim.config.json</code> and <code>demo/index.html</code> in the repo. Every selector in the timeline points at the screen.</p>
+        <p class="source-foot">Trimmed for reading: 5 of the timeline's 9 steps, and the top of the screen. The full files are on GitHub: <a class="inline-link" href="https://github.com/clarido/Vistaro/blob/main/demo/anim.config.json">the timeline</a> and <a class="inline-link" href="https://github.com/clarido/Vistaro/blob/main/demo/index.html">the screen</a>. Every selector in the timeline points at the screen.</p>
+      </div>
+      <div role="tabpanel" id="panel-prompts" aria-labelledby="tab-prompts" hidden>
+        <ol class="stage-frame prompt-list">
+          <li>
+            <div class="codeblock">
+              <div class="cb-bar"><span class="cb-dot"></span>the prompt
+                <button class="cb-copy" type="button" data-copy="Install vistaro as a dev dependency (npm install --save-dev vistaro, then npx playwright install chromium), read node_modules/vistaro/AGENTS.md, and create a product demo of the main screen of the app. Explore what vistaro offers and use the appropriate animations and transitions. Display a cursor as needed.">Copy</button>
+              </div>
+<pre class="wrap">Install vistaro as a dev dependency (npm install --save-dev vistaro, then npx playwright install chromium), read node_modules/vistaro/AGENTS.md, and create a product demo of the main screen of the app. Explore what vistaro offers and use the appropriate animations and transitions. Display a cursor as needed.</pre>
+            </div>
+            <p>The agent writes the two files under <b>The source</b>, checks them, and renders the demo.</p>
+          </li>
+        </ol>
+        <p class="source-foot">One prompt, typed into a coding agent from the app's folder. The result is a normal change in your repo that you review before keeping it.</p>
       </div>
     </div>
   </div>
@@ -800,10 +826,10 @@
       <ol class="steps">
         <li id="start" tabindex="-1">
           <h3>Ask your agent</h3>
-          <p>One sentence in Claude Code, Codex or Antigravity, from your project. The agent reads Vistaro's manual and takes it from there.</p>
+          <p>One prompt in your coding agent (Claude Code, OpenAI Codex or Google Antigravity), from your project. The agent installs Vistaro, reads its manual and takes it from there.</p>
           <div class="codeblock">
             <div class="cb-bar"><span class="cb-dot"></span>the prompt</div>
-<pre class="wrap">Create a product demo of my site with Vistaro.</pre>
+<pre class="wrap">Install vistaro as a dev dependency (npm install --save-dev vistaro, then npx playwright install chromium), read node_modules/vistaro/AGENTS.md, and create a product demo of my site.</pre>
           </div>
           <!-- TODO: add the time to a first demo here once it has been measured -->
           <p class="fine">The agent installs it with <code>npm install --save-dev vistaro</code>; <a class="inline-link" href="start.html#install">Get started</a> has the details. Needs Node 20.6 or later.</p>
@@ -892,8 +918,8 @@ tour-out/           <span class="c">the tour</span></pre>
 <!-- ======================= FINAL CTA ======================= -->
 <section class="endcta">
   <div class="container">
-    <h2>Your next demo is one sentence away.</h2>
-    <p>It's free and open source. The getting-started guide gets you from install to a first demo in five short steps.</p>
+    <h2>Your next demo is one prompt away.</h2>
+    <p>It's free and open source. Paste one prompt into your coding agent, then review the demo it makes like any other change.</p>
     <div class="hero-ctas">
       <a class="btn btn-primary" href="start.html">Get started</a>
     </div>
@@ -930,7 +956,7 @@ tour-out/           <span class="c">the tour</span></pre>
       </div>
     </div>
     <div class="foot-bottom">
-      <span>© 2026 Vistaro. Free and ISC-licensed open source.</span>
+      <span>© 2026 Clarido, the team behind Vistaro. Free and ISC-licensed open source.</span>
       <span>Every demo on this page is real Vistaro output.</span>
     </div>
   </div>

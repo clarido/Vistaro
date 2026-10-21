@@ -28,7 +28,8 @@ export interface TourScenario {
 
 export interface TourCatalog {
     outputDir?: string;
-    product?: { name?: string; tagline?: string; accent?: string };
+    /** url: where the shell's brand links (a shared tour link's way home); only http(s) or relative. */
+    product?: { name?: string; tagline?: string; accent?: string; url?: string };
     rail?: { title?: string; subtitle?: string };
     groups?: { id: string; label: string }[];
     /** Chrome-string overrides for the shell (step eyebrow, transport titles, rest and error copy).

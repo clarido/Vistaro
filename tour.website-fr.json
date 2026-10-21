@@ -1,13 +1,14 @@
 {
   "outputDir": "website/src/clarido-tour-fr-out",
   "product": {
-    "name": "Clarido",
+    "name": "Vistaro",
     "tagline": "Rédaction de réponses aux appels d'offres publics",
-    "accent": "#E4632B"
+    "accent": "#E4632B",
+    "url": "https://vistaro.dev/"
   },
   "rail": {
     "title": "Que voulez-vous voir ?",
-    "subtitle": "Choisissez un scénario."
+    "subtitle": "Une application de démonstration, conçue pour montrer ce que Vistaro produit. Choisissez un scénario."
   },
   "theme": {
     "accent": "#E4632B",

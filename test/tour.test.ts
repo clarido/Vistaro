@@ -715,6 +715,58 @@ test('Space activates a focused rail card instead of hijacking playback; a play 
     }
 });
 
+test('product.url turns the shell\'s brand into a link home; an unsafe or missing url leaves it plain text', { skip }, async (t) => {
+    watchOrphans(t);
+    // A shared tour link lands a visitor on the shell with no way back to the product's site: the
+    // brand is the one element every tour page has, so it is where the way home goes.
+    const builds: Record<string, any> = {
+        linked: { name: 'Acme', url: 'https://acme.example/' },
+        unsafe: { name: 'Acme', url: 'javascript:alert(1)' },
+        plain: { name: 'Acme' },
+    };
+    const outs: Record<string, string> = {};
+    for (const [key, product] of Object.entries(builds)) {
+        outs[key] = path.join(work, `brand-${key}-out`);
+        const file = writeCatalog(`brand-${key}`, { outputDir: outs[key], product, scenarios: [basicScenario()] });
+        assert.equal(cli(['tour', file, '--embed']).status, 0);
+    }
+    const server = http.createServer((req, res) => {
+        const [key, ...rest] = decodeURIComponent((req.url || '/').split('?')[0]).replace(/^\/+/, '').split('/');
+        const base = outs[key];
+        const full = base ? path.join(base, rest.join('/') || 'index.html') : '';
+        if (!base || !full.startsWith(base) || !fs.existsSync(full) || fs.statSync(full).isDirectory()) { res.writeHead(404); res.end(); return; }
+        const type = full.endsWith('.js') ? 'text/javascript' : full.endsWith('.css') ? 'text/css' : full.endsWith('.json') ? 'application/json' : 'text/html';
+        res.writeHead(200, { 'content-type': type }); res.end(fs.readFileSync(full));
+    });
+    await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+    const port = (server.address() as any).port;
+
+    let browser: Browser | undefined;
+    try {
+        browser = await chromium.launch({ headless: true });
+        const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
+        const brandOf = async (key: string) => {
+            await page.goto(`http://127.0.0.1:${port}/${key}/index.html`);
+            await page.waitForFunction(() => document.getElementById('product-name')?.textContent === 'Acme', null, { timeout: 10000 });
+            return page.evaluate(() => {
+                const brand = document.getElementById('product-name')!.closest('.brand')!;
+                return { tag: brand.tagName, href: brand.getAttribute('href') };
+            });
+        };
+        assert.deepEqual(await brandOf('linked'), { tag: 'A', href: 'https://acme.example/' });
+        assert.equal((await brandOf('unsafe')).href, null, 'a javascript: url is never made clickable');
+        assert.equal((await brandOf('plain')).href, null, 'no url, no link: catalogs without one build unchanged');
+
+        // An embed page runs the same app.js in solo mode but has no brand at all: the url must not
+        // be applied to an element that is not there (that threw, and every embed showed its load error).
+        await page.goto(`http://127.0.0.1:${port}/linked/embed-basic-desktop.html`);
+        await page.waitForFunction(() => document.getElementById('cap-title')?.textContent === 'Basic', null, { timeout: 10000 });
+    } finally {
+        if (browser) await browser.close();
+        await new Promise<void>(r => server.close(() => r()));
+    }
+});
+
 test('--embed writes a page per device, the custom element and a snippet; a plain build writes none', () => {
     const out = path.join(work, 'embed-out');
     const file = writeCatalog('embed', { outputDir: out, scenarios: [basicScenario({ blurb: 'b' })] });

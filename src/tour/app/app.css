@@ -27,7 +27,10 @@ body {
   display: flex; align-items: baseline; gap: 14px;
   padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--paper);
 }
-.brand { display: flex; align-items: center; gap: 9px; }
+.brand { display: flex; align-items: center; gap: 9px; color: inherit; text-decoration: none; }
+/* product.url makes the brand the way home from a shared tour link; without one it stays an
+   anchor with no href, which is not a link and takes no focus. */
+.brand[href]:hover .name { text-decoration: underline; text-underline-offset: 3px; }
 .mark { width: 20px; height: 20px; border-radius: 6px; background: var(--accent); display: inline-block; }
 .name { font-weight: 640; letter-spacing: -.01em; }
 /* Tour context, not the marketing tagline: while the visitor is being taught, the header answers

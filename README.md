@@ -61,6 +61,16 @@ Or once for the whole machine with `npm install -g vistaro` (then `vistaro --hel
 
 Node >= 20.6, macOS or Linux (Windows is untested). The manual is installed with the package at `node_modules/vistaro/AGENTS.md`. Optional keys in `.env` or the environment: `OPENAI_API_KEY` (narration; falls back to macOS `say`), `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` (only for the standalone `extract` and `animate` commands).
 
+### Ask your agent
+
+Open your project in Claude Code, Codex or Antigravity and paste this. The agent installs Vistaro if needed and learns the rest from its manual:
+
+```text
+Install vistaro as a dev dependency (npm install --save-dev vistaro, then npx playwright install chromium), read node_modules/vistaro/AGENTS.md, and create a product demo of the main screen of the app. Explore what vistaro offers and use the appropriate animations and transitions. Display a cursor as needed.
+```
+
+It writes the screen and the timeline, checks them, looks at the frames, fixes what is off, and renders the video and the guide. Review the result like any other change.
+
 From source, to contribute or to run unreleased code:
 
 ```bash
