@@ -19,7 +19,7 @@
 
 ## Getting started
 
-- The source repository is not public yet; early access: hello@vistaro.dev. Once it is: clone the repo and run `npm install` (which also downloads Chromium). ffmpeg is bundled; no API key needed.
+- Clone https://github.com/clarido/Vistaro next to your project and run `npm install` (which also downloads Chromium). ffmpeg is bundled; no API key needed.
 - If an agent drives it, paste one instruction (e.g. "Create a product demo of my site. Use the CLI to generate everything.") — the agent reads its manual (AGENTS.md) from the repo and runs everything locally.
 - To drive it yourself: `npx tsx cli.ts init-config demo`, then `check`, `preview`, `export`.
 
@@ -28,6 +28,6 @@
 - Website: https://vistaro.dev/
 - Getting started: https://vistaro.dev/start.html
 - Animation showcase (interactive): https://vistaro.dev/animations.html
-- Source code: not public yet (early access: hello@vistaro.dev)
+- Source code: https://github.com/clarido/Vistaro
 - License: ISC (open source, free for commercial use)
 - Contact: hello@vistaro.dev
