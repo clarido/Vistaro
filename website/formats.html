@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vistaro — Every format, from one timeline</title>
+<meta name="description" content="One timeline, every format: demo videos with chapters and per-step clips, help guides and whole help centers, marketing reels for desktop and phone, embeddable interactive tours, every language, and recordings of your real app.">
+<link rel="canonical" href="https://vistaro.dev/formats.html">
+<meta name="theme-color" content="#05070D">
+<meta name="author" content="Vistaro">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta property="og:title" content="Vistaro — Every format, from one timeline">
+<meta property="og:description" content="Videos, help guides, reels for desktop and phone, embeddable tours, every language and your real app, all from the same two text files.">
+<meta property="og:image" content="https://vistaro.dev/assets/og.jpg">
+<meta property="og:image:alt" content="Vistaro: every demo format from one timeline.">
+<meta property="og:url" content="https://vistaro.dev/formats.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Vistaro">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vistaro — Every format, from one timeline">
+<meta name="twitter:description" content="Videos, help guides, reels for desktop and phone, embeddable tours, every language and your real app, all from the same two text files.">
+<meta name="twitter:image" content="https://vistaro.dev/assets/og.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/bricolage-grotesque-latin-opsz.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face {
+    font-family: "Bricolage Grotesque";
+    src: url("assets/fonts/bricolage-grotesque-latin-opsz.woff2") format("woff2");
+    font-weight: 200 800;
+    font-style: normal;
+    font-display: swap;
+  }
+  /* Arial scaled to Bricolage's advance widths, so the swap does not reflow the headings */
+  @font-face {
+    font-family: "Bricolage Fallback";
+    src: local("Arial"), local("ArialMT");
+    size-adjust: 95.5%;
+    ascent-override: 97.4%;
+    descent-override: 28.3%;
+    line-gap-override: 0%;
+  }
+
+  :root {
+    --bg: #05070D;
+    --panel: #0B101B;
+    --panel2: #0E1522;
+    --line: #1D2739;
+    --line-soft: #141C2C;
+    --ink: #E8EDF7;
+    --muted: #8B95AB;
+    --faint: #7A869E;
+    --accent: #E4632B;
+    --accent-hi: #EE7B45;
+    --accent-soft: rgba(228, 99, 43, .12);
+    --accent-ink: #160903;
+    --good: #34D399;
+    --key: #7DD3FC;
+    --str: #FDBA74;
+    --num: #C4B5FD;
+    --pun: #64748B;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --display: "Bricolage Grotesque", "Bricolage Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+
+    /* type roles: one size per job */
+    --text-lead: clamp(17px, 1.5vw, 19px);
+    --text-body: 16px;
+    --text-dense: 15px;
+    --text-meta: 14px;
+    --font-label: 600 11.5px/1 var(--mono);
+    --label-track: .08em;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    color-scheme: dark;
+    scrollbar-color: #2A3550 var(--bg);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: rgba(228, 99, 43, .38); }
+
+  a { color: inherit; text-decoration: none; }
+
+  h1, h2, h3 { font-family: var(--display); font-optical-sizing: auto; text-wrap: balance; }
+  p { text-wrap: pretty; }
+
+  .container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+  .inline-link { color: var(--accent-hi); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .inline-link:hover { color: var(--ink); }
+
+  /* ---------- nav ---------- */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(5, 7, 13, .82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .nav-inner { display: flex; align-items: center; gap: 28px; height: 62px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+  .logo svg { width: 24px; height: 24px; flex: none; }
+  .nav-links { display: flex; gap: 24px; margin-left: 8px; }
+  .nav-links a { color: var(--muted); font-size: 15px; font-weight: 500; transition: color .15s; white-space: nowrap; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-links a[aria-current="page"] { color: var(--ink); }
+  .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .nav-links .mobile-cta { display: none; }
+  .burger { display: none; background: none; border: 0; color: var(--ink); padding: 8px; cursor: pointer; }
+  .burger svg { width: 22px; height: 22px; display: block; }
+
+  @media (max-width: 860px) {
+    .nav-links { display: none; }
+    .burger { display: block; margin-left: auto; }
+    .nav-cta { margin-left: auto; }
+    .nav-cta .btn { display: none; }
+    .nav-links.open {
+      display: flex;
+      position: absolute;
+      top: 62px; left: 0; right: 0;
+      flex-direction: column;
+      gap: 0;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 8px 24px 16px;
+    }
+    .nav-links.open a { padding: 12px 0; border-bottom: 1px solid var(--line-soft); font-size: 16px; }
+    .nav-links.open a:last-child { border-bottom: 0; }
+    .nav-links.open .mobile-cta { display: block; color: var(--accent); font-weight: 600; }
+  }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 12px 22px;
+    transition: transform .12s, background .15s, border-color .15s;
+    cursor: pointer;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent-hi); }
+  .btn-ghost { border: 1px solid var(--line); color: var(--ink); background: rgba(11, 16, 27, .5); }
+  .btn-ghost:hover { border-color: var(--faint); }
+  .btn-sm { padding: 8px 16px; font-size: 14px; border-radius: 8px; }
+
+  /* ---------- page hero ---------- */
+  .page-hero {
+    padding: 80px 0 48px;
+    border-bottom: 1px solid var(--line-soft);
+    text-align: center;
+  }
+  .page-hero h1 {
+    font-size: clamp(40px, 6.4vw, 76px);
+    font-weight: 720;
+    letter-spacing: -.026em;
+    line-height: 1;
+    margin: 0 0 22px;
+  }
+  .page-hero .sub {
+    color: var(--muted);
+    font-size: var(--text-lead);
+    line-height: 1.6;
+    max-width: 60ch;
+    margin: 0 auto;
+  }
+  .page-hero .sub b { color: var(--ink); font-weight: 600; }
+  .jump { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; list-style: none; margin: 32px auto 0; padding: 0; max-width: 760px; }
+  .jump a {
+    display: inline-flex; align-items: center; min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: var(--text-meta);
+    font-weight: 600;
+  }
+  .jump a:hover { color: var(--ink); border-color: var(--faint); }
+
+  /* ---------- format blocks ---------- */
+  .fmt { padding: 72px 0; border-bottom: 1px solid var(--line-soft); scroll-margin-top: 62px; }
+  .fmt-head { max-width: 760px; margin-bottom: 32px; }
+  .cmd-chip .q { color: var(--faint); }
+  .cmd-chip {
+    display: inline-block;
+    font: 600 12px/1 var(--mono);
+    color: var(--str);
+    background: var(--panel2);
+    border: 1px solid var(--line-soft);
+    padding: 7px 12px;
+    border-radius: 7px;
+    margin-bottom: 14px;
+  }
+  .fmt-head h2 { font-size: clamp(27px, 3.6vw, 38px); font-weight: 700; letter-spacing: -.028em; line-height: 1.06; margin: 0 0 12px; }
+  .fmt-head p { color: var(--muted); font-size: var(--text-lead); line-height: 1.6; margin: 0; max-width: 62ch; }
+  .fmt-head p b { color: var(--ink); font-weight: 600; }
+
+  .fmt-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+  .fmt-copy h3 { margin: 0 0 10px; font: var(--font-label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--faint); }
+  .fmt-copy > p { margin: 0 0 20px; color: var(--muted); }
+  .fmt-copy > p b { color: var(--ink); font-weight: 600; }
+  .fmt-copy code, .fmt-head code { font: 500 .86em/1 var(--mono); color: var(--str); }
+
+  .media {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--panel);
+  }
+  .media video, .media > img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; background: #F4F1EA; }
+  .media anim-tour { display: block; }
+  /* a tall artifact (the guide page) shows its top and fades out, instead of being cropped to 16:9 */
+  .media.page { max-height: 520px; background: #F4F6FA; -webkit-mask-image: linear-gradient(#000 78%, transparent); mask-image: linear-gradient(#000 78%, transparent); }
+  .media.page img { aspect-ratio: auto; object-fit: fill; background: none; }
+  .media + .codeblock, .codeblock + .codeblock { margin-top: 16px; }
+
+  /* a desktop frame beside a phone frame: the same source in both shapes */
+  .duo { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 32px; align-items: start; }
+  /* a desktop+phone pair needs the full width; the copy then sits under it in two columns */
+  .fmt-grid.wide { grid-template-columns: minmax(0, 1fr); }
+  .fmt-grid.wide .fmt-copy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 40px; align-items: start; }
+  .fmt-grid.wide .fmt-copy h3 { grid-column: 1; grid-row: 1; }
+  .fmt-grid.wide .fmt-copy .files { grid-column: 1; grid-row: 2; }
+  .fmt-grid.wide .fmt-copy > p { grid-column: 2; grid-row: 1; }
+  .fmt-grid.wide .fmt-copy .ask { grid-column: 2; grid-row: 2; }
+  .duo figure { margin: 0; }
+  .duo figcaption { margin-top: 10px; color: var(--faint); font-size: var(--text-meta); }
+  .phone {
+    border: 1px solid var(--line);
+    border-radius: 34px;
+    padding: 10px;
+    background: #070B12;
+  }
+  .phone .media { border-radius: 24px; }
+
+  .files { list-style: none; margin: 0 0 24px; padding: 16px 0 0; border-top: 1px solid var(--line-soft); display: grid; gap: 8px; font-size: var(--text-meta); color: var(--faint); }
+  .files li { display: flex; gap: 12px; align-items: baseline; }
+  .files code { font: 500 13px/1.4 var(--mono); color: var(--ink); min-width: 10.5em; flex: none; }
+
+  /* the sentence to give your agent */
+  .ask {
+    border: 1px solid rgba(228, 99, 43, .4);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(228, 99, 43, .08), rgba(228, 99, 43, .02)), var(--panel2);
+    padding: 14px 14px 14px 16px;
+  }
+  .ask-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .ask-bar span { font: var(--font-label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--accent-hi); }
+  .ask p { margin: 0; color: var(--ink); font-weight: 500; }
+
+  /* ---------- code blocks ---------- */
+  .codeblock {
+    background: #070B12;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    font: 400 13px/1.7 var(--mono);
+  }
+  .codeblock .cb-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 8px 0 14px;
+    border-bottom: 1px solid var(--line-soft);
+    color: var(--faint);
+    font-size: 12px;
+  }
+  .codeblock .cb-bar .cb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
+  .cb-copy {
+    margin-left: auto;
+    min-height: 32px;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    color: var(--muted);
+    font: var(--font-label);
+    letter-spacing: .03em;
+    padding: 0 12px;
+    cursor: pointer;
+  }
+  .cb-copy:hover { color: var(--ink); border-color: var(--faint); }
+  .cb-copy.copied { color: var(--good); border-color: rgba(52, 211, 153, .4); }
+  .codeblock pre {
+    margin: 0;
+    padding: 16px 18px;
+    overflow-x: auto;
+    white-space: pre;
+    color: #C9D3E4;
+  }
+  .codeblock .k { color: var(--key); }
+  .codeblock .s { color: var(--str); }
+  .codeblock .n { color: var(--num); }
+  .codeblock .p { color: var(--pun); }
+  .codeblock .c { color: var(--faint); }
+  .codeblock .pr { color: var(--faint); user-select: none; }
+
+  /* ---------- reels: the CLI's own embed pages, scaled from their authored size ---------- */
+  .anim-embed { position: relative; width: 100%; aspect-ratio: var(--embed-ratio, 16 / 9); overflow: hidden; background: #EEF2F8; }
+  .anim-embed-frame { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; transform: scale(var(--embed-scale, .5)); }
+  .anim-embed-frame:focus-visible { outline-offset: -2px; }
+  .reel-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .anim-embed.is-playing .reel-poster { display: none; }
+  .media-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: var(--text-meta); }
+  .reel-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 44px;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--ink);
+    font: 600 14px/1 var(--sans);
+    padding: 0 16px;
+    cursor: pointer;
+  }
+  .reel-toggle:hover { border-color: var(--faint); }
+  .reel-toggle svg { width: 11px; height: 11px; }
+
+  /* ---------- closing CTA ---------- */
+  .endcta { text-align: center; padding: 88px 0; }
+  .endcta h2 { font-size: clamp(30px, 4vw, 44px); font-weight: 700; letter-spacing: -.026em; line-height: 1.08; margin: 0 auto 16px; max-width: 16em; }
+  .endcta p { color: var(--muted); font-size: var(--text-lead); max-width: 40em; margin: 0 auto 32px; }
+  .endcta .ctas { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line-soft); padding: 56px 0 40px; background: #04060A; }
+  .foot-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 36px; margin-bottom: 44px; }
+  .foot-brand p { color: var(--faint); font-size: var(--text-meta); line-height: 1.6; max-width: 300px; margin: 12px 0 0; }
+  .foot-col h3 { margin: 0 0 14px; font: var(--font-label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--faint); }
+  .foot-col a { display: block; color: var(--muted); font-size: 14px; padding: 5px 0; }
+  .foot-col a:hover { color: var(--ink); }
+  .foot-bottom {
+    border-top: 1px solid var(--line-soft);
+    padding-top: 24px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    color: var(--faint);
+    font-size: var(--text-meta);
+  }
+  .foot-bottom code { font: 500 .86em/1 var(--mono); color: var(--muted); }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 960px) {
+    .fmt-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    .fmt-grid.wide .fmt-copy { display: block; }
+  }
+  @media (max-width: 860px) {
+    .foot-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 640px) {
+    .container { padding: 0 20px; }
+    .page-hero { padding: 56px 0 40px; }
+    .fmt { padding: 56px 0; }
+    .duo { grid-template-columns: minmax(0, 1fr); }
+    /* on a phone, the phone frame is the one worth showing */
+    .duo .landscape { display: none; }
+    .duo .phone { max-width: 300px; margin: 0 auto; }
+    .files li { flex-direction: column; gap: 2px; }
+    .foot-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ======================= NAV ======================= -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="logo" href="index.html" aria-label="Vistaro home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
+      Vistaro
+    </a>
+    <nav class="nav-links" id="navLinks" aria-label="Main">
+      <a href="formats.html" aria-current="page">Formats</a>
+      <a href="animations.html">Animations</a>
+      <a href="index.html#how">How it works</a>
+      <a href="index.html#compare">Compare</a>
+      <a href="index.html#faq">FAQ</a>
+      <a class="mobile-cta" href="https://github.com/clarido/Vistaro">View on GitHub</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-primary btn-sm" href="https://github.com/clarido/Vistaro">View on GitHub</a>
+      <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ======================= PAGE HERO ======================= -->
+<section class="page-hero" id="top">
+  <div class="container">
+    <h1>Every format, from one timeline</h1>
+    <p class="sub">
+      Your agent writes <b>one screen and one timeline</b>. Everything below is built from them:
+      for a launch post, a help center, a homepage or a phone. Each format ends with the sentence
+      to give your agent.
+    </p>
+    <ul class="jump" aria-label="Formats on this page">
+      <li><a href="#video">Demo video</a></li>
+      <li><a href="#guide">Help guides</a></li>
+      <li><a href="#reel">Reels for desktop and phone</a></li>
+      <li><a href="#tour">Embeddable tours</a></li>
+      <li><a href="#languages">Every language</a></li>
+      <li><a href="#live">Your real app</a></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ======================= VIDEO ======================= -->
+<section class="fmt" id="video" aria-labelledby="video-h">
+  <div class="container">
+    <div class="fmt-head">
+      <span class="cmd-chip">export</span>
+      <h2 id="video-h">A demo video, cut the way you need it</h2>
+      <p>The cursor, the clicks, the typing, the camera and the captions are rendered into an MP4. The length comes from the timeline, so a changed step never leaves a gap to re-edit.</p>
+    </div>
+    <div class="fmt-grid">
+      <div class="media">
+        <video controls playsinline preload="none" width="1280" height="720" poster="assets/clarido-demo.poster.webp">
+          <source src="assets/clarido-demo.mp4" type="video/mp4">
+          <a href="assets/clarido-demo.mp4">Download the demo video (MP4, 21 s)</a>
+        </video>
+      </div>
+      <div class="fmt-copy">
+        <h3>What you get</h3>
+        <ul class="files">
+          <li><code>demo.mp4</code>the video</li>
+          <li><code>demo.vtt</code>subtitles for any player</li>
+          <li><code>chapters</code>one per titled step, inside the MP4</li>
+          <li><code>demo-step-02.mp4</code>one short clip per step, for docs and social posts</li>
+          <li><code>narration</code>a spoken line per step, mixed into the video</li>
+        </ul>
+        <div class="ask">
+          <div class="ask-bar"><span>Ask your agent</span><button class="cb-copy" type="button" data-copy="Export the demo as a video with narration and one clip per step.">Copy</button></div>
+          <p>"Export the demo as a video with narration and one clip per step."</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= GUIDE ======================= -->
+<section class="fmt" id="guide" aria-labelledby="guide-h">
+  <div class="container">
+    <div class="fmt-head">
+      <span class="cmd-chip">export --guide <span class="q">·</span> build-all</span>
+      <h2 id="guide-h">A help article, or a whole help center</h2>
+      <p>Every titled step becomes a numbered instruction with its own screenshot, already highlighted and cropped. List your guides in one catalog and <b>one command builds all of them, in every language</b>, rebuilding only the ones whose screen or timeline changed.</p>
+    </div>
+    <div class="fmt-grid">
+      <div>
+        <div class="media page">
+          <img src="assets/guide-excerpt.webp" width="1100" height="1341" alt="Steps 2 and 3 of a generated help guide: &quot;Check what is left&quot;, with the drafted-sections badge highlighted, and &quot;Open the section&quot;, with the outline item highlighted, each followed by its caption" loading="lazy">
+        </div>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>help.catalog.json</div>
+<pre>{ <span class="k">"outputDir"</span><span class="p">:</span> <span class="s">"help-out"</span>,
+  <span class="k">"defaults"</span><span class="p">:</span> { <span class="k">"locales"</span><span class="p">:</span> [<span class="s">"en"</span>, <span class="s">"fr"</span>] },
+  <span class="k">"guides"</span><span class="p">:</span> [
+    { <span class="k">"slug"</span><span class="p">:</span> <span class="s">"draft-response"</span>, <span class="k">"dir"</span><span class="p">:</span> <span class="s">"demo"</span> },
+    { <span class="k">"slug"</span><span class="p">:</span> <span class="s">"export-word"</span>, <span class="k">"dir"</span><span class="p">:</span> <span class="s">"guides/export"</span> }
+  ] }</pre>
+        </div>
+      </div>
+      <div class="fmt-copy">
+        <h3>What you get</h3>
+        <ul class="files">
+          <li><code>guide.md</code>for your docs site</li>
+          <li><code>guide.html</code>a standalone page, video inline</li>
+          <li><code>guide.json</code>for your own help center</li>
+          <li><code>index.json</code>every guide in every language, one index</li>
+        </ul>
+        <p>When a rebuild changes a screenshot beyond a threshold, the guide is <b>flagged as stale</b>, with a picture of what moved, so nobody publishes a help article that no longer matches the product.</p>
+        <div class="ask">
+          <div class="ask-bar"><span>Ask your agent</span><button class="cb-copy" type="button" data-copy="Set up a help center: one guide per feature, in English and French.">Copy</button></div>
+          <p>"Set up a help center: one guide per feature, in English and French."</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= REEL ======================= -->
+<section class="fmt" id="reel" aria-labelledby="reel-h">
+  <div class="container">
+    <div class="fmt-head">
+      <span class="cmd-chip">"kind": "reel" <span class="q">·</span> --device mobile</span>
+      <h2 id="reel-h">A homepage loop, in landscape and portrait</h2>
+      <p>Silent, looping product clips that start when they scroll into view. <b>One responsive screen makes both shapes</b>: the desktop cut pushes the camera in on the answer, the phone cut skips the pushes a narrow screen has no room for. Both below come from the same two files.</p>
+    </div>
+    <div class="fmt-grid wide">
+      <div class="duo">
+        <figure class="landscape">
+          <div class="media reel" data-file="assets/ask-anything.mp4">
+            <div class="anim-embed" data-w="1280" data-h="720">
+              <img class="reel-poster" src="assets/ask-anything.poster.webp" alt="The desktop reel's last frame: Clarido's pipeline view answering &quot;Where is churn risk hiding?&quot; with a bar chart and $310K recoverable this quarter" loading="lazy">
+              <iframe class="anim-embed-frame" src="src/ask-anything/embed-desktop.html" title="Desktop marketing reel made with Vistaro: Ask anything" loading="lazy" tabindex="-1"></iframe>
+            </div>
+            <div class="media-bar">
+              <span>Desktop · 10 s</span>
+              <button class="reel-toggle" type="button" aria-pressed="false" aria-label="Play the desktop reel" data-label="the desktop reel"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><span>Play</span></button>
+            </div>
+          </div>
+          <figcaption>16:9, for a homepage hero or a launch post.</figcaption>
+        </figure>
+        <figure>
+          <div class="phone">
+            <div class="media reel" data-file="assets/ask-anything-mobile.mp4">
+              <div class="anim-embed" data-w="390" data-h="844">
+                <img class="reel-poster" src="assets/ask-anything-mobile.poster.webp" alt="The phone reel's last frame: the same pipeline answer, stacked for a portrait screen" loading="lazy">
+                <iframe class="anim-embed-frame" src="src/ask-anything/embed-mobile.html" title="Phone marketing reel made with Vistaro: Ask anything" loading="lazy" tabindex="-1"></iframe>
+              </div>
+              <div class="media-bar">
+                <span>Phone · 9 s</span>
+                <button class="reel-toggle" type="button" aria-pressed="false" aria-label="Play the phone reel" data-label="the phone reel"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><span>Play</span></button>
+              </div>
+            </div>
+          </div>
+          <figcaption>Portrait, for mobile visitors and stories.</figcaption>
+        </figure>
+      </div>
+      <div class="fmt-copy">
+        <h3>What you get, per shape</h3>
+        <ul class="files">
+          <li><code>clip.mp4 · .webm</code>for the web</li>
+          <li><code>clip.gif</code>for email and READMEs</li>
+          <li><code>clip.poster.png</code>the payoff frame</li>
+          <li><code>embed-mobile.html</code>drop-in page, plays in view</li>
+        </ul>
+        <p>Any step can be marked desktop-only or phone-only, or carry a phone override. Visitors who ask for reduced motion get the still frame.</p>
+        <div class="ask">
+          <div class="ask-bar"><span>Ask your agent</span><button class="cb-copy" type="button" data-copy="Make a 10-second loop for our homepage, in landscape and in portrait for phones.">Copy</button></div>
+          <p>"Make a 10-second loop for our homepage, in landscape and in portrait for phones."</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= TOUR ======================= -->
+<section class="fmt" id="tour" aria-labelledby="tour-h">
+  <div class="container">
+    <div class="fmt-head">
+      <span class="cmd-chip">tour --embed</span>
+      <h2 id="tour-h">An interactive tour you can put on any page</h2>
+      <p>Visitors pause, step back and pick the next scenario. Nothing is encoded: the tour is the screen itself, so it stays sharp at any size and weighs what a web page weighs. <b>One tag puts it on your own site</b>, and it picks the desktop or phone version from the visitor's screen.</p>
+    </div>
+    <div class="fmt-grid wide">
+      <div>
+        <div class="duo">
+          <figure class="landscape">
+            <div class="media">
+              <anim-tour src="src/clarido-tour-out/" scenario="whats-left" device="desktop" autoplay="inview" height="520"></anim-tour>
+            </div>
+            <figcaption>Desktop.</figcaption>
+          </figure>
+          <figure>
+            <div class="phone">
+              <div class="media">
+                <anim-tour src="src/clarido-tour-out/" scenario="whats-left" device="mobile" autoplay="inview" height="600"></anim-tour>
+              </div>
+            </div>
+            <figcaption>Phone, same scenario.</figcaption>
+          </figure>
+        </div>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>on your page
+            <button class="cb-copy" type="button" data-copy='&lt;script type="module" src="https://your-site.com/tour/anim-tour.js"&gt;&lt;/script&gt;&#10;&lt;anim-tour src="https://your-site.com/tour/" scenario="draft-response" autoplay="inview"&gt;&lt;/anim-tour&gt;'>Copy</button>
+          </div>
+<pre><span class="p">&lt;</span><span class="k">script</span> <span class="n">type</span>=<span class="s">"module"</span> <span class="n">src</span>=<span class="s">"https://your-site.com/tour/anim-tour.js"</span><span class="p">&gt;&lt;/</span><span class="k">script</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="k">anim-tour</span> <span class="n">src</span>=<span class="s">"https://your-site.com/tour/"</span>
+           <span class="n">scenario</span>=<span class="s">"draft-response"</span> <span class="n">autoplay</span>=<span class="s">"inview"</span><span class="p">&gt;&lt;/</span><span class="k">anim-tour</span><span class="p">&gt;</span></pre>
+        </div>
+      </div>
+      <div class="fmt-copy">
+        <h3>What you get</h3>
+        <ul class="files">
+          <li><code>index.html</code>the full tour, every scenario in a list</li>
+          <li><code>anim-tour.js</code>the one-tag embed</li>
+          <li><code>embed-*.snippet.html</code>for a CMS that strips scripts</li>
+          <li><code>tourstep · tourend</code>events for your analytics</li>
+        </ul>
+        <p>Several scenarios can share one screen, so one product needs one mockup. Open the <a class="inline-link" href="src/clarido-tour-out/index.html">full Clarido tour</a> to see the scenario list.</p>
+        <div class="ask">
+          <div class="ask-bar"><span>Ask your agent</span><button class="cb-copy" type="button" data-copy="Build an interactive tour with three scenarios, for desktop and phone, and embed it on our pricing page.">Copy</button></div>
+          <p>"Build an interactive tour with three scenarios, for desktop and phone, and embed it on our pricing page."</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= LANGUAGES ======================= -->
+<section class="fmt" id="languages" aria-labelledby="languages-h">
+  <div class="container">
+    <div class="fmt-head">
+      <span class="cmd-chip">localize</span>
+      <h2 id="languages-h">Every format, in every language</h2>
+      <p>A translation reuses the timeline step for step. Only the words change: one strings file for the titles and captions, and the translated screen. Dates, numbers and currencies follow the locale, and every format above comes out in that language too.</p>
+    </div>
+    <div class="fmt-grid">
+      <div class="media">
+        <anim-tour src="src/clarido-tour-fr-out/" scenario="draft-response" device="desktop" autoplay="inview" height="560"></anim-tour>
+      </div>
+      <div class="fmt-copy">
+        <h3>What you get</h3>
+        <ul class="files">
+          <li><code>locales/fr/</code>the translated screen</li>
+          <li><code>strings.fr.json</code>titles, captions, narration</li>
+        </ul>
+        <div class="ask">
+          <div class="ask-bar"><span>Ask your agent</span><button class="cb-copy" type="button" data-copy="Make a French version of every demo.">Copy</button></div>
+          <p>"Make a French version of every demo."</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= LIVE ======================= -->
+<section class="fmt" id="live" aria-labelledby="live-h">
+  <div class="container">
+    <div class="fmt-head">
+      <span class="cmd-chip">record</span>
+      <h2 id="live-h">Your real app, not just a mockup</h2>
+      <p>The same timeline can play in your running app: real pages, real navigation, your signed-in session. You get the same video and the same help guide, recorded from staging instead of from a mockup.</p>
+    </div>
+    <div class="fmt-grid">
+      <div class="codeblock">
+        <div class="cb-bar"><span class="cb-dot"></span>anim.config.json · a step in your app</div>
+<pre>{ <span class="k">"id"</span><span class="p">:</span> <span class="s">"save"</span>, <span class="k">"time"</span><span class="p">:</span> <span class="s">"6s"</span>, <span class="k">"action"</span><span class="p">:</span> <span class="s">"click"</span>,
+  <span class="k">"target"</span><span class="p">:</span> <span class="s">"[data-help='save']"</span>,
+  <span class="k">"waitFor"</span><span class="p">:</span> <span class="s">"[data-help='editor']"</span>,
+  <span class="k">"title"</span><span class="p">:</span> <span class="s">"Save your changes"</span> }</pre>
+      </div>
+      <div class="fmt-copy">
+        <h3>What it handles</h3>
+        <ul class="files">
+          <li><code>waitFor</code>waits for your page before each step</li>
+          <li><code>auth.json</code>sign in once, reuse the session</li>
+          <li><code>reset</code>puts your data back between passes</li>
+        </ul>
+        <div class="ask">
+          <div class="ask-bar"><span>Ask your agent</span><button class="cb-copy" type="button" data-copy="Record the demo against our staging app at https://staging.example.com.">Copy</button></div>
+          <p>"Record the demo against our staging app at https://staging.example.com."</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= CTA ======================= -->
+<section class="endcta">
+  <div class="container">
+    <h2>Start with one demo. Ask for the rest.</h2>
+    <p>Every format on this page is one sentence away once the first demo exists. Free, open source, and it runs on your machine.</p>
+    <div class="ctas">
+      <a class="btn btn-primary" href="start.html">Get started</a>
+      <a class="btn btn-ghost" href="https://github.com/clarido/Vistaro">View on GitHub</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- ======================= FOOTER ======================= -->
+<footer>
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="logo" href="index.html">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
+          Vistaro
+        </a>
+        <p>Product demos your coding agent writes as code.</p>
+      </div>
+      <div class="foot-col">
+        <h3>Product</h3>
+        <a href="start.html">Get started</a>
+        <a href="formats.html">Formats</a>
+        <a href="animations.html">Animations</a>
+        <a href="index.html#how">How it works</a>
+        <a href="index.html#compare">Compared to capture tools</a>
+        <a href="index.html#faq">FAQ</a>
+      </div>
+      <div class="foot-col">
+        <h3>Contact</h3>
+        <a href="mailto:hello@vistaro.dev">hello@vistaro.dev</a>
+        <a href="https://github.com/clarido/Vistaro">GitHub</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Vistaro. Free and ISC-licensed open source.</span>
+      <span>Every demo on this page is real Vistaro output.</span>
+    </div>
+  </div>
+</footer>
+
+<span id="copy-status" class="visually-hidden" role="status" aria-live="polite"></span>
+
+<script type="module" src="src/clarido-tour-out/anim-tour.js"></script>
+<script>
+  // Mobile nav — same behaviour as index.html.
+  (function () {
+    var burger = document.getElementById('burger');
+    var links = document.getElementById('navLinks');
+    if (!burger || !links) return;
+    burger.addEventListener('click', function () {
+      var open = links.classList.toggle('open');
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    links.addEventListener('click', function (e) {
+      if (e.target.tagName === 'A') {
+        links.classList.remove('open');
+        burger.setAttribute('aria-expanded', 'false');
+      }
+    });
+    if (window.matchMedia) {
+      var wide = window.matchMedia('(min-width: 861px)');
+      var syncMenu = function () {
+        if (wide.matches && links.classList.contains('open')) {
+          links.classList.remove('open');
+          burger.setAttribute('aria-expanded', 'false');
+        }
+      };
+      if (wide.addEventListener) wide.addEventListener('change', syncMenu);
+    }
+  })();
+
+  // Reels: the same parent-side protocol as the homepage's reel (and the CLI's own
+  // `build --embed` snippet), once per frame. Each embed renders at its authored size
+  // (data-w x data-h) and is scaled to the slot, so a narrow slot never reflows it.
+  // The poster stays until the frame is proven live; a dead or reduced-motion frame
+  // hands the visitor the MP4 instead of un-hiding an empty stage.
+  (function () {
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+    var ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+    Array.prototype.forEach.call(document.querySelectorAll('.reel'), function (reel) {
+      var embed = reel.querySelector('.anim-embed');
+      var frame = embed && embed.querySelector('.anim-embed-frame');
+      var toggle = reel.querySelector('.reel-toggle');
+      if (!embed || !frame) return;
+      var w = Number(embed.getAttribute('data-w'));
+      var h = Number(embed.getAttribute('data-h'));
+      var file = reel.getAttribute('data-file');
+      var name = toggle ? toggle.getAttribute('data-label') : 'the reel';
+      frame.style.width = w + 'px';
+      frame.style.height = h + 'px';
+      embed.style.setProperty('--embed-ratio', w + ' / ' + h);
+      var fit = function () { if (embed.clientWidth) embed.style.setProperty('--embed-scale', String(embed.clientWidth / w)); };
+      fit();
+      if ('ResizeObserver' in window) new ResizeObserver(fit).observe(embed);
+      var userPaused = false;
+      var inView = false;
+      var frameState = 'loading';
+      function post(type) {
+        if (frame.contentWindow) frame.contentWindow.postMessage({ source: 'anim-cli', type: type }, '*');
+      }
+      function setPlaying(on) {
+        embed.classList.toggle('is-playing', on);
+        if (!toggle) return;
+        toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+        toggle.setAttribute('aria-label', (on ? 'Pause ' : 'Play ') + name);
+        toggle.innerHTML = on ? ICON_PAUSE + '<span>Pause</span>' : ICON_PLAY + '<span>Play</span>';
+      }
+      frame.addEventListener('load', function () {
+        var ok = false;
+        try {
+          var doc = frame.contentDocument;
+          ok = !!(doc && doc.getElementById('app'));
+        } catch (err) {
+          ok = true; // probe refused (cross-origin): trust the load event
+        }
+        frameState = ok ? 'ok' : 'dead';
+        if (ok && inView && !userPaused && !reduced.matches) { post('play'); setPlaying(true); }
+      });
+      if (toggle) toggle.addEventListener('click', function () {
+        if (reduced.matches || frameState === 'dead') {
+          if (file) window.open(file, '_blank', 'noopener');
+          return;
+        }
+        if (frameState !== 'ok') return;
+        var playing = embed.classList.contains('is-playing');
+        userPaused = playing;
+        post(playing ? 'pause' : 'play');
+        setPlaying(!playing);
+      });
+      if (!('IntersectionObserver' in window)) return;
+      new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          inView = entry.isIntersecting;
+          if (inView) {
+            if (frameState === 'ok' && !userPaused && !reduced.matches) { post('play'); setPlaying(true); }
+          } else if (embed.classList.contains('is-playing')) {
+            post('pause'); setPlaying(false);
+          }
+        });
+      }, { threshold: 0.25 }).observe(embed);
+    });
+  })();
+
+  // Prompts and the embed snippet are one click from the clipboard.
+  (function () {
+    var status = document.getElementById('copy-status');
+    function flash(btn) {
+      var label = btn.getAttribute('data-copy-label') || btn.textContent;
+      btn.setAttribute('data-copy-label', label);
+      if (btn._copyTimer) clearTimeout(btn._copyTimer);
+      btn.classList.add('copied');
+      btn.textContent = 'Copied';
+      if (status) status.textContent = 'Copied to the clipboard';
+      btn._copyTimer = setTimeout(function () {
+        btn.classList.remove('copied');
+        btn.textContent = label;
+        btn._copyTimer = null;
+      }, 1600);
+    }
+    function legacyCopy(text) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+      document.body.removeChild(ta);
+      return ok;
+    }
+    document.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-copy]') : null;
+      if (!btn) return;
+      var text = btn.getAttribute('data-copy');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { flash(btn); }, function () {
+          if (legacyCopy(text)) flash(btn);
+        });
+      } else if (legacyCopy(text)) {
+        flash(btn);
+      }
+    });
+  })();
+</script>
+
+</body>
+</html>

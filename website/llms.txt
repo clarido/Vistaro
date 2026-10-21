@@ -13,7 +13,7 @@
 
 - Demo videos (MP4) with subtitles (.vtt), chapters and optional narration.
 - Step-by-step help guide sites (guide.json / guide.md / guide.html + frames).
-- Marketing reels: short, silent, looping product clips as MP4/WebM/poster/GIF or an embeddable page.
+- Marketing reels: short, silent, looping product clips for desktop and phone (portrait), as MP4/WebM/poster/GIF or an embeddable page.
 - Interactive tours: a scenario rail plus a canvas that plays each scenario step by step; embeddable via an `<anim-tour>` custom element.
 - Localization: the same artifacts in every language from one shared choreography.
 
@@ -27,6 +27,7 @@
 
 - Website: https://vistaro.dev/
 - Getting started: https://vistaro.dev/start.html
+- Every format (videos, guides, reels for desktop and phone, embeddable tours, languages, live apps): https://vistaro.dev/formats.html
 - Animation showcase (interactive): https://vistaro.dev/animations.html
 - Source code: https://github.com/clarido/Vistaro
 - License: ISC (open source, free for commercial use)

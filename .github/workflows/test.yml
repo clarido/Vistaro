@@ -122,6 +122,10 @@ jobs:
           mkdir -p website/src/ask-anything
           cp reels/ask-anything/embed-desktop.html website/src/ask-anything/embed-desktop.html
           npx tsx cli.ts export reels/ask-anything -o website/assets/ask-anything.mp4 -w 1280 -H 720 --scale 2
+          # The phone cut for formats.html: same screen, --device mobile.
+          npx tsx cli.ts build reels/ask-anything --embed --device mobile
+          cp reels/ask-anything/embed-mobile.html website/src/ask-anything/embed-mobile.html
+          npx tsx cli.ts export reels/ask-anything --device mobile --scale 2 -o website/assets/ask-anything-mobile.mp4
 
       - name: Stage the site
         if: steps.changed.outputs.deploy == 'true'
@@ -130,9 +134,11 @@ jobs:
             --exclude 'reel.webm' --exclude '*.snippet.html' --exclude 'src/reel/animated.html' \
             --exclude 'src/reel/anim.*' --exclude 'src/reel/index.html' \
             --exclude 'ask-anything.gif' --exclude 'ask-anything.webm' --exclude 'ask-anything.poster.png' \
+            --exclude 'ask-anything-mobile.gif' --exclude 'ask-anything-mobile.webm' --exclude 'ask-anything-mobile.poster.png' \
             --no-links --chmod=D755,F644 website/ "$RUNNER_TEMP/site/"
-          for f in index.html start.html animations.html assets/reel.mp4 assets/clarido-demo.mp4 \
+          for f in index.html start.html animations.html formats.html assets/reel.mp4 assets/clarido-demo.mp4 \
                    assets/ask-anything.mp4 src/ask-anything/embed-desktop.html \
+                   assets/ask-anything-mobile.mp4 src/ask-anything/embed-mobile.html \
                    src/showcase-out/tours.json src/clarido-tour-out/tours.json src/clarido-tour-fr-out/tours.json; do
             test -f "$RUNNER_TEMP/site/$f" || { echo "::error::missing $f, refusing to deploy"; exit 1; }
           done
