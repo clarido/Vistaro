@@ -159,7 +159,7 @@ jobs:
             --exclude 'ask-anything.gif' --exclude 'ask-anything.webm' --exclude 'ask-anything.poster.png' \
             --exclude 'ask-anything-mobile.gif' --exclude 'ask-anything-mobile.webm' --exclude 'ask-anything-mobile.poster.png' \
             --no-links --chmod=D755,F644 website/ "$RUNNER_TEMP/site/"
-          for f in index.html start.html animations.html formats.html assets/reel.mp4 assets/clarido-demo.mp4 \
+          for f in index.html start.html fr/index.html fr/start.html animations.html formats.html assets/reel.mp4 assets/clarido-demo.mp4 \
                    assets/ask-anything.mp4 src/ask-anything/embed-desktop.html \
                    assets/ask-anything-mobile.mp4 src/ask-anything/embed-mobile.html \
                    src/showcase-out/tours.json src/clarido-tour-out/tours.json src/clarido-tour-fr-out/tours.json; do
