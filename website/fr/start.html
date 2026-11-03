@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commencer — Vistaro</title>
+<meta name="description" content="Comment passer de rien à une première démo produit avec Vistaro : une phrase à votre agent de code, la mise en place autour, et comment piloter l'outil vous-même.">
+<link rel="canonical" href="https://vistaro.dev/fr/start.html">
+<link rel="alternate" hreflang="en" href="https://vistaro.dev/start.html">
+<link rel="alternate" hreflang="fr" href="https://vistaro.dev/fr/start.html">
+<link rel="alternate" hreflang="x-default" href="https://vistaro.dev/start.html">
+<meta name="theme-color" content="#05070D">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Commencer — Vistaro">
+<meta property="og:description" content="Comment passer de rien à une première démo produit avec Vistaro : une phrase à votre agent de code, et la mise en place autour.">
+<meta property="og:image" content="https://vistaro.dev/assets/og.jpg">
+<meta property="og:url" content="https://vistaro.dev/fr/start.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Vistaro">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
+<link rel="preload" href="../assets/fonts/bricolage-grotesque-latin-opsz.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face {
+    font-family: "Bricolage Grotesque";
+    src: url("../assets/fonts/bricolage-grotesque-latin-opsz.woff2") format("woff2");
+    font-weight: 200 800;
+    font-style: normal;
+    font-display: swap;
+  }
+  /* Arial scaled to Bricolage's advance widths, so the swap does not reflow the headings */
+  @font-face {
+    font-family: "Bricolage Fallback";
+    src: local("Arial"), local("ArialMT");
+    size-adjust: 95.5%;
+    ascent-override: 97.4%;
+    descent-override: 28.3%;
+    line-gap-override: 0%;
+  }
+
+  :root {
+    --bg: #05070D;
+    --panel: #0B101B;
+    --panel2: #0E1522;
+    --line: #1D2739;
+    --line-soft: #141C2C;
+    --ink: #E8EDF7;
+    --muted: #8B95AB;
+    --faint: #7A869E;
+    --accent: #E4632B;
+    --accent-hi: #EE7B45;
+    --accent-ink: #160903;
+    --good: #34D399;
+    --str: #FDBA74;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --display: "Bricolage Grotesque", "Bricolage Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+
+    /* type roles: one size per job */
+    --text-lead: clamp(17px, 1.5vw, 19px);
+    --text-meta: 14px;
+    --font-label: 600 11.5px/1 var(--mono);
+    --label-track: .08em;
+
+    --container: 1140px;
+    --gutter: 24px;
+    --measure: 760px;
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; scrollbar-color: #2A3550 var(--bg); scroll-padding-top: 76px; }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  ::selection { background: rgba(228, 99, 43, .38); }
+  a { color: inherit; text-decoration: none; }
+  h1, h2, h3 { font-family: var(--display); font-optical-sizing: auto; text-wrap: balance; }
+  p, li { text-wrap: pretty; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .container { max-width: var(--container); margin: 0 auto; padding: 0 var(--gutter); }
+  /* the guide reads as one centred column: text stays left-aligned inside it */
+  .container.column { max-width: calc(var(--measure) + 2 * var(--gutter)); }
+  .inline-link { color: var(--accent-hi); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .inline-link:hover { color: var(--ink); }
+  code { font: 500 .86em/1 var(--mono); color: var(--str); }
+
+  /* ---------- nav ---------- */
+  .nav { position: sticky; top: 0; z-index: 50; background: rgba(5, 7, 13, .86); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line-soft); }
+  .nav-inner { display: flex; align-items: center; gap: 28px; height: 62px; }
+  .logo { display: flex; align-items: center; gap: 10px; min-height: 44px; font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+  .logo svg { width: 24px; height: 24px; flex: none; }
+  .nav-links { display: flex; gap: 26px; margin-left: 8px; }
+  .nav-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 15px; font-weight: 500; transition: color .15s; white-space: nowrap; }
+  .nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--ink); }
+  .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .nav-npm { color: var(--muted); font-size: 15px; font-weight: 500; }
+  .nav-npm:hover { color: var(--ink); }
+  /* the language switch: a plain link to the same page in the other language, never a redirect */
+  .nav-lang { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--muted); font: 600 13px/1 var(--mono); letter-spacing: .06em; }
+  .nav-lang:hover { color: var(--ink); }
+  /* with the language switch the nav runs out of room below 960px: the npm link stays in the footer */
+  @media (max-width: 960px) { .nav-cta .nav-npm[href*="npmjs"] { display: none; } }
+  @media (max-width: 400px) { .nav-cta { gap: 8px; } }
+  .nav-links .mobile-cta { display: none; }
+  .burger { display: none; background: none; border: 0; color: var(--ink); width: 44px; height: 44px; padding: 11px; margin-right: -11px; cursor: pointer; }
+  .burger svg { width: 22px; height: 22px; display: block; }
+  /* the French labels are longer: the nav folds into the burger at 1040px, not 860px */
+  @media (max-width: 1040px) {
+    .nav-links { display: none; }
+    .burger { display: block; }
+    .nav-cta .btn { display: none; }
+    .nav-links.open { display: flex; position: absolute; top: 62px; left: 0; right: 0; flex-direction: column; gap: 0; margin: 0; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px var(--gutter) 16px; }
+    .nav-links.open a { padding: 13px 0; border-bottom: 1px solid var(--line-soft); font-size: 16px; }
+    .nav-links.open a:last-child { border-bottom: 0; }
+    .nav-links.open .mobile-cta { display: block; color: var(--accent-hi); font-weight: 600; }
+  }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border-radius: 10px; font: 600 15px/1 var(--sans); padding: 0 22px; border: 0; transition: transform .12s, background .15s, border-color .15s; cursor: pointer; }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent-hi); }
+  .btn-sm { min-height: 38px; padding: 0 16px; font-size: 14px; border-radius: 8px; }
+
+  /* ---------- page ---------- */
+  .page-head { padding: clamp(48px, 7vw, 88px) 0 clamp(32px, 4vw, 48px); border-bottom: 1px solid var(--line-soft); }
+  .page-head h1 { margin: 0 0 18px; font-size: clamp(44px, 7vw, 76px); font-weight: 720; letter-spacing: -.026em; line-height: 1; }
+  .page-head p { margin: 0; max-width: 74ch; color: var(--muted); font-size: var(--text-lead); }
+  .toc { list-style: none; margin: 28px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 24px; font-size: var(--text-meta); }
+  .toc a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); }
+  .toc a:hover { color: var(--ink); }
+
+  .guide-body { padding-top: clamp(48px, 6vw, 72px); padding-bottom: clamp(72px, 9vw, 120px); }
+  .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: grid; gap: clamp(48px, 6vw, 64px); max-width: var(--measure); }
+  .steps > li { counter-increment: step; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0 20px; }
+  .steps > li > * { grid-column: 2; }
+  .steps > li::before {
+    content: counter(step);
+    grid-column: 1;
+    grid-row: 1 / span 8;
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    font: 700 17px/1 var(--display);
+    color: var(--accent-hi);
+  }
+  .steps h2, .extra h2 { margin: 6px 0 12px; font-size: clamp(24px, 2.6vw, 30px); font-weight: 700; letter-spacing: -.02em; line-height: 1.12; }
+  .steps h3 { margin: 22px 0 10px; font: 600 16px/1.3 var(--sans); color: var(--ink); }
+  .steps p, .extra p { margin: 0 0 14px; color: var(--muted); }
+  .steps p b, .extra p b { color: var(--ink); font-weight: 600; }
+  .checks { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
+  .checks li { position: relative; padding-left: 28px; color: var(--muted); }
+  .checks li b { color: var(--ink); font-weight: 600; }
+  .checks li::before { content: ""; position: absolute; left: 0; top: 5px; width: 16px; height: 16px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2334D399' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .callout { margin: 0 0 16px; padding: 16px 18px; border: 1px solid rgba(228, 99, 43, .35); border-radius: 12px; background: var(--panel); color: var(--muted); }
+  .callout b { color: var(--ink); font-weight: 600; }
+  .asks { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+  .asks li { padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); }
+  .asks li span { display: block; color: var(--faint); font-size: var(--text-meta); }
+
+  .codeblock { margin: 0 0 14px; background: #070B12; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font: 400 13.5px/1.7 var(--mono); }
+  .codeblock .cb-bar { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--line-soft); color: var(--faint); font-size: 12px; }
+  .codeblock .cb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
+  .codeblock .cb-copy { margin-left: auto; min-height: 36px; background: none; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font: var(--font-label); letter-spacing: .03em; padding: 0 12px; cursor: pointer; }
+  .codeblock .cb-copy:hover { color: var(--ink); border-color: var(--faint); }
+  .codeblock .cb-copy.copied { color: var(--good); border-color: rgba(52, 211, 153, .4); }
+  .codeblock pre { margin: 0; padding: 16px 18px; overflow-x: auto; white-space: pre; color: #C9D3E4; }
+  .codeblock pre.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .codeblock .c { color: var(--faint); }
+  .codeblock .pr { color: var(--faint); user-select: none; }
+
+  .extra { max-width: var(--measure); margin-top: clamp(64px, 8vw, 96px); padding-top: clamp(48px, 6vw, 64px); border-top: 1px solid var(--line-soft); }
+  .extra dl { margin: 0; display: grid; gap: 18px; }
+  .extra dt { color: var(--ink); font-weight: 600; }
+  .extra dd { margin: 4px 0 0; color: var(--muted); }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line-soft); padding: 56px 0 40px; background: #04060A; }
+  .foot-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 36px; margin-bottom: 44px; }
+  .foot-brand p { color: var(--faint); font-size: var(--text-meta); line-height: 1.6; max-width: 300px; margin: 12px 0 0; }
+  .foot-col h3 { margin: 0 0 10px; font: var(--font-label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--faint); }
+  .foot-col a { display: flex; align-items: center; min-height: 44px; color: var(--muted); font-size: var(--text-meta); }
+  .foot-col a:hover { color: var(--ink); }
+  .foot-bottom { border-top: 1px solid var(--line-soft); padding-top: 24px; display: flex; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; color: var(--faint); font-size: var(--text-meta); }
+  @media (max-width: 960px) { .foot-grid { grid-template-columns: 1fr 1fr; } .foot-brand { grid-column: 1 / -1; } }
+  @media (max-width: 640px) {
+    :root { --gutter: 20px; }
+    .steps > li { grid-template-columns: 36px minmax(0, 1fr); gap: 0 14px; }
+    .steps > li::before { width: 36px; height: 36px; font-size: 15px; }
+    .foot-grid { grid-template-columns: 1fr; gap: 28px; }
+  }
+  /* pages that exist only in English carry a small EN tag wherever the French pages link to them */
+  .lang-tag { margin-left: 6px; padding: 2px 5px; border: 1px solid var(--line); border-radius: 5px; font: 600 10px/1 var(--mono); letter-spacing: .06em; color: var(--faint); }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="logo" href="index.html" aria-label="Accueil Vistaro">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
+      Vistaro
+    </a>
+    <nav class="nav-links" id="navLinks" aria-label="Principal">
+      <a href="../formats.html" hreflang="en">Formats<span class="lang-tag" aria-hidden="true">EN</span><span class="visually-hidden"> (en anglais)</span></a>
+      <a href="../animations.html" hreflang="en">Animations<span class="lang-tag" aria-hidden="true">EN</span><span class="visually-hidden"> (en anglais)</span></a>
+      <a href="index.html#how">Fonctionnement</a>
+      <a href="index.html#compare">Comparaison</a>
+      <a href="index.html#faq">FAQ</a>
+      <a class="mobile-cta" href="start.html">Commencer</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-lang" href="../start.html" hreflang="en" lang="en" aria-label="English version">EN</a>
+      <a class="nav-npm" href="https://github.com/clarido/Vistaro">GitHub</a>
+      <a class="nav-npm" href="https://www.npmjs.com/package/vistaro">npm</a>
+      <a class="btn btn-primary btn-sm" href="start.html" aria-current="page">Commencer</a>
+      <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="page-head">
+    <div class="container column">
+      <h1>Commencer</h1>
+      <p>Comment passer de rien à une première démo produit. La démo elle-même tient en une phrase à votre agent de code&nbsp;; cette page couvre la mise en place autour et ce que vous pouvez demander ensuite.</p>
+      <ul class="toc" aria-label="Sur cette page">
+        <li><a href="#need">Ce qu'il faut</a></li>
+        <li><a href="#install">Installation</a></li>
+        <li><a href="#ask">Demandez à votre agent</a></li>
+        <li><a href="#next">Demandez-en plus</a></li>
+        <li><a href="#cli">Pilotez-le vous-même</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="container column guide-body">
+    <ol class="steps">
+      <li id="need">
+        <h2>Ce qu'il faut</h2>
+        <ul class="checks">
+          <li><b>Node 20.6 ou plus récent</b> sous macOS ou Linux, et environ 150&nbsp;Mo pour Chromium. Windows n'est pas testé.</li>
+          <li><b>Un agent de code</b>&nbsp;: Claude Code, OpenAI Codex ou Google Antigravity.</li>
+          <li><b>Le projet à présenter</b>, ouvert dans cet agent. Une application qui tourne aide, mais n'est pas obligatoire&nbsp;: l'agent peut partir de votre code ou de captures d'écran.</li>
+        </ul>
+        <p>Aucun compte, aucune clé d'API, aucune carte de crédit. ffmpeg est inclus.</p>
+      </li>
+
+      <li id="install">
+        <h2>Installation</h2>
+        <p>Vistaro est sur <a class="inline-link" href="https://www.npmjs.com/package/vistaro">npm</a>. Installez-le <b>dans votre projet</b>&nbsp;: la version est fixée dans votre <code>package.json</code>, votre agent utilise donc toujours le même Vistaro, et son manuel se trouve à un chemin connu.</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>dans votre projet · recommandé</div>
+<pre><span class="pr">$</span> npm install --save-dev vistaro
+<span class="pr">$</span> npx playwright install chromium    <span class="c"># une seule fois : le navigateur qui sert à enregistrer</span>
+<span class="pr">$</span> npx vistaro --help</pre>
+        </div>
+        <h3>Ou une fois pour toute la machine</h3>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> npm install -g vistaro
+<span class="pr">$</span> npx playwright install chromium
+<span class="pr">$</span> vistaro --help</pre>
+        </div>
+        <h3>Ou essayez-le sans l'installer</h3>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> npx playwright install chromium
+<span class="pr">$</span> npx vistaro@latest init-config demo</pre>
+        </div>
+        <p>Ne sautez pas la ligne Chromium&nbsp;: les versions récentes de npm et pnpm n'exécutent plus les scripts d'installation, c'est donc elle qui télécharge le navigateur. S'il manque, Vistaro s'arrête et affiche la commande à lancer. Si c'est un agent qui pilote, vous pouvez sauter toute cette étape&nbsp;: le prompt ci-dessous lui demande d'installer.</p>
+      </li>
+
+      <li id="ask">
+        <h2>Demandez à votre agent</h2>
+        <p>Ouvrez votre projet dans votre agent de code et collez ceci. Le manuel de Vistaro (<code>AGENTS.md</code>, en anglais) est écrit pour les agents&nbsp;: il ne lui faut rien de plus.</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>le prompt
+            <button class="cb-copy" type="button" data-copy="Installez vistaro comme dépendance de développement (npm install --save-dev vistaro, puis npx playwright install chromium), lisez node_modules/vistaro/AGENTS.md et créez une démo produit de mon site.">Copier</button>
+          </div>
+<pre class="wrap">Installez vistaro comme dépendance de développement (npm install --save-dev vistaro, puis npx playwright install chromium), lisez node_modules/vistaro/AGENTS.md et créez une démo produit de mon site.</pre>
+        </div>
+        <p>L'agent écrit deux fichiers, un écran qui reproduit votre interface et une chronologie d'étapes, puis les vérifie et regarde les images, en corrigeant ce qui cloche avant le rendu. Vous obtenez une vidéo sous-titrée et un guide d'aide pas à pas. <b>Relisez le tout comme n'importe quel autre changement</b>&nbsp;: lisez le diff, demandez une autre formulation ou un autre rythme, et le rendu est refait.</p>
+      </li>
+
+      <li id="next">
+        <h2>Demandez-en plus</h2>
+        <p>Les deux mêmes fichiers produisent tous les autres formats. Des demandes de suivi qui marchent&nbsp;:</p>
+        <ul class="asks">
+          <li>«&nbsp;Faites une version anglaise.&nbsp;»<span>Un écran traduit et un fichier de chaînes, même chorégraphie.</span></li>
+          <li>«&nbsp;Faites-en une boucle de 10 secondes pour notre page d'accueil.&nbsp;»<span>Une boucle muette&nbsp;: MP4, WebM, GIF et une page à intégrer.</span></li>
+          <li>«&nbsp;Construisez une visite interactive avec trois scénarios.&nbsp;»<span>Un site de visite autonome que les visiteurs peuvent mettre en pause et parcourir étape par étape.</span></li>
+          <li>«&nbsp;Enregistrez-la sur https://staging.example.com, notre environnement de test.&nbsp;»<span>La même chronologie, jouée dans votre vraie application.</span></li>
+          <li>«&nbsp;Notre interface a changé. Reconstruisez les démos.&nbsp;»<span>Seul ce qui a changé est refait.</span></li>
+        </ul>
+      </li>
+
+      <li id="cli">
+        <h2>Pilotez-le vous-même</h2>
+        <p>Vous préférez la ligne de commande&nbsp;? Depuis votre projet, avec votre démo dans <code>demo/</code>&nbsp;:</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> npx vistaro init-config demo    <span class="c"># crée la chronologie</span>
+<span class="pr">$</span> npx vistaro check demo          <span class="c"># vérifie la cible de chaque étape</span>
+<span class="pr">$</span> npx vistaro preview demo        <span class="c"># une image annotée par étape</span>
+<span class="pr">$</span> npx vistaro export demo -o demo.mp4 --guide</pre>
+        </div>
+        <p>Chaque commande affiche ce qu'elle a écrit. <code>npx vistaro --help</code> les liste toutes, et <code>node_modules/vistaro/AGENTS.md</code> est le manuel complet, en anglais.</p>
+      </li>
+    </ol>
+
+    <section class="extra" aria-labelledby="source">
+      <h2 id="source">Depuis les sources</h2>
+      <p>Pour contribuer, ou pour utiliser le tout dernier code pas encore publié, clonez plutôt <a class="inline-link" href="https://github.com/clarido/Vistaro">le dépôt</a>. Dans le clone, chaque commande s'écrit <code>npx tsx cli.ts</code> là où le paquet npm dit <code>npx vistaro</code>.</p>
+      <div class="codeblock">
+        <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> git clone https://github.com/clarido/Vistaro.git vistaro
+<span class="pr">$</span> cd vistaro
+<span class="pr">$</span> npm install
+<span class="pr">$</span> npx playwright install chromium
+<span class="pr">$</span> npx tsx cli.ts --help</pre>
+      </div>
+    </section>
+
+    <section class="extra" aria-labelledby="stuck">
+      <h2 id="stuck">Si quelque chose ne va pas</h2>
+      <dl>
+        <div>
+          <dt>La cible d'une étape est introuvable</dt>
+          <dd>L'écran et la chronologie ne s'entendent pas sur un élément. <code>check</code> nomme l'étape et le sélecteur&nbsp;; demandez à votre agent de corriger.</dd>
+        </div>
+        <div>
+          <dt>Chromium est introuvable</dt>
+          <dd>L'installation a sauté le téléchargement du navigateur. Lancez <code>npx playwright install chromium</code>.</dd>
+        </div>
+        <div>
+          <dt>Autre chose</dt>
+          <dd><a class="inline-link" href="https://github.com/clarido/Vistaro/issues">Ouvrez un ticket sur GitHub</a> avec ce que vous avez lancé et ce qui s'est affiché.</dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="logo" href="index.html">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
+          Vistaro
+        </a>
+        <p>Des démos produit que votre agent de code écrit comme du code.</p>
+      </div>
+      <div class="foot-col">
+        <h3>Produit</h3>
+        <a href="start.html" aria-current="page">Commencer</a>
+        <a href="../formats.html" hreflang="en">Formats<span class="lang-tag" aria-hidden="true">EN</span><span class="visually-hidden"> (en anglais)</span></a>
+        <a href="../animations.html" hreflang="en">Animations<span class="lang-tag" aria-hidden="true">EN</span><span class="visually-hidden"> (en anglais)</span></a>
+        <a href="index.html#how">Fonctionnement</a>
+        <a href="index.html#compare">Comparaison avec les outils de capture</a>
+        <a href="index.html#faq">FAQ</a>
+      </div>
+      <div class="foot-col">
+        <h3>Contact</h3>
+        <a href="https://github.com/clarido/Vistaro/issues">Questions et bogues</a>
+        <a href="https://github.com/clarido/Vistaro">GitHub</a>
+        <a href="https://www.npmjs.com/package/vistaro">npm</a>
+        <a href="../start.html" hreflang="en" lang="en">English</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Clarido, l'équipe derrière Vistaro. Gratuit et open source, sous licence ISC.</span>
+      <span>Chaque démo de ce site est une vraie sortie de Vistaro.</span>
+    </div>
+  </div>
+</footer>
+
+<span id="copy-status" class="visually-hidden" role="status" aria-live="polite"></span>
+
+<script>
+  // Mobile nav
+  (function () {
+    var burger = document.getElementById('burger');
+    var links = document.getElementById('navLinks');
+    if (!burger || !links) return;
+    burger.addEventListener('click', function () {
+      var open = links.classList.toggle('open');
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    links.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('a')) {
+        links.classList.remove('open');
+        burger.setAttribute('aria-expanded', 'false');
+      }
+    });
+    if (window.matchMedia) {
+      var wide = window.matchMedia('(min-width: 1041px)');
+      var syncMenu = function () {
+        if (wide.matches && links.classList.contains('open')) {
+          links.classList.remove('open');
+          burger.setAttribute('aria-expanded', 'false');
+        }
+      };
+      if (wide.addEventListener) wide.addEventListener('change', syncMenu);
+    }
+  })();
+
+  // The prompt is one click from the clipboard.
+  (function () {
+    var status = document.getElementById('copy-status');
+    document.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-copy]') : null;
+      if (!btn) return;
+      var text = btn.getAttribute('data-copy');
+      var done = function () {
+        var label = btn.getAttribute('data-label') || btn.textContent;
+        btn.setAttribute('data-label', label);
+        btn.classList.add('copied');
+        btn.textContent = 'Copié';
+        if (status) status.textContent = 'Prompt copié dans le presse-papiers';
+        setTimeout(function () { btn.classList.remove('copied'); btn.textContent = label; }, 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+    });
+  })();
+</script>
+</body>
+</html>
