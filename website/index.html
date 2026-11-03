@@ -6,6 +6,9 @@
 <title>Vistaro — Show. Don't Tell.</title>
 <meta name="description" content="Your coding agent writes the product demo as two text files. Vistaro turns them into videos, help guides, marketing reels and interactive tours, in every language, and rebuilds them when your UI changes. Free and open source.">
 <link rel="canonical" href="https://vistaro.dev/">
+<link rel="alternate" hreflang="en" href="https://vistaro.dev/">
+<link rel="alternate" hreflang="fr" href="https://vistaro.dev/fr/">
+<link rel="alternate" hreflang="x-default" href="https://vistaro.dev/">
 <meta name="theme-color" content="#05070D">
 <meta name="author" content="Vistaro">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -54,6 +57,7 @@
       "mainEntity": [
         { "@type": "Question", "name": "Does it need an API key, or any LLM?", "acceptedAnswer": { "@type": "Answer", "text": "No. Vistaro itself runs locally with no key and no account. The thinking happens in the coding agent you already use. It writes the two files; Vistaro checks them and renders them. That is also why it runs in CI with no secrets." } },
         { "@type": "Question", "name": "Can it record our real app, not just a mockup?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The same timeline can run against your live app: real page loads, a signed-in session, and a reset step between runs so saved data does not break the second pass. It can also watch you click through a flow once and draft the timeline for you (experimental)." } },
+        { "@type": "Question", "name": "Is there a visual editor?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. npx vistaro studio opens a local visual editor over the timeline: a seekable live preview, click-to-pick targets, effect presets, drag-to-retime, and check and export buttons. It saves to the same vistaro.config.json your agent writes, and nothing leaves your machine." } },
         { "@type": "Question", "name": "Can we keep demos of unreleased features private?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, by default. Everything runs on your machine or in your own CI. Nothing is uploaded to us or anyone else." } },
         { "@type": "Question", "name": "What do I need to run it?", "acceptedAnswer": { "@type": "Answer", "text": "Node 20.6 or later on macOS or Linux (Windows is untested). Your agent installs it with npm install --save-dev vistaro, then npx playwright install chromium for the browser used for recording (about 150 MB). ffmpeg is bundled. Narration is optional: OpenAI voices when a key is set, otherwise the macOS voice." } }
       ]
@@ -188,6 +192,12 @@
   .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
   .nav-npm { color: var(--muted); font-size: 15px; font-weight: 500; }
   .nav-npm:hover { color: var(--ink); }
+  /* the language switch: a plain link to the same page in the other language, never a redirect */
+  .nav-lang { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--muted); font: 600 13px/1 var(--mono); letter-spacing: .06em; }
+  .nav-lang:hover { color: var(--ink); }
+  /* with the language switch the nav runs out of room below 960px: the npm link stays in the footer */
+  @media (max-width: 960px) { .nav-cta .nav-npm[href*="npmjs"] { display: none; } }
+  @media (max-width: 400px) { .nav-cta { gap: 8px; } }
   .nav-links .mobile-cta { display: none; }
   .burger { display: none; background: none; border: 0; color: var(--ink); width: 44px; height: 44px; padding: 11px; margin-right: -11px; cursor: pointer; }
   .burger svg { width: 22px; height: 22px; display: block; }
@@ -606,12 +616,14 @@
     <nav class="nav-links" id="navLinks" aria-label="Main">
       <a href="formats.html">Formats</a>
       <a href="animations.html">Animations</a>
+      <a href="studio.html">Studio</a>
       <a href="#how">How it works</a>
       <a href="#compare">Compare</a>
       <a href="#faq">FAQ</a>
       <a class="mobile-cta" href="start.html">Get started</a>
     </nav>
     <div class="nav-cta">
+      <a class="nav-lang" href="fr/index.html" hreflang="fr" lang="fr" aria-label="Version française">FR</a>
       <a class="nav-npm" href="https://github.com/clarido/Vistaro">GitHub</a>
       <a class="nav-npm" href="https://www.npmjs.com/package/vistaro">npm</a>
       <a class="btn btn-primary btn-sm" href="start.html">Get started</a>
@@ -862,6 +874,23 @@ tour-out/           <span class="c">the tour</span></pre>
   </div>
 </section>
 
+<!-- ======================= STUDIO ======================= -->
+<section class="studio" id="studio" tabindex="-1">
+  <div class="container">
+    <div class="section-head">
+      <h2>Prefer to edit by eye? Open the Studio.</h2>
+      <p class="section-lead">Your agent writes the first version. Studio is a local visual editor over the same timeline: scrub a live preview, click an element to target it, drag a step to a new time, then check and export. It saves to the file in your repo, so there is still only one source.</p>
+    </div>
+    <div class="codeblock" style="max-width: 560px;">
+      <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> npx vistaro studio</pre>
+    </div>
+    <div style="margin-top: 24px;">
+      <a class="btn btn-ghost" href="studio.html">How Studio works</a>
+    </div>
+  </div>
+</section>
+
 <!-- ======================= COMPARE ======================= -->
 <section class="compare" id="compare" tabindex="-1">
   <div class="container">
@@ -883,7 +912,7 @@ tour-out/           <span class="c">the tour</span></pre>
       </tbody>
     </table>
 
-    <p class="not-for"><b>Who it's not for:</b> if you want to click through your app once and drag hotspots in an editor, a capture tool will get you there faster. Vistaro pays off when demos change often, ship in several languages, and live in a repo your agent already works in.</p>
+    <p class="not-for"><b>Who it's not for:</b> if you want to click through your app once and drag hotspots in an editor, a capture tool will get you there faster. (Vistaro has an editor too, <a class="inline-link" href="studio.html">Studio</a>, but it edits a timeline in your repo rather than a recording.) Vistaro pays off when demos change often, ship in several languages, and live in a repo your agent already works in.</p>
   </div>
 </section>
 
@@ -902,6 +931,10 @@ tour-out/           <span class="c">the tour</span></pre>
       <details>
         <summary>Can it record our real app, not just a mockup?</summary>
         <div class="a">Yes. The same timeline can run against your live app: real page loads, a signed-in session, and a reset step between runs so saved data doesn't break the second pass. It can also watch you click through a flow once and draft the timeline for you (experimental).</div>
+      </details>
+      <details>
+        <summary>Is there a visual editor?</summary>
+        <div class="a">Yes. <code>npx vistaro studio</code> opens a local visual editor over the timeline: a seekable live preview, click-to-pick targets, effect presets, drag-to-retime, and check and export buttons. It saves to the same <code>vistaro.config.json</code> your agent writes, and nothing leaves your machine. <a class="inline-link" href="studio.html">How Studio works</a>.</div>
       </details>
       <details>
         <summary>Can we keep demos of unreleased features private?</summary>
@@ -944,6 +977,7 @@ tour-out/           <span class="c">the tour</span></pre>
         <a href="start.html">Get started</a>
         <a href="formats.html">Formats</a>
         <a href="animations.html">Animations</a>
+        <a href="studio.html">Studio</a>
         <a href="#how">How it works</a>
         <a href="#compare">Compared to capture tools</a>
         <a href="#faq">FAQ</a>
@@ -953,6 +987,7 @@ tour-out/           <span class="c">the tour</span></pre>
         <a href="https://github.com/clarido/Vistaro/issues">Questions and bugs</a>
         <a href="https://github.com/clarido/Vistaro">GitHub</a>
         <a href="https://www.npmjs.com/package/vistaro">npm</a>
+        <a href="fr/index.html" hreflang="fr" lang="fr">Français</a>
       </div>
     </div>
     <div class="foot-bottom">

@@ -29,6 +29,7 @@
 - Getting started: https://vistaro.dev/start.html
 - Every format (videos, guides, reels for desktop and phone, embeddable tours, languages, live apps): https://vistaro.dev/formats.html
 - Animation showcase (interactive): https://vistaro.dev/animations.html
+- Studio, the local visual timeline editor (`npx vistaro studio`): https://vistaro.dev/studio.html
 - Source code: https://github.com/clarido/Vistaro
 - npm package: https://www.npmjs.com/package/vistaro
 - License: ISC (open source, free for commercial use)

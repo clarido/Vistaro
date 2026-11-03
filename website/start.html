@@ -6,6 +6,9 @@
 <title>Get started — Vistaro</title>
 <meta name="description" content="How to go from nothing to a first product demo with Vistaro: one sentence to your coding agent, plus the setup around it and how to drive the CLI yourself.">
 <link rel="canonical" href="https://vistaro.dev/start.html">
+<link rel="alternate" hreflang="en" href="https://vistaro.dev/start.html">
+<link rel="alternate" hreflang="fr" href="https://vistaro.dev/fr/start.html">
+<link rel="alternate" hreflang="x-default" href="https://vistaro.dev/start.html">
 <meta name="theme-color" content="#05070D">
 <meta name="robots" content="index, follow">
 <meta property="og:title" content="Get started — Vistaro">
@@ -90,6 +93,12 @@
   .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
   .nav-npm { color: var(--muted); font-size: 15px; font-weight: 500; }
   .nav-npm:hover { color: var(--ink); }
+  /* the language switch: a plain link to the same page in the other language, never a redirect */
+  .nav-lang { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--muted); font: 600 13px/1 var(--mono); letter-spacing: .06em; }
+  .nav-lang:hover { color: var(--ink); }
+  /* with the language switch the nav runs out of room below 960px: the npm link stays in the footer */
+  @media (max-width: 960px) { .nav-cta .nav-npm[href*="npmjs"] { display: none; } }
+  @media (max-width: 400px) { .nav-cta { gap: 8px; } }
   .nav-links .mobile-cta { display: none; }
   .burger { display: none; background: none; border: 0; color: var(--ink); width: 44px; height: 44px; padding: 11px; margin-right: -11px; cursor: pointer; }
   .burger svg { width: 22px; height: 22px; display: block; }
@@ -190,12 +199,14 @@
     <nav class="nav-links" id="navLinks" aria-label="Main">
       <a href="formats.html">Formats</a>
       <a href="animations.html">Animations</a>
+      <a href="studio.html">Studio</a>
       <a href="index.html#how">How it works</a>
       <a href="index.html#compare">Compare</a>
       <a href="index.html#faq">FAQ</a>
       <a class="mobile-cta" href="start.html">Get started</a>
     </nav>
     <div class="nav-cta">
+      <a class="nav-lang" href="fr/start.html" hreflang="fr" lang="fr" aria-label="Version française">FR</a>
       <a class="nav-npm" href="https://github.com/clarido/Vistaro">GitHub</a>
       <a class="nav-npm" href="https://www.npmjs.com/package/vistaro">npm</a>
       <a class="btn btn-primary btn-sm" href="start.html" aria-current="page">Get started</a>
@@ -344,6 +355,7 @@
         <a href="start.html" aria-current="page">Get started</a>
         <a href="formats.html">Formats</a>
         <a href="animations.html">Animations</a>
+        <a href="studio.html">Studio</a>
         <a href="index.html#how">How it works</a>
         <a href="index.html#compare">Compared to capture tools</a>
         <a href="index.html#faq">FAQ</a>
@@ -353,6 +365,7 @@
         <a href="https://github.com/clarido/Vistaro/issues">Questions and bugs</a>
         <a href="https://github.com/clarido/Vistaro">GitHub</a>
         <a href="https://www.npmjs.com/package/vistaro">npm</a>
+        <a href="fr/start.html" hreflang="fr" lang="fr">Français</a>
       </div>
     </div>
     <div class="foot-bottom">

@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio — Vistaro</title>
+<meta name="description" content="Vistaro Studio is a local visual editor for your demo timeline: scrub a live preview, click to pick targets, drag steps in time, then check and export. One command opens it.">
+<link rel="canonical" href="https://vistaro.dev/studio.html">
+<link rel="alternate" hreflang="en" href="https://vistaro.dev/studio.html">
+<link rel="alternate" hreflang="x-default" href="https://vistaro.dev/studio.html">
+<meta name="theme-color" content="#05070D">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Studio — Vistaro">
+<meta property="og:description" content="A local visual editor for your Vistaro demo: live preview, click-to-pick targets, drag-to-retime, check and export.">
+<meta property="og:image" content="https://vistaro.dev/assets/og.jpg">
+<meta property="og:url" content="https://vistaro.dev/studio.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Vistaro">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/bricolage-grotesque-latin-opsz.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face {
+    font-family: "Bricolage Grotesque";
+    src: url("assets/fonts/bricolage-grotesque-latin-opsz.woff2") format("woff2");
+    font-weight: 200 800;
+    font-style: normal;
+    font-display: swap;
+  }
+  /* Arial scaled to Bricolage's advance widths, so the swap does not reflow the headings */
+  @font-face {
+    font-family: "Bricolage Fallback";
+    src: local("Arial"), local("ArialMT");
+    size-adjust: 95.5%;
+    ascent-override: 97.4%;
+    descent-override: 28.3%;
+    line-gap-override: 0%;
+  }
+
+  :root {
+    --bg: #05070D;
+    --panel: #0B101B;
+    --panel2: #0E1522;
+    --line: #1D2739;
+    --line-soft: #141C2C;
+    --ink: #E8EDF7;
+    --muted: #8B95AB;
+    --faint: #7A869E;
+    --accent: #E4632B;
+    --accent-hi: #EE7B45;
+    --accent-ink: #160903;
+    --good: #34D399;
+    --str: #FDBA74;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --display: "Bricolage Grotesque", "Bricolage Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+
+    /* type roles: one size per job */
+    --text-lead: clamp(17px, 1.5vw, 19px);
+    --text-meta: 14px;
+    --font-label: 600 11.5px/1 var(--mono);
+    --label-track: .08em;
+
+    --container: 1140px;
+    --gutter: 24px;
+    --measure: 760px;
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; scrollbar-color: #2A3550 var(--bg); scroll-padding-top: 76px; }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  ::selection { background: rgba(228, 99, 43, .38); }
+  a { color: inherit; text-decoration: none; }
+  h1, h2, h3 { font-family: var(--display); font-optical-sizing: auto; text-wrap: balance; }
+  p, li { text-wrap: pretty; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .container { max-width: var(--container); margin: 0 auto; padding: 0 var(--gutter); }
+  /* the guide reads as one centred column: text stays left-aligned inside it */
+  .container.column { max-width: calc(var(--measure) + 2 * var(--gutter)); }
+  .inline-link { color: var(--accent-hi); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .inline-link:hover { color: var(--ink); }
+  code { font: 500 .86em/1 var(--mono); color: var(--str); }
+
+  /* ---------- nav ---------- */
+  .nav { position: sticky; top: 0; z-index: 50; background: rgba(5, 7, 13, .86); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line-soft); }
+  .nav-inner { display: flex; align-items: center; gap: 28px; height: 62px; }
+  .logo { display: flex; align-items: center; gap: 10px; min-height: 44px; font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+  .logo svg { width: 24px; height: 24px; flex: none; }
+  .nav-links { display: flex; gap: 26px; margin-left: 8px; }
+  .nav-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 15px; font-weight: 500; transition: color .15s; white-space: nowrap; }
+  .nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--ink); }
+  .nav-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .nav-npm { color: var(--muted); font-size: 15px; font-weight: 500; }
+  .nav-npm:hover { color: var(--ink); }
+  /* the language switch: a plain link to the same page in the other language, never a redirect */
+  .nav-lang { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--muted); font: 600 13px/1 var(--mono); letter-spacing: .06em; }
+  .nav-lang:hover { color: var(--ink); }
+  /* with the language switch the nav runs out of room below 960px: the npm link stays in the footer */
+  @media (max-width: 960px) { .nav-cta .nav-npm[href*="npmjs"] { display: none; } }
+  @media (max-width: 400px) { .nav-cta { gap: 8px; } }
+  .nav-links .mobile-cta { display: none; }
+  .burger { display: none; background: none; border: 0; color: var(--ink); width: 44px; height: 44px; padding: 11px; margin-right: -11px; cursor: pointer; }
+  .burger svg { width: 22px; height: 22px; display: block; }
+  @media (max-width: 860px) {
+    .nav-links { display: none; }
+    .burger { display: block; }
+    .nav-cta .btn { display: none; }
+    .nav-links.open { display: flex; position: absolute; top: 62px; left: 0; right: 0; flex-direction: column; gap: 0; margin: 0; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px var(--gutter) 16px; }
+    .nav-links.open a { padding: 13px 0; border-bottom: 1px solid var(--line-soft); font-size: 16px; }
+    .nav-links.open a:last-child { border-bottom: 0; }
+    .nav-links.open .mobile-cta { display: block; color: var(--accent-hi); font-weight: 600; }
+  }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border-radius: 10px; font: 600 15px/1 var(--sans); padding: 0 22px; border: 0; transition: transform .12s, background .15s, border-color .15s; cursor: pointer; }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent-hi); }
+  .btn-sm { min-height: 38px; padding: 0 16px; font-size: 14px; border-radius: 8px; }
+
+  /* ---------- page ---------- */
+  .page-head { padding: clamp(48px, 7vw, 88px) 0 clamp(32px, 4vw, 48px); border-bottom: 1px solid var(--line-soft); }
+  .page-head h1 { margin: 0 0 18px; font-size: clamp(44px, 7vw, 76px); font-weight: 720; letter-spacing: -.026em; line-height: 1; }
+  .page-head p { margin: 0; max-width: 74ch; color: var(--muted); font-size: var(--text-lead); }
+  .toc { list-style: none; margin: 28px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 24px; font-size: var(--text-meta); }
+  .toc a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); }
+  .toc a:hover { color: var(--ink); }
+
+  .guide-body { padding-top: clamp(48px, 6vw, 72px); padding-bottom: clamp(72px, 9vw, 120px); }
+  .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: grid; gap: clamp(48px, 6vw, 64px); max-width: var(--measure); }
+  .steps > li { counter-increment: step; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0 20px; }
+  .steps > li > * { grid-column: 2; }
+  .steps > li::before {
+    content: counter(step);
+    grid-column: 1;
+    grid-row: 1 / span 8;
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    font: 700 17px/1 var(--display);
+    color: var(--accent-hi);
+  }
+  .steps h2, .extra h2 { margin: 6px 0 12px; font-size: clamp(24px, 2.6vw, 30px); font-weight: 700; letter-spacing: -.02em; line-height: 1.12; }
+  .steps h3 { margin: 22px 0 10px; font: 600 16px/1.3 var(--sans); color: var(--ink); }
+  .steps p, .extra p { margin: 0 0 14px; color: var(--muted); }
+  .steps p b, .extra p b { color: var(--ink); font-weight: 600; }
+  .checks { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
+  .checks li { position: relative; padding-left: 28px; color: var(--muted); }
+  .checks li b { color: var(--ink); font-weight: 600; }
+  .checks li::before { content: ""; position: absolute; left: 0; top: 5px; width: 16px; height: 16px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2334D399' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .callout { margin: 0 0 16px; padding: 16px 18px; border: 1px solid rgba(228, 99, 43, .35); border-radius: 12px; background: var(--panel); color: var(--muted); }
+  .callout b { color: var(--ink); font-weight: 600; }
+  .asks { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+  .asks li { padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); }
+  .asks li span { display: block; color: var(--faint); font-size: var(--text-meta); }
+
+  .codeblock { margin: 0 0 14px; background: #070B12; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font: 400 13.5px/1.7 var(--mono); }
+  .codeblock .cb-bar { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--line-soft); color: var(--faint); font-size: 12px; }
+  .codeblock .cb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
+  .codeblock .cb-copy { margin-left: auto; min-height: 36px; background: none; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font: var(--font-label); letter-spacing: .03em; padding: 0 12px; cursor: pointer; }
+  .codeblock .cb-copy:hover { color: var(--ink); border-color: var(--faint); }
+  .codeblock .cb-copy.copied { color: var(--good); border-color: rgba(52, 211, 153, .4); }
+  .codeblock pre { margin: 0; padding: 16px 18px; overflow-x: auto; white-space: pre; color: #C9D3E4; }
+  .codeblock pre.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .codeblock .c { color: var(--faint); }
+  .codeblock .pr { color: var(--faint); user-select: none; }
+
+  .extra { max-width: var(--measure); margin-top: clamp(64px, 8vw, 96px); padding-top: clamp(48px, 6vw, 64px); border-top: 1px solid var(--line-soft); }
+  .extra dl { margin: 0; display: grid; gap: 18px; }
+  .extra dt { color: var(--ink); font-weight: 600; }
+  .extra dd { margin: 4px 0 0; color: var(--muted); }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line-soft); padding: 56px 0 40px; background: #04060A; }
+  .foot-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 36px; margin-bottom: 44px; }
+  .foot-brand p { color: var(--faint); font-size: var(--text-meta); line-height: 1.6; max-width: 300px; margin: 12px 0 0; }
+  .foot-col h3 { margin: 0 0 10px; font: var(--font-label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--faint); }
+  .foot-col a { display: flex; align-items: center; min-height: 44px; color: var(--muted); font-size: var(--text-meta); }
+  .foot-col a:hover { color: var(--ink); }
+  .foot-bottom { border-top: 1px solid var(--line-soft); padding-top: 24px; display: flex; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; color: var(--faint); font-size: var(--text-meta); }
+  @media (max-width: 960px) { .foot-grid { grid-template-columns: 1fr 1fr; } .foot-brand { grid-column: 1 / -1; } }
+  @media (max-width: 640px) {
+    :root { --gutter: 20px; }
+    .steps > li { grid-template-columns: 36px minmax(0, 1fr); gap: 0 14px; }
+    .steps > li::before { width: 36px; height: 36px; font-size: 15px; }
+    .foot-grid { grid-template-columns: 1fr; gap: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="logo" href="index.html" aria-label="Vistaro home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
+      Vistaro
+    </a>
+    <nav class="nav-links" id="navLinks" aria-label="Main">
+      <a href="formats.html">Formats</a>
+      <a href="animations.html">Animations</a>
+      <a href="studio.html" aria-current="page">Studio</a>
+      <a href="index.html#how">How it works</a>
+      <a href="index.html#compare">Compare</a>
+      <a href="index.html#faq">FAQ</a>
+      <a class="mobile-cta" href="start.html">Get started</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-lang" href="fr/start.html" hreflang="fr" lang="fr" aria-label="Version française">FR</a>
+      <a class="nav-npm" href="https://github.com/clarido/Vistaro">GitHub</a>
+      <a class="nav-npm" href="https://www.npmjs.com/package/vistaro">npm</a>
+      <a class="btn btn-primary btn-sm" href="start.html" aria-current="page">Get started</a>
+      <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="page-head">
+    <div class="container column">
+      <h1>Studio</h1>
+      <p>A visual editor for the timeline your agent wrote. Scrub the demo, click an element to target it, drag a step to a new time, and save. It runs on your machine and edits the same <code>vistaro.config.json</code> the CLI reads.</p>
+      <ul class="toc" aria-label="On this page">
+        <li><a href="#what">What you can do</a></li>
+        <li><a href="#launch">Open it</a></li>
+        <li><a href="#load">Load your project</a></li>
+        <li><a href="#good">Good to know</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="container column guide-body">
+    <ol class="steps">
+      <li id="what">
+        <h2>What you can do</h2>
+        <ul class="checks">
+          <li><b>Scrub a live preview.</b> Play the demo or jump to any moment and see the cursor, zoom and captions exactly as they will render.</li>
+          <li><b>Pick targets by clicking.</b> Click an element in the preview instead of writing a CSS selector.</li>
+          <li><b>Apply effect presets.</b> Add a click, zoom, highlight or fade to a step from a list, without remembering the fields.</li>
+          <li><b>Retime by dragging.</b> Move a step along the timeline ruler to change when it happens.</li>
+          <li><b>Check and export.</b> Run the same validation and the same export as the CLI, from the editor.</li>
+          <li><b>Save.</b> Studio writes <code>vistaro.config.json</code>. It is a view over the file, never a second copy, so your diff stays readable.</li>
+        </ul>
+      </li>
+
+      <li id="launch">
+        <h2>Open it</h2>
+        <p>From your project, with Vistaro installed (see <a class="inline-link" href="start.html#install">Get started</a>):</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> npx vistaro studio</pre>
+        </div>
+        <p>Studio starts a small server on your own machine and prints its address. Open it in your browser. Running <code>npx vistaro</code> with no command does the same and opens the browser for you. Press Ctrl-C in the terminal to stop it.</p>
+      </li>
+
+      <li id="load">
+        <h2>Load your project</h2>
+        <p>Run it with no folder and you get a project picker: every demo found in the workspace, most recently touched first. Choose one to open it.</p>
+        <p>To skip the picker, name the folder that holds the demo's <code>index.html</code>:</p>
+        <div class="codeblock">
+          <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> npx vistaro studio demo</pre>
+        </div>
+        <p>If the folder has a screen but no timeline yet, Studio offers the same starter timelines as <code>init-config</code>, for a guide or for a reel. Not sure what is in your workspace? <code>npx vistaro demos</code> lists every demo and the command that opens it.</p>
+        <h3>Options</h3>
+        <ul class="asks">
+          <li><code>--config scenarios/export-word.json</code><span>Open one of several timelines that share a screen.</span></li>
+          <li><code>--device mobile</code><span>Preview the phone version of the demo.</span></li>
+          <li><code>--port 4000</code><span>Use a fixed port instead of a random one.</span></li>
+        </ul>
+      </li>
+
+      <li id="good">
+        <h2>Good to know</h2>
+        <ul class="checks">
+          <li><b>Agent first, Studio second.</b> Let your agent write the first version, then open Studio to tune timing and framing by eye. Ask the agent to rebuild afterwards; it sees your edits in the file.</li>
+          <li><b>Local only.</b> The server listens on 127.0.0.1 and nothing is uploaded. No account, no API key.</li>
+          <li><b>One job at a time.</b> Check and export run one after another, because each drives a real browser.</li>
+        </ul>
+      </li>
+    </ol>
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="logo" href="index.html">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E1522"/><path d="M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z" fill="#E4632B"/></svg>
+          Vistaro
+        </a>
+        <p>Product demos your coding agent writes as code.</p>
+      </div>
+      <div class="foot-col">
+        <h3>Product</h3>
+        <a href="start.html">Get started</a>
+        <a href="formats.html">Formats</a>
+        <a href="animations.html">Animations</a>
+        <a href="studio.html" aria-current="page">Studio</a>
+        <a href="index.html#how">How it works</a>
+        <a href="index.html#compare">Compared to capture tools</a>
+        <a href="index.html#faq">FAQ</a>
+      </div>
+      <div class="foot-col">
+        <h3>Contact</h3>
+        <a href="https://github.com/clarido/Vistaro/issues">Questions and bugs</a>
+        <a href="https://github.com/clarido/Vistaro">GitHub</a>
+        <a href="https://www.npmjs.com/package/vistaro">npm</a>
+        <a href="fr/start.html" hreflang="fr" lang="fr">Français</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Clarido, the team behind Vistaro. Free and ISC-licensed open source.</span>
+      <span>Every demo on this site is real Vistaro output.</span>
+    </div>
+  </div>
+</footer>
+
+<span id="copy-status" class="visually-hidden" role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;"></span>
+
+<script>
+  // Mobile nav
+  (function () {
+    var burger = document.getElementById('burger');
+    var links = document.getElementById('navLinks');
+    if (!burger || !links) return;
+    burger.addEventListener('click', function () {
+      var open = links.classList.toggle('open');
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    links.addEventListener('click', function (e) {
+      if (e.target.tagName === 'A') {
+        links.classList.remove('open');
+        burger.setAttribute('aria-expanded', 'false');
+      }
+    });
+    if (window.matchMedia) {
+      var wide = window.matchMedia('(min-width: 861px)');
+      var syncMenu = function () {
+        if (wide.matches && links.classList.contains('open')) {
+          links.classList.remove('open');
+          burger.setAttribute('aria-expanded', 'false');
+        }
+      };
+      if (wide.addEventListener) wide.addEventListener('change', syncMenu);
+    }
+  })();
+
+  // The prompt is one click from the clipboard.
+  (function () {
+    var status = document.getElementById('copy-status');
+    document.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-copy]') : null;
+      if (!btn) return;
+      var text = btn.getAttribute('data-copy');
+      var done = function () {
+        var label = btn.getAttribute('data-label') || btn.textContent;
+        btn.setAttribute('data-label', label);
+        btn.classList.add('copied');
+        btn.textContent = 'Copied';
+        if (status) status.textContent = 'Prompt copied to the clipboard';
+        setTimeout(function () { btn.classList.remove('copied'); btn.textContent = label; }, 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+    });
+  })();
+</script>
+</body>
+</html>
