@@ -44,6 +44,7 @@
       "mainEntity": [
         { "@type": "Question", "name": "Faut-il une clé d'API, ou un LLM ?", "acceptedAnswer": { "@type": "Answer", "text": "Non. Vistaro fonctionne en local, sans clé ni compte. La réflexion se fait dans l'agent de code que vous utilisez déjà : il écrit les deux fichiers, Vistaro les vérifie et en fait le rendu. C'est aussi pour ça qu'il tourne en CI sans aucun secret." } },
         { "@type": "Question", "name": "Peut-il enregistrer notre vraie application, pas seulement une maquette ?", "acceptedAnswer": { "@type": "Answer", "text": "Oui. La même chronologie peut jouer dans votre vraie application : vrais chargements de page, session connectée, et une remise à zéro entre deux passes pour que les données enregistrées ne fassent pas échouer la seconde. Il peut aussi vous regarder parcourir un parcours une fois et rédiger la chronologie pour vous (expérimental)." } },
+        { "@type": "Question", "name": "Existe-t-il un éditeur visuel ?", "acceptedAnswer": { "@type": "Answer", "text": "Oui. La commande npx vistaro studio ouvre un éditeur visuel local sur la chronologie : aperçu en direct où l'on peut se déplacer, cibles choisies au clic, effets prédéfinis, étapes déplacées à la souris, boutons de vérification et d'export. Il enregistre dans le même vistaro.config.json que votre agent écrit, et rien ne quitte votre machine." } },
         { "@type": "Question", "name": "Peut-on garder privées les démos de fonctionnalités pas encore lancées ?", "acceptedAnswer": { "@type": "Answer", "text": "Oui, par défaut. Tout tourne sur votre machine ou dans votre propre CI. Rien n'est envoyé chez nous ni chez qui que ce soit." } },
         { "@type": "Question", "name": "Qu'est-ce qu'il faut pour le faire tourner ?", "acceptedAnswer": { "@type": "Answer", "text": "Node 20.6 ou plus récent sous macOS ou Linux (Windows n'est pas testé). Votre agent l'installe avec npm install --save-dev vistaro, puis npx playwright install chromium pour le navigateur qui sert à l'enregistrement (environ 150 Mo). ffmpeg est inclus. La narration est facultative : les voix d'OpenAI si une clé est définie, sinon la voix de macOS." } }
       ]
@@ -606,6 +607,7 @@
     <nav class="nav-links" id="navLinks" aria-label="Principal">
       <a href="../formats.html" hreflang="en">Formats<span class="lang-tag" aria-hidden="true">EN</span><span class="visually-hidden"> (en anglais)</span></a>
       <a href="../animations.html" hreflang="en">Animations<span class="lang-tag" aria-hidden="true">EN</span><span class="visually-hidden"> (en anglais)</span></a>
+      <a href="studio.html">Studio</a>
       <a href="#how">Fonctionnement</a>
       <a href="#compare">Comparaison</a>
       <a href="#faq">FAQ</a>
@@ -863,6 +865,23 @@ tour-out/           <span class="c">la visite</span></pre>
   </div>
 </section>
 
+<!-- ======================= STUDIO ======================= -->
+<section class="studio" id="studio" tabindex="-1">
+  <div class="container">
+    <div class="section-head">
+      <h2>Vous préférez éditer à l'œil&nbsp;? Ouvrez Studio.</h2>
+      <p class="section-lead">Votre agent écrit la première version. Studio est un éditeur visuel local sur la même chronologie : parcourez un aperçu en direct, cliquez sur un élément pour le cibler, déplacez une étape dans le temps, puis vérifiez et exportez. Il enregistre dans le fichier de votre dépôt : il n'y a toujours qu'une seule source.</p>
+    </div>
+    <div class="codeblock" style="max-width: 560px;">
+      <div class="cb-bar"><span class="cb-dot"></span>terminal</div>
+<pre><span class="pr">$</span> npx vistaro studio</pre>
+    </div>
+    <div style="margin-top: 24px;">
+      <a class="btn btn-ghost" href="studio.html">Comment fonctionne Studio</a>
+    </div>
+  </div>
+</section>
+
 <!-- ======================= COMPARE ======================= -->
 <section class="compare" id="compare" tabindex="-1">
   <div class="container">
@@ -884,7 +903,7 @@ tour-out/           <span class="c">la visite</span></pre>
       </tbody>
     </table>
 
-    <p class="not-for"><b>Pour qui ce n'est pas fait&nbsp;:</b> si vous voulez parcourir votre application une fois et placer des zones cliquables dans un éditeur, un outil de capture ira plus vite. Vistaro devient rentable quand les démos changent souvent, existent en plusieurs langues et vivent dans un dépôt où votre agent travaille déjà.</p>
+    <p class="not-for"><b>Pour qui ce n'est pas fait&nbsp;:</b> si vous voulez parcourir votre application une fois et placer des zones cliquables dans un éditeur, un outil de capture ira plus vite. (Vistaro a aussi un éditeur, <a class="inline-link" href="studio.html">Studio</a>, mais il modifie une chronologie dans votre dépôt, pas un enregistrement.) Vistaro devient rentable quand les démos changent souvent, existent en plusieurs langues et vivent dans un dépôt où votre agent travaille déjà.</p>
   </div>
 </section>
 
@@ -903,6 +922,10 @@ tour-out/           <span class="c">la visite</span></pre>
       <details>
         <summary>Peut-il enregistrer notre vraie application, pas seulement une maquette&nbsp;?</summary>
         <div class="a">Oui. La même chronologie peut jouer dans votre vraie application&nbsp;: vrais chargements de page, session connectée, et une remise à zéro entre deux passes pour que les données enregistrées ne fassent pas échouer la seconde. Il peut aussi vous regarder parcourir un parcours une fois et rédiger la chronologie pour vous (expérimental).</div>
+      </details>
+      <details>
+        <summary>Existe-t-il un éditeur visuel&nbsp;?</summary>
+        <div class="a">Oui. La commande <code>npx vistaro studio</code> ouvre un éditeur visuel local sur la chronologie : aperçu en direct où l'on peut se déplacer, cibles choisies au clic, effets prédéfinis, étapes déplacées à la souris, boutons de vérification et d'export. Il enregistre dans le même <code>vistaro.config.json</code> que votre agent écrit, et rien ne quitte votre machine. <a class="inline-link" href="studio.html">Comment fonctionne Studio</a>.</div>
       </details>
       <details>
         <summary>Peut-on garder privées les démos de fonctionnalités pas encore lancées&nbsp;?</summary>
@@ -945,6 +968,7 @@ tour-out/           <span class="c">la visite</span></pre>
         <a href="start.html">Commencer</a>
         <a href="../formats.html" hreflang="en">Formats<span class="lang-tag" aria-hidden="true">EN</span><span class="visually-hidden"> (en anglais)</span></a>
         <a href="../animations.html" hreflang="en">Animations<span class="lang-tag" aria-hidden="true">EN</span><span class="visually-hidden"> (en anglais)</span></a>
+        <a href="studio.html">Studio</a>
         <a href="#how">Fonctionnement</a>
         <a href="#compare">Comparaison avec les outils de capture</a>
         <a href="#faq">FAQ</a>
