@@ -38,7 +38,7 @@ A directory that still has only `anim.config.json` stops with an error naming bo
 Every command below prints what it wrote; `npx vistaro --help` and `npx vistaro <command> --help` are the reference.
 
 1. **Write the screen.** Put a faithful mockup of the UI in `<dir>/index.html` (inline CSS, real element ids/classes; when the user pasted screenshots, reproduce each one; several screens can live in one file as sections you fade between). Media files referenced from `index.html` go next to it.
-2. **Write the timeline.** `npx vistaro init-config <dir>` scaffolds `<dir>/vistaro.config.json` in object form; edit it to match your selectors. Give every step an explicit `id` (translations and guide frames attach to it) and every numbered step a `title` (its heading in the guide); keep a guide to about ten numbered steps and hide choreography with `"guide": false`.
+2. **Write the timeline.** `npx vistaro capabilities --json` lists the vocabulary -- every action, step and `meta` field, easing and studio preset -- from the registry the validator itself uses, so it is never behind the engine; the tables under [Timeline](#timeline-vistaroconfigjson) are the same data. `npx vistaro init-config <dir>` scaffolds `<dir>/vistaro.config.json` in object form; edit it to match your selectors. Give every step an explicit `id` (translations and guide frames attach to it) and every numbered step a `title` (its heading in the guide); keep a guide to about ten numbered steps and hide choreography with `"guide": false`.
 3. **Check.** `npx vistaro check <dir>` validates the schema and timing statically, then replays the timeline in a headless browser and probes every target right before its step (missing, hidden, 0x0, clipped, off-screen), naming the first match when a selector matches several. Fix errors; read the warnings. A `camera` step also reports its framing as facts -- the window, what is in frame, what is cut by the frame edge, content coverage -- with the structured report on the step's info issue in `--json`, and warns when the zoomed window is mostly background: a zoom in the wrong place reads as text, not as something you need eyes on a video for. An `animate` step that reveals its target from `opacity 0`/`scale 0` warns when the element is not pre-hidden in CSS (it would sit visible until the step's time), and a subtitle chip that cannot dodge the target, the cursor and the content a camera push framed warns too. `--trace` writes `<dir>/trace.json`: one record per step with the cursor point, the spotlight box, the placed subtitle chip and the active camera window in authored px, so "where did everything sit when this step ran" is a file you read (two known approximations: the chip record keeps its last text until the next cue even while it fades out, and the spotlight box carries the few-px pulse drift this manual documents; on a live page a record whose geometry is all null marks a step that ran across a navigation).
 4. **Build.** `npx vistaro build <dir>` writes `<dir>/animated.html`, a self-playing page with the cursor, spotlight, ripple, camera and subtitles injected, for humans to open in a browser (run `build` again after editing `index.html`; it is a generated file, not tracked). `export` does not read it: with an `vistaro.config.json` present it always records `index.html` with the runtime injected, so the video can never disagree with `check`/`preview`.
 5. **Preview and iterate.** `npx vistaro preview <dir>` writes `<dir>/preview.png`, one labelled frame per step (`--step N` writes a single full-size `preview-step-N.png`). **Read the PNG** with your image tool, fix the timeline (a badly placed camera, a subtitle that overlaps, a step that fires too early), and repeat 3 to 5 until the frames look right. The step sheet shows endpoints; when the *travel* is the question (a camera mid-pan, the cursor's glide, typing as it lands), `preview <dir> --motion` samples a real playback pass into `preview-motion.png` instead -- the same scheduler the exported video runs under, subtitles and all.
@@ -72,6 +72,9 @@ Object form (a bare array of steps is still accepted):
 }
 ```
 
+<!-- capabilities:start -->
+Generated from the capability registry in `src/engine/schema.ts` by `npm run docs`; do not edit by hand. `npx tsx cli.ts capabilities --json` prints the same data for an agent.
+
 ### `meta`
 
 | Field | Meaning |
@@ -97,9 +100,10 @@ Object form (a bare array of steps is still accepted):
 |---|---|
 | `id` | Stable identifier. Strings files and guide frames attach to it; auto ids (`step-03`) shift when a step is inserted, so `check`/`localize` warn about them once a strings file exists. |
 | `time` | **Moment of the interaction** (the click, the first typed character, the highlight pulse): `"2s"`, `"2000ms"` or a number of seconds. The cursor starts travelling up to 950 ms earlier (lead = min(950 ms, gap to the previous step, time)). Steps must be in order. |
-| `action` | See the table below. |
-| `target` | CSS selector. Required for click, focus, type, highlight, hover, scroll, fadeIn, transitionScreen. A 0x0 target (an empty caret span) is spotlighted through its sized ancestor. |
+| `action` | See the actions table below. |
+| `target` | CSS selector. Required for click, focus, type, highlight, hover, scroll, fadeIn, transitionScreen, animate. A 0x0 target (an empty caret span) is spotlighted through its sized ancestor. |
 | `value` | Text for `type` (typed at `cps` characters per second, default 25) or the key for `press` (`Enter`, `Tab`, `Control+K`). |
+| `cps` | `type`: characters per second (default 25). |
 | `title` | Step heading in the guide and the chapter name in the MP4. Every numbered guide step needs one: `check` warns, and `guide` / `export --guide` / `record --guide` refuse without it (the fallback verbs are English and would leak into a localized guide). Hide choreography steps with `"guide": false` instead. |
 | `subtitle` | Shown in the video's subtitle bar from `time` until the next subtitle (held at most 4 s, at least 1 s) and written to the `.vtt`; also the narration text when `narration` is absent. `null` clears the bar. Nothing to author about placement: the bar moves itself out of the way of the target, the cursor and the content a camera push framed. |
 | `subtitlePlace` | Pins this step's cue to one placement (`bottom`, `top`, `bottom-left`, `bottom-right`, `top-left`, `top-right`), taking it out of the automatic dodge for as long as the cue runs -- for a composition the author knows, like a camera push framing low content. `check` still warns when a pinned cue covers something. |
@@ -111,7 +115,7 @@ Object form (a bare array of steps is still accepted):
 | `all` | `animate`: animate every match of `target`, not just the first. |
 | `stagger` | `animate`: seconds between successive elements when `all` is set. |
 | `count` | `animate`: how many elements `target` is expected to match, so the length estimate is right. `check` warns when the real count differs. |
-| `ease` | Named easing for `animate` and `camera`: `linear`, `easeInCubic`, `easeOutCubic`, `easeInOutCubic`, `easeOutBack`, `easeOutExpo`, `spring`. |
+| `ease` | Named easing for `animate` and `camera`: `linear`, `easeInCubic`, `easeOutCubic`, `easeInOutCubic`, `easeOutBack`, `easeOutExpo`, `spring` (see the easings table below). |
 | `spotlight` / `ripple` | `false` suppresses that chrome for this step alone (no ring is shown at all, not merely left where it was). |
 | `only` | `"desktop"` or `"mobile"`: the step is dropped entirely for the other device. |
 | `mobile` / `desktop` | An object shallow-merged into the step when rendering for that device; the key itself is then stripped. Fields the override omits are inherited. |
@@ -120,8 +124,8 @@ Object form (a bare array of steps is still accepted):
 | `waitFor` | Live pages: a selector to wait for (visible) or a number of ms before the cursor moves; the delay shifts the rest of the timeline. |
 | `waitForTimeoutMs` | Live pages: how long a `waitFor` selector may wait before giving up (default 15000). A timeout is reported as a warning naming the step, not as a slow load; `record --fail-fast` abandons the recording at the first one. |
 | `url` | `navigate` (live pages): the page to open. |
-| `scale`, `x`, `y`, `xOffset`, `yOffset` | `camera`: zoom factor (default 1, a pan without zoom; 1.3 is a typical push-in) and framing; `x`/`y` centre the camera on a point instead of a target, `xOffset`/`yOffset` nudge the framing after that centre is solved (positive moves the focus right/down, so the window travels with it -- the same sign convention as the cursor-point offsets of the same name). |
-| `duration` | Seconds. `camera`: length of the pan (default 2.5). `fadeIn`/`transitionScreen`: length of the fade (default: the element's own CSS transition, else 0.8 s). |
+| `scale` / `x` / `y` / `xOffset` / `yOffset` | `camera`: zoom factor (default 1, a pan without zoom; 1.3 is a typical push-in) and framing; `x`/`y` centre the camera on a point instead of a target, `xOffset`/`yOffset` nudge the framing after that centre is solved (positive moves the focus right/down, so the window travels with it -- the same sign convention as the cursor-point offsets of the same name). On cursor actions `xOffset`/`yOffset` nudge the cursor point off the target's centre. |
+| `duration` | Seconds. `camera`: length of the pan (default 2.5). `animate`: length of one element's motion (default 0.6). `fadeIn`/`transitionScreen`: length of the fade (default: the element's own CSS transition, else 0.8 s). |
 
 ### Actions and the guide capture rule
 
@@ -140,6 +144,19 @@ Object form (a bare array of steps is still accepted):
 | `navigate` | Live pages only: open `url`. | Arrival on the new page. |
 | `animate` | Animate `target` from `from` to `to` with the Web Animations API (`fill: both`, so the end state persists). With `all` it runs on every match, `stagger` seconds apart. | Completion (all elements settled). |
 | `wait` | Nothing visible; a beat, or a subtitle change. | Interaction (the moment of the step). |
+
+### Easings
+
+| Name | Feel |
+|---|---|
+| `linear` | Constant speed. Mechanical; for progress bars and counters, rarely for UI. |
+| `easeInCubic` | Starts slow, leaves fast. For exits: an element accelerating off screen. |
+| `easeOutCubic` | Arrives fast, settles slow. The default for `animate`; for entrances. |
+| `easeInOutCubic` | Slow, fast, slow. The camera's default; for moves between two resting states. |
+| `easeOutBack` | Overshoots slightly, then settles. For a pop-in that should feel tactile. |
+| `easeOutExpo` | Very fast arrival, long settle. For a confident reveal. |
+| `spring` | A springy overshoot, stronger than `easeOutBack`. Use sparingly. |
+<!-- capabilities:end -->
 
 Frames of completion-type steps are taken once the CSS animations on the target and the page have finished, so an unedited re-run reproduces the same pixels.
 
@@ -382,7 +399,7 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 - **Nothing in a run may wait forever.** `node:test`'s own default timeout is `Infinity`, and a pending `await` that holds any live handle (a Chromium, a socket) then hangs the suite with no output and no failure -- which reads as a loop, not a hang. Bounds, innermost first, and the inner ones must always fire before the outer ones or the useful message is lost: `FFMPEG_TIMEOUT_MS` (`media/ffmpeg.ts`, 10 min) and `SAY_TIMEOUT_MS` (`media/tts.ts`, 60 s) -- these two cannot be delegated upward, because `spawnSync`/`execFileSync` block the event loop, so no timer in the process can fire while they are stuck; `CLI_TIMEOUT_MS` (300 s) with `killSignal: 'SIGKILL'` on every `spawnSync`/`spawn` of the CLI in `test/`, each helper calling `assertRan()` so a kill reports as a named failure instead of `expected null to equal 0`; `CHILD_TIMEOUT_MS` in `build-all.ts` (15 min per child, SIGTERM then SIGKILL after a grace, reported at report time so a chatty death cannot push it out of `tail()`); `exitWhenDrained()` in `cli.ts`, which force-exits 5 s after the command resolves if handles or libuv requests still hold the process, naming them -- the backstop for a browser that would not close, since Playwright exposes no public handle on its browser process from a `Browser` (its own `process.on('exit')` hook kills the browser when the watchdog exits, so no orphan is left); and last `--test-timeout` in the `test` script, 30 min. **That last number is a last resort, not the real bound, and it is sized against a sum:** the cap is per test, `CLI_TIMEOUT_MS` is per call, and the slowest `buildall.test.ts` test makes 12 calls -- at 600 s the runner cancelled the test (losing the child's message) as soon as two children wedged. Raise it, or split the test, before adding calls to a long one. Add a new spawn, add its bound.
 - **The browser-driven commands are sensitive to what else is running on the machine.** A step is abandoned after `stepTimeoutMs` (30 s, `driver.ts:243`) and the suite's orphaned-process check counts Chromium and ffmpeg machine-wide, so running exports beside `npm test`, or several exports beside a `preview`, produces timeouts and process-count failures that do not reproduce on an idle machine. Run one browser-driven job at a time before concluding a step is genuinely stuck. Non-fatal `context did not close within 10000ms` / `browser did not close within 10000ms` warnings belong to the same family and appear even serially, on a long `build-all`.
 - **Changing what a build emits means bumping `OUTPUT_REVISION`** (`build-all.ts`, beside `buildKeyFor`). The key's only tool-side input used to be `toolVersion()`, the *declared* package version, so a behaviour change shipped without a version bump left every cached key intact and `--changed-only` skipped exactly the rows that needed the fix -- indistinguishable from a fast, successful, up-to-date build. Bump it for an encode setting, a filter graph, an injected runtime or a guide layout change; the next `--changed-only` run is then a full rebuild, which is the point.
-- Docs: `npm run docs` regenerates the CLI reference block below (and in README.md) from `cli.ts`; `npm run docs:check` and `test/docs.test.ts` fail when it is stale.
+- Docs: `npm run docs` regenerates the CLI reference block below (and in README.md) from `cli.ts`, and the capability tables under [Timeline](#timeline-vistaroconfigjson) from the registry in `src/engine/schema.ts` (`ACTION_DOCS`, `STEP_FIELD_DOCS`, `META_FIELD_DOCS`, `EASING_DOCS`); `npm run docs:check` and `test/docs.test.ts` fail when either is stale. **A new action, step field, `meta` field or easing is described in that registry, never in the tables by hand**: `test/capabilities.test.ts` fails when the validator or `runtime.js` reads a step field the registry does not describe, and when the studio's own copies (actions, placements, easings, inspector keys) disagree with the schema. Prose that is not guessable from a table (the reel constraints, « What is not guessable ») stays hand-written.
 - **Releasing is one command: `npm run release -- <major.minor.patch>`** (`scripts/release.ts`, `--dry-run` to only check). From a clean `main` level with origin it runs the publish checks (tsc + docs:check), bumps `package.json` and the lockfile, commits `Vistaro <version>`, tags `v<version>`, and runs `git push --atomic origin main v<version>`: main deploys vistaro.dev, and the tag makes CI publish to npm once the test job passes. A version that is not newer, a tag that already exists, a dirty tree or a branch behind origin is refused before anything is written.
 - CI: `.github/workflows/test.yml` runs `npm run docs:check`, `tsc --noEmit` and the suite on Ubuntu with a cached Chromium, about 12 to 15 minutes. It needs no secrets.
 
@@ -391,7 +408,7 @@ Events come from `extract`, `animate`, `build`, `export`, `record`, `guide`, `lo
 <!-- cli-reference:start -->
 Generated from `cli.ts` by `npm run docs`; do not edit by hand. `npx vistaro <command> --help` prints the same, plus the usage guide (`--help`) and the catalog schema (`build-all --help`).
 
-[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`verify`](#verify) · [`studio`](#studio) · [`demos`](#demos) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
+[`init-config`](#init-config) · [`capabilities`](#capabilities) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`verify`](#verify) · [`studio`](#studio) · [`demos`](#demos) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
 
 ### `init-config`
 
@@ -409,6 +426,18 @@ Scaffold an vistaro.config.json timeline file in the target directory
 |---|---|
 | `--kind <profile>` | Which profile to scaffold: guide (default) or reel (silent looping product clip) |
 | `--force` | Overwrite an existing vistaro.config.json |
+
+### `capabilities`
+
+```bash
+npx tsx cli.ts capabilities [options]
+```
+
+List everything a timeline can say -- actions (target required, when the guide frame is taken), step and meta fields, easings, studio presets, devices, subtitle placements -- from the same registry the validator and the AGENTS.md tables use
+
+| Option | Description |
+|---|---|
+| `--json` | Print the registry as JSON (for agents) |
 
 ### `extract`
 

@@ -1,7 +1,9 @@
 #!/usr/bin/env tsx
 /**
  * Render the CLI reference from the commander definitions in cli.ts and write it between
- * `<!-- cli-reference:start -->` and `<!-- cli-reference:end -->` in README.md and AGENTS.md.
+ * `<!-- cli-reference:start -->` and `<!-- cli-reference:end -->` in README.md and AGENTS.md, and the
+ * capability tables (actions, step fields, meta fields, easings) from the registry in
+ * src/engine/schema.ts between `<!-- capabilities:start -->` and `<!-- capabilities:end -->` in AGENTS.md.
  *
  *   npx tsx scripts/gen-cli-reference.ts          # rewrite the blocks (npm run docs)
  *   npx tsx scripts/gen-cli-reference.ts --check  # exit 1 when a block is stale (npm run docs:check)
@@ -12,10 +14,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Command, Option, Argument } from 'commander';
 import { buildProgram } from '../cli';
+import { renderCapabilitiesMarkdown } from '../src/commands/capabilities';
 
 export const START = '<!-- cli-reference:start -->';
 export const END = '<!-- cli-reference:end -->';
 export const DOC_FILES = ['README.md', 'AGENTS.md'];
+export const CAP_START = '<!-- capabilities:start -->';
+export const CAP_END = '<!-- capabilities:end -->';
+export const CAP_FILES = ['AGENTS.md'];
 
 function argumentSyntax(a: Argument): string {
     const name = a.variadic ? `${a.name()}...` : a.name();
@@ -61,32 +67,43 @@ export function renderReference(program: Command = buildProgram()): string {
 }
 
 /** Replace the block between the markers; throws when a marker is missing. */
-export function replaceBlock(content: string, block: string, file: string): string {
-    const s = content.indexOf(START);
-    const e = content.indexOf(END);
-    if (s < 0 || e < 0 || e < s) throw new Error(`${file}: markers ${START} / ${END} not found`);
-    return content.slice(0, s + START.length) + '\n' + block + content.slice(e);
+export function replaceBlock(content: string, block: string, file: string, start = START, end = END): string {
+    const s = content.indexOf(start);
+    const e = content.indexOf(end);
+    if (s < 0 || e < 0 || e < s) throw new Error(`${file}: markers ${start} / ${end} not found`);
+    return content.slice(0, s + start.length) + '\n' + block + content.slice(e);
 }
 
-export function currentBlock(content: string, file: string): string {
-    const s = content.indexOf(START);
-    const e = content.indexOf(END);
-    if (s < 0 || e < 0 || e < s) throw new Error(`${file}: markers ${START} / ${END} not found`);
-    return content.slice(s + START.length + 1, e);
+export function currentBlock(content: string, file: string, start = START, end = END): string {
+    const s = content.indexOf(start);
+    const e = content.indexOf(end);
+    if (s < 0 || e < 0 || e < s) throw new Error(`${file}: markers ${start} / ${end} not found`);
+    return content.slice(s + start.length + 1, e);
+}
+
+/** Every generated block: its markers, the files that carry it, and what renders it. */
+export function generatedBlocks(): { label: string; start: string; end: string; files: string[]; block: string }[] {
+    return [
+        { label: 'CLI reference', start: START, end: END, files: DOC_FILES, block: renderReference() },
+        { label: 'capability tables', start: CAP_START, end: CAP_END, files: CAP_FILES, block: renderCapabilitiesMarkdown() },
+    ];
 }
 
 export function run(check: boolean, root = path.resolve(__dirname, '..')): { stale: string[]; written: string[] } {
-    const block = renderReference();
     const stale: string[] = [];
     const written: string[] = [];
-    for (const name of DOC_FILES) {
-        const file = path.join(root, name);
-        const content = fs.readFileSync(file, 'utf8');
-        if (currentBlock(content, name) === block) continue;
-        if (check) { stale.push(name); continue; }
-        fs.writeFileSync(file, replaceBlock(content, block, name));
-        written.push(name);
+    const contents = new Map<string, string>();
+    const read = (name: string) => contents.get(name) ?? fs.readFileSync(path.join(root, name), 'utf8');
+    for (const g of generatedBlocks()) {
+        for (const name of g.files) {
+            const content = read(name);
+            if (currentBlock(content, name, g.start, g.end) === g.block) { contents.set(name, content); continue; }
+            if (check) { stale.push(`${name} (${g.label})`); continue; }
+            contents.set(name, replaceBlock(content, g.block, name, g.start, g.end));
+            if (!written.includes(name)) written.push(name);
+        }
     }
+    for (const name of written) fs.writeFileSync(path.join(root, name), contents.get(name)!);
     return { stale, written };
 }
 
@@ -95,11 +112,11 @@ if (require.main === module) {
     const { stale, written } = run(check);
     if (check) {
         if (stale.length) {
-            console.error(`CLI reference is stale in ${stale.join(', ')}: run \`npm run docs\` and commit the result.`);
+            console.error(`Generated docs are stale in ${stale.join(', ')}: run \`npm run docs\` and commit the result.`);
             process.exit(1);
         }
-        console.log(`CLI reference up to date in ${DOC_FILES.join(', ')}.`);
+        console.log(`CLI reference up to date in ${DOC_FILES.join(', ')}; capability tables up to date in ${CAP_FILES.join(', ')}.`);
     } else {
-        console.log(written.length ? `Updated the CLI reference in ${written.join(', ')}.` : `CLI reference already up to date in ${DOC_FILES.join(', ')}.`);
+        console.log(written.length ? `Updated the generated docs in ${written.join(', ')}.` : `Generated docs already up to date in ${DOC_FILES.join(', ')}.`);
     }
 }

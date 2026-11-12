@@ -103,6 +103,7 @@ A directory that still has only `anim.config.json` stops with an error naming bo
 Run the sample in [`demo/`](demo/). It lives in the repository, not in the npm package: copy its `index.html` and `vistaro.config.json` into a `demo` folder in your project, or run these from a clone.
 
 ```bash
+npx vistaro capabilities              # every action, field, easing and preset (--json for an agent)
 npx vistaro check demo                # schema, timing, and every target in a headless browser
 npx vistaro build demo                # demo/animated.html: a self-playing page to open in a browser
 npx vistaro preview demo              # demo/preview.png: one labelled frame per step
@@ -180,7 +181,7 @@ Contributing: `npm test` runs the suite (serial, with browser tests; `SKIP_BROWS
 <!-- cli-reference:start -->
 Generated from `cli.ts` by `npm run docs`; do not edit by hand. `npx vistaro <command> --help` prints the same, plus the usage guide (`--help`) and the catalog schema (`build-all --help`).
 
-[`init-config`](#init-config) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`verify`](#verify) · [`studio`](#studio) · [`demos`](#demos) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
+[`init-config`](#init-config) · [`capabilities`](#capabilities) · [`extract`](#extract) · [`animate`](#animate) · [`build`](#build) · [`check`](#check) · [`preview`](#preview) · [`export`](#export) · [`record`](#record) · [`guide`](#guide) · [`filmstrip`](#filmstrip) · [`verify`](#verify) · [`studio`](#studio) · [`demos`](#demos) · [`build-all`](#build-all) · [`tour`](#tour) · [`localize`](#localize)
 
 ### `init-config`
 
@@ -198,6 +199,18 @@ Scaffold an vistaro.config.json timeline file in the target directory
 |---|---|
 | `--kind <profile>` | Which profile to scaffold: guide (default) or reel (silent looping product clip) |
 | `--force` | Overwrite an existing vistaro.config.json |
+
+### `capabilities`
+
+```bash
+npx tsx cli.ts capabilities [options]
+```
+
+List everything a timeline can say -- actions (target required, when the guide frame is taken), step and meta fields, easings, studio presets, devices, subtitle placements -- from the same registry the validator and the AGENTS.md tables use
+
+| Option | Description |
+|---|---|
+| `--json` | Print the registry as JSON (for agents) |
 
 ### `extract`
 

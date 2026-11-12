@@ -110,6 +110,114 @@ export const SUBTITLE_HOLD_MS = 4000;
 export const SUBTITLE_MIN_MS = 1000;
 /** Where a cue's chip may sit; mirrored as SUB_PLACES in src/engine/runtime.js (test/constants.test.ts asserts equality). */
 export const SUBTITLE_PLACES: readonly string[] = ['bottom', 'top', 'bottom-left', 'bottom-right', 'top-left', 'top-right'];
+/** Cursor styles `meta.cursor` (and `--cursor`) accept. */
+export const CURSOR_STYLES: readonly string[] = ['mac', 'windows', 'none'];
+
+// --- Capability registry ------------------------------------------------------------------------
+// The one place an action, a step field, a meta field or an easing is DESCRIBED. The tables in
+// AGENTS.md (between the capabilities markers) and `capabilities --json` are both rendered from
+// here by src/commands/capabilities.ts, so the manual and the command cannot disagree, and
+// test/capabilities.test.ts fails when a member of ACTIONS / EASING_NAMES has no entry. Lists that
+// the schema already holds (the target-required actions, the easings, the placements) are spelled
+// from those constants, never retyped.
+
+/** One documented field: `names` share the row (e.g. `from` / `to`). */
+export interface FieldDoc {
+    names: readonly string[];
+    description: string;
+}
+
+/** What an action does, and the human rule for when its guide frame is taken (see captureAtFor). */
+export interface ActionDoc {
+    description: string;
+    guideFrame: string;
+}
+
+const codeList = (xs: readonly string[]) => xs.map(x => `\`${x}\``).join(', ');
+/** `a`, `b` or `c` */
+const orList = (xs: readonly string[]) => xs.length < 2 ? codeList(xs) : `${codeList(xs.slice(0, -1))} or \`${xs[xs.length - 1]}\``;
+
+export const ACTION_DOCS: Record<Action, ActionDoc> = {
+    click: { description: 'Cursor travels, spotlight, press, ripple, real `el.click()` so the page\'s own handlers run.', guideFrame: 'At the interaction (+300 ms settle), spotlight held; a click that hides its own target (a screen swap, a navigation) is captured just before the click instead, and records `capturedAt: "arrival"`.' },
+    focus: { description: 'Cursor travels, spotlight, `el.focus()`.', guideFrame: 'Interaction.' },
+    type: { description: 'Cursor travels, focuses, types `value` character by character. Under `check`/`preview`/`export`/`record`/`guide` the driver types inputs, textareas and contenteditable through the real keyboard (`page.keyboard`), so the app\'s own key handlers and framework value trackers (React\'s controlled inputs) see genuine events; plain elements with a caret, and a self-playing `animated.html`, are typed by the page itself through the native value setter.', guideFrame: 'Completion (full text visible).' },
+    highlight: { description: 'Spotlight pulse without a click ("notice this").', guideFrame: 'Interaction.' },
+    hover: { description: 'Cursor moves onto the element.', guideFrame: 'Interaction.' },
+    press: { description: 'Keyboard key from `value` (no target).', guideFrame: 'Interaction.' },
+    camera: { description: 'Pan/zoom the page toward the target (or `x`/`y`); `scale: 1` pulls back. The cursor and the spotlight ride along, staying on the element they were on.', guideFrame: 'Completion (zoomed framing).' },
+    scroll: { description: 'Smooth-scroll the target into view.', guideFrame: 'Completion.' },
+    fadeIn: { description: 'Reveal the target (display/opacity) with a fade.', guideFrame: 'Completion.' },
+    transitionScreen: { description: 'Fade the current screen out and the target screen in.', guideFrame: 'Completion.' },
+    navigate: { description: 'Live pages only: open `url`.', guideFrame: 'Arrival on the new page.' },
+    animate: { description: 'Animate `target` from `from` to `to` with the Web Animations API (`fill: both`, so the end state persists). With `all` it runs on every match, `stagger` seconds apart.', guideFrame: 'Completion (all elements settled).' },
+    wait: { description: 'Nothing visible; a beat, or a subtitle change.', guideFrame: 'Interaction (the moment of the step).' },
+};
+
+/** Order of the rows in the actions table (the order an author meets them, not ACTIONS' order). */
+export const ACTION_DOC_ORDER: readonly Action[] = ['click', 'focus', 'type', 'highlight', 'hover', 'press', 'camera', 'scroll', 'fadeIn', 'transitionScreen', 'navigate', 'animate', 'wait'];
+
+export const EASING_DOCS: Record<EasingName, string> = {
+    linear: 'Constant speed. Mechanical; for progress bars and counters, rarely for UI.',
+    easeInCubic: 'Starts slow, leaves fast. For exits: an element accelerating off screen.',
+    easeOutCubic: 'Arrives fast, settles slow. The default for `animate`; for entrances.',
+    easeInOutCubic: 'Slow, fast, slow. The camera\'s default; for moves between two resting states.',
+    easeOutBack: 'Overshoots slightly, then settles. For a pop-in that should feel tactile.',
+    easeOutExpo: 'Very fast arrival, long settle. For a confident reveal.',
+    spring: 'A springy overshoot, stronger than `easeOutBack`. Use sparingly.',
+};
+
+export const META_FIELD_DOCS: readonly FieldDoc[] = [
+    { names: ['title'], description: 'Guide title (H1 of `guide.md`, `<title>` of `guide.html`, `meta.title` string key).' },
+    { names: ['slug'], description: 'Identifier used in `guide.json`; defaults to the directory name.' },
+    { names: ['app'], description: 'Application name shown in the guide.' },
+    { names: ['url'], description: 'Default page for `record` (live pages).' },
+    { names: ['locale'], description: 'Language of the inline text (default `en`).' },
+    { names: ['tailMs'], description: 'Hold after the last step, default 2500 (`--tail` overrides).' },
+    { names: ['subtitleScale'], description: 'Multiplier on the automatic subtitle chip size (font and wrap width), default `1`; `1.4` makes it 40% bigger. The chip is sized to the recorded frame (~4% of its height) and repositioned out of the way of the cursor and the spotlight automatically, so there is nothing to author here unless the design wants it louder or quieter.' },
+    { names: ['cursor'], description: `${orList(CURSOR_STYLES)} (default \`mac\`).` },
+    { names: ['resetFocusStyles'], description: 'Before each step, reset every `.input` and `button` in the page to fixed light colours (border `#E2E8F0`, no shadow, `#FAFAFA` background, `#3B82F6` for `.btn-primary`): a crutch for mockups built with those classes, not a general focus-outline reset.' },
+    { names: ['drift'], description: 'Slight page drift while the cursor glides (default on for mockups; off on live pages, where a transformed `<body>` can break a real app\'s fixed layout, unless `"drift": true`).' },
+    { names: ['voice'], description: '`{ "openai": "alloy", "say": "Samantha" }` narration voices per engine.' },
+    { names: ['kind'], description: '`guide` (default) or `reel`. A reel is a silent marketing clip: no spotlight, ripple or subtitle bar, no guide-shaped validation, and `--guide` on it is an error.' },
+    { names: ['reel'], description: 'Overrides of whatever `kind` implies: `spotlight`, `ripple`, `subtitles`, `loop` (booleans), `autoplay` (`immediate`, `inview`, `message`), `poster` (`last` (default), `first`, or a time such as `"3.2s"`). An explicit value always beats the profile default.' },
+    { names: ['reset'], description: 'Live pages: a shell command run before each pass over the app (the recording, then the `--guide` replay), e.g. `"npm run db:seed"` or `"curl -X POST http://localhost:3000/api/test/reset"`. It runs in the shell, in the CLI\'s working directory, so a timeline is executable content: it runs only when you pass `--allow-reset`, and the command refuses rather than silently skipping a reset the timeline depends on. `--reset-cmd` gives your own command instead and never needs the flag. See [Live pages](#live-pages).' },
+];
+
+export const STEP_FIELD_DOCS: readonly FieldDoc[] = [
+    { names: ['id'], description: 'Stable identifier. Strings files and guide frames attach to it; auto ids (`step-03`) shift when a step is inserted, so `check`/`localize` warn about them once a strings file exists.' },
+    { names: ['time'], description: `**Moment of the interaction** (the click, the first typed character, the highlight pulse): \`"2s"\`, \`"2000ms"\` or a number of seconds. The cursor starts travelling up to ${DEFAULT_LEAD_MS} ms earlier (lead = min(${DEFAULT_LEAD_MS} ms, gap to the previous step, time)). Steps must be in order.` },
+    { names: ['action'], description: 'See the actions table below.' },
+    { names: ['target'], description: `CSS selector. Required for ${ACTIONS.filter(a => TARGET_REQUIRED.has(a)).join(', ')}. A 0x0 target (an empty caret span) is spotlighted through its sized ancestor.` },
+    { names: ['value'], description: `Text for \`type\` (typed at \`cps\` characters per second, default ${DEFAULT_CPS}) or the key for \`press\` (\`Enter\`, \`Tab\`, \`Control+K\`).` },
+    { names: ['cps'], description: `\`type\`: characters per second (default ${DEFAULT_CPS}).` },
+    { names: ['title'], description: 'Step heading in the guide and the chapter name in the MP4. Every numbered guide step needs one: `check` warns, and `guide` / `export --guide` / `record --guide` refuse without it (the fallback verbs are English and would leak into a localized guide). Hide choreography steps with `"guide": false` instead.' },
+    { names: ['subtitle'], description: `Shown in the video's subtitle bar from \`time\` until the next subtitle (held at most ${SUBTITLE_HOLD_MS / 1000} s, at least ${SUBTITLE_MIN_MS / 1000} s) and written to the \`.vtt\`; also the narration text when \`narration\` is absent. \`null\` clears the bar. Nothing to author about placement: the bar moves itself out of the way of the target, the cursor and the content a camera push framed.` },
+    { names: ['subtitlePlace'], description: `Pins this step's cue to one placement (${codeList(SUBTITLE_PLACES)}), taking it out of the automatic dodge for as long as the cue runs -- for a composition the author knows, like a camera push framing low content. \`check\` still warns when a pinned cue covers something.` },
+    { names: ['narration'], description: 'Text spoken at `time` with `--narration` (mixed into the MP4).' },
+    { names: ['note'], description: 'Extra sentence under the step in the guide.' },
+    { names: ['translatable'], description: '`true` when `value` is user-visible text that must be translated (it becomes a string key).' },
+    { names: ['crop'], description: 'Guide crop padding in px for this step, or `false` for the full frame only.' },
+    { names: ['from', 'to'], description: '`animate`: the start and end state. `x`, `y` (px), `scale`, `scaleX`, `scaleY`, `rotate` (deg) compose into one transform, applied in the order translate, scale, rotate; every other key (`opacity`, any CSS property) is passed through as-is.' },
+    { names: ['all'], description: '`animate`: animate every match of `target`, not just the first.' },
+    { names: ['stagger'], description: '`animate`: seconds between successive elements when `all` is set.' },
+    { names: ['count'], description: '`animate`: how many elements `target` is expected to match, so the length estimate is right. `check` warns when the real count differs.' },
+    { names: ['ease'], description: `Named easing for \`animate\` and \`camera\`: ${codeList(EASING_NAMES)} (see the easings table below).` },
+    { names: ['spotlight', 'ripple'], description: '`false` suppresses that chrome for this step alone (no ring is shown at all, not merely left where it was).' },
+    { names: ['only'], description: `${DEVICE_KINDS.map(d => `\`"${d}"\``).join(' or ')}: the step is dropped entirely for the other device.` },
+    { names: ['mobile', 'desktop'], description: 'An object shallow-merged into the step when rendering for that device; the key itself is then stripped. Fields the override omits are inherited.' },
+    { names: ['guide'], description: '`false` hides the step from the guide (it still runs in the video).' },
+    { names: ['captureAt'], description: 'Override the guide/preview frame moment: `"interaction"` or `"completion"`. On a `type` step driven from the CLI both show the full text: the driver types through the keyboard and the step\'s interaction is only over once the last character has landed.' },
+    { names: ['waitFor'], description: 'Live pages: a selector to wait for (visible) or a number of ms before the cursor moves; the delay shifts the rest of the timeline.' },
+    { names: ['waitForTimeoutMs'], description: 'Live pages: how long a `waitFor` selector may wait before giving up (default 15000). A timeout is reported as a warning naming the step, not as a slow load; `record --fail-fast` abandons the recording at the first one.' },
+    { names: ['url'], description: '`navigate` (live pages): the page to open.' },
+    { names: ['scale', 'x', 'y', 'xOffset', 'yOffset'], description: '`camera`: zoom factor (default 1, a pan without zoom; 1.3 is a typical push-in) and framing; `x`/`y` centre the camera on a point instead of a target, `xOffset`/`yOffset` nudge the framing after that centre is solved (positive moves the focus right/down, so the window travels with it -- the same sign convention as the cursor-point offsets of the same name). On cursor actions `xOffset`/`yOffset` nudge the cursor point off the target\'s centre.' },
+    { names: ['duration'], description: `Seconds. \`camera\`: length of the pan (default ${DEFAULT_CAMERA_DURATION_S}). \`animate\`: length of one element's motion (default ${DEFAULT_ANIMATE_DURATION_S}). \`fadeIn\`/\`transitionScreen\`: length of the fade (default: the element's own CSS transition, else ${DEFAULT_FADE_MS / 1000} s).` },
+];
+
+/** Every documented step field name, flattened. */
+export function documentedStepFields(): string[] {
+    return STEP_FIELD_DOCS.flatMap(f => [...f.names]);
+}
 
 /**
  * Output profile. `guide` (the default) is documentation: spotlight, ripple, subtitle bar and the

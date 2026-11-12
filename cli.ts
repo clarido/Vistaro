@@ -17,6 +17,7 @@ import { filmstripCommand } from './src/media/filmstrip';
 import { verifyCommand } from './src/commands/verify';
 import { studioCommand } from './src/commands/studio';
 import { demosCommand, demosJson } from './src/commands/demos';
+import { capabilitiesCommand } from './src/commands/capabilities';
 
 import { toolPackage } from './src/catalog';
 
@@ -43,6 +44,8 @@ same for every language. Read the full manual and the file contracts in AGENTS.m
 (node_modules/vistaro/AGENTS.md after an npm install).
 
 WORKFLOW (an AI agent or a person writes the screen and the timeline; no API key):
+  0. Learn the vocabulary (actions, fields, easings, presets) from the tool itself:
+       npx tsx cli.ts capabilities [--json]
   1. Write <dir>/index.html (a faithful mockup of the screen) and the timeline:
        npx vistaro init-config <dir>        # scaffolds vistaro.config.json (object form)
   2. Validate: selectors, timing, strings, and every target in a headless browser:
@@ -132,6 +135,12 @@ RECORD OF WHAT WAS DONE:
     .option('--kind <profile>', 'Which profile to scaffold: guide (default) or reel (silent looping product clip)', 'guide')
     .option('--force', 'Overwrite an existing vistaro.config.json')
     .action((dir, opts) => initConfigCommand(dir, opts));
+
+  program
+    .command('capabilities')
+    .description('List everything a timeline can say -- actions (target required, when the guide frame is taken), step and meta fields, easings, studio presets, devices, subtitle placements -- from the same registry the validator and the AGENTS.md tables use')
+    .option('--json', 'Print the registry as JSON (for agents)')
+    .action((opts) => capabilitiesCommand(opts));
 
   program
     .command('extract')
