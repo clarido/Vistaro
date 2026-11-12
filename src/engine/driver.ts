@@ -121,6 +121,8 @@ export interface RunOptions {
     failFast?: boolean;
     /** Filled by the driver; pass your own object to read t0Wall/shiftMs/lastPoint afterwards. */
     state?: RunState;
+    /** A recording: put the brand's intro card up on the first frame, right as the clock starts (no-op without one). */
+    introCard?: boolean;
     /** Steps for which `afterStep` runs at the arrival (before the interaction), e.g. navigating clicks in a guide. */
     captureBeforeAct?: (step: Step) => boolean;
     /**
@@ -251,7 +253,7 @@ export async function runTimeline(page: Page, timeline: Timeline, opts: RunOptio
 
     // t0 on the page's clock (epoch ms), not Date.now() after the round trip: export trims the video
     // to this instant and an evaluate round trip alone can cost a frame or two.
-    state.t0Wall = await page.evaluate(() => { const a = (window as any).__vistaro; a.start(); const s = a.getState(); return s.timeOrigin + s.t0; });
+    state.t0Wall = await page.evaluate((intro) => { const a = (window as any).__vistaro; a.start(); if (intro && typeof a.showCard === 'function') a.showCard('intro'); const s = a.getState(); return s.timeOrigin + s.t0; }, !!opts.introCard);
     const t0 = state.t0Wall;
 
     const onNavigated = (frame: Frame) => { if (frame === page.mainFrame()) state.needsReboot = true; };

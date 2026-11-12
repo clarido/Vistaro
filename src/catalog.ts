@@ -28,7 +28,29 @@ export function guideSourceFiles(dir: string, opts: { config?: string } = {}): s
         for (const file of localizedStringsFiles(config)) addFull(file);
     }
     for (const ref of referencedLocalFiles(dir)) add(ref);
+    for (const full of brandSourceFiles(config, dir)) addFull(full);
     return [...out].sort();
+}
+
+/**
+ * The files a timeline's meta.brand pulls in: the shared brand file it names (relative to the
+ * timeline, possibly outside the guide directory -- that is the point of sharing it) and a local
+ * logo (relative to index.html, like any other media). Empty for an unbranded timeline, so the
+ * historical hash set is untouched. A malformed config contributes nothing here; validation says why.
+ */
+export function brandSourceFiles(configFile: string, dir: string): string[] {
+    let meta: any;
+    try { meta = JSON.parse(fs.readFileSync(configFile, 'utf8'))?.meta; } catch { return []; }
+    const out: string[] = [];
+    let brand = meta?.brand;
+    if (typeof brand === 'string') {
+        const file = path.resolve(path.dirname(configFile), brand);
+        out.push(file);
+        try { brand = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return out; }
+    }
+    const logo = brand && typeof brand === 'object' ? (typeof brand.logo === 'string' ? brand.logo : brand.logo?.src) : undefined;
+    if (typeof logo === 'string' && logo && !/^(?:[a-z]+:|\/\/)/i.test(logo)) out.push(path.resolve(dir, safeDecode(logo.split(/[?#]/)[0])));
+    return out;
 }
 
 /** A src/href/url() reference in an HTML file: as written, and as a decoded path (query/hash stripped). */

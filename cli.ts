@@ -115,6 +115,11 @@ TIMELINE (vistaro.config.json, object form):
   camera, scroll, fadeIn, transitionScreen, press (with "value"), navigate (with "url", live
   pages only). click/focus/type/highlight/hover get a spotlight and a click ripple; camera
   pans/zooms toward the target; scroll brings it into view.
+  meta.motion sets named durations once ({ "base": 0.4, "slow": 1.6, "ease": "easeOutCubic" }):
+  any animate/fadeIn/transitionScreen/camera without a "duration" reads them, and a step may
+  say "duration": "fast". meta.brand dresses the video (accent, caption, cursor, logo, intro and
+  outro cards), inline or as a path to a shared brand.json. Both are opt-in: unset changes nothing.
+  \`capabilities\` lists every token.
 
 STANDALONE WITH AN LLM API KEY (GEMINI_API_KEY or ANTHROPIC_API_KEY, .env or env):
   npx vistaro extract <image> <dir> --provider gemini|claude   # screenshot -> index.html

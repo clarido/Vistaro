@@ -40,6 +40,9 @@ export interface TourCatalog {
      *  the shell's CSS custom properties (accent, ink, muted, line, paper, ground, canvas, radius,
      *  font). Values are used verbatim; contrast is the caller's responsibility. */
     theme?: Record<string, string>;
+    /** A shared brand file (the same JSON a timeline's meta.brand may name), relative to the catalog.
+     *  Its accent and caption font seed `theme` where the two vocabularies overlap; `theme` wins. */
+    brand?: string;
     defaults?: {
         /** The desktop canvas. A phone page uses 390x844 unless `mobile` overrides it. */
         width?: number; height?: number;
@@ -137,6 +140,24 @@ export function readTourCatalog(file: string): { catalog: TourCatalog; dir: stri
     // break the chrome at render time, so the shape is checked here where the message can name the key.
     checkStringMap(raw, 'strings', problems);
     checkStringMap(raw, 'theme', problems);
+    // One brand for the videos and the tours: where the brand kit and the shell's tokens overlap
+    // (accent, font), the brand seeds the theme and an explicit theme value still wins. Absent, the
+    // catalog builds exactly as before.
+    if (raw.brand !== undefined) {
+        if (typeof raw.brand !== 'string' || !raw.brand.trim()) problems.push('"brand" must be a path to a brand file (relative to the catalog)');
+        else {
+            const brandFile = path.resolve(catalogDir, raw.brand);
+            let brand: any;
+            try { brand = JSON.parse(fs.readFileSync(brandFile, 'utf8')); } catch (e: any) { problems.push(`"brand": cannot read ${displayPath(brandFile)} (${e.code === 'ENOENT' ? 'not found' : e.message})`); }
+            if (brand !== undefined && (!brand || typeof brand !== 'object' || Array.isArray(brand))) problems.push(`"brand": ${displayPath(brandFile)} must hold one object of brand tokens`);
+            else if (brand) {
+                const seeded: Record<string, string> = {};
+                if (typeof brand.accent === 'string' && brand.accent.trim()) seeded.accent = brand.accent;
+                if (typeof brand.caption?.font === 'string' && brand.caption.font.trim()) seeded.font = brand.caption.font;
+                raw.theme = { ...seeded, ...(raw.theme && typeof raw.theme === 'object' ? raw.theme : {}) };
+            }
+        }
+    }
 
     raw.scenarios.forEach((s: any, i: number) => {
         if (!s || typeof s !== 'object') { problems.push(`scenarios[${i}] must be an object`); return; }

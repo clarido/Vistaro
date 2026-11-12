@@ -21,6 +21,8 @@
 
   var ACTIONS = ['wait', 'click', 'focus', 'type', 'highlight', 'hover', 'camera', 'scroll', 'fadeIn', 'transitionScreen', 'navigate', 'press', 'animate'];
   var SUBTITLE_PLACES = ['bottom', 'top', 'bottom-left', 'bottom-right', 'top-left', 'top-right'];
+  // meta.motion's named durations: a duration field takes seconds or one of these (schema MOTION_TOKENS).
+  var MOTION_TOKENS = ['fast', 'base', 'slow'];
 
   // The inspector's vocabulary. This registry is the drift guard: a schema field it does not know
   // still round-trips (the Raw tab edits the whole step), it just gets no widget.
@@ -47,14 +49,14 @@
     highlight: [{ k: 'target', type: 'target' }].concat(CURSOR_NUDGE),
     hover: [{ k: 'target', type: 'target' }].concat(CURSOR_NUDGE),
     scroll: [{ k: 'target', type: 'target' }],
-    fadeIn: [{ k: 'target', type: 'target' }, { k: 'duration', type: 'number', min: 0, step: 0.1, help: 'seconds (default: the CSS transition, else 0.8)' }],
-    transitionScreen: [{ k: 'target', type: 'target' }, { k: 'duration', type: 'number', min: 0, step: 0.1 }],
+    fadeIn: [{ k: 'target', type: 'target' }, { k: 'duration', type: 'duration', help: 'seconds or fast/base/slow (default: meta.motion.base, else the CSS transition, else 0.8)' }],
+    transitionScreen: [{ k: 'target', type: 'target' }, { k: 'duration', type: 'duration', help: 'seconds or fast/base/slow' }],
     navigate: [{ k: 'url', type: 'text', help: 'live pages only' }],
     press: [{ k: 'value', type: 'text', help: 'key name: Enter, Tab, Control+K' }],
     camera: [
       { k: 'target', type: 'target' },
       { k: 'scale', type: 'number', step: 0.01, help: 'zoom factor (1 = pan without zoom)' },
-      { k: 'duration', type: 'number', min: 0, step: 0.1, help: 'seconds (default 2.5)' },
+      { k: 'duration', type: 'duration', help: 'seconds or fast/base/slow (default: meta.motion.slow, else 2.5)' },
       { k: 'ease', type: 'easing' },
       { k: 'x', type: 'number', step: 1, help: 'centre on a point instead of a target' },
       { k: 'y', type: 'number', step: 1 },
@@ -65,7 +67,7 @@
       { k: 'target', type: 'target' },
       { k: 'from', type: 'json', help: 'start state: x, y, scale, rotate, opacity, any CSS' },
       { k: 'to', type: 'json', help: 'end state' },
-      { k: 'duration', type: 'number', min: 0, step: 0.05, help: 'seconds (default 0.6)' },
+      { k: 'duration', type: 'duration', help: 'seconds or fast/base/slow (default: meta.motion.base, else 0.6)' },
       { k: 'ease', type: 'easing' },
       { k: 'all', type: 'checkbox', help: 'animate every match, not just the first' },
       { k: 'stagger', type: 'number', min: 0, step: 0.01, help: 'seconds between elements (with all)' },
@@ -687,6 +689,15 @@
       input = document.createElement('input');
       input.id = fid;
       input.type = f.type === 'number' ? 'number' : 'text';
+      if (f.type === 'duration') {
+        // Seconds or a motion token: a text box with the tokens offered, parsed on input below.
+        var dl = document.createElement('datalist');
+        dl.id = fid + '-tokens';
+        MOTION_TOKENS.forEach(function (t) { var o = document.createElement('option'); o.value = t; dl.appendChild(o); });
+        wrap.appendChild(dl);
+        input.setAttribute('list', dl.id);
+        input.inputMode = 'decimal';
+      }
       if (f.min !== undefined) input.min = String(f.min);
       if (f.step !== undefined) input.step = String(f.step);
       var trans = inTranslation() && STRING_FIELDS.indexOf(f.k) !== -1 && !(f.k === 'value' && !step.translatable);
@@ -716,7 +727,12 @@
       input.addEventListener('input', function () {
         var v = input.value;
         if (v === '') { deleteField(f.k); return; }
-        if (f.type === 'number') {
+        if (f.type === 'duration') {
+          if (MOTION_TOKENS.indexOf(v.trim()) !== -1) { setField(f.k, v.trim()); return; }
+          var secs = Number(v);
+          if (!Number.isFinite(secs)) return;
+          setField(f.k, secs);
+        } else if (f.type === 'number') {
           var n = Number(v);
           if (!Number.isFinite(n)) return;
           setField(f.k, n);

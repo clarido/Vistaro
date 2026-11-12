@@ -3,7 +3,7 @@ import * as path from 'path';
 import { recordEvent, setManifestFields, readManifest } from '../manifest';
 import { loadTimeline, parseTimeline, isReel } from '../engine/schema';
 import { extractStrings, stringsPath, writeStrings, readStrings, StringMap, isLocaleCode, isAutoStepId, diffStrings } from '../engine/strings';
-import { referencedLocalFiles, localeDirFor, htmlLocalRefs, relPosix, displayPath } from '../catalog';
+import { referencedLocalFiles, localeDirFor, htmlLocalRefs, relPosix, displayPath, brandSourceFiles } from '../catalog';
 
 const MEDIA_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.css', '.js', '.woff', '.woff2', '.ttf', '.otf', '.mp4', '.webm', '.mp3'];
 
@@ -72,6 +72,7 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
     let sourceStringsFile: string | undefined;
     if (fs.existsSync(srcConfig)) {
         copyUnlessPresent(srcConfig, 'vistaro.config.json');
+        if (copied.includes('vistaro.config.json')) rebaseBrandPath(srcConfig, path.join(targetDir, 'vistaro.config.json'));
         // Keys always come from the inline text (the authored source).
         const inline = parseTimeline(JSON.parse(fs.readFileSync(srcConfig, 'utf8')));
         reel = isReel(inline);
@@ -107,6 +108,18 @@ export function localizeCommand(sourceDir: string, locale: string, options: Loca
         fs.mkdirSync(path.dirname(to), { recursive: true });
         fs.copyFileSync(from, to);
         mediaCopied++;
+    }
+    // A brand logo is media too, referenced from the timeline rather than from index.html.
+    if (fs.existsSync(srcConfig)) {
+        for (const full of brandSourceFiles(srcConfig, sourceDir)) {
+            const relPath = path.relative(sourceDir, full);
+            if (!relPath || relPath.startsWith('..') || path.isAbsolute(relPath) || full.endsWith('.json')) continue;
+            if (!fs.existsSync(full) || !fs.statSync(full).isFile()) continue;
+            const to = path.join(targetDir, relPath);
+            fs.mkdirSync(path.dirname(to), { recursive: true });
+            fs.copyFileSync(full, to);
+            mediaCopied++;
+        }
     }
     // References that escape the source directory break one level deeper under locales/.
     for (const outside of referencedOutside(sourceDir)) {
@@ -170,4 +183,21 @@ function referencedOutside(dir: string): string[] {
         if (relPath.startsWith('..') || path.isAbsolute(relPath)) out.add(ref.raw);
     }
     return [...out];
+}
+
+/**
+ * A copied timeline whose meta.brand names a shared brand file by a relative path would resolve it
+ * from the locale directory -- one or two levels deeper -- and miss. Rewrite just that value to the
+ * same file seen from the copy; the rest of the bytes stay as the source wrote them.
+ */
+function rebaseBrandPath(srcConfig: string, copiedConfig: string): void {
+    let ref: unknown;
+    try { ref = JSON.parse(fs.readFileSync(srcConfig, 'utf8'))?.meta?.brand; } catch { return; }
+    if (typeof ref !== 'string' || path.isAbsolute(ref)) return;
+    const target = path.resolve(path.dirname(srcConfig), ref);
+    const rebased = relPosix(path.dirname(copiedConfig), target);
+    if (rebased === ref) return;
+    const text = fs.readFileSync(copiedConfig, 'utf8');
+    const re = new RegExp(`("brand"\\s*:\\s*)${JSON.stringify(ref).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+    if (re.test(text)) fs.writeFileSync(copiedConfig, text.replace(re, (_m, head) => head + JSON.stringify(rebased)));
 }

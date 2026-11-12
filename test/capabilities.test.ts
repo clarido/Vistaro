@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
 import {
-    ACTIONS, ACTION_DOCS, EASING_NAMES, EASING_DOCS, SUBTITLE_PLACES, documentedStepFields, META_FIELD_DOCS,
+    ACTIONS, ACTION_DOCS, EASING_NAMES, EASING_DOCS, SUBTITLE_PLACES, documentedStepFields, META_FIELD_DOCS, MOTION_TOKENS,
 } from '../src/engine/schema';
 import { capabilities, renderCapabilitiesMarkdown, Capabilities, readPresets } from '../src/commands/capabilities';
 import { currentBlock, CAP_START, CAP_END } from '../scripts/gen-cli-reference';
@@ -109,6 +109,7 @@ test('the studio registry agrees with the schema registry (actions, placements, 
     };
     assert.deepEqual(arr('ACTIONS'), [...ACTIONS], 'studio ACTIONS differs from schema ACTIONS');
     assert.deepEqual(arr('SUBTITLE_PLACES'), [...SUBTITLE_PLACES]);
+    assert.deepEqual(arr('MOTION_TOKENS'), [...MOTION_TOKENS], 'studio MOTION_TOKENS (the duration widget) differ from schema MOTION_TOKENS');
     // Easings: the studio previews the real curve, so names AND beziers must equal runtime.js.
     const curves = (text: string) => {
         const m = /var EASINGS = \{([\s\S]*?)\};/.exec(text);

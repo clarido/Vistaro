@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Timeline, computeDurationMs, reelOptions, isReel, AutoplayMode, DEFAULT_CPS } from './schema';
+import { Timeline, computeDurationMs, reelOptions, isReel, AutoplayMode, DEFAULT_CPS, brandOf, introMs, outroMs, LOGO_PLACES } from './schema';
 
 /** Absolute path of the plain-JS browser runtime, read from disk and injected as text. */
 export const RUNTIME_PATH = path.join(__dirname, 'runtime.js');
@@ -69,6 +69,48 @@ export interface BootOptions {
     defaultCps: number;
     timeline?: { meta: Record<string, any>; steps: any[] };
     cursorPoint?: { x: number; y: number } | null;
+    /** meta.brand, normalized for the runtime (cards carry their resolved length in ms). Absent for an unbranded timeline, so its boot object is unchanged. */
+    brand?: BrandBoot;
+}
+
+export interface BrandCardBoot { title: string; subtitle?: string; ms: number; background?: string; color?: string }
+export interface BrandBoot {
+    accent?: string;
+    caption?: { font?: string; color?: string; background?: string; radius?: string | number };
+    cursor?: string;
+    logo?: { src: string; place: string; height?: number };
+    intro?: BrandCardBoot;
+    outro?: BrandCardBoot;
+}
+
+/** The runtime's view of meta.brand: only well-formed tokens, string logo expanded, card lengths in ms. */
+export function brandBoot(timeline: Timeline): BrandBoot | undefined {
+    const b = brandOf(timeline);
+    if (!b) return undefined;
+    const s = (v: unknown) => (typeof v === 'string' && v.trim() ? v : undefined);
+    const out: BrandBoot = {};
+    if (s(b.accent)) out.accent = b.accent;
+    if (s(b.cursor)) out.cursor = b.cursor;
+    if (b.caption && typeof b.caption === 'object') {
+        const c = b.caption;
+        const cap: BrandBoot['caption'] = {};
+        if (s(c.font)) cap.font = c.font;
+        if (s(c.color)) cap.color = c.color;
+        if (s(c.background)) cap.background = c.background;
+        if (s(c.radius) || (typeof c.radius === 'number' && c.radius >= 0)) cap.radius = c.radius;
+        if (Object.keys(cap).length) out.caption = cap;
+    }
+    const logo = typeof b.logo === 'string' ? { src: b.logo } : b.logo;
+    if (logo && typeof logo === 'object' && s(logo.src)) {
+        out.logo = { src: logo.src!, place: LOGO_PLACES.includes(logo.place as string) ? logo.place! : 'top-right' };
+        if (typeof logo.height === 'number' && logo.height > 0) out.logo.height = logo.height;
+    }
+    for (const [key, ms] of [['intro', introMs(timeline)], ['outro', outroMs(timeline)]] as const) {
+        const card = b[key];
+        if (!card || !ms || !s(card.title)) continue;
+        out[key] = { title: card.title!, ms, ...(s(card.subtitle) ? { subtitle: card.subtitle } : {}), ...(s(card.background) ? { background: card.background } : {}), ...(s(card.color) ? { color: card.color } : {}) };
+    }
+    return out;
 }
 
 function normalizeCursor(c: unknown): CursorStyle {
@@ -98,6 +140,8 @@ export function bootOptions(timeline: Timeline, opts: InjectOptions = {}, withTi
         durationMs: opts.durationMs ?? computeDurationMs(timeline),
         defaultCps: DEFAULT_CPS,
     };
+    const brand = brandBoot(timeline);
+    if (brand) boot.brand = brand;
     if (withTimeline) boot.timeline = { meta: { title: meta.title, slug: meta.slug, locale: meta.locale }, steps: timeline.steps };
     return boot;
 }

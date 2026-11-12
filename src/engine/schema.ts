@@ -113,6 +113,164 @@ export const SUBTITLE_PLACES: readonly string[] = ['bottom', 'top', 'bottom-left
 /** Cursor styles `meta.cursor` (and `--cursor`) accept. */
 export const CURSOR_STYLES: readonly string[] = ['mac', 'windows', 'none'];
 
+// --- Motion tokens (meta.motion) ------------------------------------------------------------------
+// Named durations a timeline sets once instead of per step. An action with no `duration` reads the
+// token MOTION_TOKEN_FOR_ACTION maps it to -- but only when meta.motion actually sets that token:
+// unset, every action keeps today's per-action default, so a timeline without meta.motion renders
+// exactly as before. A step may also name a token (`"duration": "fast"`); that reference resolves
+// to meta.motion's value, else to DEFAULT_MOTION_S. Resolved at parse time (resolveMotion), so the
+// runtime, the length estimate and every scheduler see plain seconds.
+export const MOTION_TOKENS = ['fast', 'base', 'slow'] as const;
+export type MotionToken = typeof MOTION_TOKENS[number];
+/** What a token reference means when meta.motion does not set it (seconds). UI-motion norms: 200 ms / 400 ms / a deliberate 1.2 s camera move. */
+export const DEFAULT_MOTION_S: Record<MotionToken, number> = { fast: 0.2, base: 0.4, slow: 1.2 };
+/** Which token an action without `duration` reads, when meta.motion sets it. */
+export const MOTION_TOKEN_FOR_ACTION: Readonly<Record<string, MotionToken>> = { animate: 'base', fadeIn: 'base', transitionScreen: 'base', camera: 'slow' };
+/** Keys meta.motion accepts: the three durations plus the default easings. */
+export const MOTION_KEYS = [...MOTION_TOKENS, 'ease', 'cameraEase'] as const;
+
+export interface MotionTokens {
+    fast?: number;
+    base?: number;
+    slow?: number;
+    /** Default easing for `animate` and `camera` steps that name none. */
+    ease?: EasingName;
+    /** Default easing for `camera` alone (wins over `ease` there): a camera move usually wants an in-out curve. */
+    cameraEase?: EasingName;
+}
+
+function validSeconds(v: unknown): v is number {
+    return typeof v === 'number' && Number.isFinite(v) && v >= 0;
+}
+
+/**
+ * Apply meta.motion to the steps, in place and idempotently (applyDevice calls it again after a
+ * per-device block may have brought in a token reference): a token-name `duration` becomes seconds,
+ * and an action with no `duration`/`ease` takes the token meta.motion sets for it. Invalid token
+ * values are left for validateTimeline to report and are never copied onto a step.
+ */
+export function resolveMotion(timeline: Timeline): void {
+    const m: unknown = timeline.meta?.motion;
+    const motion: Record<string, unknown> = m && typeof m === 'object' && !Array.isArray(m) ? m as Record<string, unknown> : {};
+    const tokenValue = (t: MotionToken): number | undefined => (validSeconds(motion[t]) ? motion[t] as number : undefined);
+    const easeOk = (e: unknown): e is EasingName => typeof e === 'string' && (EASING_NAMES as readonly string[]).includes(e);
+    for (const s of timeline.steps) {
+        if (typeof s.duration === 'string' && (MOTION_TOKENS as readonly string[]).includes(s.duration)) {
+            const t = s.duration as MotionToken;
+            s.durationToken = t;
+            s.duration = tokenValue(t) ?? DEFAULT_MOTION_S[t];
+        } else if (s.duration === undefined && typeof s.action === 'string' && MOTION_TOKEN_FOR_ACTION[s.action]) {
+            const t = MOTION_TOKEN_FOR_ACTION[s.action];
+            const v = tokenValue(t);
+            if (v !== undefined) { s.duration = v; s.durationToken = t; }
+        }
+        if (s.ease === undefined && (s.action === 'animate' || s.action === 'camera')) {
+            const e = s.action === 'camera' && easeOk(motion.cameraEase) ? motion.cameraEase : motion.ease;
+            if (easeOk(e)) s.ease = e;
+        }
+    }
+}
+
+// --- Brand kit (meta.brand) ---------------------------------------------------------------------
+// The colours and furniture a video wears. Values go into CSS verbatim (as the tour theme does), so
+// contrast is the author's call -- check measures it and warns below 4.5:1. `meta.brand` may also be
+// a path to a shared JSON file (relative to the timeline file) holding the same object, so a team
+// sets its brand once; loadTimeline reads it in place. Unset, nothing about the chrome changes.
+export const BRAND_KEYS = ['accent', 'caption', 'cursor', 'logo', 'intro', 'outro'] as const;
+export const BRAND_CAPTION_KEYS = ['font', 'color', 'background', 'radius'] as const;
+export const BRAND_LOGO_KEYS = ['src', 'place', 'height'] as const;
+export const BRAND_CARD_KEYS = ['title', 'subtitle', 'duration', 'background', 'color'] as const;
+/** Corners a logo may sit in. */
+export const LOGO_PLACES: readonly string[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+export const DEFAULT_INTRO_S = 2;
+export const DEFAULT_OUTRO_S = 2.5;
+/** Defaults the contrast check assumes for the parts a brand leaves unset (the runtime's own glass chip and card). */
+export const DEFAULT_CAPTION_COLORS = { color: '#ffffff', background: 'rgba(20,20,20,0.75)' };
+export const DEFAULT_CARD_COLORS = { color: '#ffffff', background: '#0f172a' };
+export const MIN_CONTRAST = 4.5;
+
+export interface BrandCard { title?: string; subtitle?: string; duration?: number; background?: string; color?: string }
+export interface BrandKit {
+    accent?: string;
+    caption?: { font?: string; color?: string; background?: string; radius?: string | number };
+    cursor?: string;
+    logo?: string | { src?: string; place?: string; height?: number };
+    intro?: BrandCard;
+    outro?: BrandCard;
+}
+
+/** The brand object when meta.brand is one (after loadTimeline resolved a file path), else undefined. */
+export function brandOf(timeline: Timeline): BrandKit | undefined {
+    const b = timeline.meta?.brand;
+    return b && typeof b === 'object' && !Array.isArray(b) ? b as BrandKit : undefined;
+}
+
+/** Seconds an intro/outro card holds, or 0 when the brand has none. */
+export function cardDurationMs(card: unknown, fallbackS: number): number {
+    if (!card || typeof card !== 'object' || Array.isArray(card)) return 0;
+    const d = (card as BrandCard).duration;
+    return Math.round((validSeconds(d) && d > 0 ? d : fallbackS) * 1000);
+}
+export function introMs(timeline: Timeline): number { return cardDurationMs(brandOf(timeline)?.intro, DEFAULT_INTRO_S); }
+export function outroMs(timeline: Timeline): number { return cardDurationMs(brandOf(timeline)?.outro, DEFAULT_OUTRO_S); }
+
+/**
+ * Read a `meta.brand` that names a file: relative to the timeline file, JSON holding the brand
+ * object. Replaces the string with the object and records the absolute path on the timeline
+ * (`brandFile`), which build-all hashes so editing the shared brand rebuilds every guide using it.
+ */
+export function loadBrandFile(timeline: Timeline, configFile: string): void {
+    const ref = timeline.meta?.brand;
+    if (typeof ref !== 'string') return;
+    const file = path.resolve(path.dirname(configFile), ref);
+    if (!fs.existsSync(file)) throw new Error(`${configFile}: meta.brand names ${ref}, which does not exist (${file})`);
+    let brand: unknown;
+    try { brand = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e: any) { throw new Error(`${file}: invalid JSON in the brand file (${e.message})`); }
+    if (!brand || typeof brand !== 'object' || Array.isArray(brand)) throw new Error(`${file}: a brand file must hold one object of brand tokens (${BRAND_KEYS.join(', ')})`);
+    timeline.meta.brand = brand;
+    timeline.brandFile = file;
+}
+
+// Contrast (WCAG 2.x relative luminance). Parses the colour forms a brand realistically uses --
+// #rgb, #rgba, #rrggbb, #rrggbbaa, rgb()/rgba() and a few names -- and returns null for anything
+// else (a var(), a gradient), in which case the check stays quiet rather than guess.
+const NAMED_COLORS: Record<string, [number, number, number]> = { white: [255, 255, 255], black: [0, 0, 0], transparent: [0, 0, 0] };
+export function parseCssColor(v: unknown): { r: number; g: number; b: number; a: number } | null {
+    if (typeof v !== 'string') return null;
+    const s = v.trim().toLowerCase();
+    if (NAMED_COLORS[s]) { const [r, g, b] = NAMED_COLORS[s]; return { r, g, b, a: s === 'transparent' ? 0 : 1 }; }
+    let m = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/.exec(s);
+    if (m) {
+        let h = m[1];
+        if (h.length <= 4) h = h.split('').map(c => c + c).join('');
+        const n = (i: number) => parseInt(h.slice(i, i + 2), 16);
+        return { r: n(0), g: n(2), b: n(4), a: h.length === 8 ? n(6) / 255 : 1 };
+    }
+    m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/.exec(s);
+    if (m) {
+        const alpha = m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
+        return { r: +m[1], g: +m[2], b: +m[3], a: Math.max(0, Math.min(1, alpha)) };
+    }
+    return null;
+}
+function luminance(c: { r: number; g: number; b: number }): number {
+    const ch = (x: number) => { const v = x / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
+}
+/**
+ * Contrast ratio of `fg` text on `bg`. A translucent background is composited over BOTH black and
+ * white and the worse ratio is returned: the chip floats over arbitrary page content, so its real
+ * backdrop is unknown. null when either colour cannot be parsed.
+ */
+export function contrastRatio(fg: unknown, bg: unknown): number | null {
+    const f = parseCssColor(fg), b = parseCssColor(bg);
+    if (!f || !b) return null;
+    const over = (base: number) => ({ r: b.r * b.a + base * (1 - b.a), g: b.g * b.a + base * (1 - b.a), b: b.b * b.a + base * (1 - b.a) });
+    const ratio = (bgc: { r: number; g: number; b: number }) => { const l1 = luminance(f), l2 = luminance(bgc); return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05); };
+    const backs = b.a >= 1 ? [b] : [over(0), over(255)];
+    return Math.round(Math.min(...backs.map(ratio)) * 100) / 100;
+}
+
 // --- Capability registry ------------------------------------------------------------------------
 // The one place an action, a step field, a meta field or an easing is DESCRIBED. The tables in
 // AGENTS.md (between the capabilities markers) and `capabilities --json` are both rendered from
@@ -180,6 +338,8 @@ export const META_FIELD_DOCS: readonly FieldDoc[] = [
     { names: ['voice'], description: '`{ "openai": "alloy", "say": "Samantha" }` narration voices per engine.' },
     { names: ['kind'], description: '`guide` (default) or `reel`. A reel is a silent marketing clip: no spotlight, ripple or subtitle bar, no guide-shaped validation, and `--guide` on it is an error.' },
     { names: ['reel'], description: 'Overrides of whatever `kind` implies: `spotlight`, `ripple`, `subtitles`, `loop` (booleans), `autoplay` (`immediate`, `inview`, `message`), `poster` (`last` (default), `first`, or a time such as `"3.2s"`). An explicit value always beats the profile default.' },
+    { names: ['motion'], description: `Named durations and default easings, set once instead of per step: ${MOTION_TOKENS.map(t => `\`${t}\``).join(', ')} (seconds), \`ease\` (default easing for \`animate\` and \`camera\`) and \`cameraEase\` (wins for \`camera\`). An action with no \`duration\` reads its token when this object sets it -- ${Object.entries(MOTION_TOKEN_FOR_ACTION).map(([a, t]) => `\`${a}\` → \`${t}\``).join(', ')} -- and keeps its built-in default otherwise, so a timeline without \`motion\` renders exactly as before. A step may also name a token: \`"duration": "fast"\` (unset tokens mean ${MOTION_TOKENS.map(t => `${t} ${DEFAULT_MOTION_S[t]} s`).join(', ')}). See the motion tokens table below.` },
+    { names: ['brand'], description: 'The brand kit the video wears: `accent` (spotlight, ripple, step badge), `caption` (`font`, `color`, `background`, `radius`), `cursor` (pointer fill), `logo` (an image path relative to `index.html`, or `{ src, place, height }`), `intro` / `outro` cards (`title`, `subtitle`, `duration`, `background`, `color`). Or a path, relative to the timeline, to a shared JSON brand file holding the same object. Values go into CSS verbatim; `check` warns on an unknown token and on caption or card text below 4.5:1 contrast. See the brand tokens table below.' },
     { names: ['reset'], description: 'Live pages: a shell command run before each pass over the app (the recording, then the `--guide` replay), e.g. `"npm run db:seed"` or `"curl -X POST http://localhost:3000/api/test/reset"`. It runs in the shell, in the CLI\'s working directory, so a timeline is executable content: it runs only when you pass `--allow-reset`, and the command refuses rather than silently skipping a reset the timeline depends on. `--reset-cmd` gives your own command instead and never needs the flag. See [Live pages](#live-pages).' },
 ];
 
@@ -212,6 +372,25 @@ export const STEP_FIELD_DOCS: readonly FieldDoc[] = [
     { names: ['url'], description: '`navigate` (live pages): the page to open.' },
     { names: ['scale', 'x', 'y', 'xOffset', 'yOffset'], description: '`camera`: zoom factor (default 1, a pan without zoom; 1.3 is a typical push-in) and framing; `x`/`y` centre the camera on a point instead of a target, `xOffset`/`yOffset` nudge the framing after that centre is solved (positive moves the focus right/down, so the window travels with it -- the same sign convention as the cursor-point offsets of the same name). On cursor actions `xOffset`/`yOffset` nudge the cursor point off the target\'s centre.' },
     { names: ['duration'], description: `Seconds. \`camera\`: length of the pan (default ${DEFAULT_CAMERA_DURATION_S}). \`animate\`: length of one element's motion (default ${DEFAULT_ANIMATE_DURATION_S}). \`fadeIn\`/\`transitionScreen\`: length of the fade (default: the element's own CSS transition, else ${DEFAULT_FADE_MS / 1000} s).` },
+];
+
+/** One row per meta.motion key. */
+export const MOTION_TOKEN_DOCS: readonly FieldDoc[] = [
+    { names: ['fast'], description: `Seconds; a reference name a step can use (\`"duration": "fast"\`). Unset: ${DEFAULT_MOTION_S.fast} s.` },
+    { names: ['base'], description: `Seconds; the default length of ${Object.entries(MOTION_TOKEN_FOR_ACTION).filter(([, t]) => t === 'base').map(([a]) => `\`${a}\``).join(', ')} when set. Unset: those actions keep their own defaults; a \`"base"\` reference means ${DEFAULT_MOTION_S.base} s.` },
+    { names: ['slow'], description: `Seconds; the default length of ${Object.entries(MOTION_TOKEN_FOR_ACTION).filter(([, t]) => t === 'slow').map(([a]) => `\`${a}\``).join(', ')} when set. Unset: ${DEFAULT_CAMERA_DURATION_S} s for a camera; a \`"slow"\` reference means ${DEFAULT_MOTION_S.slow} s.` },
+    { names: ['ease'], description: 'Default easing for `animate` and `camera` steps that name none (see the easings table).' },
+    { names: ['cameraEase'], description: 'Default easing for `camera` alone, winning over `ease` there: a camera move usually wants an in-out curve while entrances want an ease-out.' },
+];
+
+/** One row per meta.brand key. */
+export const BRAND_TOKEN_DOCS: readonly FieldDoc[] = [
+    { names: ['accent'], description: 'Colour of the spotlight ring (border and glow), the click ripple and the guide\'s numbered badge. Applied as inline styles, so any CSS colour works.' },
+    { names: ['caption'], description: `Subtitle chip overrides: ${codeList(BRAND_CAPTION_KEYS)} (\`radius\` in px or any CSS length). Wins over both chip styles (the guide's glass pill and the reel's stadium bar); a \`background\` also drops the glass blur.` },
+    { names: ['cursor'], description: 'Fill colour of the pointer sprite (`mac` or `windows`).' },
+    { names: ['logo'], description: `A small image held in a corner during playback: a path relative to \`index.html\` (or a URL), or \`{ src, place, height }\` with \`place\` one of ${codeList(LOGO_PLACES)} (default \`top-right\`) and \`height\` in px (default 36). The subtitle chip dodges it; guide frames hide it. Also shown on the intro/outro cards.` },
+    { names: ['intro'], description: `A full-frame title card the video opens on: \`title\` (required), \`subtitle\`, \`duration\` (seconds, default ${DEFAULT_INTRO_S}), \`background\`, \`color\`. It covers the page, so start the first step after it (\`check\` warns per step). Shown by \`export\`/\`record\` and a self-playing page; never in guide frames, previews or tours.` },
+    { names: ['outro'], description: `A closing card shown for the clip's last \`duration\` seconds (default ${DEFAULT_OUTRO_S}), appended after the tail, so the clip grows by that much. Same keys as \`intro\`.` },
 ];
 
 /** Every documented step field name, flattened. */
@@ -276,6 +455,10 @@ export interface TimelineMeta {
      * idempotent, and `record --guide` replays it twice. `--reset-cmd` overrides it.
      */
     reset?: string;
+    /** Named durations and default easings (see resolveMotion). */
+    motion?: MotionTokens;
+    /** Colours and furniture the video wears, or a path to a shared brand file (see loadBrandFile). */
+    brand?: BrandKit | string;
     [key: string]: any;
 }
 
@@ -346,6 +529,8 @@ export interface Step {
     yOffset?: number | string;
     /** Set when the action was rewritten from a deprecated alias (e.g. showText). */
     deprecatedAction?: string;
+    /** The meta.motion token `duration` was resolved from ("fast", "base", "slow"), set by resolveMotion. */
+    durationToken?: MotionToken;
     [key: string]: any;
 }
 
@@ -362,6 +547,8 @@ export interface Timeline {
     strings?: { file: string; locale: string; applied: string[]; unknown: string[]; missing: string[]; untranslated: string[] };
     /** Absolute path of the file this timeline was read from; set by loadTimeline. */
     configFile?: string;
+    /** Absolute path of the shared brand file meta.brand named, when it named one; set by loadTimeline. */
+    brandFile?: string;
 }
 
 /** Framing facts attached to a `camera` step's info issue by the browser pass (see framingReport
@@ -492,6 +679,7 @@ export function parseTimeline(raw: unknown): Timeline {
     });
 
     const timeline: Timeline = { meta, steps, legacy };
+    resolveMotion(timeline);
     assignSubtitleWindows(timeline);
     return timeline;
 }
@@ -579,6 +767,8 @@ export function loadTimeline(dir: string, opts: { locale?: string; device?: Devi
             timeline.strings = { file, locale, ...report };
         }
     }
+    // A shared brand file is read in place before anything renders, so every consumer sees the object.
+    loadBrandFile(timeline, p);
     // After the strings are applied (so a translated override still lands) and before any validation,
     // so every caller downstream sees one already-resolved timeline.
     if (opts.device) applyDevice(timeline, opts.device);
@@ -620,6 +810,8 @@ export function applyDevice(timeline: Timeline, device: DeviceKind): Timeline {
         delete s[other];
         delete s.only;
     }
+    // A device block may bring a token reference ("duration": "fast") or a new action: resolve again.
+    resolveMotion(timeline);
     // Unconditionally, because a subtitle's window runs until the NEXT subtitle: dropping an `only`
     // step invalidates the window of the step before it just as surely as retiming one does, and
     // re-deriving when nothing moved is a no-op.
@@ -659,7 +851,7 @@ export function intrinsicDurationMs(step: Step): number {
     }
 }
 
-/** Total playback length: last step's interaction + its intrinsic duration + meta.tailMs (default 2500). */
+/** Total playback length: last step's interaction + its intrinsic duration + meta.tailMs (default 2500) + the brand's outro card, which plays after the tail. */
 export function computeDurationMs(timeline: Timeline): number {
     const tail = typeof timeline.meta.tailMs === 'number' ? timeline.meta.tailMs : DEFAULT_TAIL_MS;
     let end = 0;
@@ -667,7 +859,7 @@ export function computeDurationMs(timeline: Timeline): number {
         if (!Number.isFinite(s.timeMs)) continue;
         end = Math.max(end, s.timeMs + intrinsicDurationMs(s));
     }
-    return end + tail;
+    return end + tail + outroMs(timeline);
 }
 
 /**
@@ -742,6 +934,7 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
     if (meta.subtitleScale !== undefined && (typeof meta.subtitleScale !== 'number' || !Number.isFinite(meta.subtitleScale) || meta.subtitleScale <= 0)) {
         issues.push({ level: 'error', field: 'subtitleScale', message: `meta.subtitleScale must be a positive number multiplying the automatic subtitle size (got ${JSON.stringify(meta.subtitleScale)})` });
     }
+    issues.push(...validateMotion(meta.motion), ...validateBrand(meta.brand));
     if (meta.reel !== undefined) {
         if (!meta.reel || typeof meta.reel !== 'object' || Array.isArray(meta.reel)) {
             issues.push({ level: 'error', field: 'reel', message: 'meta.reel must be an object of profile overrides (spotlight, ripple, subtitles, loop, autoplay)' });
@@ -884,7 +1077,7 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
             issues.push(issueFor(s, 'error', '"scale" must be a positive number', 'scale'));
         }
         if (s.duration !== undefined && (typeof s.duration !== 'number' || s.duration < 0)) {
-            issues.push(issueFor(s, 'error', '"duration" must be a number of seconds', 'duration'));
+            issues.push(issueFor(s, 'error', `"duration" must be a number of seconds or a motion token (${MOTION_TOKENS.map(t => `"${t}"`).join(', ')})`, 'duration'));
         }
 
         const dup = seenIds.get(s.id);
@@ -897,6 +1090,8 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
     if (!reel && numbered > GUIDE_STEPS_WARN_ABOVE) {
         issues.push({ level: 'warning', field: 'guide', message: `${numbered} numbered guide steps: a guide this long is usually two guides; "guide": false hides choreography steps such as camera/wait from the numbering` });
     }
+
+    issues.push(...introOverlaps(timeline));
 
     // Typing overrun: a type step whose typing runs past the next interaction.
     // Camera moves and waits are not interactions (typing while the camera pushes in is a normal beat).
@@ -911,6 +1106,101 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
     }
 
     return issues;
+}
+
+/** meta.motion: three non-negative durations in seconds and two named easings; anything else is reported. */
+export function validateMotion(motion: unknown): Issue[] {
+    if (motion === undefined) return [];
+    const issues: Issue[] = [];
+    if (!motion || typeof motion !== 'object' || Array.isArray(motion)) {
+        return [{ level: 'error', field: 'motion', message: `meta.motion must be an object of motion tokens (${MOTION_KEYS.join(', ')})` }];
+    }
+    const m = motion as Record<string, unknown>;
+    for (const t of MOTION_TOKENS) {
+        if (m[t] !== undefined && !validSeconds(m[t])) issues.push({ level: 'error', field: 'motion', message: `meta.motion.${t} must be a non-negative number of seconds (got ${JSON.stringify(m[t])})` });
+    }
+    for (const k of ['ease', 'cameraEase'] as const) {
+        if (m[k] !== undefined && (typeof m[k] !== 'string' || !(EASING_NAMES as readonly string[]).includes(m[k] as string))) {
+            issues.push({ level: 'error', field: 'motion', message: `meta.motion.${k} must be one of ${EASING_NAMES.join(', ')} (got ${JSON.stringify(m[k])})` });
+        }
+    }
+    for (const k of Object.keys(m)) {
+        if (!(MOTION_KEYS as readonly string[]).includes(k)) issues.push({ level: 'warning', field: 'motion', message: `meta.motion: unknown token "${k}" ignored (known: ${MOTION_KEYS.join(', ')})` });
+    }
+    return issues;
+}
+
+/**
+ * meta.brand: types, unknown tokens (warnings, so a typo'd "accnet" is not silently dropped), and
+ * text contrast of the caption and the intro/outro cards against their backgrounds (a warning below
+ * 4.5:1, the WCAG AA bar for body text). A string here means loadTimeline never resolved it -- the
+ * timeline was parsed without a file to resolve against -- which is reported as such.
+ */
+export function validateBrand(brand: unknown): Issue[] {
+    if (brand === undefined) return [];
+    const issues: Issue[] = [];
+    const err = (message: string) => issues.push({ level: 'error', field: 'brand', message });
+    const warn = (message: string) => issues.push({ level: 'warning', field: 'brand', message });
+    if (typeof brand === 'string') { warn(`meta.brand names a file (${brand}) that was not resolved here; it is read when the timeline is loaded from its directory`); return issues; }
+    if (!brand || typeof brand !== 'object' || Array.isArray(brand)) { err(`meta.brand must be an object of brand tokens (${BRAND_KEYS.join(', ')}) or a path to a brand file`); return issues; }
+    const b = brand as Record<string, any>;
+    const isObj = (v: unknown) => !!v && typeof v === 'object' && !Array.isArray(v);
+    const unknown = (obj: Record<string, unknown>, known: readonly string[], where: string) => {
+        for (const k of Object.keys(obj)) if (!known.includes(k)) warn(`${where}: unknown token "${k}" ignored (known: ${known.join(', ')})`);
+    };
+    const str = (v: unknown, where: string) => { if (v !== undefined && (typeof v !== 'string' || !v.trim())) err(`${where} must be a non-empty string (a CSS value; got ${JSON.stringify(v)})`); };
+    unknown(b, BRAND_KEYS, 'meta.brand');
+    str(b.accent, 'meta.brand.accent');
+    str(b.cursor, 'meta.brand.cursor');
+    const contrast = (fg: unknown, bg: unknown, where: string) => {
+        const r = contrastRatio(fg, bg);
+        if (r !== null && r < MIN_CONTRAST) warn(`${where}: text ${JSON.stringify(fg)} on ${JSON.stringify(bg)} has a contrast ratio of ${r}:1, below ${MIN_CONTRAST}:1 (hard to read in a video watched small)`);
+    };
+    if (b.caption !== undefined) {
+        if (!isObj(b.caption)) err(`meta.brand.caption must be an object (${BRAND_CAPTION_KEYS.join(', ')})`);
+        else {
+            unknown(b.caption, BRAND_CAPTION_KEYS, 'meta.brand.caption');
+            for (const k of ['font', 'color', 'background'] as const) str(b.caption[k], `meta.brand.caption.${k}`);
+            const r = b.caption.radius;
+            if (r !== undefined && !(typeof r === 'string' && r.trim()) && !(typeof r === 'number' && r >= 0)) err(`meta.brand.caption.radius must be px (a number) or a CSS length (got ${JSON.stringify(r)})`);
+            if (b.caption.color !== undefined || b.caption.background !== undefined) {
+                contrast(b.caption.color ?? DEFAULT_CAPTION_COLORS.color, b.caption.background ?? DEFAULT_CAPTION_COLORS.background, 'meta.brand.caption');
+            }
+        }
+    }
+    if (b.logo !== undefined) {
+        if (typeof b.logo === 'string') str(b.logo, 'meta.brand.logo');
+        else if (!isObj(b.logo)) err('meta.brand.logo must be an image path/URL or { src, place, height }');
+        else {
+            unknown(b.logo, BRAND_LOGO_KEYS, 'meta.brand.logo');
+            if (typeof b.logo.src !== 'string' || !b.logo.src.trim()) err('meta.brand.logo.src must be an image path (relative to index.html) or URL');
+            if (b.logo.place !== undefined && !LOGO_PLACES.includes(b.logo.place)) err(`meta.brand.logo.place must be one of ${LOGO_PLACES.join(', ')} (got ${JSON.stringify(b.logo.place)})`);
+            if (b.logo.height !== undefined && !(typeof b.logo.height === 'number' && b.logo.height > 0)) err('meta.brand.logo.height must be a positive number of px');
+        }
+    }
+    for (const which of ['intro', 'outro'] as const) {
+        const c = b[which];
+        if (c === undefined) continue;
+        if (!isObj(c)) { err(`meta.brand.${which} must be an object (${BRAND_CARD_KEYS.join(', ')})`); continue; }
+        unknown(c, BRAND_CARD_KEYS, `meta.brand.${which}`);
+        if (typeof c.title !== 'string' || !c.title.trim()) err(`meta.brand.${which}.title is required: the card's headline`);
+        for (const k of ['subtitle', 'background', 'color'] as const) str(c[k], `meta.brand.${which}.${k}`);
+        if (c.duration !== undefined && !(validSeconds(c.duration) && c.duration > 0)) err(`meta.brand.${which}.duration must be a positive number of seconds`);
+        if (c.color !== undefined || c.background !== undefined) contrast(c.color ?? DEFAULT_CARD_COLORS.color, c.background ?? DEFAULT_CARD_COLORS.background, `meta.brand.${which}`);
+    }
+    return issues;
+}
+
+/**
+ * The intro card covers the page for its whole duration: a step that interacts under it plays to
+ * nobody. Warned per step (a `wait` with no subtitle is exempt -- it shows nothing anyway).
+ */
+function introOverlaps(timeline: Timeline): Issue[] {
+    const ms = introMs(timeline);
+    if (!ms) return [];
+    return timeline.steps
+        .filter(s => Number.isFinite(s.timeMs) && s.timeMs < ms && !(s.action === 'wait' && !s.subtitle))
+        .map(s => issueFor(s, 'warning', `runs at ${formatTime(s.timeMs)}, under the brand intro card (shown until ${formatTime(ms)}): start the timeline after the intro`, 'time'));
 }
 
 export function hasErrors(issues: Issue[]): boolean {

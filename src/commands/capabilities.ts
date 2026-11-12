@@ -3,7 +3,7 @@ import * as path from 'path';
 import {
     ACTIONS, ACTION_DOCS, ACTION_DOC_ORDER, TARGET_REQUIRED, CURSOR_ACTIONS, STATE_ACTIONS,
     EASING_NAMES, EASING_DOCS, STEP_FIELD_DOCS, META_FIELD_DOCS, DEVICE_KINDS, SUBTITLE_PLACES,
-    TIMELINE_KINDS, AUTOPLAY_MODES, CURSOR_STYLES, FieldDoc,
+    TIMELINE_KINDS, AUTOPLAY_MODES, CURSOR_STYLES, FieldDoc, MOTION_TOKEN_DOCS, BRAND_TOKEN_DOCS, MOTION_TOKENS, DEFAULT_MOTION_S, LOGO_PLACES,
 } from '../engine/schema';
 
 /**
@@ -27,6 +27,10 @@ export interface Capabilities {
     actions: { name: string; targetRequired: boolean; cursor: boolean; capture: 'interaction' | 'completion'; description: string; guideFrame: string }[];
     stepFields: { names: string[]; description: string }[];
     metaFields: { names: string[]; description: string }[];
+    motionTokens: { names: string[]; description: string }[];
+    brandTokens: { names: string[]; description: string }[];
+    motionDefaults: Record<string, number>;
+    logoPlaces: string[];
     easings: { name: string; description: string }[];
     presets: Record<string, { name: string; fields: Record<string, unknown> }[]>;
     devices: string[];
@@ -57,6 +61,10 @@ export function capabilities(presets: Presets = readPresets()): Capabilities {
         })),
         stepFields: fields(STEP_FIELD_DOCS),
         metaFields: fields(META_FIELD_DOCS),
+        motionTokens: fields(MOTION_TOKEN_DOCS),
+        brandTokens: fields(BRAND_TOKEN_DOCS),
+        motionDefaults: Object.fromEntries(MOTION_TOKENS.map(t => [t, DEFAULT_MOTION_S[t]])),
+        logoPlaces: [...LOGO_PLACES],
         easings: EASING_NAMES.map(e => ({ name: e, description: EASING_DOCS[e] })),
         presets,
         devices: [...DEVICE_KINDS],
@@ -93,6 +101,18 @@ export function renderCapabilitiesMarkdown(c: Capabilities = capabilities()): st
         '|---|---|---|',
         ...c.actions.map(a => `| \`${a.name}\` | ${cell(a.description)} | ${cell(a.guideFrame)} |`),
         '',
+        '### Motion tokens (`meta.motion`)',
+        '',
+        '| Token | Meaning |',
+        '|---|---|',
+        ...c.motionTokens.map(f => `| ${names(f.names)} | ${cell(f.description)} |`),
+        '',
+        '### Brand tokens (`meta.brand`)',
+        '',
+        '| Token | Meaning |',
+        '|---|---|',
+        ...c.brandTokens.map(f => `| ${names(f.names)} | ${cell(f.description)} |`),
+        '',
         '### Easings',
         '',
         '| Name | Feel |',
@@ -116,6 +136,10 @@ export function renderCapabilitiesText(c: Capabilities): string {
     lines.push('  ' + c.stepFields.flatMap(f => f.names).join(', '));
     section('Meta fields');
     lines.push('  ' + c.metaFields.flatMap(f => f.names).join(', '));
+    section('Motion tokens (meta.motion)');
+    lines.push('  ' + c.motionTokens.flatMap(f => f.names).join(', '));
+    section('Brand tokens (meta.brand)');
+    lines.push('  ' + c.brandTokens.flatMap(f => f.names).join(', '));
     section('Easings');
     for (const e of c.easings) lines.push(`  ${e.name.padEnd(17)} ${e.description}`);
     for (const [group, list] of Object.entries(c.presets)) {

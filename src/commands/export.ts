@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { recordEvent } from '../manifest';
-import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS, deviceKind, reelOptions, intrinsicDurationMs, parseTime, parseTailMs, parseDurationS, emulateMobileFor, resolveConfigPath, cliConfigPath, configStem } from '../engine/schema';
+import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS, deviceKind, reelOptions, intrinsicDurationMs, parseTime, parseTailMs, parseDurationS, emulateMobileFor, resolveConfigPath, cliConfigPath, configStem, outroMs } from '../engine/schema';
 import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions, RunAbortedError, errorMessage } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions, resolveViewport, closeWithWatchdog, closeBrowser, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
@@ -297,7 +297,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             if (transformed) console.error('warning  the page transforms <html>; cursor/highlight overlays are positioned on <html> and will be offset (known limitation)');
             // --learn: watch the recording pass; the hook only observes (it can add warnings, never errors).
             learn = session && options.learn ? learnCollector(page, m => console.error(`warning  ${m}`)) : undefined;
-            results = await runTimeline(page, timeline!, { mode: 'timed', live, state: runState, failFast: !!options.failFast && !!live, afterStep: learn?.afterStep });
+            results = await runTimeline(page, timeline!, { mode: 'timed', live, state: runState, failFast: !!options.failFast && !!live, afterStep: learn?.afterStep, introCard: true });
             t0Wall = runState.t0Wall;
             if (runState.navigations) console.log(`Survived ${runState.navigations} navigation${runState.navigations > 1 ? 's' : ''}; runtime re-booted each time.`);
             // waitFor delays pushed every later step: the recording must be that much longer too. A
@@ -317,12 +317,21 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             if (autoDuration) {
                 // Do not trust the static estimate alone: an element's own CSS transition (e.g. a 3s
                 // fade) is only known once measured, so hold until the last step really completed + tail.
-                const tailMs = typeof timeline!.meta.tailMs === 'number' ? timeline!.meta.tailMs : DEFAULT_TAIL_MS;
+                // The brand's outro card plays after the tail (computeDurationMs appends it too).
+                const tailMs = (typeof timeline!.meta.tailMs === 'number' ? timeline!.meta.tailMs : DEFAULT_TAIL_MS) + outroMs(timeline!);
                 const lastCompleted = Math.max(0, ...results.map(r => Number.isFinite(r.completedMs ?? NaN) ? r.completedMs! : 0));
                 if (lastCompleted + tailMs > durationMs + 100) {
                     console.log(`Extending to ${formatTime(lastCompleted + tailMs)}: the last step completed at ${lastCompleted}ms (static estimate was ${formatTime(durationMs)}).`);
                 }
                 if (lastCompleted + tailMs > durationMs) durationMs = lastCompleted + tailMs;
+            }
+            // Brand outro: up for the clip's last outro.ms, so it is the frame the video ends on.
+            const outro = outroMs(timeline!);
+            if (outro > 0 && durationMs > outro) {
+                const outroAt = durationMs - outro;
+                const untilOutro = outroAt - (Date.now() - t0Wall);
+                if (untilOutro > 0) await page.waitForTimeout(untilOutro);
+                await page.evaluate(() => (window as any).__anim.showCard('outro')).catch((e: any) => console.error(`warning  could not show the outro card: ${errorMessage(e)}`));
             }
             const nowMs = Date.now() - t0Wall; // Node-owned clock (valid across navigations)
             if (nowMs < durationMs) await page.waitForTimeout(durationMs - nowMs);

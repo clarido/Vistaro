@@ -114,7 +114,7 @@ npx vistaro export demo -o demo.mp4 --guide
 
 For your own screen, put its `index.html` in a new folder, run `npx vistaro init-config <folder>` to scaffold a timeline next to it, then run the same commands on that folder.
 
-A timeline is a list of timed interactions on CSS selectors:
+A timeline is a list of timed interactions on CSS selectors. Two optional blocks set the house style once: `meta.motion` (named durations and easings every step without its own reads) and `meta.brand` (spotlight accent, caption style, cursor tint, a corner logo, intro and outro cards; or a path to one shared `brand.json`):
 
 ```json
 {

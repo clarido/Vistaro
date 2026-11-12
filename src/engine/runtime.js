@@ -91,12 +91,25 @@
   // The numbered badge is guide-capture furniture, not chrome the viewer sees during playback, so it
   // is installed even when the spotlight and ripple are off.
   var CALLOUT_CSS = `#vistaro-callout { position: fixed; box-sizing: content-box; width: 32px; height: 32px; border-radius: 50%; background: #3B82F6; color: #fff; font: 600 15px/32px -apple-system, sans-serif; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; z-index: 99998; display: none; }`;
+  // Brand furniture (meta.brand). Only installed when a brand asks for it, so an unbranded timeline
+  // gets byte-identical CSS. The card sits under the cursor and the chrome (99994) and fills the
+  // frame; its type is sized to the frame by sizeCard(), like the subtitle chip.
+  var CARD_CSS = `#vistaro-card { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99994; pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 0.6em; text-align: center; padding: 0 8%; box-sizing: border-box; background: #0f172a; color: #fff; font-family: -apple-system, sans-serif; opacity: 0; }
+#vistaro-card .vistaro-card-logo { height: 1.6em; width: auto; margin-bottom: 0.4em; }
+#vistaro-card .vistaro-card-title { font-size: var(--vistaro-card-title, 48px); font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; }
+#vistaro-card .vistaro-card-sub { font-size: var(--vistaro-card-sub, 24px); font-weight: 500; opacity: 0.8; line-height: 1.35; max-width: 40em; }`;
+  var LOGO_CSS = `#vistaro-logo { position: fixed; z-index: 99995; pointer-events: none; width: auto; opacity: 0.92; }
+#vistaro-logo[data-place="top-left"] { top: 24px; left: 24px; }
+#vistaro-logo[data-place="top-right"] { top: 24px; right: 24px; }
+#vistaro-logo[data-place="bottom-left"] { bottom: 24px; left: 24px; }
+#vistaro-logo[data-place="bottom-right"] { bottom: 24px; right: 24px; }`;
+  var CARD_FADE_MS = 400;
 
   // --- state ----------------------------------------------------------------------
   var state = {
     booted: false,
     ready: false,
-    opts: { cursor: 'mac', resetFocusStyles: false, drift: true, loop: false, spotlight: true, ripple: true, subtitles: true, subtitleScale: 1, subtitleStyle: 'glass', autoplay: 'immediate', zoom: 1, timeline: null, durationMs: null, cursorPoint: null },
+    opts: { cursor: 'mac', resetFocusStyles: false, drift: true, loop: false, spotlight: true, ripple: true, subtitles: true, subtitleScale: 1, subtitleStyle: 'glass', autoplay: 'immediate', zoom: 1, timeline: null, durationMs: null, cursorPoint: null, brand: null },
     cursor: null,
     subtitleLayer: null,
     subtitleEl: null,
@@ -560,10 +573,11 @@
     // A scaled recording: the viewport is N times larger and the page is zoomed back down, so the
     // layout box keeps its authored size while every CSS pixel is painted N video pixels wide.
     if (state.opts.zoom && state.opts.zoom !== 1) css += ':root { zoom: ' + state.opts.zoom + '; }\n';
-    if (state.opts.cursor && state.opts.cursor !== 'none') css += (CURSOR_CSS[state.opts.cursor] || CURSOR_CSS.mac) + '\n';
+    if (state.opts.cursor && state.opts.cursor !== 'none') css += tintCursor(CURSOR_CSS[state.opts.cursor] || CURSOR_CSS.mac) + '\n';
     if (state.opts.subtitles) css += SUBTITLE_CSS + '\n';
     if (state.opts.spotlight || state.opts.ripple) css += EFFECTS_CSS + '\n';
     css += CALLOUT_CSS + '\n';
+    css += brandCss();
     var style = document.getElementById('vistaro-runtime-style');
     if (!style) {
       style = document.createElement('style');
@@ -571,6 +585,115 @@
       (document.head || document.documentElement).appendChild(style);
     }
     if (style.textContent !== css) style.textContent = css;
+  }
+
+  // --- brand kit (meta.brand) ----------------------------------------------------------
+  /** The brand boot object, or null. Every brand primitive below early-returns without one. */
+  function brand() {
+    var b = state.opts.brand;
+    return b && typeof b === 'object' ? b : null;
+  }
+  /** A CSS colour mixed with transparency, for the accent's glow and fill (any CSS colour works). */
+  function tint(color, pct) { return 'color-mix(in srgb, ' + color + ' ' + pct + '%, transparent)'; }
+  /** The cursor sprite with its fill swapped for meta.brand.cursor (URL-encoded into the data URI). */
+  function tintCursor(css) {
+    var b = brand();
+    if (!b || !b.cursor) return css;
+    var enc = encodeURIComponent(String(b.cursor)).replace(/'/g, '%27').replace(/\(/g, '%28').replace(/\)/g, '%29');
+    return css.replace(/fill="[^"]*"/, 'fill="' + enc + '"');
+  }
+  /** Caption overrides, the card and the logo: '' for an unbranded timeline. !important because the
+   *  reel's stadium bar is a more specific rule, and a brand is meant to win over both chip styles. */
+  function brandCss() {
+    var b = brand();
+    if (!b) return '';
+    var css = '';
+    var c = b.caption;
+    if (c && state.opts.subtitles) {
+      var decl = [];
+      if (c.font) decl.push('font-family: ' + c.font + ' !important');
+      if (c.color) decl.push('color: ' + c.color + ' !important');
+      if (c.background) decl.push('background: ' + c.background + ' !important', 'backdrop-filter: none !important', '-webkit-backdrop-filter: none !important');
+      if (c.radius != null) decl.push('border-radius: ' + (typeof c.radius === 'number' ? c.radius + 'px' : c.radius) + ' !important');
+      if (decl.length) css += '#vistaro-subtitle-layer .vistaro-sub-item { ' + decl.join('; ') + '; }\n';
+    }
+    if (b.intro || b.outro) css += CARD_CSS + '\n';
+    if (b.logo) css += LOGO_CSS + '\n';
+    return css;
+  }
+  /** Inline accent on the spotlight ring: inline so a test (and a reader) can see what was asked for. */
+  function applyAccent(h) {
+    var b = brand();
+    if (!b || !b.accent) return;
+    h.style.borderColor = b.accent;
+    h.style.boxShadow = '0 0 0 4px ' + tint(b.accent, 18) + ', 0 0 28px ' + tint(b.accent, 35);
+  }
+  /** The corner logo, created once per boot when the brand has one. */
+  function placeLogo() {
+    var b = brand();
+    var el = document.getElementById('vistaro-logo');
+    if (!b || !b.logo || !b.logo.src) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('img'); el.id = 'vistaro-logo'; el.alt = ''; }
+    if (el.parentNode !== overlayRoot()) overlayRoot().appendChild(el);
+    if (el.getAttribute('src') !== b.logo.src) el.setAttribute('src', b.logo.src);
+    el.setAttribute('data-place', b.logo.place || 'top-right');
+    el.style.height = (b.logo.height || 36) + 'px';
+  }
+  function cardEl() {
+    var el = document.getElementById('vistaro-card');
+    if (!el) { el = document.createElement('div'); el.id = 'vistaro-card'; overlayRoot().appendChild(el); }
+    return el;
+  }
+  /** Card type as a share of the frame, in authored px (see sizeSubtitleLayer for why not vh). */
+  function sizeCard(el) {
+    var z = rootZoom();
+    var w = window.innerWidth / z, h = window.innerHeight / z;
+    var portrait = h >= w;
+    el.style.setProperty('--vistaro-card-title', Math.round(Math.max(28, portrait ? 0.08 * w : 0.06 * h)) + 'px');
+    el.style.setProperty('--vistaro-card-sub', Math.round(Math.max(16, portrait ? 0.042 * w : 0.03 * h)) + 'px');
+  }
+  /**
+   * Show the intro or outro card. The intro is up on the first frame (the video opens on it) and
+   * fades out at the end of its duration; the outro fades in and holds to the end of the clip.
+   * Returns false when the brand has no such card. Timers go through setAnimTimeout, so restart()
+   * cancels a pending fade with everything else.
+   */
+  function showCard(kind) {
+    var b = brand();
+    var card = b && b[kind];
+    if (!card || !card.title) return false;
+    var el = cardEl();
+    el.innerHTML = '';
+    if (b.logo && b.logo.src) { var img = document.createElement('img'); img.className = 'vistaro-card-logo'; img.src = b.logo.src; img.alt = ''; el.appendChild(img); }
+    var t = document.createElement('div'); t.className = 'vistaro-card-title'; t.textContent = card.title; el.appendChild(t);
+    if (card.subtitle) { var st = document.createElement('div'); st.className = 'vistaro-card-sub'; st.textContent = card.subtitle; el.appendChild(st); }
+    el.style.background = card.background || '';
+    el.style.color = card.color || '';
+    el.style.fontFamily = (b.caption && b.caption.font) || '';
+    el.setAttribute('data-card', kind);
+    sizeCard(el);
+    el.style.display = 'flex';
+    if (kind === 'intro') {
+      el.style.transition = 'none';
+      el.style.opacity = '1';
+      void el.offsetWidth;
+      setAnimTimeout(function () {
+        el.style.transition = 'opacity ' + CARD_FADE_MS + 'ms ease';
+        el.style.opacity = '0';
+        setAnimTimeout(function () { if (el.getAttribute('data-card') === 'intro') el.style.display = 'none'; }, CARD_FADE_MS);
+      }, Math.max(0, (card.ms || 0) - CARD_FADE_MS));
+    } else {
+      el.style.transition = 'none';
+      el.style.opacity = '0';
+      void el.offsetWidth;
+      el.style.transition = 'opacity ' + CARD_FADE_MS + 'ms ease';
+      el.style.opacity = '1';
+    }
+    return true;
+  }
+  function hideCard() {
+    var el = document.getElementById('vistaro-card');
+    if (el) { el.style.transition = 'none'; el.style.opacity = '0'; el.style.display = 'none'; el.removeAttribute('data-card'); }
   }
 
   /**
@@ -646,6 +769,11 @@
       // The cursor sprite is 28px at its tip's top-left plus a shadow; give it air on all sides.
       var grow = 14 * z;
       out.push({ what: 'cursor', left: state.point.x - grow, top: state.point.y - grow, right: state.point.x + 42 * z, bottom: state.point.y + 46 * z });
+    }
+    var logo = document.getElementById('vistaro-logo');
+    if (logo && logo.style.visibility !== 'hidden') {
+      var lr = logo.getBoundingClientRect();
+      if (lr.width > 0 && lr.height > 0) out.push({ what: 'brand logo', left: lr.left - 8 * z, top: lr.top - 8 * z, right: lr.right + 8 * z, bottom: lr.bottom + 8 * z });
     }
     var framed = framedContentObstacles();
     if (framed.length) out = out.concat(framed);
@@ -751,6 +879,7 @@
     if (layer.parentNode !== root) root.appendChild(layer);
     layer.className = state.opts.subtitleStyle === 'stadium' ? 'vistaro-sub-stadium' : '';
     state.subtitleLayer = layer;
+    placeLogo();
     sizeSubtitleLayer();
     if (!state.subtitleSizer) {
       // animated.html: keep the chip proportional AND clear of the target/cursor when the viewer
@@ -850,6 +979,8 @@
     var p = toOverlayPoint(x, y);
     var r = document.createElement('div');
     r.className = 'vistaro-ripple';
+    var b = brand();
+    if (b && b.accent) { r.style.background = tint(b.accent, 35); r.style.borderColor = tint(b.accent, 65); }
     r.style.left = p.x + 'px';
     r.style.top = p.y + 'px';
     overlayRoot().appendChild(r);
@@ -863,6 +994,7 @@
       h.id = 'vistaro-highlight';
       overlayRoot().appendChild(h);
     }
+    applyAccent(h);
     return h;
   }
 
@@ -961,6 +1093,8 @@
     var pos = calloutPosition(visibleRect(el));
     var placed = toOverlayPoint(pos.x, pos.y);
     c.textContent = String(n);
+    var b = brand();
+    if (b && b.accent) c.style.background = b.accent;
     c.style.left = placed.x + 'px';
     c.style.top = placed.y + 'px';
     c.style.display = 'block';
@@ -982,6 +1116,9 @@
     o = o || {};
     if (state.subtitleLayer) state.subtitleLayer.style.visibility = 'hidden';
     if (o.hideCursor && state.cursor) state.cursor.style.visibility = 'hidden';
+    // The brand logo is video furniture: a guide frame is documentation and keeps its own chrome.
+    var logo = document.getElementById('vistaro-logo');
+    if (logo) logo.style.visibility = 'hidden';
   }
   /**
    * Guide capture furniture, deliberately independent of playback chrome: a numbered step shows what
@@ -1003,6 +1140,8 @@
     hideCallout();
     if (state.subtitleLayer) state.subtitleLayer.style.visibility = '';
     if (state.cursor) state.cursor.style.visibility = '';
+    var logo = document.getElementById('vistaro-logo');
+    if (logo) logo.style.visibility = '';
   }
   /** Resolves after n animation frames (lets held marks paint before a screenshot). */
   function nextFrames(n) {
@@ -1673,6 +1812,13 @@
       prev = step;
     });
     var durationMs = o.durationMs || (maxMs + DEFAULT_TAIL_MS);
+    // Brand cards: the intro is up from the first frame, the outro takes the clip's last outro.ms
+    // (computeDurationMs already appended it after the tail).
+    showCard('intro');
+    var bo = brand();
+    if (bo && bo.outro && bo.outro.ms) {
+      state.timers.push(setTimeout(function () { showCard('outro'); }, Math.max(0, durationMs - bo.outro.ms)));
+    }
     if (o.loop) {
       state.timers.push(setTimeout(function () {
         // A cloned snapshot restores a static mockup exactly; a live app's handlers and state cannot
@@ -1775,6 +1921,7 @@
     hideSubtitle();
     releaseHighlight();
     hideCallout();
+    hideCard();
     if (state.opts.cursorPoint && state.cursor) placeCursor(state.opts.cursorPoint.x, state.opts.cursorPoint.y);
     start();
     return true;
@@ -1903,7 +2050,11 @@
     fadeIn: fadeIn,
     transitionScreen: transitionScreen,
     showSubtitle: showSubtitle,
-    hideSubtitle: hideSubtitle
+    hideSubtitle: hideSubtitle,
+    /** Brand cards: showCard('intro'|'outro') returns false when the brand has none. The driver
+     *  shows the intro right after start() on a recording, and the outro at its scheduled moment. */
+    showCard: showCard,
+    hideCard: hideCard
   };
   window.__vistaro = api;
 })();
