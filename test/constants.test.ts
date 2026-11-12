@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { runtimeSource } from '../src/engine/inject';
-import { DEFAULT_LEAD_MS, DEFAULT_CPS, DEFAULT_CAMERA_DURATION_S, DEFAULT_FADE_MS, DEFAULT_SCROLL_MS, DEFAULT_TAIL_MS, SUBTITLE_HOLD_MS, DEFAULT_ANIMATE_DURATION_S, EASING_NAMES, SUBTITLE_PLACES, TRANSITIONS, OVERLAY_VARIANTS, DEFAULT_TRANSITION_MS, DEFAULT_OVERLAY_MS } from '../src/engine/schema';
+import { DEFAULT_LEAD_MS, DEFAULT_CPS, DEFAULT_CAMERA_DURATION_S, DEFAULT_FADE_MS, DEFAULT_SCROLL_MS, DEFAULT_TAIL_MS, SUBTITLE_HOLD_MS, DEFAULT_ANIMATE_DURATION_S, EASING_NAMES, SUBTITLE_PLACES, TRANSITIONS, OVERLAY_VARIANTS, DEFAULT_TRANSITION_MS, DEFAULT_OVERLAY_MS, CURSOR_TRAVEL_BASE_MS, CURSOR_TRAVEL_SLOPE_MS, CURSOR_TRAVEL_FLOOR_MS, CURSOR_ARC_MIN_PX, CURSOR_ARC_MAX_PX } from '../src/engine/schema';
 
 /** runtime.js is plain JS and cannot import schema.ts; its literals must not drift. */
 function literal(name: string): number {
@@ -21,6 +21,11 @@ test('runtime.js constants equal the schema exports', () => {
     assert.equal(literal('DEFAULT_ANIMATE_S'), DEFAULT_ANIMATE_DURATION_S);
     assert.equal(literal('DEFAULT_TRANSITION_MS'), DEFAULT_TRANSITION_MS);
     assert.equal(literal('DEFAULT_OVERLAY_MS'), DEFAULT_OVERLAY_MS);
+    assert.equal(literal('CURSOR_TRAVEL_BASE_MS'), CURSOR_TRAVEL_BASE_MS);
+    assert.equal(literal('CURSOR_TRAVEL_SLOPE_MS'), CURSOR_TRAVEL_SLOPE_MS);
+    assert.equal(literal('CURSOR_TRAVEL_FLOOR_MS'), CURSOR_TRAVEL_FLOOR_MS);
+    assert.equal(literal('CURSOR_ARC_MIN_PX'), CURSOR_ARC_MIN_PX);
+    assert.equal(literal('CURSOR_ARC_MAX_PX'), CURSOR_ARC_MAX_PX);
 });
 
 test('runtime.js TRANSITIONS and OVERLAY_VARIANTS equal the names schema.ts validates against', () => {

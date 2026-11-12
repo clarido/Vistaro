@@ -12,7 +12,8 @@ export const CONFIG_SCAFFOLD = {
         tailMs: 2500,
         // Motion tokens: every camera, reveal and screen swap without its own duration reads these,
         // so the demo keeps one tempo. 0.4 s is the UI-motion norm; a camera push wants longer.
-        motion: { base: 0.4, slow: 1.6, ease: 'easeOutCubic', cameraEase: 'easeInOutCubic' },
+        // cursor: 'natural' scales each cursor move to its distance (it still lands on time).
+        motion: { base: 0.4, slow: 1.6, ease: 'easeOutCubic', cameraEase: 'easeInOutCubic', cursor: 'natural' },
     },
     steps: [
         { id: 'intro', time: '0s', action: 'fadeIn', target: 'body', title: 'Overview', subtitle: 'Welcome to the dashboard.', narration: 'Start on the dashboard to review your reports.' },

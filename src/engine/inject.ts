@@ -67,6 +67,8 @@ export interface BootOptions {
     durationMs: number;
     /** Typing speed used when a `type` step has no `cps` (schema DEFAULT_CPS). */
     defaultCps: number;
+    /** meta.motion.cursor === 'natural': distance-scaled travel with an arc. Absent for the default, so the boot object is unchanged. */
+    cursorMotion?: 'natural';
     timeline?: { meta: Record<string, any>; steps: any[] };
     cursorPoint?: { x: number; y: number } | null;
     /** meta.brand, normalized for the runtime (cards carry their resolved length in ms). Absent for an unbranded timeline, so its boot object is unchanged. */
@@ -140,6 +142,7 @@ export function bootOptions(timeline: Timeline, opts: InjectOptions = {}, withTi
         durationMs: opts.durationMs ?? computeDurationMs(timeline),
         defaultCps: DEFAULT_CPS,
     };
+    if (meta.motion && typeof meta.motion === 'object' && (meta.motion as any).cursor === 'natural') boot.cursorMotion = 'natural';
     const brand = brandBoot(timeline);
     if (brand) boot.brand = brand;
     if (withTimeline) boot.timeline = { meta: { title: meta.title, slug: meta.slug, locale: meta.locale }, steps: timeline.steps };

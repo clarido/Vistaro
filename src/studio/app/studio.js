@@ -79,6 +79,7 @@
       { k: 'ease', type: 'easing' },
       { k: 'x', type: 'number', step: 1, help: 'centre on a point instead of a target' },
       { k: 'y', type: 'number', step: 1 },
+      { k: 'follow', type: 'checkbox', help: 'keep the camera on the action: later interactions pan to their target at this scale' },
       { k: 'xOffset', type: 'number', step: 1, help: 'nudge the framing after the centre is solved' },
       { k: 'yOffset', type: 'number', step: 1 }
     ],

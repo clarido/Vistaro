@@ -48,6 +48,8 @@ export interface TraceRecord {
     spotlight: { x: number; y: number; w: number; h: number } | null;
     subtitle: { x: number; y: number; w: number; h: number; place: string } | null;
     camera: { scale: number; window: { x: number; y: number; w: number; h: number } } | null;
+    /** The cursor's travel INTO this step, planned for the authored lead: the path a video shows. */
+    travel?: { from: { x: number; y: number } | null; to: { x: number; y: number }; distance: number; travelMs: number; arc: number; style: 'fixed' | 'natural'; follow: boolean } | null;
 }
 
 /** Sub-pixel layout rounding routinely puts an element a pixel over an edge; below this it is noise. */
@@ -290,11 +292,11 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 // the context mid-step): the geometry fields are null and the step keeps its row,
                 // so trace.json never silently loses steps.
                 const overlays = await page.evaluate(() => (window as any).__vistaro.overlayState()).catch(() => null);
-                const o = overlays || { cursor: null, spotlight: null, subtitle: null, camera: null };
+                const o = overlays || { cursor: null, spotlight: null, subtitle: null, camera: null, travel: null };
                 trace.push({
                     index: step.index, id: step.id, action: step.action, target: step.target,
                     actualMs: result.actualMs, completedMs: result.completedMs, error: result.error,
-                    cursor: o.cursor, spotlight: o.spotlight, subtitle: o.subtitle, camera: o.camera,
+                    cursor: o.cursor, spotlight: o.spotlight, subtitle: o.subtitle, camera: o.camera, travel: o.travel ?? null,
                 });
             }
             if (result.error) return;

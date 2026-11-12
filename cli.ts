@@ -121,6 +121,8 @@ TIMELINE (vistaro.config.json, object form):
   any animate/fadeIn/transitionScreen/camera without a "duration" reads them, and a step may
   say "duration": "fast". meta.brand dresses the video (accent, caption, cursor, logo, intro and
   outro cards), inline or as a path to a shared brand.json. Both are opt-in: unset changes nothing.
+  "motion": { "cursor": "natural" } scales cursor travel to distance; a camera step with
+  "follow": true pans onto every later click/type/hover target at its scale.
   \`capabilities\` lists every token.
 
 STANDALONE WITH AN LLM API KEY (GEMINI_API_KEY or ANTHROPIC_API_KEY, .env or env):

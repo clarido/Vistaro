@@ -124,6 +124,15 @@
       }
     },
     {
+      "name": "Follow the action 1.4\u00d7",
+      "fields": {
+        "scale": 1.4,
+        "duration": 1.2,
+        "ease": "easeInOutCubic",
+        "follow": true
+      }
+    },
+    {
       "name": "Pull back",
       "fields": {
         "scale": 1,

@@ -144,8 +144,22 @@ export type MotionToken = typeof MOTION_TOKENS[number];
 export const DEFAULT_MOTION_S: Record<MotionToken, number> = { fast: 0.2, base: 0.4, slow: 1.2 };
 /** Which token an action without `duration` reads, when meta.motion sets it. */
 export const MOTION_TOKEN_FOR_ACTION: Readonly<Record<string, MotionToken>> = { animate: 'base', fadeIn: 'base', transitionScreen: 'base', camera: 'slow', overlay: 'fast' };
-/** Keys meta.motion accepts: the three durations plus the default easings. */
-export const MOTION_KEYS = [...MOTION_TOKENS, 'ease', 'cameraEase'] as const;
+/** Keys meta.motion accepts: the three durations, the default easings, and the cursor's travel style. */
+export const MOTION_KEYS = [...MOTION_TOKENS, 'ease', 'cameraEase', 'cursor'] as const;
+/**
+ * meta.motion.cursor. `fixed` (the default, today's behaviour): the cursor spends the whole lead
+ * gliding, whatever the distance. `natural`: the travel time scales with the distance (a Fitts-like
+ * log curve between a floor and the lead), the cursor waits where it was and then moves, so it
+ * still arrives at exactly the same moment; long moves bend into a slight arc.
+ */
+export const CURSOR_MOTIONS = ['fixed', 'natural'] as const;
+// Mirrored as literals in runtime.js (test/constants.test.ts): travel = BASE + SLOPE * log2(1 + d / 24),
+// clamped to [FLOOR, lead - 150]; moves longer than ARC_MIN_PX bend by up to ARC_MAX_PX.
+export const CURSOR_TRAVEL_BASE_MS = 180;
+export const CURSOR_TRAVEL_SLOPE_MS = 110;
+export const CURSOR_TRAVEL_FLOOR_MS = 200;
+export const CURSOR_ARC_MIN_PX = 300;
+export const CURSOR_ARC_MAX_PX = 80;
 
 export interface MotionTokens {
     fast?: number;
@@ -155,6 +169,8 @@ export interface MotionTokens {
     ease?: EasingName;
     /** Default easing for `camera` alone (wins over `ease` there): a camera move usually wants an in-out curve. */
     cameraEase?: EasingName;
+    /** How the cursor travels: `fixed` (default) or `natural` (see CURSOR_MOTIONS). */
+    cursor?: typeof CURSOR_MOTIONS[number];
 }
 
 function validSeconds(v: unknown): v is number {
@@ -398,6 +414,7 @@ export const STEP_FIELD_DOCS: readonly FieldDoc[] = [
     { names: ['waitForTimeoutMs'], description: 'Live pages: how long a `waitFor` selector may wait before giving up (default 15000). A timeout is reported as a warning naming the step, not as a slow load; `record --fail-fast` abandons the recording at the first one.' },
     { names: ['url'], description: '`navigate` (live pages): the page to open.' },
     { names: ['scale', 'x', 'y', 'xOffset', 'yOffset'], description: '`camera`: zoom factor (default 1, a pan without zoom; 1.3 is a typical push-in) and framing; `x`/`y` centre the camera on a point instead of a target, `xOffset`/`yOffset` nudge the framing after that centre is solved (positive moves the focus right/down, so the window travels with it -- the same sign convention as the cursor-point offsets of the same name). On cursor actions `xOffset`/`yOffset` nudge the cursor point off the target\'s centre.' },
+    { names: ['follow'], description: '`camera`: `true` keeps the camera on the action -- every later click, focus, type, highlight or hover pans the camera (at this step\'s `scale` and `ease`) onto its target while the cursor travels there, until the next `camera` step. The pan is clamped so the window never leaves the page (nothing outside the content is shown). The auto-zoom look without a camera step per interaction.' },
     { names: ['transition'], description: `\`transitionScreen\`: how the screens swap, one of ${codeList(TRANSITIONS)} (default \`fade\`; see the transitions table below). Under \`prefers-reduced-motion\` every transition plays as a \`cut\`.` },
     { names: ['direction'], description: `\`transitionScreen\` with \`slide\`/\`push\`, and an \`overlay\` drawer: the direction of travel, one of ${codeList(DIRECTIONS)}. \`left\` (the default) moves the new screen leftwards, entering from the right; a drawer defaults to \`left\` too (it enters from the right edge).` },
     { names: ['variant'], description: `\`overlay\`: ${orList(OVERLAY_VARIANTS)} (default \`modal\`). A modal scales up and fades in; a drawer slides in from a side; a sheet rises from the bottom; a toast drops in from above.` },
@@ -412,6 +429,7 @@ export const MOTION_TOKEN_DOCS: readonly FieldDoc[] = [
     { names: ['base'], description: `Seconds; the default length of ${Object.entries(MOTION_TOKEN_FOR_ACTION).filter(([, t]) => t === 'base').map(([a]) => `\`${a}\``).join(', ')} when set. Unset: those actions keep their own defaults; a \`"base"\` reference means ${DEFAULT_MOTION_S.base} s.` },
     { names: ['slow'], description: `Seconds; the default length of ${Object.entries(MOTION_TOKEN_FOR_ACTION).filter(([, t]) => t === 'slow').map(([a]) => `\`${a}\``).join(', ')} when set. Unset: ${DEFAULT_CAMERA_DURATION_S} s for a camera; a \`"slow"\` reference means ${DEFAULT_MOTION_S.slow} s.` },
     { names: ['ease'], description: 'Default easing for `animate` and `camera` steps that name none (see the easings table).' },
+    { names: ['cursor'], description: `How the cursor travels: \`fixed\` (default) glides for the whole lead whatever the distance; \`natural\` scales the travel to the distance (${CURSOR_TRAVEL_BASE_MS} ms + ${CURSOR_TRAVEL_SLOPE_MS} ms x log2(1 + d/24 px), at least ${CURSOR_TRAVEL_FLOOR_MS} ms, never more than the lead), waits where it was and then moves, so it still arrives at the same moment; moves longer than ${CURSOR_ARC_MIN_PX} px bend into a slight arc (at most ${CURSOR_ARC_MAX_PX} px).` },
     { names: ['cameraEase'], description: 'Default easing for `camera` alone, winning over `ease` there: a camera move usually wants an in-out curve while entrances want an ease-out.' },
 ];
 
@@ -1162,6 +1180,9 @@ export function validateMotion(motion: unknown): Issue[] {
             issues.push({ level: 'error', field: 'motion', message: `meta.motion.${k} must be one of ${EASING_NAMES.join(', ')} (got ${JSON.stringify(m[k])})` });
         }
     }
+    if (m.cursor !== undefined && !(CURSOR_MOTIONS as readonly string[]).includes(m.cursor as string)) {
+        issues.push({ level: 'error', field: 'motion', message: `meta.motion.cursor must be ${CURSOR_MOTIONS.map(c => `"${c}"`).join(' or ')} (got ${JSON.stringify(m.cursor)})` });
+    }
     for (const k of Object.keys(m)) {
         if (!(MOTION_KEYS as readonly string[]).includes(k)) issues.push({ level: 'warning', field: 'motion', message: `meta.motion: unknown token "${k}" ignored (known: ${MOTION_KEYS.join(', ')})` });
     }
@@ -1258,6 +1279,11 @@ function validateTransitions(timeline: Timeline): Issue[] {
     let cameraScale = 1;
     for (const s of timeline.steps) {
         if (s.action === 'camera') cameraScale = typeof s.scale === 'number' && s.scale > 0 ? s.scale : 1;
+        if (s.follow !== undefined) {
+            if (s.action !== 'camera') issues.push(issueFor(s, 'warning', `"follow" only applies to a "camera" step (this one is "${s.action}")`, 'follow'));
+            else if (typeof s.follow !== 'boolean') issues.push(issueFor(s, 'error', '"follow" must be true or false', 'follow'));
+            else if (s.follow && cameraScale <= 1.001) issues.push(issueFor(s, 'warning', '"follow" at scale 1 frames the whole page: there is nothing to pan to (set "scale", e.g. 1.3)', 'follow'));
+        }
         const isTransition = s.action === 'transitionScreen';
         const isOverlay = s.action === 'overlay';
         if (s.transition !== undefined) {

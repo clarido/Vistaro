@@ -53,6 +53,13 @@
   var OVERLAY_VARIANTS = ['modal', 'drawer', 'sheet', 'toast'];
   var DEFAULT_TRANSITION_MS = 400;
   var DEFAULT_OVERLAY_MS = 300;
+  // meta.motion.cursor = "natural": travel = BASE + SLOPE * log2(1 + d / 24), floored, capped by the
+  // lead; long moves arc. Mirrored in schema.ts (test/constants.test.ts).
+  var CURSOR_TRAVEL_BASE_MS = 180;
+  var CURSOR_TRAVEL_SLOPE_MS = 110;
+  var CURSOR_TRAVEL_FLOOR_MS = 200;
+  var CURSOR_ARC_MIN_PX = 300;
+  var CURSOR_ARC_MAX_PX = 80;
 
   var ALIASES = { showText: 'fadeIn' };
   var CURSOR_ACTIONS = { click: 1, focus: 1, type: 1, highlight: 1, hover: 1 };
@@ -143,7 +150,12 @@
     completions: {},
     holds: {},
     driverTyping: {},
-    nextToken: 1
+    nextToken: 1,
+    /** camera `follow`: { scale, ease } while a following camera is active, else null. */
+    follow: null,
+    /** The last cursor travel, planned for the authored lead (check --trace records it). */
+    lastTravel: null,
+    cursorGlide: null
   };
 
   function onReady(fn) {
@@ -551,7 +563,7 @@
    */
   function overlayState() {
     var z = rootZoom();
-    var out = { cursor: null, spotlight: null, subtitle: null, camera: null };
+    var out = { cursor: null, spotlight: null, subtitle: null, camera: null, travel: state.lastTravel };
     if (state.point) out.cursor = { x: Math.round(state.point.x / z), y: Math.round(state.point.y / z) };
     var h = document.getElementById('vistaro-highlight');
     if (h) {
@@ -930,7 +942,53 @@
   }
 
   // --- primitives -----------------------------------------------------------------
+  /**
+   * How a move from `from` to `to` (painted px) spends `availableMs`. Distance is in authored px,
+   * so a --scale recording plans the same motion. `ms` is the natural travel time, never more than
+   * what is available; `delay` is the wait before it starts so the arrival lands on time.
+   */
+  function planTravel(from, to, availableMs) {
+    var z = rootZoom();
+    var d = from && to ? Math.hypot(to.x - from.x, to.y - from.y) / z : 0;
+    var natural = CURSOR_TRAVEL_BASE_MS + CURSOR_TRAVEL_SLOPE_MS * Math.log2(1 + d / 24);
+    var ms = Math.round(Math.min(Math.max(availableMs, 0), Math.max(CURSOR_TRAVEL_FLOOR_MS, natural)));
+    var arc = d > CURSOR_ARC_MIN_PX ? Math.min(CURSOR_ARC_MAX_PX, Math.round(0.12 * d)) : 0;
+    return { distance: Math.round(d), ms: ms, delay: Math.max(0, Math.round(availableMs) - ms), arc: arc };
+  }
+  function cancelGlide() {
+    if (state.cursorGlide) { try { state.cursorGlide.cancel(); } catch (e) { /* gone */ } state.cursorGlide = null; }
+  }
+  /**
+   * The natural cursor move: rest where it was for plan.delay, then travel plan.ms along a gentle
+   * quadratic arc (bending upwards, like a wrist) on the cursor's own ease-out. Web Animations with
+   * fill: backwards, so the inline transform already holds the destination and the arrival code
+   * (pressCursor, placeCursor) works exactly as for a fixed glide.
+   */
+  function glideCursor(x, y, plan) {
+    if (!state.cursor) return;
+    cancelGlide();
+    var from = state.point ? toOverlayPoint(state.point.x, state.point.y) : null;
+    var to = toOverlayPoint(x, y);
+    state.cursor.style.transition = 'none';
+    state.cursor.style.transform = 'translate(' + to.x + 'px, ' + to.y + 'px)';
+    state.point = { x: x, y: y };
+    reflowSubtitle(false);
+    if (!from || plan.ms <= 0 || typeof state.cursor.animate !== 'function') return;
+    var dx = to.x - from.x, dy = to.y - from.y, d = Math.hypot(dx, dy) || 1;
+    var nx = -dy / d, ny = dx / d;
+    if (ny > 0) { nx = -nx; ny = -ny; }
+    var cx = (from.x + to.x) / 2 + nx * plan.arc, cy = (from.y + to.y) / 2 + ny * plan.arc;
+    var frames = [];
+    for (var i = 0; i <= 16; i++) {
+      var t = i / 16, u = 1 - t;
+      var bx = u * u * from.x + 2 * u * t * cx + t * t * to.x;
+      var by = u * u * from.y + 2 * u * t * cy + t * t * to.y;
+      frames.push({ transform: 'translate(' + bx + 'px, ' + by + 'px)' });
+    }
+    state.cursorGlide = state.cursor.animate(frames, { duration: plan.ms, delay: plan.delay, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'backwards' });
+  }
   function placeCursor(x, y) {
+    cancelGlide();
     if (!state.cursor) return;
     var p = toOverlayPoint(x, y);
     state.cursor.style.transition = 'none';
@@ -942,6 +1000,7 @@
     reflowSubtitle(false);
   }
   function moveCursor(x, y, ms, easing) {
+    cancelGlide();
     if (!state.cursor) return;
     if (!ms || ms <= 0) { placeCursor(x, y); return; }
     var p = toOverlayPoint(x, y);
@@ -968,6 +1027,7 @@
       : { el: host, fx: 0.5, fy: 0.5 };
   }
   function pressCursor(x, y, ms) {
+    cancelGlide();
     if (!state.cursor) return;
     var p = toOverlayPoint(x, y);
     state.cursor.style.transition = 'transform ' + Math.max(0, ms) + 'ms ease';
@@ -1230,7 +1290,13 @@
     });
   }
 
-  function camera(step, instant) {
+  /**
+   * `o` (internal, used by a following camera): clamp keeps the window inside the page box (nothing
+   * outside the content is shown); carry: false leaves the cursor where it is (it is about to travel
+   * anyway); measure() runs while the final transform is applied and its result lands in o.measured.
+   */
+  function camera(step, instant, o) {
+    o = o || {};
     var stage = document.body;
     var x = step.x != null ? step.x : '0px';
     var y = step.y != null ? step.y : '0px';
@@ -1279,6 +1345,14 @@
         var vx = window.innerWidth / 2 / z, vy = window.innerHeight / 2 / z;
         var bx = (bb.left + bb.width / 2) / z, by = (bb.top + bb.height / 2) / z;
         var px = (r.left + r.width / 2) / z, py = (r.top + r.height / 2) / z;
+        if (o.clamp) {
+          // The window is the viewport divided by the scale, centred on (px, py): keep it inside the
+          // body box on each axis (centred on the box when the box is smaller than the window).
+          var hw = vx / scale, hh = vy / scale;
+          var x0 = bb.left / z, x1 = (bb.left + bb.width) / z, y0 = bb.top / z, y1 = (bb.top + bb.height) / z;
+          px = x1 - x0 <= 2 * hw ? (x0 + x1) / 2 : Math.min(Math.max(px, x0 + hw), x1 - hw);
+          py = y1 - y0 <= 2 * hh ? (y0 + y1) / 2 : Math.min(Math.max(py, y0 + hh), y1 - hh);
+        }
         x = ((vx - bx) / scale + bx - px) + 'px';
         y = ((vy - by) / scale + by - py) + 'px';
       }
@@ -1303,7 +1377,7 @@
     var spotTo = null;
     var anchor = state.cursorAnchor;
     var spot = state.spotAnchor;
-    var moveCursorToo = !!(state.cursor && anchor && anchor.el && anchor.el.isConnected);
+    var moveCursorToo = o.carry !== false && !!(state.cursor && anchor && anchor.el && anchor.el.isConnected);
     var moveSpotToo = !!(spot && spot.isConnected && document.getElementById('vistaro-highlight'));
     {
       var beforeTransform = stage.style.transform;
@@ -1317,6 +1391,7 @@
         cursorTo = { x: ar.left + anchor.fx * ar.width, y: ar.top + anchor.fy * ar.height };
       }
       if (moveSpotToo) spotTo = visibleRect(spot);
+      if (typeof o.measure === 'function') o.measured = o.measure();
       stage.style.transform = 'none';
       void stage.offsetWidth;
       var uBox = stage.getBoundingClientRect();
@@ -1700,12 +1775,32 @@
       if (step.yOffset) ty += parseFloat(step.yOffset);
       return { x: tx, y: ty };
     }
-    var point = hasPoint ? measurePoint() : null;
-
     var travelMs = Math.max(0, leadMs - PRESS_MS);
     var pressMs = Math.min(PRESS_MS, leadMs);
+    // A camera step decides whether the camera follows the action from here on.
+    if (action === 'camera') state.follow = step.follow === true && (step.scale || 1) > 1.001 ? { scale: step.scale, ease: step.ease } : null;
+    var point = null;
+    if (hasPoint && state.follow) {
+      // Follow: pan onto this target while the cursor travels, measuring the point the cursor must
+      // reach under the FINAL framing so the two arrive together.
+      var fo = { clamp: true, carry: false, measure: measurePoint };
+      camera({ target: step.target, scale: state.follow.scale, duration: travelMs / 1000, ease: state.follow.ease }, instant || travelMs === 0, fo);
+      point = fo.measured || null;
+    }
+    if (hasPoint && !point) point = measurePoint();
 
-    if (point) moveCursor(point.x, point.y, travelMs);
+    state.lastTravel = null;
+    if (point) {
+      // Recorded for the AUTHORED lead even under instant execution, so check --trace reports the
+      // travel the video will really have.
+      var authoredLead = typeof o.leadMs === 'number' ? Math.max(0, o.leadMs) : DEFAULT_LEAD_MS;
+      var natural = state.opts.cursorMotion === 'natural';
+      var planned = planTravel(state.point, point, Math.max(0, authoredLead - PRESS_MS));
+      state.lastTravel = { from: state.point ? { x: Math.round(state.point.x / rootZoom()), y: Math.round(state.point.y / rootZoom()) } : null, to: { x: Math.round(point.x / rootZoom()), y: Math.round(point.y / rootZoom()) },
+        distance: planned.distance, travelMs: natural ? planned.ms : Math.max(0, authoredLead - PRESS_MS), arc: natural ? planned.arc : 0, style: natural ? 'natural' : 'fixed', follow: !!state.follow };
+      if (natural && !instant) glideCursor(point.x, point.y, planTravel(state.point, point, travelMs));
+      else moveCursor(point.x, point.y, travelMs);
+    }
 
     // Registered so stop() -- and therefore restart() -- cancels them. Unregistered, a step
     // abandoned mid-travel (a tour seek, a replay) still fires its arrival and its interaction
@@ -2056,6 +2151,8 @@
     state.cameraWindow = null;
     state.framingEpoch++;
     state.cursorAnchor = null;
+    state.follow = null;
+    state.lastTravel = null;
     state.completions = {};
     state.holds = {};
     state.driverTyping = {};
@@ -2157,6 +2254,8 @@
      *  self-removal keeps the arrays from growing across a long driven run. */
     pendingHandles: function () { return { timers: state.timers.length, intervals: state.intervals.length }; },
     moveCursor: moveCursor,
+    /** The last cursor travel plan (from, to, distance, travelMs, arc, style, follow), or null. */
+    lastTravel: function () { return state.lastTravel; },
     highlightBox: function () { var h = document.getElementById('vistaro-highlight'); return h ? rectOf(h) : null; },
     cursorAnchor: function () { var a = state.cursorAnchor; return a && a.el && a.el.isConnected ? { fx: a.fx, fy: a.fy, rect: rectOf(a.el) } : null; },
     placeCursor: placeCursor,
