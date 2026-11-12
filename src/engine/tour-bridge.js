@@ -236,6 +236,7 @@
       // do nothing, and an autoplaying embed whose veil never lifts.
       if (!steps.length) post('end');
     },
-    state: function () { return { index: index, playing: playing, total: steps.length }; },
+    /** busy: a step is animating or a seek's instant replay is still running (a test waits it out). */
+    state: function () { return { index: index, playing: playing, total: steps.length, busy: inFlight || seeking }; },
   };
 })();

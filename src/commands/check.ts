@@ -229,6 +229,14 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                     issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} (${probe.descriptor}) is fully visible right now, but this step animates it from ${hiddenState}: it stays on screen until ${step.time ?? '?'} and then pops out and back in. Pre-hide it in CSS (${hiddenState}) -- the "from" state applies when the step runs, not at page load`, 'from'));
                 }
             }
+            // The same trap for a screen a non-fade transition brings in, and for an overlay: the
+            // incoming element must be hidden until its step, or it sits on screen from page load.
+            // Only for an explicit `transition` (the historical fade keeps its historical checks).
+            const revealing = (step.action === 'transitionScreen' && step.transition !== undefined) || (step.action === 'overlay' && step.dismiss !== true);
+            if (revealing && probe.rendered !== false && (probe.effectiveOpacity ?? 1) > 0.05 && !probe.transformHidden) {
+                const what = step.action === 'overlay' ? `this ${step.variant ?? 'modal'} overlay` : `this "${step.transition}" transition`;
+                issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} (${probe.descriptor}) is already visible before ${what} brings it in: pre-hide it in CSS (display: none) so it does not sit on screen until ${step.time ?? '?'}`, step.action === 'overlay' ? 'target' : 'transition'));
+            }
             // A reel has no cursor, so none of the cursor-action checks below fire for it and its
             // steps were previously probed for existence only. The most expensive reel mistake is a
             // payoff that is not in frame: it does not error, and it survives a contact sheet because
@@ -242,7 +250,7 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
             }
             // An `animate` step is usually what reveals its target, so a hidden or transparent
             // starting state is the intent rather than a fault, exactly as for fadeIn.
-            const revealsTarget = step.action === 'fadeIn' || step.action === 'transitionScreen' || step.action === 'animate';
+            const revealsTarget = step.action === 'fadeIn' || step.action === 'transitionScreen' || step.action === 'animate' || step.action === 'overlay';
             if (!revealsTarget && probe.rendered === false) {
                 issues.push(issueFor(step, 'warning', `target ${JSON.stringify(step.target)} is hidden when this step runs (display: ${probe.display}, visibility: ${probe.visibility}, or an ancestor is hidden)`));
             } else if (!revealsTarget && (!probe.width || !probe.height) && !(step.action === 'type' && probe.anchored)) {

@@ -3,7 +3,7 @@ import * as path from 'path';
 import {
     ACTIONS, ACTION_DOCS, ACTION_DOC_ORDER, TARGET_REQUIRED, CURSOR_ACTIONS, STATE_ACTIONS,
     EASING_NAMES, EASING_DOCS, STEP_FIELD_DOCS, META_FIELD_DOCS, DEVICE_KINDS, SUBTITLE_PLACES,
-    TIMELINE_KINDS, AUTOPLAY_MODES, CURSOR_STYLES, FieldDoc, MOTION_TOKEN_DOCS, BRAND_TOKEN_DOCS, MOTION_TOKENS, DEFAULT_MOTION_S, LOGO_PLACES,
+    TIMELINE_KINDS, AUTOPLAY_MODES, CURSOR_STYLES, FieldDoc, MOTION_TOKEN_DOCS, BRAND_TOKEN_DOCS, MOTION_TOKENS, DEFAULT_MOTION_S, LOGO_PLACES, TRANSITIONS, TRANSITION_DOCS, DIRECTIONS, OVERLAY_VARIANTS,
 } from '../engine/schema';
 
 /**
@@ -32,6 +32,9 @@ export interface Capabilities {
     motionDefaults: Record<string, number>;
     logoPlaces: string[];
     easings: { name: string; description: string }[];
+    transitions: { name: string; description: string }[];
+    directions: string[];
+    overlayVariants: string[];
     presets: Record<string, { name: string; fields: Record<string, unknown> }[]>;
     devices: string[];
     subtitlePlaces: string[];
@@ -46,6 +49,8 @@ const fields = (docs: readonly FieldDoc[]) => docs.map(f => ({ names: [...f.name
 export function capabilities(presets: Presets = readPresets()): Capabilities {
     const missing = ACTIONS.filter(a => !ACTION_DOCS[a] || !ACTION_DOCS[a].description);
     if (missing.length) throw new Error(`capability registry: no description for action(s) ${missing.join(', ')} (add them to ACTION_DOCS in src/engine/schema.ts)`);
+    const missingTransition = TRANSITIONS.filter(t => !TRANSITION_DOCS[t]);
+    if (missingTransition.length) throw new Error(`capability registry: no description for transition(s) ${missingTransition.join(', ')} (add them to TRANSITION_DOCS in src/engine/schema.ts)`);
     const missingEase = EASING_NAMES.filter(e => !EASING_DOCS[e]);
     if (missingEase.length) throw new Error(`capability registry: no description for easing(s) ${missingEase.join(', ')} (add them to EASING_DOCS in src/engine/schema.ts)`);
     const ordered = [...ACTION_DOC_ORDER, ...ACTIONS.filter(a => !ACTION_DOC_ORDER.includes(a))];
@@ -66,6 +71,9 @@ export function capabilities(presets: Presets = readPresets()): Capabilities {
         motionDefaults: Object.fromEntries(MOTION_TOKENS.map(t => [t, DEFAULT_MOTION_S[t]])),
         logoPlaces: [...LOGO_PLACES],
         easings: EASING_NAMES.map(e => ({ name: e, description: EASING_DOCS[e] })),
+        transitions: TRANSITIONS.map(t => ({ name: t, description: TRANSITION_DOCS[t] })),
+        directions: [...DIRECTIONS],
+        overlayVariants: [...OVERLAY_VARIANTS],
         presets,
         devices: [...DEVICE_KINDS],
         subtitlePlaces: [...SUBTITLE_PLACES],
@@ -100,6 +108,12 @@ export function renderCapabilitiesMarkdown(c: Capabilities = capabilities()): st
         '| Action | What happens | Guide frame taken |',
         '|---|---|---|',
         ...c.actions.map(a => `| \`${a.name}\` | ${cell(a.description)} | ${cell(a.guideFrame)} |`),
+        '',
+        '### Screen transitions (`transitionScreen` `transition`)',
+        '',
+        '| Transition | What it does |',
+        '|---|---|',
+        ...c.transitions.map(t => `| \`${t.name}\` | ${cell(t.description)} |`),
         '',
         '### Motion tokens (`meta.motion`)',
         '',
@@ -136,6 +150,8 @@ export function renderCapabilitiesText(c: Capabilities): string {
     lines.push('  ' + c.stepFields.flatMap(f => f.names).join(', '));
     section('Meta fields');
     lines.push('  ' + c.metaFields.flatMap(f => f.names).join(', '));
+    section('Screen transitions');
+    for (const t of c.transitions) lines.push(`  ${t.name}`);
     section('Motion tokens (meta.motion)');
     lines.push('  ' + c.motionTokens.flatMap(f => f.names).join(', '));
     section('Brand tokens (meta.brand)');
@@ -149,6 +165,8 @@ export function renderCapabilitiesText(c: Capabilities): string {
     section('Enumerations');
     lines.push(`  devices          ${c.devices.join(', ')}`);
     lines.push(`  subtitlePlace    ${c.subtitlePlaces.join(', ')}`);
+    lines.push(`  direction        ${c.directions.join(', ')}`);
+    lines.push(`  overlay variant  ${c.overlayVariants.join(', ')}`);
     lines.push(`  meta.kind        ${c.kinds.join(', ')}`);
     lines.push(`  meta.cursor      ${c.cursors.join(', ')}`);
     lines.push(`  reel.autoplay    ${c.autoplay.join(', ')}`);

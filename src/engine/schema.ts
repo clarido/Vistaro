@@ -19,18 +19,32 @@ import { applyStrings, readStrings, resolveLocale, stringsPath, stringsPathFor, 
 
 export const ACTIONS = [
     'wait', 'click', 'focus', 'type', 'highlight', 'hover', 'camera', 'scroll',
-    'fadeIn', 'transitionScreen', 'navigate', 'press', 'animate',
+    'fadeIn', 'transitionScreen', 'navigate', 'press', 'animate', 'overlay',
 ] as const;
 export type Action = typeof ACTIONS[number];
 
 /** Actions that must have a `target` selector. */
 export const TARGET_REQUIRED: ReadonlySet<string> = new Set([
-    'click', 'focus', 'type', 'highlight', 'hover', 'scroll', 'fadeIn', 'transitionScreen', 'animate',
+    'click', 'focus', 'type', 'highlight', 'hover', 'scroll', 'fadeIn', 'transitionScreen', 'animate', 'overlay',
 ]);
 /** Actions where the cursor travels to the target and a spotlight highlight is shown. */
 export const CURSOR_ACTIONS: ReadonlySet<string> = new Set(['click', 'focus', 'type', 'highlight', 'hover']);
 /** Actions whose result is only visible once they finish (typing, camera, fades, scroll). */
-export const STATE_ACTIONS: ReadonlySet<string> = new Set(['type', 'camera', 'fadeIn', 'transitionScreen', 'scroll', 'navigate', 'animate']);
+export const STATE_ACTIONS: ReadonlySet<string> = new Set(['type', 'camera', 'fadeIn', 'transitionScreen', 'scroll', 'navigate', 'animate', 'overlay']);
+
+/**
+ * How `transitionScreen` swaps screens. `fade` is the historical sequential fade and the default
+ * when `transition` is omitted, so existing timelines are unchanged. Mirrored as TRANSITIONS in
+ * runtime.js (test/constants.test.ts asserts equality).
+ */
+export const TRANSITIONS = ['fade', 'cut', 'crossfade', 'slide', 'push'] as const;
+export type Transition = typeof TRANSITIONS[number];
+/** Transitions that move along a `direction`; the others ignore it. */
+export const DIRECTIONAL_TRANSITIONS: readonly string[] = ['slide', 'push'];
+/** Direction of travel: `left` means the new screen moves leftwards, i.e. enters from the right (forward). */
+export const DIRECTIONS = ['left', 'right', 'up', 'down'] as const;
+/** What an `overlay` step shows; mirrored as OVERLAY_VARIANTS in runtime.js. */
+export const OVERLAY_VARIANTS = ['modal', 'drawer', 'sheet', 'toast'] as const;
 
 export type CaptureAt = 'interaction' | 'completion';
 
@@ -107,6 +121,10 @@ export const DEFAULT_SCROLL_MS = 600;
 export const DEFAULT_ANIMATE_DURATION_S = 0.6;
 export const DEFAULT_TAIL_MS = 2500;
 export const SUBTITLE_HOLD_MS = 4000;
+/** Default length of a crossfade/slide/push when the step has no duration (UI-motion norm, 200-400 ms). */
+export const DEFAULT_TRANSITION_MS = 400;
+/** Default length of an overlay entrance or dismissal. */
+export const DEFAULT_OVERLAY_MS = 300;
 export const SUBTITLE_MIN_MS = 1000;
 /** Where a cue's chip may sit; mirrored as SUB_PLACES in src/engine/runtime.js (test/constants.test.ts asserts equality). */
 export const SUBTITLE_PLACES: readonly string[] = ['bottom', 'top', 'bottom-left', 'bottom-right', 'top-left', 'top-right'];
@@ -125,7 +143,7 @@ export type MotionToken = typeof MOTION_TOKENS[number];
 /** What a token reference means when meta.motion does not set it (seconds). UI-motion norms: 200 ms / 400 ms / a deliberate 1.2 s camera move. */
 export const DEFAULT_MOTION_S: Record<MotionToken, number> = { fast: 0.2, base: 0.4, slow: 1.2 };
 /** Which token an action without `duration` reads, when meta.motion sets it. */
-export const MOTION_TOKEN_FOR_ACTION: Readonly<Record<string, MotionToken>> = { animate: 'base', fadeIn: 'base', transitionScreen: 'base', camera: 'slow' };
+export const MOTION_TOKEN_FOR_ACTION: Readonly<Record<string, MotionToken>> = { animate: 'base', fadeIn: 'base', transitionScreen: 'base', camera: 'slow', overlay: 'fast' };
 /** Keys meta.motion accepts: the three durations plus the default easings. */
 export const MOTION_KEYS = [...MOTION_TOKENS, 'ease', 'cameraEase'] as const;
 
@@ -305,14 +323,23 @@ export const ACTION_DOCS: Record<Action, ActionDoc> = {
     camera: { description: 'Pan/zoom the page toward the target (or `x`/`y`); `scale: 1` pulls back. The cursor and the spotlight ride along, staying on the element they were on.', guideFrame: 'Completion (zoomed framing).' },
     scroll: { description: 'Smooth-scroll the target into view.', guideFrame: 'Completion.' },
     fadeIn: { description: 'Reveal the target (display/opacity) with a fade.', guideFrame: 'Completion.' },
-    transitionScreen: { description: 'Fade the current screen out and the target screen in.', guideFrame: 'Completion.' },
+    transitionScreen: { description: 'Swap the current screen for the target screen, the way `transition` says: `fade` (default) fades the old one out, then the new one in; `cut`, `crossfade`, `slide` and `push` are listed in the transitions table below.', guideFrame: 'Completion.' },
+    overlay: { description: 'Reveal a modal, drawer, sheet or toast (`variant`) with the motion that variant implies, over an optional `scrim`; `dismiss: true` plays it backwards and hides it again. The element should be pre-hidden in CSS (usually `display: none`) and positioned the way the app positions it (usually `position: fixed`).', guideFrame: 'Completion (overlay settled).' },
     navigate: { description: 'Live pages only: open `url`.', guideFrame: 'Arrival on the new page.' },
     animate: { description: 'Animate `target` from `from` to `to` with the Web Animations API (`fill: both`, so the end state persists). With `all` it runs on every match, `stagger` seconds apart.', guideFrame: 'Completion (all elements settled).' },
     wait: { description: 'Nothing visible; a beat, or a subtitle change.', guideFrame: 'Interaction (the moment of the step).' },
 };
 
 /** Order of the rows in the actions table (the order an author meets them, not ACTIONS' order). */
-export const ACTION_DOC_ORDER: readonly Action[] = ['click', 'focus', 'type', 'highlight', 'hover', 'press', 'camera', 'scroll', 'fadeIn', 'transitionScreen', 'navigate', 'animate', 'wait'];
+export const ACTION_DOC_ORDER: readonly Action[] = ['click', 'focus', 'type', 'highlight', 'hover', 'press', 'camera', 'scroll', 'fadeIn', 'transitionScreen', 'overlay', 'navigate', 'animate', 'wait'];
+
+export const TRANSITION_DOCS: Record<Transition, string> = {
+    fade: `The old screen fades out, then the new one fades in (each half of \`duration\`, default ${DEFAULT_FADE_MS / 1000} s). The default, and the historical behaviour; the beat of empty background between the halves is why it is rarely the best choice.`,
+    cut: 'Instant swap. The professional default between unrelated screens.',
+    crossfade: `Old and new overlap while the new one fades in: no empty beat. For related screens. Default ${DEFAULT_TRANSITION_MS} ms.`,
+    slide: `The new screen slides in over the old one along \`direction\` (default \`left\`: it enters from the right). For drilling into detail. Default ${DEFAULT_TRANSITION_MS} ms.`,
+    push: `The new screen pushes the old one out along \`direction\`. Forward and back navigation, tabs, steppers, mobile. Default ${DEFAULT_TRANSITION_MS} ms.`,
+};
 
 export const EASING_DOCS: Record<EasingName, string> = {
     linear: 'Constant speed. Mechanical; for progress bars and counters, rarely for UI.',
@@ -361,7 +388,7 @@ export const STEP_FIELD_DOCS: readonly FieldDoc[] = [
     { names: ['all'], description: '`animate`: animate every match of `target`, not just the first.' },
     { names: ['stagger'], description: '`animate`: seconds between successive elements when `all` is set.' },
     { names: ['count'], description: '`animate`: how many elements `target` is expected to match, so the length estimate is right. `check` warns when the real count differs.' },
-    { names: ['ease'], description: `Named easing for \`animate\` and \`camera\`: ${codeList(EASING_NAMES)} (see the easings table below).` },
+    { names: ['ease'], description: `Named easing for \`animate\`, \`camera\`, \`overlay\` and a moving \`transitionScreen\` (\`crossfade\`/\`slide\`/\`push\`): ${codeList(EASING_NAMES)} (see the easings table below).` },
     { names: ['spotlight', 'ripple'], description: '`false` suppresses that chrome for this step alone (no ring is shown at all, not merely left where it was).' },
     { names: ['only'], description: `${DEVICE_KINDS.map(d => `\`"${d}"\``).join(' or ')}: the step is dropped entirely for the other device.` },
     { names: ['mobile', 'desktop'], description: 'An object shallow-merged into the step when rendering for that device; the key itself is then stripped. Fields the override omits are inherited.' },
@@ -371,7 +398,12 @@ export const STEP_FIELD_DOCS: readonly FieldDoc[] = [
     { names: ['waitForTimeoutMs'], description: 'Live pages: how long a `waitFor` selector may wait before giving up (default 15000). A timeout is reported as a warning naming the step, not as a slow load; `record --fail-fast` abandons the recording at the first one.' },
     { names: ['url'], description: '`navigate` (live pages): the page to open.' },
     { names: ['scale', 'x', 'y', 'xOffset', 'yOffset'], description: '`camera`: zoom factor (default 1, a pan without zoom; 1.3 is a typical push-in) and framing; `x`/`y` centre the camera on a point instead of a target, `xOffset`/`yOffset` nudge the framing after that centre is solved (positive moves the focus right/down, so the window travels with it -- the same sign convention as the cursor-point offsets of the same name). On cursor actions `xOffset`/`yOffset` nudge the cursor point off the target\'s centre.' },
-    { names: ['duration'], description: `Seconds. \`camera\`: length of the pan (default ${DEFAULT_CAMERA_DURATION_S}). \`animate\`: length of one element's motion (default ${DEFAULT_ANIMATE_DURATION_S}). \`fadeIn\`/\`transitionScreen\`: length of the fade (default: the element's own CSS transition, else ${DEFAULT_FADE_MS / 1000} s).` },
+    { names: ['transition'], description: `\`transitionScreen\`: how the screens swap, one of ${codeList(TRANSITIONS)} (default \`fade\`; see the transitions table below). Under \`prefers-reduced-motion\` every transition plays as a \`cut\`.` },
+    { names: ['direction'], description: `\`transitionScreen\` with \`slide\`/\`push\`, and an \`overlay\` drawer: the direction of travel, one of ${codeList(DIRECTIONS)}. \`left\` (the default) moves the new screen leftwards, entering from the right; a drawer defaults to \`left\` too (it enters from the right edge).` },
+    { names: ['variant'], description: `\`overlay\`: ${orList(OVERLAY_VARIANTS)} (default \`modal\`). A modal scales up and fades in; a drawer slides in from a side; a sheet rises from the bottom; a toast drops in from above.` },
+    { names: ['scrim'], description: '`overlay`: dim the page behind it -- `true`, `false`, or a CSS colour. Default `true` for a modal, drawer or sheet and `false` for a toast.' },
+    { names: ['dismiss'], description: '`overlay`: `true` plays the variant\'s motion backwards and hides the element (and its scrim) again.' },
+    { names: ['duration'], description: `Seconds. \`camera\`: length of the pan (default ${DEFAULT_CAMERA_DURATION_S}). \`animate\`: length of one element's motion (default ${DEFAULT_ANIMATE_DURATION_S}). \`fadeIn\`/\`transitionScreen\`: length of the fade (default: the element's own CSS transition, else ${DEFAULT_FADE_MS / 1000} s; ${DEFAULT_TRANSITION_MS / 1000} s for \`crossfade\`/\`slide\`/\`push\`, 0 for \`cut\`). \`overlay\`: length of the entrance or dismissal (default ${DEFAULT_OVERLAY_MS / 1000} s).` },
 ];
 
 /** One row per meta.motion key. */
@@ -836,8 +868,13 @@ export function intrinsicDurationMs(step: Step): number {
     switch (step.action) {
         case 'type': return typingDurationMs(step);
         case 'camera': return Math.round((typeof step.duration === 'number' ? step.duration : DEFAULT_CAMERA_DURATION_S) * 1000);
-        case 'fadeIn':
-        case 'transitionScreen': return typeof step.duration === 'number' && step.duration >= 0 ? Math.round(step.duration * 1000) : DEFAULT_FADE_MS;
+        case 'fadeIn': return typeof step.duration === 'number' && step.duration >= 0 ? Math.round(step.duration * 1000) : DEFAULT_FADE_MS;
+        case 'transitionScreen': {
+            if (step.transition === 'cut') return 0;
+            if (typeof step.duration === 'number' && step.duration >= 0) return Math.round(step.duration * 1000);
+            return step.transition === undefined || step.transition === 'fade' ? DEFAULT_FADE_MS : DEFAULT_TRANSITION_MS;
+        }
+        case 'overlay': return typeof step.duration === 'number' && step.duration >= 0 ? Math.round(step.duration * 1000) : DEFAULT_OVERLAY_MS;
         case 'scroll': return DEFAULT_SCROLL_MS;
         case 'animate': {
             // An estimate: the last element starts `stagger` x (count - 1) after the first. `count` is
@@ -1059,8 +1096,8 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
         if (s.ease !== undefined) {
             if (typeof s.ease !== 'string' || !EASING_NAMES.includes(s.ease as EasingName)) {
                 issues.push(issueFor(s, 'error', `unknown easing ${JSON.stringify(s.ease)}; use one of ${EASING_NAMES.join(', ')}`, 'ease'));
-            } else if (s.action !== 'animate' && s.action !== 'camera') {
-                issues.push(issueFor(s, 'warning', `"ease" only applies to "animate" and "camera" steps (this one is "${s.action}")`, 'ease'));
+            } else if (!easeApplies(s)) {
+                issues.push(issueFor(s, 'warning', `"ease" only applies to "animate", "camera", "overlay" and a crossfade/slide/push "transitionScreen" (this one is "${s.action}"${s.action === 'transitionScreen' ? ` with transition "${s.transition ?? 'fade'}"` : ''})`, 'ease'));
             }
         }
         // Per-device fields are resolved in loadTimeline; a bad value would silently keep or drop a step.
@@ -1092,6 +1129,7 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
     }
 
     issues.push(...introOverlaps(timeline));
+    issues.push(...validateTransitions(timeline));
 
     // Typing overrun: a type step whose typing runs past the next interaction.
     // Camera moves and waits are not interactions (typing while the camera pushes in is a normal beat).
@@ -1201,6 +1239,62 @@ function introOverlaps(timeline: Timeline): Issue[] {
     return timeline.steps
         .filter(s => Number.isFinite(s.timeMs) && s.timeMs < ms && !(s.action === 'wait' && !s.subtitle))
         .map(s => issueFor(s, 'warning', `runs at ${formatTime(s.timeMs)}, under the brand intro card (shown until ${formatTime(ms)}): start the timeline after the intro`, 'time'));
+}
+
+/** Whether a step's `ease` does anything. */
+function easeApplies(s: Step): boolean {
+    if (s.action === 'animate' || s.action === 'camera' || s.action === 'overlay') return true;
+    return s.action === 'transitionScreen' && typeof s.transition === 'string' && ['crossfade', 'slide', 'push'].includes(s.transition);
+}
+
+/**
+ * transitionScreen's `transition`/`direction` and overlay's fields, plus one composition rule: a
+ * slide or push moves the screen in the page, while a camera push-in (scale > 1) is framing part of
+ * that page -- the incoming screen then travels in from outside the frame and most of the motion
+ * is cropped away. The camera state is tracked statically through the timeline.
+ */
+function validateTransitions(timeline: Timeline): Issue[] {
+    const issues: Issue[] = [];
+    let cameraScale = 1;
+    for (const s of timeline.steps) {
+        if (s.action === 'camera') cameraScale = typeof s.scale === 'number' && s.scale > 0 ? s.scale : 1;
+        const isTransition = s.action === 'transitionScreen';
+        const isOverlay = s.action === 'overlay';
+        if (s.transition !== undefined) {
+            if (!isTransition) issues.push(issueFor(s, 'warning', `"transition" only applies to "transitionScreen" (this one is "${s.action}")`, 'transition'));
+            else if (typeof s.transition !== 'string' || !(TRANSITIONS as readonly string[]).includes(s.transition)) {
+                issues.push(issueFor(s, 'error', `"transition" must be one of ${TRANSITIONS.map(t => `"${t}"`).join(', ')} (got ${JSON.stringify(s.transition)})`, 'transition'));
+            }
+        }
+        if (s.direction !== undefined) {
+            if (typeof s.direction !== 'string' || !(DIRECTIONS as readonly string[]).includes(s.direction)) {
+                issues.push(issueFor(s, 'error', `"direction" must be one of ${DIRECTIONS.map(d => `"${d}"`).join(', ')} (got ${JSON.stringify(s.direction)})`, 'direction'));
+            } else if (isTransition && !DIRECTIONAL_TRANSITIONS.includes(s.transition ?? 'fade')) {
+                issues.push(issueFor(s, 'warning', `"direction" does nothing on a "${s.transition ?? 'fade'}" transition (only ${DIRECTIONAL_TRANSITIONS.map(t => `"${t}"`).join(' and ')} travel)`, 'direction'));
+            } else if (isOverlay && (s.variant ?? 'modal') !== 'drawer') {
+                issues.push(issueFor(s, 'warning', `"direction" only steers a "drawer" overlay; a ${s.variant ?? 'modal'} has a fixed motion`, 'direction'));
+            } else if (!isTransition && !isOverlay) {
+                issues.push(issueFor(s, 'warning', `"direction" only applies to "transitionScreen" and "overlay" (this one is "${s.action}")`, 'direction'));
+            }
+        }
+        if (isTransition && DIRECTIONAL_TRANSITIONS.includes(s.transition) && cameraScale > 1.001) {
+            issues.push(issueFor(s, 'warning', `a "${s.transition}" runs under an active camera push (scale ${cameraScale}): the screens travel in from outside the zoomed frame, so most of the motion is cropped. Pull the camera back (scale 1) first, or use "crossfade"`, 'transition'));
+        }
+        if (isOverlay) {
+            if (s.variant !== undefined && !(OVERLAY_VARIANTS as readonly string[]).includes(s.variant)) {
+                issues.push(issueFor(s, 'error', `"variant" must be one of ${OVERLAY_VARIANTS.map(v => `"${v}"`).join(', ')} (got ${JSON.stringify(s.variant)})`, 'variant'));
+            }
+            if (s.dismiss !== undefined && typeof s.dismiss !== 'boolean') issues.push(issueFor(s, 'error', '"dismiss" must be true or false', 'dismiss'));
+            if (s.scrim !== undefined && typeof s.scrim !== 'boolean' && !(typeof s.scrim === 'string' && s.scrim.trim())) {
+                issues.push(issueFor(s, 'error', '"scrim" must be true, false, or a CSS colour', 'scrim'));
+            }
+        } else {
+            for (const f of ['variant', 'scrim', 'dismiss'] as const) {
+                if (s[f] !== undefined) issues.push(issueFor(s, 'warning', `"${f}" only applies to an "overlay" step (this one is "${s.action}")`, f));
+            }
+        }
+    }
+    return issues;
 }
 
 export function hasErrors(issues: Issue[]): boolean {

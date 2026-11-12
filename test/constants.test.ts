@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { runtimeSource } from '../src/engine/inject';
-import { DEFAULT_LEAD_MS, DEFAULT_CPS, DEFAULT_CAMERA_DURATION_S, DEFAULT_FADE_MS, DEFAULT_SCROLL_MS, DEFAULT_TAIL_MS, SUBTITLE_HOLD_MS, DEFAULT_ANIMATE_DURATION_S, EASING_NAMES, SUBTITLE_PLACES } from '../src/engine/schema';
+import { DEFAULT_LEAD_MS, DEFAULT_CPS, DEFAULT_CAMERA_DURATION_S, DEFAULT_FADE_MS, DEFAULT_SCROLL_MS, DEFAULT_TAIL_MS, SUBTITLE_HOLD_MS, DEFAULT_ANIMATE_DURATION_S, EASING_NAMES, SUBTITLE_PLACES, TRANSITIONS, OVERLAY_VARIANTS, DEFAULT_TRANSITION_MS, DEFAULT_OVERLAY_MS } from '../src/engine/schema';
 
 /** runtime.js is plain JS and cannot import schema.ts; its literals must not drift. */
 function literal(name: string): number {
@@ -19,6 +19,16 @@ test('runtime.js constants equal the schema exports', () => {
     assert.equal(literal('DEFAULT_TAIL_MS'), DEFAULT_TAIL_MS);
     assert.equal(literal('SUBTITLE_HOLD_MS'), SUBTITLE_HOLD_MS);
     assert.equal(literal('DEFAULT_ANIMATE_S'), DEFAULT_ANIMATE_DURATION_S);
+    assert.equal(literal('DEFAULT_TRANSITION_MS'), DEFAULT_TRANSITION_MS);
+    assert.equal(literal('DEFAULT_OVERLAY_MS'), DEFAULT_OVERLAY_MS);
+});
+
+test('runtime.js TRANSITIONS and OVERLAY_VARIANTS equal the names schema.ts validates against', () => {
+    for (const [name, expected] of [['TRANSITIONS', TRANSITIONS], ['OVERLAY_VARIANTS', OVERLAY_VARIANTS]] as const) {
+        const block = new RegExp(`var ${name} = \\[([^\\]]*)\\];`).exec(runtimeSource());
+        assert.ok(block, `runtime.js defines ${name}`);
+        assert.deepEqual([...block![1].matchAll(/'([^']+)'/g)].map(m => m[1]), [...expected], `${name} drifted between runtime.js and schema.ts`);
+    }
 });
 
 test('runtime.js EASINGS holds exactly the names schema.ts validates against', () => {

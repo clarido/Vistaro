@@ -1,20 +1,347 @@
 {
   "reveals": [
-    { "name": "Fade up", "fields": { "from": { "opacity": 0, "y": 14 }, "to": { "opacity": 1, "y": 0 }, "duration": 0.45, "ease": "easeOutCubic" } },
-    { "name": "Fade in", "fields": { "from": { "opacity": 0 }, "to": { "opacity": 1 }, "duration": 0.4, "ease": "easeOutCubic" } },
-    { "name": "Slide in from left", "fields": { "from": { "opacity": 0, "x": -12 }, "to": { "opacity": 1, "x": 0 }, "duration": 0.35, "ease": "easeOutCubic" } },
-    { "name": "Slide in from right", "fields": { "from": { "opacity": 0, "x": 12 }, "to": { "opacity": 1, "x": 0 }, "duration": 0.35, "ease": "easeOutCubic" } },
-    { "name": "Pop in", "fields": { "from": { "opacity": 0, "scale": 0.94 }, "to": { "opacity": 1, "scale": 1 }, "duration": 0.45, "ease": "easeOutBack" } },
-    { "name": "Rise and settle", "fields": { "from": { "opacity": 0, "y": 22 }, "to": { "opacity": 1, "y": 0 }, "duration": 0.6, "ease": "easeOutExpo" } },
-    { "name": "Staggered list", "fields": { "from": { "opacity": 0, "y": 10 }, "to": { "opacity": 1, "y": 0 }, "duration": 0.35, "ease": "easeOutCubic", "all": true, "stagger": 0.08 } }
+    {
+      "name": "Fade up",
+      "fields": {
+        "from": {
+          "opacity": 0,
+          "y": 14
+        },
+        "to": {
+          "opacity": 1,
+          "y": 0
+        },
+        "duration": 0.45,
+        "ease": "easeOutCubic"
+      }
+    },
+    {
+      "name": "Fade in",
+      "fields": {
+        "from": {
+          "opacity": 0
+        },
+        "to": {
+          "opacity": 1
+        },
+        "duration": 0.4,
+        "ease": "easeOutCubic"
+      }
+    },
+    {
+      "name": "Slide in from left",
+      "fields": {
+        "from": {
+          "opacity": 0,
+          "x": -12
+        },
+        "to": {
+          "opacity": 1,
+          "x": 0
+        },
+        "duration": 0.35,
+        "ease": "easeOutCubic"
+      }
+    },
+    {
+      "name": "Slide in from right",
+      "fields": {
+        "from": {
+          "opacity": 0,
+          "x": 12
+        },
+        "to": {
+          "opacity": 1,
+          "x": 0
+        },
+        "duration": 0.35,
+        "ease": "easeOutCubic"
+      }
+    },
+    {
+      "name": "Pop in",
+      "fields": {
+        "from": {
+          "opacity": 0,
+          "scale": 0.94
+        },
+        "to": {
+          "opacity": 1,
+          "scale": 1
+        },
+        "duration": 0.45,
+        "ease": "easeOutBack"
+      }
+    },
+    {
+      "name": "Rise and settle",
+      "fields": {
+        "from": {
+          "opacity": 0,
+          "y": 22
+        },
+        "to": {
+          "opacity": 1,
+          "y": 0
+        },
+        "duration": 0.6,
+        "ease": "easeOutExpo"
+      }
+    },
+    {
+      "name": "Staggered list",
+      "fields": {
+        "from": {
+          "opacity": 0,
+          "y": 10
+        },
+        "to": {
+          "opacity": 1,
+          "y": 0
+        },
+        "duration": 0.35,
+        "ease": "easeOutCubic",
+        "all": true,
+        "stagger": 0.08
+      }
+    }
   ],
   "camera": [
-    { "name": "Push in 1.15\u00d7", "fields": { "scale": 1.15, "duration": 1.5, "ease": "easeInOutCubic" } },
-    { "name": "Push in 1.3\u00d7", "fields": { "scale": 1.3, "duration": 2, "ease": "easeInOutCubic" } },
-    { "name": "Pull back", "fields": { "scale": 1, "duration": 1.2, "ease": "easeInOutCubic" } }
+    {
+      "name": "Push in 1.15\u00d7",
+      "fields": {
+        "scale": 1.15,
+        "duration": 1.5,
+        "ease": "easeInOutCubic"
+      }
+    },
+    {
+      "name": "Push in 1.3\u00d7",
+      "fields": {
+        "scale": 1.3,
+        "duration": 2,
+        "ease": "easeInOutCubic"
+      }
+    },
+    {
+      "name": "Pull back",
+      "fields": {
+        "scale": 1,
+        "duration": 1.2,
+        "ease": "easeInOutCubic"
+      }
+    }
   ],
   "transitions": [
-    { "name": "Fade an element in", "fields": { "action": "fadeIn", "duration": 0.8 } },
-    { "name": "Swap screens", "fields": { "action": "transitionScreen", "duration": 0.8 } }
+    {
+      "name": "Fade an element in",
+      "fields": {
+        "action": "fadeIn",
+        "duration": 0.8
+      }
+    },
+    {
+      "name": "Swap screens (fade)",
+      "fields": {
+        "action": "transitionScreen",
+        "duration": 0.8
+      }
+    },
+    {
+      "name": "Cut",
+      "fields": {
+        "action": "transitionScreen",
+        "transition": "cut"
+      }
+    },
+    {
+      "name": "Crossfade",
+      "fields": {
+        "action": "transitionScreen",
+        "transition": "crossfade",
+        "duration": 0.35
+      }
+    },
+    {
+      "name": "Slide in (forward)",
+      "fields": {
+        "action": "transitionScreen",
+        "transition": "slide",
+        "direction": "left",
+        "duration": 0.4
+      }
+    },
+    {
+      "name": "Push (forward)",
+      "fields": {
+        "action": "transitionScreen",
+        "transition": "push",
+        "direction": "left",
+        "duration": 0.4
+      }
+    },
+    {
+      "name": "Push (back)",
+      "fields": {
+        "action": "transitionScreen",
+        "transition": "push",
+        "direction": "right",
+        "duration": 0.4
+      }
+    },
+    {
+      "name": "Push up (stepper)",
+      "fields": {
+        "action": "transitionScreen",
+        "transition": "push",
+        "direction": "up",
+        "duration": 0.4
+      }
+    }
+  ],
+  "exits": [
+    {
+      "name": "Fade down",
+      "fields": {
+        "from": {
+          "opacity": 1,
+          "y": 0
+        },
+        "to": {
+          "opacity": 0,
+          "y": 14
+        },
+        "duration": 0.3,
+        "ease": "easeInCubic"
+      }
+    },
+    {
+      "name": "Fade out",
+      "fields": {
+        "from": {
+          "opacity": 1
+        },
+        "to": {
+          "opacity": 0
+        },
+        "duration": 0.3,
+        "ease": "easeInCubic"
+      }
+    },
+    {
+      "name": "Slide out to left",
+      "fields": {
+        "from": {
+          "opacity": 1,
+          "x": 0
+        },
+        "to": {
+          "opacity": 0,
+          "x": -12
+        },
+        "duration": 0.25,
+        "ease": "easeInCubic"
+      }
+    },
+    {
+      "name": "Slide out to right",
+      "fields": {
+        "from": {
+          "opacity": 1,
+          "x": 0
+        },
+        "to": {
+          "opacity": 0,
+          "x": 12
+        },
+        "duration": 0.25,
+        "ease": "easeInCubic"
+      }
+    },
+    {
+      "name": "Pop out",
+      "fields": {
+        "from": {
+          "opacity": 1,
+          "scale": 1
+        },
+        "to": {
+          "opacity": 0,
+          "scale": 0.94
+        },
+        "duration": 0.3,
+        "ease": "easeInCubic"
+      }
+    },
+    {
+      "name": "Sink and fade",
+      "fields": {
+        "from": {
+          "opacity": 1,
+          "y": 0
+        },
+        "to": {
+          "opacity": 0,
+          "y": 22
+        },
+        "duration": 0.4,
+        "ease": "easeInCubic"
+      }
+    },
+    {
+      "name": "Staggered list out",
+      "fields": {
+        "from": {
+          "opacity": 1,
+          "y": 0
+        },
+        "to": {
+          "opacity": 0,
+          "y": 10
+        },
+        "duration": 0.25,
+        "ease": "easeInCubic",
+        "all": true,
+        "stagger": 0.05
+      }
+    }
+  ],
+  "overlays": [
+    {
+      "name": "Open modal",
+      "fields": {
+        "variant": "modal",
+        "duration": 0.3
+      }
+    },
+    {
+      "name": "Open drawer",
+      "fields": {
+        "variant": "drawer",
+        "direction": "left",
+        "duration": 0.35
+      }
+    },
+    {
+      "name": "Open sheet",
+      "fields": {
+        "variant": "sheet",
+        "duration": 0.35
+      }
+    },
+    {
+      "name": "Show toast",
+      "fields": {
+        "variant": "toast",
+        "duration": 0.25
+      }
+    },
+    {
+      "name": "Dismiss overlay",
+      "fields": {
+        "dismiss": true,
+        "duration": 0.2
+      }
+    }
   ]
 }

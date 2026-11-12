@@ -113,8 +113,10 @@ TIMELINE (vistaro.config.json, object form):
   cursor starts moving up to 950ms earlier. Give every step an "id": translations and guide
   frames attach to it. Actions: wait, click, focus, type (with "value"), highlight, hover,
   camera, scroll, fadeIn, transitionScreen, press (with "value"), navigate (with "url", live
-  pages only). click/focus/type/highlight/hover get a spotlight and a click ripple; camera
-  pans/zooms toward the target; scroll brings it into view.
+  pages only), animate, overlay. click/focus/type/highlight/hover get a spotlight and a click
+  ripple; camera pans/zooms toward the target; scroll brings it into view. transitionScreen
+  takes "transition": fade (default), cut, crossfade, slide or push (with "direction"); overlay
+  shows a modal, drawer, sheet or toast ("variant") over a scrim, and "dismiss": true hides it.
   meta.motion sets named durations once ({ "base": 0.4, "slow": 1.6, "ease": "easeOutCubic" }):
   any animate/fadeIn/transitionScreen/camera without a "duration" reads them, and a step may
   say "duration": "fast". meta.brand dresses the video (accent, caption, cursor, logo, intro and

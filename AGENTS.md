@@ -92,7 +92,7 @@ Generated from the capability registry in `src/engine/schema.ts` by `npm run doc
 | `voice` | `{ "openai": "alloy", "say": "Samantha" }` narration voices per engine. |
 | `kind` | `guide` (default) or `reel`. A reel is a silent marketing clip: no spotlight, ripple or subtitle bar, no guide-shaped validation, and `--guide` on it is an error. |
 | `reel` | Overrides of whatever `kind` implies: `spotlight`, `ripple`, `subtitles`, `loop` (booleans), `autoplay` (`immediate`, `inview`, `message`), `poster` (`last` (default), `first`, or a time such as `"3.2s"`). An explicit value always beats the profile default. |
-| `motion` | Named durations and default easings, set once instead of per step: `fast`, `base`, `slow` (seconds), `ease` (default easing for `animate` and `camera`) and `cameraEase` (wins for `camera`). An action with no `duration` reads its token when this object sets it -- `animate` → `base`, `fadeIn` → `base`, `transitionScreen` → `base`, `camera` → `slow` -- and keeps its built-in default otherwise, so a timeline without `motion` renders exactly as before. A step may also name a token: `"duration": "fast"` (unset tokens mean fast 0.2 s, base 0.4 s, slow 1.2 s). See the motion tokens table below. |
+| `motion` | Named durations and default easings, set once instead of per step: `fast`, `base`, `slow` (seconds), `ease` (default easing for `animate` and `camera`) and `cameraEase` (wins for `camera`). An action with no `duration` reads its token when this object sets it -- `animate` → `base`, `fadeIn` → `base`, `transitionScreen` → `base`, `camera` → `slow`, `overlay` → `fast` -- and keeps its built-in default otherwise, so a timeline without `motion` renders exactly as before. A step may also name a token: `"duration": "fast"` (unset tokens mean fast 0.2 s, base 0.4 s, slow 1.2 s). See the motion tokens table below. |
 | `brand` | The brand kit the video wears: `accent` (spotlight, ripple, step badge), `caption` (`font`, `color`, `background`, `radius`), `cursor` (pointer fill), `logo` (an image path relative to `index.html`, or `{ src, place, height }`), `intro` / `outro` cards (`title`, `subtitle`, `duration`, `background`, `color`). Or a path, relative to the timeline, to a shared JSON brand file holding the same object. Values go into CSS verbatim; `check` warns on an unknown token and on caption or card text below 4.5:1 contrast. See the brand tokens table below. |
 | `reset` | Live pages: a shell command run before each pass over the app (the recording, then the `--guide` replay), e.g. `"npm run db:seed"` or `"curl -X POST http://localhost:3000/api/test/reset"`. It runs in the shell, in the CLI's working directory, so a timeline is executable content: it runs only when you pass `--allow-reset`, and the command refuses rather than silently skipping a reset the timeline depends on. `--reset-cmd` gives your own command instead and never needs the flag. See [Live pages](#live-pages). |
 
@@ -103,7 +103,7 @@ Generated from the capability registry in `src/engine/schema.ts` by `npm run doc
 | `id` | Stable identifier. Strings files and guide frames attach to it; auto ids (`step-03`) shift when a step is inserted, so `check`/`localize` warn about them once a strings file exists. |
 | `time` | **Moment of the interaction** (the click, the first typed character, the highlight pulse): `"2s"`, `"2000ms"` or a number of seconds. The cursor starts travelling up to 950 ms earlier (lead = min(950 ms, gap to the previous step, time)). Steps must be in order. |
 | `action` | See the actions table below. |
-| `target` | CSS selector. Required for click, focus, type, highlight, hover, scroll, fadeIn, transitionScreen, animate. A 0x0 target (an empty caret span) is spotlighted through its sized ancestor. |
+| `target` | CSS selector. Required for click, focus, type, highlight, hover, scroll, fadeIn, transitionScreen, animate, overlay. A 0x0 target (an empty caret span) is spotlighted through its sized ancestor. |
 | `value` | Text for `type` (typed at `cps` characters per second, default 25) or the key for `press` (`Enter`, `Tab`, `Control+K`). |
 | `cps` | `type`: characters per second (default 25). |
 | `title` | Step heading in the guide and the chapter name in the MP4. Every numbered guide step needs one: `check` warns, and `guide` / `export --guide` / `record --guide` refuse without it (the fallback verbs are English and would leak into a localized guide). Hide choreography steps with `"guide": false` instead. |
@@ -117,7 +117,7 @@ Generated from the capability registry in `src/engine/schema.ts` by `npm run doc
 | `all` | `animate`: animate every match of `target`, not just the first. |
 | `stagger` | `animate`: seconds between successive elements when `all` is set. |
 | `count` | `animate`: how many elements `target` is expected to match, so the length estimate is right. `check` warns when the real count differs. |
-| `ease` | Named easing for `animate` and `camera`: `linear`, `easeInCubic`, `easeOutCubic`, `easeInOutCubic`, `easeOutBack`, `easeOutExpo`, `spring` (see the easings table below). |
+| `ease` | Named easing for `animate`, `camera`, `overlay` and a moving `transitionScreen` (`crossfade`/`slide`/`push`): `linear`, `easeInCubic`, `easeOutCubic`, `easeInOutCubic`, `easeOutBack`, `easeOutExpo`, `spring` (see the easings table below). |
 | `spotlight` / `ripple` | `false` suppresses that chrome for this step alone (no ring is shown at all, not merely left where it was). |
 | `only` | `"desktop"` or `"mobile"`: the step is dropped entirely for the other device. |
 | `mobile` / `desktop` | An object shallow-merged into the step when rendering for that device; the key itself is then stripped. Fields the override omits are inherited. |
@@ -127,7 +127,12 @@ Generated from the capability registry in `src/engine/schema.ts` by `npm run doc
 | `waitForTimeoutMs` | Live pages: how long a `waitFor` selector may wait before giving up (default 15000). A timeout is reported as a warning naming the step, not as a slow load; `record --fail-fast` abandons the recording at the first one. |
 | `url` | `navigate` (live pages): the page to open. |
 | `scale` / `x` / `y` / `xOffset` / `yOffset` | `camera`: zoom factor (default 1, a pan without zoom; 1.3 is a typical push-in) and framing; `x`/`y` centre the camera on a point instead of a target, `xOffset`/`yOffset` nudge the framing after that centre is solved (positive moves the focus right/down, so the window travels with it -- the same sign convention as the cursor-point offsets of the same name). On cursor actions `xOffset`/`yOffset` nudge the cursor point off the target's centre. |
-| `duration` | Seconds. `camera`: length of the pan (default 2.5). `animate`: length of one element's motion (default 0.6). `fadeIn`/`transitionScreen`: length of the fade (default: the element's own CSS transition, else 0.8 s). |
+| `transition` | `transitionScreen`: how the screens swap, one of `fade`, `cut`, `crossfade`, `slide`, `push` (default `fade`; see the transitions table below). Under `prefers-reduced-motion` every transition plays as a `cut`. |
+| `direction` | `transitionScreen` with `slide`/`push`, and an `overlay` drawer: the direction of travel, one of `left`, `right`, `up`, `down`. `left` (the default) moves the new screen leftwards, entering from the right; a drawer defaults to `left` too (it enters from the right edge). |
+| `variant` | `overlay`: `modal`, `drawer`, `sheet` or `toast` (default `modal`). A modal scales up and fades in; a drawer slides in from a side; a sheet rises from the bottom; a toast drops in from above. |
+| `scrim` | `overlay`: dim the page behind it -- `true`, `false`, or a CSS colour. Default `true` for a modal, drawer or sheet and `false` for a toast. |
+| `dismiss` | `overlay`: `true` plays the variant's motion backwards and hides the element (and its scrim) again. |
+| `duration` | Seconds. `camera`: length of the pan (default 2.5). `animate`: length of one element's motion (default 0.6). `fadeIn`/`transitionScreen`: length of the fade (default: the element's own CSS transition, else 0.8 s; 0.4 s for `crossfade`/`slide`/`push`, 0 for `cut`). `overlay`: length of the entrance or dismissal (default 0.3 s). |
 
 ### Actions and the guide capture rule
 
@@ -142,10 +147,21 @@ Generated from the capability registry in `src/engine/schema.ts` by `npm run doc
 | `camera` | Pan/zoom the page toward the target (or `x`/`y`); `scale: 1` pulls back. The cursor and the spotlight ride along, staying on the element they were on. | Completion (zoomed framing). |
 | `scroll` | Smooth-scroll the target into view. | Completion. |
 | `fadeIn` | Reveal the target (display/opacity) with a fade. | Completion. |
-| `transitionScreen` | Fade the current screen out and the target screen in. | Completion. |
+| `transitionScreen` | Swap the current screen for the target screen, the way `transition` says: `fade` (default) fades the old one out, then the new one in; `cut`, `crossfade`, `slide` and `push` are listed in the transitions table below. | Completion. |
+| `overlay` | Reveal a modal, drawer, sheet or toast (`variant`) with the motion that variant implies, over an optional `scrim`; `dismiss: true` plays it backwards and hides it again. The element should be pre-hidden in CSS (usually `display: none`) and positioned the way the app positions it (usually `position: fixed`). | Completion (overlay settled). |
 | `navigate` | Live pages only: open `url`. | Arrival on the new page. |
 | `animate` | Animate `target` from `from` to `to` with the Web Animations API (`fill: both`, so the end state persists). With `all` it runs on every match, `stagger` seconds apart. | Completion (all elements settled). |
 | `wait` | Nothing visible; a beat, or a subtitle change. | Interaction (the moment of the step). |
+
+### Screen transitions (`transitionScreen` `transition`)
+
+| Transition | What it does |
+|---|---|
+| `fade` | The old screen fades out, then the new one fades in (each half of `duration`, default 0.8 s). The default, and the historical behaviour; the beat of empty background between the halves is why it is rarely the best choice. |
+| `cut` | Instant swap. The professional default between unrelated screens. |
+| `crossfade` | Old and new overlap while the new one fades in: no empty beat. For related screens. Default 400 ms. |
+| `slide` | The new screen slides in over the old one along `direction` (default `left`: it enters from the right). For drilling into detail. Default 400 ms. |
+| `push` | The new screen pushes the old one out along `direction`. Forward and back navigation, tabs, steppers, mobile. Default 400 ms. |
 
 ### Motion tokens (`meta.motion`)
 
@@ -182,6 +198,14 @@ Generated from the capability registry in `src/engine/schema.ts` by `npm run doc
 <!-- capabilities:end -->
 
 Frames of completion-type steps are taken once the CSS animations on the target and the page have finished, so an unedited re-run reproduces the same pixels.
+
+### Transitions and overlays: what is not guessable
+
+- **One end state, whatever the motion.** Every `transition` -- and an instant replay, a tour seek, `prefers-reduced-motion` (which plays every transition and overlay as a `cut`) -- leaves the page exactly as the historical `fade` does: the old screen at `display: none`, the new one shown. Guide frames, tour seeks and the next step therefore never depend on which motion ran.
+- **Omitting `transition` keeps the old fade**, 0.8 s and its empty beat included, so existing timelines are unchanged. For new work, `cut` between unrelated screens and `crossfade`/`push` between related ones read as professional; `fade` rarely does.
+- **Pre-hide the incoming screen and the overlay** (`display: none` in CSS). They are revealed by their step; one that is visible from page load sits on screen until then, and `check` warns (for an explicit `transition` and every overlay).
+- **`slide` and `push` travel inside the screens' parent.** When that parent is a layout region (a main panel beside a sidebar), it is clipped while the motion runs so the screen never slides over the rest of the page; a screen that is a direct child of `<body>` travels across the whole frame. Under an active camera push-in they travel in from outside the zoomed frame, so most of the motion is cropped -- `check` warns.
+- **Overlays move with `translate`, `scale` and `opacity`, never `transform`**, so an app that centres its modal with `transform: translate(-50%, -50%)` keeps it centred. The element should be positioned as the app positions it (usually `position: fixed`). The scrim is a page element inserted just before the overlay (it rides a camera move with the page) and `dismiss` removes it.
 
 ### Motion tokens and the brand kit: what is not guessable
 

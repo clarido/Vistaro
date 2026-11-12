@@ -19,7 +19,11 @@
     spring: 'cubic-bezier(0.22, 1.61, 0.36, 1)'
   };
 
-  var ACTIONS = ['wait', 'click', 'focus', 'type', 'highlight', 'hover', 'camera', 'scroll', 'fadeIn', 'transitionScreen', 'navigate', 'press', 'animate'];
+  var ACTIONS = ['wait', 'click', 'focus', 'type', 'highlight', 'hover', 'camera', 'scroll', 'fadeIn', 'transitionScreen', 'navigate', 'press', 'animate', 'overlay'];
+  // transitionScreen's `transition`, the travel `direction` and overlay's `variant` (schema TRANSITIONS / DIRECTIONS / OVERLAY_VARIANTS).
+  var TRANSITIONS = ['fade', 'cut', 'crossfade', 'slide', 'push'];
+  var DIRECTIONS = ['left', 'right', 'up', 'down'];
+  var OVERLAY_VARIANTS = ['modal', 'drawer', 'sheet', 'toast'];
   var SUBTITLE_PLACES = ['bottom', 'top', 'bottom-left', 'bottom-right', 'top-left', 'top-right'];
   // meta.motion's named durations: a duration field takes seconds or one of these (schema MOTION_TOKENS).
   var MOTION_TOKENS = ['fast', 'base', 'slow'];
@@ -50,7 +54,22 @@
     hover: [{ k: 'target', type: 'target' }].concat(CURSOR_NUDGE),
     scroll: [{ k: 'target', type: 'target' }],
     fadeIn: [{ k: 'target', type: 'target' }, { k: 'duration', type: 'duration', help: 'seconds or fast/base/slow (default: meta.motion.base, else the CSS transition, else 0.8)' }],
-    transitionScreen: [{ k: 'target', type: 'target' }, { k: 'duration', type: 'duration', help: 'seconds or fast/base/slow' }],
+    transitionScreen: [
+      { k: 'target', type: 'target' },
+      { k: 'transition', type: 'select', options: TRANSITIONS, help: 'fade (default), cut, crossfade, slide, push' },
+      { k: 'direction', type: 'select', options: DIRECTIONS, help: 'slide/push: direction of travel (left = enters from the right)' },
+      { k: 'duration', type: 'duration', help: 'seconds or fast/base/slow' },
+      { k: 'ease', type: 'easing' }
+    ],
+    overlay: [
+      { k: 'target', type: 'target' },
+      { k: 'variant', type: 'select', options: OVERLAY_VARIANTS, help: 'modal (default), drawer, sheet, toast' },
+      { k: 'dismiss', type: 'checkbox', help: 'hide it again (the motion played backwards)' },
+      { k: 'scrim', type: 'text', help: 'true/false or a CSS colour (default on, off for a toast)' },
+      { k: 'direction', type: 'select', options: DIRECTIONS, help: 'drawer: direction of travel' },
+      { k: 'duration', type: 'duration', help: 'seconds or fast/base/slow (default 0.3)' },
+      { k: 'ease', type: 'easing' }
+    ],
     navigate: [{ k: 'url', type: 'text', help: 'live pages only' }],
     press: [{ k: 'value', type: 'text', help: 'key name: Enter, Tab, Control+K' }],
     camera: [
@@ -736,6 +755,8 @@
           var n = Number(v);
           if (!Number.isFinite(n)) return;
           setField(f.k, n);
+        } else if (f.k === 'scrim' && (v === 'true' || v === 'false')) {
+          setField(f.k, v === 'true'); // a boolean, not the CSS colour "true"
         } else {
           setField(f.k, v);
         }
@@ -1121,7 +1142,9 @@
     }
     els.palette.appendChild(group('Reveals (animate)', S.presets.reveals || [], function (p) { applyFields(p.fields, 'animate'); }));
     els.palette.appendChild(group('Camera moves', S.presets.camera || [], function (p) { applyFields(p.fields, 'camera'); }));
+    els.palette.appendChild(group('Exits (animate)', S.presets.exits || [], function (p) { applyFields(p.fields, 'animate'); }));
     els.palette.appendChild(group('Screen transitions', S.presets.transitions || [], function (p) { applyFields(p.fields, p.fields.action); }));
+    els.palette.appendChild(group('Overlays', S.presets.overlays || [], function (p) { applyFields(p.fields, 'overlay'); }));
 
     var eg = document.createElement('div');
     eg.className = 'pal-group';
@@ -1138,7 +1161,7 @@
       row.addEventListener('click', function () {
         if (S.selected < 0) { toast('select a step first'); return; }
         var st = steps()[S.selected];
-        if (st.action !== 'animate' && st.action !== 'camera') { toast('easings apply to animate and camera steps'); return; }
+        if (['animate', 'camera', 'overlay', 'transitionScreen'].indexOf(st.action) === -1) { toast('easings apply to animate, camera, overlay and transition steps'); return; }
         setField('ease', name);
         row.classList.add('is-on');
         setTimeout(function () { row.classList.remove('is-on'); }, 900);

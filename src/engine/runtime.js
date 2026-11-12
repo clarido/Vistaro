@@ -47,10 +47,16 @@
     return (step && typeof step.ease === 'string' && EASINGS[step.ease]) || fallback;
   }
   var SUBTITLE_HOLD_MS = 4000;
+  // transitionScreen's `transition` values and overlay's variants; schema.ts validates the same
+  // names (test/constants.test.ts keeps both lists and both default lengths equal).
+  var TRANSITIONS = ['fade', 'cut', 'crossfade', 'slide', 'push'];
+  var OVERLAY_VARIANTS = ['modal', 'drawer', 'sheet', 'toast'];
+  var DEFAULT_TRANSITION_MS = 400;
+  var DEFAULT_OVERLAY_MS = 300;
 
   var ALIASES = { showText: 'fadeIn' };
   var CURSOR_ACTIONS = { click: 1, focus: 1, type: 1, highlight: 1, hover: 1 };
-  var TARGET_REQUIRED = { click: 1, focus: 1, type: 1, highlight: 1, hover: 1, scroll: 1, fadeIn: 1, transitionScreen: 1 };
+  var TARGET_REQUIRED = { click: 1, focus: 1, type: 1, highlight: 1, hover: 1, scroll: 1, fadeIn: 1, transitionScreen: 1, overlay: 1 };
 
   // --- CSS (ported verbatim from the previous inline engine) ---------------------
   var CURSOR_CSS = {
@@ -1457,16 +1463,95 @@
     el.style.opacity = '1';
     return wait(instant ? 0 : Math.max(ms, ownOpacityMs));
   }
-  function transitionScreen(el, instant, durationMs) {
+  /** The screens a transition replaces: the last one swapped in, else every visible sibling of `el`. */
+  function outgoingScreens(el) {
+    if (state.currentScreen && state.currentScreen !== el) return [state.currentScreen];
+    if (!el.parentElement) return [];
+    return Array.prototype.filter.call(el.parentElement.children, function (c) {
+      return c !== el && !(c.id && c.id.indexOf('vistaro') === 0) && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE' && !(c.classList && c.classList.contains('vistaro-scrim')) && isVisible(c);
+    });
+  }
+  /** Undo a CSS `display: none` the way fadeIn does: data-vistaro-display, else the stylesheet's own, else block. */
+  function showDisplay(el) {
+    if (getComputedStyle(el).display !== 'none') return;
+    el.style.display = el.getAttribute('data-vistaro-display') || '';
+    if (getComputedStyle(el).display === 'none') el.style.display = 'block';
+  }
+  /**
+   * Every transition ends in the same DOM state as the historical fade, so a guide frame, a tour
+   * seek and the next step see one page whichever transition ran: the outgoing screens at
+   * opacity 0 and display none, the incoming one displayed at opacity 1, nothing else left inline.
+   */
+  function settleSwap(prev, el) {
+    prev.forEach(function (p) { p.style.opacity = '0'; p.style.display = 'none'; });
+    showDisplay(el);
+    el.style.opacity = '1';
+  }
+  /**
+   * Keep an outgoing screen painted where it is, out of flow, while the incoming one takes its place
+   * (crossfade, slide, push need both on screen at once). Returns the undo, run once it is hidden.
+   */
+  function pinInPlace(p) {
+    var keys = ['position', 'top', 'left', 'width', 'height', 'margin', 'boxSizing', 'zIndex'];
+    var saved = {};
+    keys.forEach(function (k) { saved[k] = p.style[k]; });
+    var top = p.offsetTop, left = p.offsetLeft, w = p.offsetWidth, h = p.offsetHeight;
+    p.style.position = 'absolute'; p.style.top = top + 'px'; p.style.left = left + 'px';
+    p.style.width = w + 'px'; p.style.height = h + 'px'; p.style.margin = '0'; p.style.boxSizing = 'border-box'; p.style.zIndex = '0';
+    return function () { keys.forEach(function (k) { p.style[k] = saved[k]; }); };
+  }
+  /** `translate` offsets (the individual property, so an app's own `transform` is never clobbered). */
+  function travel(direction, sign) {
+    var d = direction === 'right' ? ['-100%', '0'] : direction === 'up' ? ['0', '100%'] : direction === 'down' ? ['0', '-100%'] : ['100%', '0'];
+    if (sign < 0) d = d.map(function (v) { return v === '0' ? '0' : (v.charAt(0) === '-' ? v.slice(1) : '-' + v); });
+    return d.join(' ');
+  }
+  /**
+   * transitionScreen. `fade` (or no `transition`) is the historical sequential fade, untouched. The
+   * others: `cut` swaps at once; `crossfade` lays the new screen over the old and fades it in;
+   * `slide` moves the new one in over the old; `push` moves both. Instant (check, preview, a tour
+   * seek) and prefers-reduced-motion take the cut path to the same end state.
+   */
+  function transitionScreen(el, instant, durationMs, step) {
+    var kind = step && TRANSITIONS.indexOf(step.transition) >= 0 ? step.transition : 'fade';
+    if (prefersReducedMotion()) kind = 'cut';
+    if (kind === 'fade') return fadeTransition(el, instant, durationMs);
+    var prev = outgoingScreens(el);
+    state.currentScreen = el;
+    var explicit = typeof durationMs === 'number' && durationMs >= 0;
+    var ms = instant || kind === 'cut' ? 0 : (explicit ? durationMs : DEFAULT_TRANSITION_MS);
+    if (ms <= 0) { settleSwap(prev, el); return wait(0); }
+    var unpin = prev.map(pinInPlace);
+    showDisplay(el);
+    el.style.opacity = '1';
+    // The incoming screen paints above the pinned one (a positioned box would otherwise win).
+    var savedPos = el.style.position, savedZ = el.style.zIndex;
+    if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+    el.style.zIndex = '1';
+    // A screen that is a region of a layout (a main panel beside a sidebar) must not slide over the
+    // rest of the page: clip the travel to the parent while it runs. The page itself is not clipped.
+    var parent = el.parentElement;
+    var clip = parent && parent !== document.body && parent !== document.documentElement && (kind === 'slide' || kind === 'push');
+    var savedClip = clip ? parent.style.clipPath : null;
+    if (clip) parent.style.clipPath = 'inset(0)';
+    var dir = step && step.direction;
+    var easing = easingOf(step, kind === 'crossfade' ? 'ease' : EASINGS.easeInOutCubic);
+    var anims = [];
+    if (kind === 'crossfade') anims.push(el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing: easing }));
+    else anims.push(el.animate([{ translate: travel(dir, 1) }, { translate: '0 0' }], { duration: ms, easing: easing }));
+    if (kind === 'push') prev.forEach(function (p) { anims.push(p.animate([{ translate: '0 0' }, { translate: travel(dir, -1) }], { duration: ms, easing: easing, fill: 'forwards' })); });
+    return Promise.all(anims.map(function (a) { return a.finished.catch(function () {}); })).then(function () {
+      settleSwap(prev, el);
+      unpin.forEach(function (u) { u(); });
+      el.style.position = savedPos; el.style.zIndex = savedZ;
+      if (clip) parent.style.clipPath = savedClip;
+      anims.forEach(function (a) { try { a.cancel(); } catch (e) { /* gone */ } });
+    });
+  }
+  function fadeTransition(el, instant, durationMs) {
     var explicit = typeof durationMs === 'number' && durationMs >= 0;
     var ms = instant ? 0 : (explicit ? durationMs : FADE_MS);
-    var prev = [];
-    if (state.currentScreen && state.currentScreen !== el) prev = [state.currentScreen];
-    else if (el.parentElement) {
-      prev = Array.prototype.filter.call(el.parentElement.children, function (c) {
-        return c !== el && !(c.id && c.id.indexOf('vistaro') === 0) && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE' && isVisible(c);
-      });
-    }
+    var prev = outgoingScreens(el);
     prev.forEach(function (p) {
       p.style.transition = 'opacity ' + Math.round(ms / 2) + 'ms ease';
       p.style.opacity = '0';
@@ -1474,6 +1559,59 @@
     });
     state.currentScreen = el;
     return wait(Math.round(ms / 2)).then(function () { return fadeIn(el, instant, explicit ? ms : undefined); });
+  }
+
+  /** The hidden state an overlay variant enters from (and dismisses to), as individual properties. */
+  function overlayHidden(variant, direction) {
+    if (variant === 'drawer') return { translate: travel(direction || 'left', 1) };
+    if (variant === 'sheet') return { translate: '0 100%' };
+    if (variant === 'toast') return { opacity: 0, translate: '0 -16px' };
+    return { opacity: 0, scale: '0.96' };
+  }
+  /**
+   * overlay: show (or, with `dismiss`, hide) a modal, drawer, sheet or toast with its variant's
+   * motion, plus a scrim behind it. The scrim is a page element inserted just before the overlay,
+   * so it rides the camera with the page and restart() removes it with everything else.
+   */
+  function overlay(el, step, instant) {
+    var variant = OVERLAY_VARIANTS.indexOf(step.variant) >= 0 ? step.variant : 'modal';
+    var dismiss = step.dismiss === true;
+    var reduced = prefersReducedMotion();
+    var explicit = stepDurationMs(step);
+    var ms = instant || reduced ? 0 : (explicit !== undefined ? explicit : DEFAULT_OVERLAY_MS);
+    var easing = easingOf(step, dismiss ? EASINGS.easeInCubic : EASINGS.easeOutCubic);
+    var hidden = overlayHidden(variant, step.direction);
+    var shown = { opacity: 1, translate: '0 0', scale: '1' };
+    var wantScrim = step.scrim === undefined ? variant !== 'toast' : step.scrim !== false;
+    var scrim = el.__vistaroScrim && el.__vistaroScrim.isConnected ? el.__vistaroScrim : null;
+    if (!dismiss) {
+      showDisplay(el);
+      el.style.opacity = '1';
+      if (wantScrim && !scrim) {
+        scrim = document.createElement('div');
+        scrim.className = 'vistaro-scrim';
+        var z = getComputedStyle(el).zIndex;
+        scrim.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; background: ' + (typeof step.scrim === 'string' ? step.scrim : 'rgba(15,23,42,0.45)') + (z && z !== 'auto' ? '; z-index: ' + z : '');
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+        el.parentNode.insertBefore(scrim, el);
+        el.__vistaroScrim = scrim;
+      }
+      if (ms <= 0) return wait(0);
+      var a = [el.animate([hidden, shown], { duration: ms, easing: easing })];
+      if (scrim) a.push(scrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing: 'ease' }));
+      return Promise.all(a.map(function (x) { return x.finished.catch(function () {}); })).then(function () {});
+    }
+    var hide = function () {
+      el.style.display = 'none';
+      if (scrim) { scrim.remove(); el.__vistaroScrim = null; }
+    };
+    if (ms <= 0) { hide(); return wait(0); }
+    var b = [el.animate([shown, hidden], { duration: ms, easing: easing, fill: 'forwards' })];
+    if (scrim) b.push(scrim.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms, easing: 'ease', fill: 'forwards' }));
+    return Promise.all(b.map(function (x) { return x.finished.catch(function () {}); })).then(function () {
+      hide();
+      b.forEach(function (x) { try { x.cancel(); } catch (e) { /* gone */ } });
+    });
   }
   function stepDurationMs(step) {
     return typeof step.duration === 'number' && step.duration >= 0 ? Math.round(step.duration * 1000) : undefined;
@@ -1680,7 +1818,10 @@
             done = fadeIn(el, instant, stepDurationMs(step));
             break;
           case 'transitionScreen':
-            done = transitionScreen(el, instant, stepDurationMs(step));
+            done = transitionScreen(el, instant, stepDurationMs(step), step);
+            break;
+          case 'overlay':
+            done = overlay(el, step, instant);
             break;
           default:
             throw new Error('unknown action: ' + action);
@@ -2049,6 +2190,7 @@
     scroll: scrollTo,
     fadeIn: fadeIn,
     transitionScreen: transitionScreen,
+    overlay: overlay,
     showSubtitle: showSubtitle,
     hideSubtitle: hideSubtitle,
     /** Brand cards: showCard('intro'|'outro') returns false when the brand has none. The driver

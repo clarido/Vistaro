@@ -72,14 +72,14 @@ function discover(files: SourceFile[]): Site[] {
     return files.flatMap(cliSpawnSites);
 }
 
-/** The 20 known CLI spawn sites, sorted; buildall.test.ts twice (its sync cli and its async
+/** The 21 known CLI spawn sites, sorted; buildall.test.ts twice (its sync cli and its async
  *  cliAsync), studio.test.ts four times (its startStudio and startHub async helpers, the
  *  unknown-command spawnSync and the Ctrl-C probe), chromium-check.test.ts three times (its
  *  absent-engine check and its two partial-install checks). A new CLI spawn must join this
  *  list -- after carrying the three bounds. */
 const KNOWN_SITES = [
     'brand.test.ts', 'browser.test.ts', 'buildall.test.ts', 'buildall.test.ts', 'capabilities.test.ts', 'chromium-check.test.ts', 'chromium-check.test.ts', 'chromium-check.test.ts', 'export.test.ts', 'filmstrip.test.ts',
-    'guide.test.ts', 'learn.test.ts', 'record.test.ts', 'strings.test.ts', 'studio.test.ts', 'studio.test.ts', 'studio.test.ts', 'studio.test.ts', 'tour.test.ts', 'verify.test.ts',
+    'guide.test.ts', 'learn.test.ts', 'record.test.ts', 'strings.test.ts', 'studio.test.ts', 'studio.test.ts', 'studio.test.ts', 'studio.test.ts', 'tour.test.ts', 'transitions.test.ts', 'verify.test.ts',
 ];
 
 test('every CLI spawn in test/ carries the three bounds: timeout, killSignal, assertRan', () => {
