@@ -1,0 +1,66 @@
+{
+  "meta": {
+    "kind": "reel",
+    "title": "Clicks and sound",
+    "slug": "showcase-audio",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 900,
+    "motion": {
+      "base": 0.4,
+      "slow": 1.2,
+      "ease": "easeOutCubic",
+      "cameraEase": "easeInOutCubic",
+      "cursor": "natural"
+    },
+    "audio": {
+      "click": true
+    },
+    "reel": {
+      "ripple": true,
+      "loop": true,
+      "autoplay": "inview"
+    }
+  },
+  "steps": [
+    {
+      "id": "open",
+      "time": "0.9s",
+      "action": "click",
+      "target": "#row-health"
+    },
+    {
+      "id": "swap",
+      "time": "1.0s",
+      "action": "transitionScreen",
+      "target": "#detail",
+      "transition": "crossfade"
+    },
+    {
+      "id": "share",
+      "time": "2.2s",
+      "action": "click",
+      "target": "#btn-share"
+    },
+    {
+      "id": "modal",
+      "time": "2.3s",
+      "action": "overlay",
+      "target": "#share"
+    },
+    {
+      "id": "send",
+      "time": "3.4s",
+      "action": "click",
+      "target": "#btn-send"
+    },
+    {
+      "id": "close",
+      "time": "3.5s",
+      "action": "overlay",
+      "target": "#share",
+      "dismiss": true,
+      "duration": 0.2
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "kind": "reel",
+    "title": "Vertical format",
+    "slug": "showcase-vertical",
+    "locale": "en",
+    "cursor": "none",
+    "tailMs": 900,
+    "motion": {
+      "base": 0.4,
+      "slow": 1.2,
+      "ease": "easeOutCubic",
+      "cameraEase": "easeInOutCubic",
+      "cursor": "natural"
+    },
+    "reel": {
+      "subtitles": true,
+      "loop": true,
+      "autoplay": "inview"
+    }
+  },
+  "steps": [
+    {
+      "id": "say",
+      "time": "0.4s",
+      "action": "wait",
+      "subtitle": "One screen, every channel"
+    },
+    {
+      "id": "detail",
+      "time": "1.6s",
+      "action": "transitionScreen",
+      "target": "#detail",
+      "transition": "push",
+      "direction": "up"
+    },
+    {
+      "id": "share",
+      "time": "3.0s",
+      "action": "overlay",
+      "target": "#share",
+      "variant": "sheet"
+    },
+    {
+      "id": "type",
+      "time": "3.6s",
+      "action": "type",
+      "target": "#share-email",
+      "value": "maya@acme.example",
+      "cps": 30,
+      "subtitle": "Same file, 9:16"
+    }
+  ]
+}

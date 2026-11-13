@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "kind": "reel",
+    "title": "Auto-zoom",
+    "slug": "showcase-auto-zoom",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 900,
+    "motion": {
+      "base": 0.4,
+      "slow": 1.2,
+      "ease": "easeOutCubic",
+      "cameraEase": "easeInOutCubic",
+      "cursor": "natural"
+    },
+    "reel": {
+      "spotlight": true,
+      "loop": true,
+      "autoplay": "inview"
+    }
+  },
+  "steps": [
+    {
+      "id": "follow",
+      "time": "0.6s",
+      "action": "camera",
+      "target": "#row-city",
+      "scale": 1.5,
+      "follow": true
+    },
+    {
+      "id": "city",
+      "time": "2.0s",
+      "action": "hover",
+      "target": "#row-city"
+    },
+    {
+      "id": "new",
+      "time": "3.2s",
+      "action": "hover",
+      "target": "#btn-new"
+    },
+    {
+      "id": "rail",
+      "time": "4.4s",
+      "action": "hover",
+      "target": "#row-rail"
+    },
+    {
+      "id": "health",
+      "time": "5.6s",
+      "action": "click",
+      "target": "#row-health"
+    },
+    {
+      "id": "pull",
+      "time": "6.4s",
+      "action": "camera",
+      "scale": 1
+    }
+  ]
+}

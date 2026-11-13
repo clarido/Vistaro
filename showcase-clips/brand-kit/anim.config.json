@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "kind": "reel",
+    "title": "Brand kit",
+    "slug": "showcase-brand-kit",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 700,
+    "motion": {
+      "base": 0.4,
+      "slow": 1.2,
+      "ease": "easeOutCubic",
+      "cameraEase": "easeInOutCubic",
+      "cursor": "natural"
+    },
+    "brand": "../brand.json",
+    "reel": {
+      "spotlight": true,
+      "ripple": true,
+      "subtitles": true,
+      "loop": true,
+      "autoplay": "inview"
+    }
+  },
+  "steps": [
+    {
+      "id": "risk",
+      "time": "2.2s",
+      "action": "highlight",
+      "target": "#row-health",
+      "subtitle": "Your accent on the spotlight"
+    },
+    {
+      "id": "open",
+      "time": "3.6s",
+      "action": "click",
+      "target": "#row-health",
+      "subtitle": "Your caption style, your cursor"
+    },
+    {
+      "id": "swap",
+      "time": "3.7s",
+      "action": "transitionScreen",
+      "target": "#detail",
+      "transition": "crossfade"
+    },
+    {
+      "id": "note",
+      "time": "5.0s",
+      "action": "highlight",
+      "target": "#card-risk",
+      "subtitle": "Intro and outro cards, from one brand.json"
+    }
+  ]
+}

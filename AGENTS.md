@@ -202,6 +202,8 @@ Generated from the capability registry in `src/engine/schema.ts` by `npm run doc
 
 Frames of completion-type steps are taken once the CSS animations on the target and the page have finished, so an unedited re-run reproduces the same pixels.
 
+Worked examples of everything below live in `showcase-clips/` (one reel per capability: `transitions`, `brand-kit` with the shared `showcase-clips/brand.json`, `auto-zoom`, `vertical`, `audio`), built by `npx tsx cli.ts build-all showcase.catalog.json`; `test/showcase.test.ts` keeps each of them check-clean.
+
 ### Transitions and overlays: what is not guessable
 
 - **One end state, whatever the motion.** Every `transition` -- and an instant replay, a tour seek, `prefers-reduced-motion` (which plays every transition and overlay as a `cut`) -- leaves the page exactly as the historical `fade` does: the old screen at `display: none`, the new one shown. Guide frames, tour seeks and the next step therefore never depend on which motion ran.

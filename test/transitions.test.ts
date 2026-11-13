@@ -271,3 +271,18 @@ test('check warns when a transition or an overlay would bring in something alrea
     const warned = issues.filter(i => /already visible before/.test(i.message)).map(i => i.id);
     assert.deepEqual(warned, ['swap'], 'the visible #s2 is warned; the pre-hidden modal is not');
 });
+
+test('check: a screen that is display:none until its transition is not reported as cropped (a 0x0 box cannot be cut)', { skip }, () => {
+    // Regression: the hidden target's 0x0 rect sits at the viewport origin, so its "overflow" past
+    // an offset, overflow:hidden <main> was reported as a crop of that offset (220 px of rail +
+    // 62 px of top bar = "cropped by 282px") on every reel that swaps screens inside a layout.
+    const dir = path.join(work, 'hidden-crop');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'index.html'), SCREENS_HTML.replace('main { flex: 1; position: relative; }', 'main { flex: 1; position: relative; overflow: hidden; margin-top: 62px; }'));
+    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { kind: 'reel', cursor: 'none' }, steps: [
+        { id: 'swap', time: 1, action: 'transitionScreen', target: '#s2', transition: 'push' },
+    ] }));
+    const r = cli(['check', dir, '--json', '-w', '1000', '-H', '600']);
+    const issues: any[] = JSON.parse(r.stdout).issues ?? JSON.parse(r.stdout);
+    assert.deepEqual(issues.filter(i => /cropped by/.test(i.message)).map(i => i.message), []);
+});

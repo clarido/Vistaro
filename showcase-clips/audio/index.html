@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clarido — Tenders</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  :root { --paper: #F6F3EC; --card: #FFFFFF; --ink: #23262E; --muted: #6B6E7B; --line: #E5E1D5; --navy: #1C2030; --accent: #2F6BFF; --green: #3E7A4E; --amber: #A0742E; }
+  html, body { height: 100%; }
+  body { font: 400 16px/1.5 -apple-system, "Segoe UI", sans-serif; background: var(--paper); color: var(--ink); display: flex; flex-direction: column; min-height: 100vh; overflow: hidden; }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 14px 28px; background: var(--card); border-bottom: 1px solid var(--line); }
+  .wordmark { font: 600 22px Georgia, serif; color: var(--navy); }
+  .wordmark::after { content: "."; color: var(--accent); }
+  .spacer { flex: 1; }
+  .btn { border: 0; border-radius: 999px; padding: 9px 20px; font: 600 14px inherit; background: var(--navy); color: #F6F3EC; cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--navy); border: 1px solid var(--line); }
+  .shell { flex: 1; display: flex; min-height: 0; }
+  nav { width: 220px; padding: 22px 16px; border-right: 1px solid var(--line); background: #FBFAF6; }
+  nav a { display: block; padding: 9px 12px; border-radius: 10px; color: var(--muted); text-decoration: none; font-weight: 500; }
+  nav a.on { background: #ECE8DC; color: var(--ink); }
+  main { flex: 1; position: relative; overflow: hidden; }
+  .screen { position: absolute; inset: 0; padding: 28px 36px; overflow: hidden; }
+  #detail { display: none; background: var(--paper); }
+  h1 { font: 600 26px Georgia, serif; margin-bottom: 18px; }
+  .row { display: flex; align-items: center; gap: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; margin-bottom: 12px; }
+  .row .name { flex: 1; font-weight: 600; }
+  .row .due { color: var(--muted); font-size: 14px; }
+  .pill { border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; background: #E6F0E8; color: var(--green); }
+  .pill.risk { background: #F6EBD8; color: var(--amber); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+  .card h2 { font-size: 15px; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+  .card p { font-size: 15px; }
+  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  #share { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 440px; background: var(--card); border-radius: 18px; padding: 26px 28px; box-shadow: 0 24px 60px rgba(28,32,48,0.25); display: none; z-index: 10; }
+  #share h2 { font: 600 20px Georgia, serif; margin-bottom: 10px; }
+  #share input { width: 100%; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; font: inherit; margin: 10px 0 18px; }
+  #toast { position: fixed; top: 22px; right: 28px; background: var(--navy); color: #F6F3EC; border-radius: 12px; padding: 12px 18px; font-weight: 600; display: none; z-index: 11; }
+  /* Vertical frames (9:16 is 1080 css px wide): one column, no rail, larger type. */
+  @media (max-width: 1100px) {
+    body { font-size: 30px; }
+    .topbar { padding: 34px 48px; } .wordmark { font-size: 44px; } .btn { font-size: 28px; padding: 18px 36px; }
+    nav { display: none; }
+    .screen { padding: 56px 48px; }
+    h1 { font-size: 54px; margin-bottom: 36px; }
+    .row { padding: 32px 36px; border-radius: 26px; margin-bottom: 24px; gap: 24px; flex-wrap: wrap; }
+    .row .due { font-size: 26px; } .pill { font-size: 24px; padding: 8px 20px; }
+    .grid { grid-template-columns: 1fr; gap: 24px; } .card { padding: 32px 36px; border-radius: 26px; } .card h2 { font-size: 26px; } .card p { font-size: 30px; }
+    #share { width: 860px; padding: 48px; border-radius: 30px; } #share h2 { font-size: 40px; }
+    #toast { font-size: 28px; padding: 22px 32px; top: 40px; right: 48px; }
+  }
+</style>
+</head>
+<body>
+  <header class="topbar"><span class="wordmark">Clarido</span><span class="spacer"></span><button id="btn-new" class="btn">New response</button></header>
+  <div class="shell">
+    <nav><a class="on" href="#">Tenders</a><a href="#">Library</a><a href="#">Team</a></nav>
+    <main>
+      <section id="list" class="screen">
+        <h1>Open tenders</h1>
+        <div class="row" id="row-city"><span class="name">City of Lyon — IT services</span><span class="due">Due Nov 28</span><span class="pill">On track</span></div>
+        <div class="row" id="row-health"><span class="name">Regional health network</span><span class="due">Due Dec 4</span><span class="pill risk">At risk</span></div>
+        <div class="row" id="row-rail"><span class="name">Rail operator — data platform</span><span class="due">Due Dec 12</span><span class="pill">On track</span></div>
+      </section>
+      <section id="detail" class="screen">
+        <h1>Regional health network</h1>
+        <div class="grid">
+          <div class="card" id="card-scope"><h2>Scope</h2><p>Patient records migration across 14 sites.</p></div>
+          <div class="card" id="card-risk"><h2>Risk</h2><p>Security annex still missing.</p></div>
+        </div>
+        <div class="actions"><button id="btn-back" class="btn ghost">Back</button><button id="btn-share" class="btn">Share draft</button></div>
+      </section>
+    </main>
+  </div>
+  <div id="share"><h2>Share the draft</h2><p>Reviewers get a link to comment.</p><input id="share-email" placeholder="name@company.com"><button id="btn-send" class="btn">Send</button></div>
+  <div id="toast">Draft shared</div>
+</body>
+</html>

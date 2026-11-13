@@ -1,0 +1,71 @@
+{
+  "history": [
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-11-13T00:12:47.656Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "risk",
+          "actualMs": 2210,
+          "completedMs": 2217
+        },
+        {
+          "index": 2,
+          "id": "open",
+          "actualMs": 3607,
+          "completedMs": 3611
+        },
+        {
+          "index": 3,
+          "id": "swap",
+          "actualMs": 3704,
+          "completedMs": 4117
+        },
+        {
+          "index": 4,
+          "id": "note",
+          "actualMs": 5004,
+          "completedMs": 5008
+        }
+      ],
+      "duration": 7.508,
+      "output": "../../showcase-out/brand-kit/en/brand-kit-en.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:d4b69713f9c5932742807ed59e3cc1eef99d86930b2543d923a267ec3e5e039c",
+      "timestamp": "2026-11-13T00:13:03.990Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../showcase.catalog.json",
+      "locale": "en",
+      "kind": "reel",
+      "output": "../../showcase-out/brand-kit/en",
+      "contentHash": "sha256:d4b69713f9c5932742807ed59e3cc1eef99d86930b2543d923a267ec3e5e039c",
+      "buildKey": "sha256:0e3dcd48947735d067e31c3f30c23a2aa25a0008bac6957481a70eb326c80142",
+      "builtAt": "2026-11-13T00:13:04.050Z",
+      "timestamp": "2026-11-13T00:13:04.051Z"
+    }
+  ],
+  "contentHash": {
+    "en": "sha256:d4b69713f9c5932742807ed59e3cc1eef99d86930b2543d923a267ec3e5e039c"
+  },
+  "buildKey": {
+    "en": "sha256:0e3dcd48947735d067e31c3f30c23a2aa25a0008bac6957481a70eb326c80142"
+  }
+}

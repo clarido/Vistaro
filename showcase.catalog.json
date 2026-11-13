@@ -1,0 +1,50 @@
+{
+  "title": "Capability showcase",
+  "outputDir": "showcase-out",
+  "defaults": {
+    "locales": [
+      "en"
+    ],
+    "theme": "light",
+    "width": 1280,
+    "height": 720,
+    "outputs": [
+      "webm",
+      "poster"
+    ]
+  },
+  "guides": [
+    {
+      "slug": "transitions",
+      "dir": "showcase-clips/transitions",
+      "title": "Screen transitions",
+      "kind": "reel"
+    },
+    {
+      "slug": "brand-kit",
+      "dir": "showcase-clips/brand-kit",
+      "title": "Brand kit",
+      "kind": "reel"
+    },
+    {
+      "slug": "auto-zoom",
+      "dir": "showcase-clips/auto-zoom",
+      "title": "Auto-zoom",
+      "kind": "reel"
+    },
+    {
+      "slug": "vertical",
+      "dir": "showcase-clips/vertical",
+      "title": "Vertical format",
+      "kind": "reel",
+      "aspect": "9:16",
+      "scale": 0.5
+    },
+    {
+      "slug": "audio",
+      "dir": "showcase-clips/audio",
+      "title": "Clicks and sound",
+      "kind": "reel"
+    }
+  ]
+}

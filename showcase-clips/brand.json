@@ -1,0 +1,29 @@
+{
+  "accent": "#E11D48",
+  "cursor": "#881337",
+  "caption": {
+    "font": "Georgia, serif",
+    "color": "#FFF1F2",
+    "background": "#881337",
+    "radius": 10
+  },
+  "logo": {
+    "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='32' viewBox='0 0 120 32'%3E%3Crect width='32' height='32' rx='9' fill='%23E11D48'/%3E%3Ctext x='42' y='23' font-family='Georgia' font-size='20' fill='%2323262E'%3EAcme%3C/text%3E%3C/svg%3E",
+    "place": "bottom-left",
+    "height": 32
+  },
+  "intro": {
+    "title": "Acme Bids",
+    "subtitle": "Respond to tenders in an afternoon",
+    "duration": 1.6,
+    "background": "#881337",
+    "color": "#FFF1F2"
+  },
+  "outro": {
+    "title": "acme.example",
+    "subtitle": "Start a free trial",
+    "duration": 1.8,
+    "background": "#881337",
+    "color": "#FFF1F2"
+  }
+}

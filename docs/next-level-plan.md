@@ -1,6 +1,8 @@
 # Next-level plan: professional-grade motion, brand control and showcase
 
-**Status:** proposed, nothing implemented · **Owner:** JF · **Written:** 2026-11-12
+**Status:** Lots 0-4 implemented, Lot 5 spiked (`docs/spikes/capture-quality.md`: go, behind a flag), Lot 6 engine side done (`showcase.catalog.json`; the website part is listed in `docs/website-showcase-note.md`) · **Owner:** JF · **Written:** 2026-11-12
+
+**Open decisions as taken** (defaults, each reversible): 1. Lot 5 ran after Lot 4; 2. the shared-element morph is cut; 3. the brand file is wherever a timeline points (`meta.brand` takes a path; a tour catalog takes `brand` too), so it can be per repo or per catalog; 4. no music is bundled, the author brings the file; 5. `overlay` is a new action (discoverable through `capabilities`), and the studio palette also offers it as presets.
 
 This is a plan, not a manual. Nothing described here exists yet unless the « Where we are » section says so. `AGENTS.md` stays the only source of truth for what the CLI can do today; each lot below updates it when it lands.
 

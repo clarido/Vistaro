@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "kind": "reel",
+    "title": "Screen transitions",
+    "slug": "showcase-transitions",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 900,
+    "motion": {
+      "base": 0.4,
+      "slow": 1.2,
+      "ease": "easeOutCubic",
+      "cameraEase": "easeInOutCubic",
+      "cursor": "natural"
+    },
+    "reel": {
+      "loop": true,
+      "autoplay": "inview"
+    }
+  },
+  "steps": [
+    {
+      "id": "open",
+      "time": "0.8s",
+      "action": "click",
+      "target": "#row-health",
+      "ripple": false
+    },
+    {
+      "id": "push-in",
+      "time": "1.0s",
+      "action": "transitionScreen",
+      "target": "#detail",
+      "transition": "push",
+      "direction": "left"
+    },
+    {
+      "id": "share",
+      "time": "2.2s",
+      "action": "click",
+      "target": "#btn-share"
+    },
+    {
+      "id": "modal",
+      "time": "2.3s",
+      "action": "overlay",
+      "target": "#share",
+      "variant": "modal"
+    },
+    {
+      "id": "send",
+      "time": "3.4s",
+      "action": "click",
+      "target": "#btn-send"
+    },
+    {
+      "id": "close",
+      "time": "3.5s",
+      "action": "overlay",
+      "target": "#share",
+      "dismiss": true,
+      "duration": 0.2
+    },
+    {
+      "id": "toast",
+      "time": "3.7s",
+      "action": "overlay",
+      "target": "#toast",
+      "variant": "toast"
+    },
+    {
+      "id": "back",
+      "time": "5.0s",
+      "action": "click",
+      "target": "#btn-back"
+    },
+    {
+      "id": "push-back",
+      "time": "5.1s",
+      "action": "transitionScreen",
+      "target": "#list",
+      "transition": "push",
+      "direction": "right"
+    },
+    {
+      "id": "toast-off",
+      "time": "5.6s",
+      "action": "overlay",
+      "target": "#toast",
+      "variant": "toast",
+      "dismiss": true
+    }
+  ]
+}

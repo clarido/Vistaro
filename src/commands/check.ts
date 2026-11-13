@@ -154,7 +154,11 @@ function probeHooks(page: Page, where: string, issues: Issue[], staticIssues: Is
                 // an element taller than its container has its centre outside it while most of it is
                 // on screen, and an element cropped along one edge keeps its centre and looks fine.
                 var vl = rr.left, vt = rr.top, vr2 = rr.right, vb = rr.bottom;
-                var anc = el.parentElement;
+                // A box that is not rendered (display:none until a later step reveals it) reports a
+                // 0x0 rect at the viewport origin: measuring it against an offset clipping ancestor
+                // reported the ancestor's offset as a crop. It is not measured. An empty caret span
+                // is 0x0 too but rendered (it has a client rect where it really sits), so it still is.
+                var anc = el.getClientRects().length > 0 ? el.parentElement : null;
                 while (anc && anc !== document.documentElement) {
                     // Only overflow that cannot be reached counts, and only on the axis that hides it.
                     // `auto`/`scroll` content below the fold of a scrollable panel is the normal state
