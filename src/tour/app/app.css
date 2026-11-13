@@ -47,13 +47,17 @@ main {
 /* ---- canvas ---- */
 .stage-col { min-width: 0; }
 .stage {
-  position: relative; background: var(--canvas); border-radius: var(--radius); overflow: hidden;
+  position: relative; background: var(--canvas); border-radius: var(--radius); overflow: hidden; overflow: clip;
   box-shadow: 0 18px 44px rgba(16, 21, 31, .16), 0 0 0 1px rgba(16, 21, 31, .06);
 }
 /* The mockup renders at its authored viewport and is scaled as a whole: these screens mix fixed px
    with vw/vh, so letting the iframe reflow at a smaller width would not shrink them, it would
    rearrange them. */
-.screen { position: relative; width: 100%; overflow: hidden; }
+/* clip, not hidden: the iframe keeps its authored layout width under the scale, so a hidden box
+   still had that much scrollable overflow, and a browser that scrolls ancestors when content inside
+   the frame moves into view (a drawer sliding in) slid the whole canvas sideways. clip has no scroll
+   position; hidden stays as the fallback for a browser without clip. */
+.screen { position: relative; width: 100%; overflow: hidden; overflow: clip; }
 .screen iframe {
   border: 0; display: block; margin: 0 auto; transform-origin: top left;
   /* The shell drives playback; nothing in the mockup is meant to be tapped. Without this the

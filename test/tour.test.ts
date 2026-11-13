@@ -1010,3 +1010,33 @@ test('an embed relays to its host, takes commands from it, and reports a height 
         await new Promise<void>(r => server.close(() => r()));
     }
 });
+
+test('the scaled canvas cannot be scrolled sideways: a frame narrower than the scenario stays put', { skip }, async (t) => {
+    watchOrphans(t);
+    // The scenario keeps its authored 1280px layout box and is drawn smaller with a transform, so a
+    // clip box with overflow: hidden still has 1280 - width px of scrollable overflow. Browsers that
+    // scroll ancestors when content inside a frame moves into view (an overlay drawer sliding in
+    // from the right) then slid the whole canvas left, leaving a dark band. overflow: clip has no
+    // scroll position at all.
+    const out = path.join(work, 'clip-out');
+    const file = writeCatalog('clip', { outputDir: out, scenarios: [basicScenario()] });
+    assert.equal(cli(['tour', file, '--embed']).status, 0);
+    const server = await serve(out);
+    let browser: Browser | undefined;
+    try {
+        browser = await chromium.launch({ headless: true });
+        const page = await (await browser.newContext({ viewport: { width: 900, height: 700 } })).newPage();
+        await page.goto(`http://127.0.0.1:${server.port}/embed-basic-desktop.html`);
+        await page.waitForFunction(() => document.getElementById('cap-title')?.textContent === 'Basic', null, { timeout: 10000 });
+        await page.waitForFunction(() => !!document.querySelector('.screen iframe'), null, { timeout: 10000 });
+        const moved = await page.evaluate(() => ['.screen', '.stage'].map(sel => {
+            const el = document.querySelector(sel) as HTMLElement;
+            el.scrollLeft = 9999; el.scrollTop = 9999;
+            return `${sel} ${el.scrollLeft},${el.scrollTop}`;
+        }));
+        assert.deepEqual(moved, ['.screen 0,0', '.stage 0,0'], 'the canvas has no scroll position to be pushed to');
+    } finally {
+        if (browser) await browser.close();
+        await server.close();
+    }
+});
