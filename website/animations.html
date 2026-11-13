@@ -10,15 +10,15 @@
 <meta name="author" content="Vistaro">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta property="og:title" content="Vistaro — Every animation, played live">
-<meta property="og:description" content="Twelve interactive scenarios, one per animation type, running on the engine itself. Pause, scrub, replay.">
+<meta property="og:description" content="Fifteen interactive scenarios, one per animation type, running on the engine itself. Pause, scrub, replay.">
 <meta property="og:image" content="https://vistaro.dev/assets/og.jpg">
-<meta property="og:image:alt" content="Vistaro animation showcase: twelve interactive scenarios.">
+<meta property="og:image:alt" content="Vistaro animation showcase: fifteen interactive scenarios.">
 <meta property="og:url" content="https://vistaro.dev/animations.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Vistaro">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Vistaro — Every animation, played live">
-<meta name="twitter:description" content="Twelve interactive scenarios, one per animation type, running on the engine itself. Pause, scrub, replay.">
+<meta name="twitter:description" content="Fifteen interactive scenarios, one per animation type, running on the engine itself. Pause, scrub, replay.">
 <meta name="twitter:image" content="https://vistaro.dev/assets/og.jpg">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
 <link rel="preload" href="assets/fonts/bricolage-grotesque-latin-opsz.woff2" as="font" type="font/woff2" crossorigin>
@@ -408,6 +408,17 @@
   </div>
 </div>
 
+<div class="vistaro-block" id="follow">
+  <div class="container">
+    <div class="vistaro-head">
+      <span class="action-chip"><span class="q">"camera",</span> "follow": true</span>
+      <h2>Follow camera</h2>
+      <p>One camera step with <code>"follow": true</code>, and the frame pans to every click, keystroke and hover after it, arriving with the cursor. With <code>meta.motion.cursor</code> set to <code>"natural"</code>, short hops are quick and long moves take their time.</p>
+    </div>
+    <vistaro-tour src="src/showcase-out/" scenario="follow" device="desktop" autoplay="inview" height="640"></vistaro-tour>
+  </div>
+</div>
+
 <div class="vistaro-block" id="scroll">
   <div class="container">
     <div class="vistaro-head">
@@ -443,6 +454,28 @@
       <p>Cross-fade between two screens authored in one file. You get a multi-screen story with no real page load, and every other action keeps working on the new screen.</p>
     </div>
     <vistaro-tour src="src/showcase-out/" scenario="transition-screen" device="desktop" autoplay="inview" height="640"></vistaro-tour>
+  </div>
+</div>
+
+<div class="vistaro-block" id="transitions">
+  <div class="container">
+    <div class="vistaro-head">
+      <span class="action-chip"><span class="q">"transition":</span> "push" · "slide" · "crossfade" · "cut"</span>
+      <h2>Screen transitions</h2>
+      <p>The same <b>transitionScreen</b>, with the motion you choose: <b>push</b> for forward and back, <b>slide</b> to lay a screen over another, <b>crossfade</b> between related views and <b>cut</b> between unrelated ones. Every motion leaves the page in the same state, so the next step never depends on which one ran.</p>
+    </div>
+    <vistaro-tour src="src/showcase-out/" scenario="transitions" device="desktop" autoplay="inview" height="640"></vistaro-tour>
+  </div>
+</div>
+
+<div class="vistaro-block" id="overlay">
+  <div class="container">
+    <div class="vistaro-head">
+      <span class="action-chip"><span class="q">"action":</span> "overlay"</span>
+      <h2>Overlay</h2>
+      <p>Bring in a <b>modal</b>, a <b>drawer</b>, a <b>sheet</b> or a <b>toast</b>, each with the motion its kind implies and a dimming scrim where it belongs. <code>"dismiss": true</code> plays it backwards. A modal centred with <code>transform</code> stays centred.</p>
+    </div>
+    <vistaro-tour src="src/showcase-out/" scenario="overlay" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 

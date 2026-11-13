@@ -58,6 +58,7 @@
         { "@type": "Question", "name": "Does it need an API key, or any LLM?", "acceptedAnswer": { "@type": "Answer", "text": "No. Vistaro itself runs locally with no key and no account. The thinking happens in the coding agent you already use. It writes the two files; Vistaro checks them and renders them. That is also why it runs in CI with no secrets." } },
         { "@type": "Question", "name": "Can it record our real app, not just a mockup?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The same timeline can run against your live app: real page loads, a signed-in session, and a reset step between runs so saved data does not break the second pass. It can also watch you click through a flow once and draft the timeline for you (experimental)." } },
         { "@type": "Question", "name": "Is there a visual editor?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. npx vistaro studio opens a local visual editor over the timeline: a seekable live preview, click-to-pick targets, effect presets, drag-to-retime, and check and export buttons. It saves to the same vistaro.config.json your agent writes, and nothing leaves your machine." } },
+        { "@type": "Question", "name": "Can it match our brand?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Name your accent colour, caption style, cursor colour, corner logo and opening and closing cards once, in the timeline or in one shared brand file, and every video, guide and tour wears them. Clicks can make a sound, a music bed you bring is ducked under the narration, and any video can be cut at 16:9, 1:1 or 9:16. All of it is opt-in." } },
         { "@type": "Question", "name": "Can we keep demos of unreleased features private?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, by default. Everything runs on your machine or in your own CI. Nothing is uploaded to us or anyone else." } },
         { "@type": "Question", "name": "What do I need to run it?", "acceptedAnswer": { "@type": "Answer", "text": "Node 20.6 or later on macOS or Linux (Windows is untested). Your agent installs it with npm install --save-dev vistaro, then npx playwright install chromium for the browser used for recording (about 150 MB). ffmpeg is bundled. Narration is optional: OpenAI voices when a key is set, otherwise the macOS voice." } }
       ]
@@ -759,6 +760,7 @@
         <ul class="files">
           <li><code>demo.mp4</code>the video</li>
           <li><code>demo.vtt</code>subtitles for any player</li>
+          <li><code>demo.txt</code>a plain-text transcript</li>
         </ul>
       </div>
     </div>
@@ -935,6 +937,10 @@ tour-out/           <span class="c">the tour</span></pre>
       <details>
         <summary>Is there a visual editor?</summary>
         <div class="a">Yes. <code>npx vistaro studio</code> opens a local visual editor over the timeline: a seekable live preview, click-to-pick targets, effect presets, drag-to-retime, and check and export buttons. It saves to the same <code>vistaro.config.json</code> your agent writes, and nothing leaves your machine. <a class="inline-link" href="studio.html">How Studio works</a>.</div>
+      </details>
+      <details>
+        <summary>Can it match our brand?</summary>
+        <div class="a">Yes. Name your accent colour, caption style, cursor colour, corner logo and opening and closing cards once, in the timeline or in one shared brand file, and every video, guide and tour wears them. Clicks can make a sound, a music bed you bring is ducked under the narration, and any video can be cut at 16:9, 1:1 or 9:16. All of it is opt-in. <a class="inline-link" href="formats.html#style">See the brand kit and sound</a>.</div>
       </details>
       <details>
         <summary>Can we keep demos of unreleased features private?</summary>

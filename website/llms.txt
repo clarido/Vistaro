@@ -4,14 +4,16 @@
 
 ## How it works
 
-- The agent writes two files: a faithful HTML mockup of the UI and a JSON timeline of steps (click, type, camera, highlight, scroll, animate, and more).
+- The agent writes two files: a faithful HTML mockup of the UI and a JSON timeline of steps (click, type, camera, highlight, scroll, animate, overlay, and more).
+- Motion beyond clicks: screen transitions (`fade`, `cut`, `crossfade`, `slide`, `push`), overlays (modal, drawer, sheet, toast, each with a scrim and a `dismiss`), a camera that follows every interaction (`"follow": true`), and cursor travel scaled to distance (`meta.motion.cursor: "natural"`).
 - The CLI validates the timeline against the real page (`check`), previews frames (`preview`), then compiles outputs (`export`, `guide`, `tour`, `build`, `localize`).
 - Because the demo is source, it diffs pixel-by-pixel in CI and regenerates when the UI changes, instead of rotting like a screen recording.
 - No LLM is required for the pipeline itself; only the optional `extract` (screenshot→HTML) and `animate` (prompt→timeline) commands use a model, and agents skip them by writing the timeline directly.
 
 ## Outputs from one timeline
 
-- Demo videos (MP4) with subtitles (.vtt), chapters and optional narration.
+- Demo videos (MP4) with subtitles (.vtt), a plain-text transcript (.txt), chapters and optional narration, at 16:9, 1:1 or 9:16 (`--aspect`).
+- House style, set once per timeline or once per team in a shared brand file: `meta.brand` (accent colour, caption style, cursor tint, corner logo, intro/outro title cards), `meta.motion` (named durations and easings) and `meta.audio` (a click under each click, your own music bed ducked under narration, loudness normalisation). All opt-in; `check` warns about low caption contrast.
 - Step-by-step help guide sites (guide.json / guide.md / guide.html + frames).
 - Marketing reels: short, silent, looping product clips for desktop and phone (portrait), as MP4/WebM/poster/GIF or an embeddable page.
 - Interactive tours: a scenario rail plus a canvas that plays each scenario step by step; embeddable via an `<vistaro-tour>` custom element.
@@ -22,15 +24,14 @@
 - Install in your project: `npm install --save-dev vistaro`, then `npx playwright install chromium` (the browser it records with, about 600 MB of disk space; npm 12 and pnpm skip install scripts, so this line is required). ffmpeg comes with it: if the install skipped its download, Vistaro fetches it on the first export. No API key needed.
 - If an agent drives it, paste one instruction: "Install vistaro as a dev dependency (npm install --save-dev vistaro, then npx playwright install chromium), read node_modules/vistaro/AGENTS.md, and create a product demo of my site." The agent reads its manual (AGENTS.md) and runs everything locally.
 - To drive it yourself: `npx vistaro init-config demo`, then `check`, `preview`, `export`. From a clone of the repository, the same commands are `npx tsx cli.ts …`.
-- House style is set once per timeline (or once per team, in a shared brand file): `meta.motion` gives named durations and easings, `meta.brand` an accent colour, caption style, cursor tint, corner logo and intro/outro title cards. Both are opt-in and `check` warns about low caption contrast.
 - To learn the timeline vocabulary from the tool itself: `npx vistaro capabilities --json` lists every action (whether it needs a target, when its guide frame is taken), every step and `meta` field, the easings and the studio presets, from the same registry the validator and the manual's tables use.
 
 ## Links
 
 - Website: https://vistaro.dev/
 - Getting started: https://vistaro.dev/start.html
-- Every format (videos, guides, reels for desktop and phone, embeddable tours, languages, live apps): https://vistaro.dev/formats.html
-- Animation showcase (interactive): https://vistaro.dev/animations.html
+- Every format (videos, guides, reels for desktop and phone, brand kit, sound and 9:16, embeddable tours, languages, live apps): https://vistaro.dev/formats.html
+- Animation showcase (interactive, including transitions, overlays and the follow camera): https://vistaro.dev/animations.html
 - Studio, the local visual timeline editor (`npx vistaro studio`): https://vistaro.dev/studio.html
 - Source code: https://github.com/clarido/Vistaro
 - npm package: https://www.npmjs.com/package/vistaro

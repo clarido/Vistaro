@@ -340,6 +340,16 @@
   .reel-toggle:hover { border-color: var(--faint); }
   .reel-toggle svg { width: 11px; height: 11px; }
 
+  /* ---------- brand, sound and shape: real exported clips ---------- */
+  .media video.tall { aspect-ratio: 9 / 16; }
+  .duo figcaption code { font: 500 .9em/1 var(--mono); color: var(--muted); }
+  .sound { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; align-items: center; margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--line-soft); }
+  .sound h3 { margin: 0 0 10px; font: var(--font-label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--faint); }
+  .sound p { margin: 0; color: var(--muted); }
+  .sound p b { color: var(--ink); font-weight: 600; }
+  .sound code { font: 500 .86em/1 var(--mono); color: var(--str); }
+  @media (max-width: 640px) { .sound { grid-template-columns: minmax(0, 1fr); gap: 20px; } }
+
   /* ---------- closing CTA ---------- */
   .endcta { text-align: center; padding: 88px 0; }
   .endcta h2 { font-size: clamp(30px, 4vw, 44px); font-weight: 700; letter-spacing: -.026em; line-height: 1.08; margin: 0 auto 16px; max-width: 16em; }
@@ -429,6 +439,7 @@
       <li><a href="#video">Demo video</a></li>
       <li><a href="#guide">Help guides</a></li>
       <li><a href="#reel">Reels for desktop and phone</a></li>
+      <li><a href="#style">Brand, sound and shape</a></li>
       <li><a href="#tour">Embeddable tours</a></li>
       <li><a href="#languages">Every language</a></li>
       <li><a href="#live">Your real app</a></li>
@@ -456,6 +467,7 @@
         <ul class="files">
           <li><code>demo.mp4</code>the video</li>
           <li><code>demo.vtt</code>subtitles for any player</li>
+          <li><code>demo.txt</code>a plain-text transcript, for search and accessibility</li>
           <li><code>chapters</code>one per titled step, inside the MP4</li>
           <li><code>demo-step-02.mp4</code>one short clip per step, for docs and social posts</li>
           <li><code>narration</code>a spoken line per step, mixed into the video</li>
@@ -562,6 +574,70 @@
           <div class="ask-bar"><span>Ask your agent</span><button class="cb-copy" type="button" data-copy="Make a 10-second loop for our homepage, in landscape and in portrait for phones.">Copy</button></div>
           <p>"Make a 10-second loop for our homepage, in landscape and in portrait for phones."</p>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= BRAND, SOUND, SHAPE ======================= -->
+<section class="fmt" id="style" aria-labelledby="style-h">
+  <div class="container">
+    <div class="fmt-head">
+      <span class="cmd-chip">meta.brand <span class="q">·</span> meta.audio <span class="q">·</span> --aspect</span>
+      <h2 id="style-h">On brand, with sound, in any shape</h2>
+      <p>Set your house style once and every video wears it: your accent on the spotlight and the clicks, your caption style, your cursor colour, a corner logo, an opening and a closing card. One tempo for the whole demo, a click you can hear, and the frame your channel wants. <b>All of it is opt-in</b>, so a timeline that sets none of it renders exactly as before.</p>
+    </div>
+    <div class="fmt-grid wide">
+      <div class="duo">
+        <figure class="landscape">
+          <div class="media">
+            <video class="inview" muted playsinline loop controls preload="none" width="1280" height="720" poster="assets/showcase/brand-kit.poster.webp">
+              <source src="assets/showcase/brand-kit.webm" type="video/webm">
+              <source src="assets/showcase/brand-kit.mp4" type="video/mp4">
+              <a href="assets/showcase/brand-kit.mp4">Download the brand kit clip (MP4)</a>
+            </video>
+          </div>
+          <figcaption>An intro card, the brand accent, a styled caption and cursor, a corner logo and an outro card, all from one shared <code>brand.json</code>.</figcaption>
+        </figure>
+        <figure>
+          <div class="phone">
+            <div class="media">
+              <video class="inview tall" muted playsinline loop controls preload="none" width="540" height="960" poster="assets/showcase/vertical.poster.webp">
+                <source src="assets/showcase/vertical.webm" type="video/webm">
+                <source src="assets/showcase/vertical.mp4" type="video/mp4">
+                <a href="assets/showcase/vertical.mp4">Download the 9:16 clip (MP4)</a>
+              </video>
+            </div>
+          </div>
+          <figcaption>The same screen at 9:16, for stories and shorts.</figcaption>
+        </figure>
+      </div>
+      <div class="fmt-copy">
+        <h3>What you set once</h3>
+        <ul class="files">
+          <li><code>meta.brand</code>accent, captions, cursor, logo, intro and outro cards</li>
+          <li><code>meta.motion</code>named durations and easings for the whole demo</li>
+          <li><code>meta.audio</code>clicks, your music bed, ducking, loudness</li>
+          <li><code>--aspect</code>16:9, 1:1 or 9:16</li>
+          <li><code>--burn-subtitles</code>captions drawn in, for channels that ignore .vtt</li>
+        </ul>
+        <p>Keep the brand in one JSON file: every video, guide and tour picks it up. <code>check</code> warns when caption text falls below 4.5:1 contrast.</p>
+        <div class="ask">
+          <div class="ask-bar"><span>Ask your agent</span><button class="cb-copy" type="button" data-copy="Put our brand on every demo: our accent colour, our logo in the corner, and a title card at the start.">Copy</button></div>
+          <p>"Put our brand on every demo: our accent colour, our logo in the corner, and a title card at the start."</p>
+        </div>
+      </div>
+    </div>
+    <div class="sound">
+      <div class="media">
+        <video controls playsinline preload="none" width="1280" height="720" poster="assets/showcase/audio.poster.webp">
+          <source src="assets/showcase/audio.mp4" type="video/mp4">
+          <a href="assets/showcase/audio.mp4">Download the clip with sound (MP4)</a>
+        </video>
+      </div>
+      <div>
+        <h3>Press play to hear it</h3>
+        <p>This clip has sound: <code>"audio": { "click": true }</code> puts a short click under every click step, at the moment it lands. Bring your own music and it is looped to the length, faded out, <b>dipped under the narration</b>, and the whole mix is levelled to one loudness. Nothing on this page plays sound on its own.</p>
       </div>
     </div>
   </div>
@@ -828,6 +904,28 @@
           }
         });
       }, { threshold: 0.25 }).observe(embed);
+    });
+  })();
+
+  // Silent showcase clips play while in view; reduced motion keeps the poster, and the clip
+  // with sound never starts by itself. A pause while the clip is in view is the visitor's and
+  // sticks; one we make because it scrolled away does not.
+  (function () {
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var clips = document.querySelectorAll('video.inview');
+    if (!clips.length || !('IntersectionObserver' in window)) return;
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var v = entry.target;
+        v._inView = entry.isIntersecting;
+        if (v._inView && !reduced.matches && !v._userPaused) v.play().catch(function () {});
+        else if (!v._inView && !v.paused) v.pause();
+      });
+    }, { threshold: 0.4 });
+    Array.prototype.forEach.call(clips, function (v) {
+      v.addEventListener('pause', function () { v._userPaused = !!v._inView; });
+      v.addEventListener('play', function () { v._userPaused = false; });
+      io.observe(v);
     });
   })();
 

@@ -135,6 +135,35 @@
     box-shadow: 0 18px 40px -18px rgba(28, 32, 48, 0.55);
   }
 
+
+  /* --- overlays (pre-hidden; the overlay action reveals them) ------------------------------- */
+  #new-tender {
+    display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 440px; max-width: calc(100vw - 32px); background: var(--card); border-radius: 16px;
+    padding: 22px 24px 20px; z-index: 40; box-shadow: 0 30px 70px -24px rgba(28, 32, 48, 0.5);
+  }
+  #new-tender h3 { font: 600 21px/1.2 Georgia, serif; color: var(--navy); margin-bottom: 6px; }
+  #new-tender p { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+  #new-tender label { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+  #tender-name {
+    width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 14px;
+    font: inherit; font-size: 15px; outline: none; color: var(--ink); margin-bottom: 16px;
+  }
+  #tender-name:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.14); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+  .modal-actions span { border-radius: 999px; padding: 8px 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  #modal-cancel { color: var(--navy); border: 1px solid var(--line); }
+  #modal-create { background: var(--accent); color: var(--accent-ink); }
+  #details {
+    display: none; position: fixed; top: 0; right: 0; bottom: 0; width: 360px; max-width: 86vw;
+    background: var(--card); border-left: 1px solid var(--line); padding: 26px 24px; z-index: 40;
+    box-shadow: -24px 0 60px -30px rgba(28, 32, 48, 0.45);
+  }
+  #details .kicker { margin-bottom: 4px; }
+  #details h3 { font: 600 21px/1.25 Georgia, serif; color: var(--navy); margin-bottom: 14px; }
+  #details .row { display: flex; justify-content: space-between; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  #details .row b { color: var(--navy); }
+
   /* --- phone ---------------------------------------------------------------------- */
   @media (max-width: 900px) {
     .topbar { flex-wrap: wrap; padding: 12px 16px; gap: 10px; }
@@ -239,6 +268,23 @@
       </section>
     </div>
   </main>
+
+  <div id="new-tender" role="dialog" aria-label="New tender">
+    <h3>New tender</h3>
+    <p>Clarido drafts the response from the tender documents you upload.</p>
+    <label for="tender-name">Tender name</label>
+    <input id="tender-name" type="text" spellcheck="false" placeholder="e.g. Bridge deck repairs">
+    <div class="modal-actions"><span id="modal-cancel">Cancel</span><span id="modal-create">Create tender</span></div>
+  </div>
+
+  <aside id="details" aria-label="Tender details">
+    <div class="kicker">Tender details</div>
+    <h3>Harbour lighting upgrade</h3>
+    <div class="row"><span>Deadline</span><b>Thursday</b></div>
+    <div class="row"><span>Readiness</span><b>64/100</b></div>
+    <div class="row"><span>Open comments</span><b>1</b></div>
+    <div class="row"><span>Missing</span><b>Warranty terms</b></div>
+  </aside>
 
   <div id="toast">Saved — the pipeline is up to date.</div>
 

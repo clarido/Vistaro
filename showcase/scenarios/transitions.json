@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "title": "Screen transitions",
+    "slug": "showcase-transitions",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "push-in", "time": "1.4s", "action": "transitionScreen", "target": "#screen-report", "transition": "push",
+      "title": "Push forward",
+      "subtitle": "\"transition\": \"push\" — the new screen shoves the old one out." },
+    { "id": "push-back", "time": "3.8s", "action": "transitionScreen", "target": "#screen-pipeline", "transition": "push", "direction": "right",
+      "title": "Push back",
+      "subtitle": "\"direction\": \"right\" reads as going back." },
+    { "id": "slide", "time": "6.2s", "action": "transitionScreen", "target": "#screen-report", "transition": "slide", "direction": "up",
+      "title": "Slide over",
+      "subtitle": "A slide lands on top, here from below." },
+    { "id": "crossfade", "time": "8.6s", "action": "transitionScreen", "target": "#screen-pipeline", "transition": "crossfade",
+      "title": "Crossfade",
+      "subtitle": "Both screens blend, with no empty beat between them." },
+    { "id": "cut", "time": "11s", "action": "transitionScreen", "target": "#screen-report", "transition": "cut",
+      "title": "Cut",
+      "subtitle": "An instant swap, for screens that are not related." }
+  ]
+}

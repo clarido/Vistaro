@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "title": "Overlay",
+    "slug": "showcase-overlay",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600
+  },
+  "steps": [
+    { "id": "intro", "time": "0s", "action": "fadeIn", "target": "body", "guide": false },
+    { "id": "press-new", "time": "1.4s", "action": "click", "target": "#btn-new", "guide": false },
+    { "id": "modal", "time": "1.7s", "action": "overlay", "target": "#new-tender", "variant": "modal",
+      "title": "A modal, over a scrim",
+      "subtitle": "It scales up and fades in. The page dims behind it." },
+    { "id": "name", "time": "3s", "action": "type", "target": "#tender-name", "value": "Bridge deck repairs",
+      "title": "It is a real element", "subtitle": "Every other action works inside it." },
+    { "id": "close", "time": "5.2s", "action": "click", "target": "#modal-create", "guide": false },
+    { "id": "dismiss", "time": "5.5s", "action": "overlay", "target": "#new-tender", "dismiss": true,
+      "title": "Dismiss", "subtitle": "\"dismiss\": true plays it backwards and hides it again." },
+    { "id": "pick", "time": "7s", "action": "click", "target": "#item-3", "guide": false },
+    { "id": "drawer", "time": "7.3s", "action": "overlay", "target": "#details", "variant": "drawer",
+      "title": "A drawer", "subtitle": "It slides in from the side, for details that keep the page in view." },
+    { "id": "drawer-out", "time": "9.8s", "action": "overlay", "target": "#details", "dismiss": true, "guide": false },
+    { "id": "toast", "time": "10.6s", "action": "overlay", "target": "#toast", "variant": "toast",
+      "title": "A toast", "subtitle": "It drops in from above, with no scrim.", "subtitlePlace": "top" }
+  ]
+}

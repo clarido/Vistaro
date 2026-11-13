@@ -52,3 +52,31 @@ test('every showcase timeline passes check with no warnings at its catalog setti
         assert.deepEqual(issues.filter(i => i.level !== 'info').map(i => `${i.level}: ${i.message}`), [], `${guide.slug} is check-clean`);
     }
 });
+
+test('every showcase clip the website references is built by the deploy job, and its poster is committed', () => {
+    const fs = require('fs') as typeof import('fs');
+    const html = ['formats.html', 'index.html'].map(f => fs.readFileSync(path.join(root, 'website', f), 'utf8')).join('\n');
+    const refs = [...new Set([...html.matchAll(/assets\/showcase\/([a-z0-9-]+)\.(mp4|webm|poster\.webp)/g)].map(m => m[0]))];
+    // An empty match means the gallery moved or was renamed, not that there is nothing to check.
+    assert.ok(refs.length > 0, 'website/formats.html references no assets/showcase/ clip: update this test with the gallery');
+    const slugs = readCatalog(catalogFile).guides.map(g => g.slug);
+    const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'test.yml'), 'utf8');
+    const loop = workflow.match(/for s in ([a-z0-9 -]+); do\n\s+cp "showcase-out\/\$s\/en\/\$s-en\.mp4"/);
+    assert.ok(loop, 'the deploy job no longer copies showcase-out clips into website/assets/showcase/');
+    const copied = loop![1].trim().split(/\s+/);
+    for (const ref of refs) {
+        const [, slug, ext] = ref.match(/assets\/showcase\/([a-z0-9-]+)\.(.+)$/)!;
+        assert.ok(slugs.includes(slug), `${ref}: "${slug}" is not a guide in showcase.catalog.json`);
+        if (ext === 'poster.webp') assert.ok(fs.existsSync(path.join(root, 'website', ref)), `${ref} is referenced but not committed`);
+        else assert.ok(copied.includes(slug), `${ref} is referenced but the deploy job does not copy "${slug}"`);
+    }
+});
+
+test('every scenario the animations page embeds is in tour.showcase.json', () => {
+    const fs = require('fs') as typeof import('fs');
+    const html = fs.readFileSync(path.join(root, 'website', 'animations.html'), 'utf8');
+    const used = [...html.matchAll(/<vistaro-tour src="src\/showcase-out\/" scenario="([^"]+)"/g)].map(m => m[1]);
+    assert.ok(used.length > 0, 'animations.html embeds no showcase scenario: update this test with the page');
+    const known = JSON.parse(fs.readFileSync(path.join(root, 'tour.showcase.json'), 'utf8')).scenarios.map((s: { slug: string }) => s.slug);
+    assert.deepEqual(used.filter(s => !known.includes(s)), [], 'scenarios embedded but never built');
+});
