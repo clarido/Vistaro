@@ -69,6 +69,9 @@ WORKFLOW (an AI agent or a person writes the screen and the timeline; no API key
      And with NO command at all, the hub opens in your browser:
        npx vistaro                          # the ask for your agent, the manual at /agents.md,
                                                # and the doors into the studio (the \`vistaro\` front door)
+     Channel presets: --aspect 16:9|1:1|9:16 sets the frame, --burn-subtitles draws captions
+     into a reel; meta.audio adds clicks, a music bed and normalised loudness. Every export
+     with subtitles also writes a plain-text transcript (<output>.txt) beside the .vtt.
   6. Other languages reuse the same choreography:
        npx vistaro localize <dir> fr        # <dir>/locales/fr/ + strings.fr.json
        npx vistaro export <dir>/locales/fr -o demo-fr.mp4 --guide
@@ -249,6 +252,8 @@ RECORD OF WHAT WAS DONE:
     .option('--no-subtitles', 'Do not write <output>.vtt')
     .option('--no-chapters', 'Do not embed MP4 chapters for titled steps')
     .option('--clips <format>', 'Also cut one clip per step next to the video: mp4 or gif')
+    .option('--aspect <ratio>', 'Frame preset instead of --width/--height: 16:9 (1920x1080), 1:1 (1080x1080) or 9:16 (1080x1920); combine with --scale for density')
+    .option('--burn-subtitles', 'Draw the subtitle chip into the video even where the profile turns it off (a reel): for channels that ignore .vtt')
     .option('--tail <ms>', 'Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs, default 2500')
     .option('--config <file>', 'Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--guide', 'Also write the step-by-step guide (guide.json, guide.md, guide.html, assets/) after the video')
@@ -281,6 +286,7 @@ RECORD OF WHAT WAS DONE:
     .option('--no-subtitles', 'Do not write <output>.vtt')
     .option('--no-chapters', 'Do not embed MP4 chapters')
     .option('--clips <format>', 'Also cut one clip per step: mp4 or gif')
+    .option('--burn-subtitles', 'Draw the subtitle chip into the video even where the profile turns it off')
     .option('--tail <ms>', 'Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs')
     .option('--config <file>', 'Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory')
     .option('--guide', 'Also capture the step guide against the live page (re-navigates, replays in step mode)')

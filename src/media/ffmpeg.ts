@@ -136,6 +136,120 @@ export function encodeMp4(o: EncodeMp4Options): void {
     run(args);
 }
 
+export interface AudioMixOptions {
+    /** Length of the video the mix goes under (ms): the bed is looped/trimmed to it, the mix padded to it. */
+    durationMs: number;
+    /** Narration already placed on its own track (mixNarration's output). */
+    narration?: string;
+    /** Moments (ms) of the clicks; each gets one click sound. */
+    clicksAtMs?: number[];
+    /** A click sound file; a short tick is synthesized when absent. */
+    clickFile?: string;
+    /** Music bed file, looped to the length and faded out over the last 1.5 s. */
+    music?: string;
+    musicDb?: number;
+    /** Dip the bed under the narration (sidechain compression keyed by the narration). */
+    duck?: boolean;
+    /** Integrated loudness target (LUFS) for the mix; skipped when the mix is clicks alone. */
+    loudnessLufs?: number;
+}
+
+/** The synthesized click: a 2.4 kHz tick with a fast exponential decay, 60 ms. */
+const CLICK_SOURCE = "aevalsrc=exprs='0.5*sin(2*PI*2400*t)*exp(-t*160)|0.5*sin(2*PI*2400*t)*exp(-t*160)':s=48000:d=0.06";
+
+/**
+ * One AAC track from narration, clicks and a music bed, in a single ffmpeg pass: clicks delayed to
+ * their moments, the bed looped, set to its gain, faded out and (optionally) ducked under the
+ * narration, everything mixed, padded to the video's length and loudness-normalised (EBU R128,
+ * true peak -1.5 dBTP). Clicks alone are not normalised: integrated loudness gates out the silence,
+ * so a few ticks would be pushed to programme loudness and come out startlingly loud.
+ */
+export function mixAudio(o: AudioMixOptions, outFile: string): string {
+    const args: string[] = ['-y'];
+    const filters: string[] = [];
+    const mixInputs: string[] = [];
+    const dur = (o.durationMs / 1000).toFixed(3);
+    let n = 0;
+    let narr = -1, bed = -1, click = -1;
+    if (o.narration) { args.push('-i', o.narration); narr = n++; }
+    if (o.music) { args.push('-stream_loop', '-1', '-i', o.music); bed = n++; }
+    const clicks = (o.clicksAtMs ?? []).filter(ms => Number.isFinite(ms) && ms >= 0 && ms < o.durationMs);
+    if (clicks.length) {
+        if (o.clickFile) args.push('-i', o.clickFile);
+        else args.push('-f', 'lavfi', '-i', CLICK_SOURCE);
+        click = n++;
+    }
+    if (narr < 0 && bed < 0 && click < 0) throw new Error('mixAudio: nothing to mix');
+    const fmt = 'aformat=sample_rates=48000:channel_layouts=stereo';
+    let narrLabel = '';
+    if (narr >= 0) {
+        const duckIt = bed >= 0 && o.duck !== false;
+        filters.push(`[${narr}:a]${fmt}${duckIt ? ',asplit=2[narr][key]' : '[narr]'}`);
+        narrLabel = '[narr]';
+        mixInputs.push(narrLabel);
+    }
+    if (bed >= 0) {
+        const fadeStart = Math.max(0, o.durationMs / 1000 - 1.5).toFixed(3);
+        filters.push(`[${bed}:a]${fmt},atrim=0:${dur},volume=${o.musicDb ?? -18}dB,afade=t=out:st=${fadeStart}:d=1.5[bedraw]`);
+        if (narr >= 0 && o.duck !== false) {
+            filters.push('[bedraw][key]sidechaincompress=threshold=0.02:ratio=8:attack=20:release=400[bed]');
+        } else {
+            filters.push('[bedraw]anull[bed]');
+        }
+        mixInputs.push('[bed]');
+    }
+    if (click >= 0) {
+        const outs = clicks.map((_, i) => `[c${i}]`).join('');
+        filters.push(`[${click}:a]${fmt},volume=-6dB,asplit=${clicks.length}${outs}`);
+        clicks.forEach((ms, i) => filters.push(`[c${i}]adelay=${Math.round(ms)}|${Math.round(ms)}[cd${i}]`));
+        if (clicks.length > 1) filters.push(`${clicks.map((_, i) => `[cd${i}]`).join('')}amix=inputs=${clicks.length}:normalize=0:dropout_transition=0[clicks]`);
+        else filters.push('[cd0]anull[clicks]');
+        mixInputs.push('[clicks]');
+    }
+    const mixed = mixInputs.length > 1 ? `${mixInputs.join('')}amix=inputs=${mixInputs.length}:normalize=0:dropout_transition=0,` : mixInputs[0];
+    filters.push(`${mixed}apad=whole_dur=${dur},atrim=0:${dur},${fmt}[out]`);
+    const normalise = narr >= 0 || bed >= 0;
+    if (!normalise) {
+        args.push('-filter_complex', filters.join(';'), '-map', '[out]', '-c:a', 'aac', '-b:a', '192k', '-t', dur, outFile);
+        run(args);
+        return outFile;
+    }
+    // Two-pass loudness: render the mix losslessly, measure it, then apply the measured values as a
+    // linear gain (single-pass loudnorm is dynamic and lands about 1 LU off on a short clip).
+    const raw = outFile.replace(/\.[^./\\]+$/, '') + '.premix.wav';
+    args.push('-filter_complex', filters.join(';'), '-map', '[out]', '-c:a', 'pcm_s16le', '-t', dur, raw);
+    run(args);
+    try {
+        const target = `I=${o.loudnessLufs ?? -16}:TP=-1.5:LRA=11`;
+        const probe = run(['-hide_banner', '-nostats', '-i', raw, '-af', `loudnorm=${target}:print_format=json`, '-f', 'null', '-'], { allowFailure: true }).stderr;
+        const json = /\{[\s\S]*"input_i"[\s\S]*?\}/.exec(probe);
+        let af = `loudnorm=${target}`;
+        if (json) {
+            const m = JSON.parse(json[0]);
+            if (Number.isFinite(parseFloat(m.input_i)) && parseFloat(m.input_i) > -70) {
+                af = `loudnorm=${target}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`;
+            }
+        }
+        run(['-y', '-i', raw, '-af', `${af},${fmt}`, '-c:a', 'aac', '-b:a', '192k', '-t', dur, outFile]);
+    } finally {
+        fs.rmSync(raw, { force: true });
+    }
+    return outFile;
+}
+
+/** Integrated loudness (LUFS) of a file's audio, measured with the EBU R128 scanner. NaN without audio. */
+export function measureLoudness(file: string): number {
+    const r = run(['-hide_banner', '-nostats', '-i', file, '-filter_complex', 'ebur128', '-f', 'null', '-'], { allowFailure: true }).stderr;
+    const m = /Summary:[\s\S]*?I:\s*(-?[\d.]+) LUFS/.exec(r);
+    return m ? parseFloat(m[1]) : NaN;
+}
+
+/** Number of audio streams in a media file. */
+export function audioStreamCount(file: string): number {
+    const head = run(['-hide_banner', '-i', file], { allowFailure: true }).stderr;
+    return (head.match(/Stream #\d+:\d+[^:]*: Audio:/g) || []).length;
+}
+
 export interface EncodeGifOptions {
     startMs?: number;
     durationMs?: number;

@@ -39,3 +39,27 @@ export function buildVtt(cues: Cue[]): string {
     }
     return lines.join('\n');
 }
+
+/**
+ * A plain-text transcript beside the .vtt, for accessibility and search: the title, then per step
+ * in order its timestamp, its guide title (the chapter heading) and what is said or shown -- the
+ * narration when the step has one, else its subtitle. Steps with neither title nor words are left
+ * out. Timestamps use the measured interaction moments, like the cues.
+ */
+export function buildTranscript(timeline: Timeline, startMsOf: (step: Step) => number = s => s.timeMs, durationMs?: number): string {
+    const lines: string[] = [];
+    if (timeline.meta?.title) lines.push(String(timeline.meta.title), '');
+    const clock = (ms: number) => { const t = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+    for (const s of timeline.steps) {
+        const at = startMsOf(s);
+        if (!Number.isFinite(at) || (durationMs !== undefined && at >= durationMs)) continue;
+        const title = typeof s.title === 'string' && s.title.trim() && s.guide !== false ? s.title.trim() : '';
+        const words = typeof s.narration === 'string' && s.narration.trim() ? s.narration : (typeof s.subtitle === 'string' ? s.subtitle : '');
+        const text = words ? plainText(words) : '';
+        if (!title && !text) continue;
+        lines.push(`[${clock(at)}]${title ? ' ' + title : ''}`);
+        if (text) lines.push(text);
+        lines.push('');
+    }
+    return lines.join('\n').trimEnd() + '\n';
+}

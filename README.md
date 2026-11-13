@@ -110,7 +110,7 @@ npx vistaro preview demo              # demo/preview.png: one labelled frame per
 npx vistaro export demo -o demo.mp4 --guide
 ```
 
-`export` writes `demo.mp4`, `demo.vtt`, the chapters and `demo/guide/` (`guide.json`, `guide.md`, `guide.html`, `assets/step-NN.png`). The video is as long as the timeline. Add `--narration` for a spoken track (`OPENAI_API_KEY`, or macOS `say`). `animated.html` is a generated file, so run `build` again after you edit `index.html`. `export` doesn't use it: it records `index.html` directly, which keeps the video identical to what `check` and `preview` saw.
+`export` writes `demo.mp4`, `demo.vtt`, a plain-text transcript `demo.txt`, the chapters and `demo/guide/` (`guide.json`, `guide.md`, `guide.html`, `assets/step-NN.png`). The video is as long as the timeline. Add `--narration` for a spoken track (`OPENAI_API_KEY`, or macOS `say`). `animated.html` is a generated file, so run `build` again after you edit `index.html`. `export` doesn't use it: it records `index.html` directly, which keeps the video identical to what `check` and `preview` saw.
 
 For your own screen, put its `index.html` in a new folder, run `npx vistaro init-config <folder>` to scaffold a timeline next to it, then run the same commands on that folder.
 
@@ -365,6 +365,8 @@ Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narra
 | `--no-subtitles` | Do not write <output>.vtt |
 | `--no-chapters` | Do not embed MP4 chapters for titled steps |
 | `--clips <format>` | Also cut one clip per step next to the video: mp4 or gif |
+| `--aspect <ratio>` | Frame preset instead of --width/--height: 16:9 (1920x1080), 1:1 (1080x1080) or 9:16 (1080x1920); combine with --scale for density |
+| `--burn-subtitles` | Draw the subtitle chip into the video even where the profile turns it off (a reel): for channels that ignore .vtt |
 | `--tail <ms>` | Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs, default 2500 |
 | `--config <file>` | Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--guide` | Also write the step-by-step guide (guide.json, guide.md, guide.html, assets/) after the video |
@@ -406,6 +408,7 @@ Record the timeline against a live page (URL) instead of a local mockup: real na
 | `--no-subtitles` | Do not write <output>.vtt |
 | `--no-chapters` | Do not embed MP4 chapters |
 | `--clips <format>` | Also cut one clip per step: mp4 or gif |
+| `--burn-subtitles` | Draw the subtitle chip into the video even where the profile turns it off |
 | `--tail <ms>` | Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs |
 | `--config <file>` | Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--guide` | Also capture the step guide against the live page (re-navigates, replays in step mode) |

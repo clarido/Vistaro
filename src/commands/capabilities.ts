@@ -3,7 +3,7 @@ import * as path from 'path';
 import {
     ACTIONS, ACTION_DOCS, ACTION_DOC_ORDER, TARGET_REQUIRED, CURSOR_ACTIONS, STATE_ACTIONS,
     EASING_NAMES, EASING_DOCS, STEP_FIELD_DOCS, META_FIELD_DOCS, DEVICE_KINDS, SUBTITLE_PLACES,
-    TIMELINE_KINDS, AUTOPLAY_MODES, CURSOR_STYLES, FieldDoc, MOTION_TOKEN_DOCS, BRAND_TOKEN_DOCS, MOTION_TOKENS, DEFAULT_MOTION_S, LOGO_PLACES, TRANSITIONS, TRANSITION_DOCS, DIRECTIONS, OVERLAY_VARIANTS,
+    TIMELINE_KINDS, AUTOPLAY_MODES, CURSOR_STYLES, FieldDoc, MOTION_TOKEN_DOCS, BRAND_TOKEN_DOCS, MOTION_TOKENS, DEFAULT_MOTION_S, LOGO_PLACES, TRANSITIONS, TRANSITION_DOCS, DIRECTIONS, OVERLAY_VARIANTS, ASPECT_PRESETS, AUDIO_KEYS,
 } from '../engine/schema';
 
 /**
@@ -35,6 +35,8 @@ export interface Capabilities {
     transitions: { name: string; description: string }[];
     directions: string[];
     overlayVariants: string[];
+    aspects: Record<string, { width: number; height: number }>;
+    audioKeys: string[];
     presets: Record<string, { name: string; fields: Record<string, unknown> }[]>;
     devices: string[];
     subtitlePlaces: string[];
@@ -74,6 +76,8 @@ export function capabilities(presets: Presets = readPresets()): Capabilities {
         transitions: TRANSITIONS.map(t => ({ name: t, description: TRANSITION_DOCS[t] })),
         directions: [...DIRECTIONS],
         overlayVariants: [...OVERLAY_VARIANTS],
+        aspects: { ...ASPECT_PRESETS },
+        audioKeys: [...AUDIO_KEYS],
         presets,
         devices: [...DEVICE_KINDS],
         subtitlePlaces: [...SUBTITLE_PLACES],
@@ -167,6 +171,8 @@ export function renderCapabilitiesText(c: Capabilities): string {
     lines.push(`  subtitlePlace    ${c.subtitlePlaces.join(', ')}`);
     lines.push(`  direction        ${c.directions.join(', ')}`);
     lines.push(`  overlay variant  ${c.overlayVariants.join(', ')}`);
+    lines.push(`  --aspect         ${Object.entries(c.aspects).map(([k, v]) => `${k} (${v.width}x${v.height})`).join(', ')}`);
+    lines.push(`  meta.audio       ${c.audioKeys.join(', ')}`);
     lines.push(`  meta.kind        ${c.kinds.join(', ')}`);
     lines.push(`  meta.cursor      ${c.cursors.join(', ')}`);
     lines.push(`  reel.autoplay    ${c.autoplay.join(', ')}`);

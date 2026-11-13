@@ -94,6 +94,7 @@ Generated from the capability registry in `src/engine/schema.ts` by `npm run doc
 | `reel` | Overrides of whatever `kind` implies: `spotlight`, `ripple`, `subtitles`, `loop` (booleans), `autoplay` (`immediate`, `inview`, `message`), `poster` (`last` (default), `first`, or a time such as `"3.2s"`). An explicit value always beats the profile default. |
 | `motion` | Named durations and default easings, set once instead of per step: `fast`, `base`, `slow` (seconds), `ease` (default easing for `animate` and `camera`) and `cameraEase` (wins for `camera`). An action with no `duration` reads its token when this object sets it -- `animate` → `base`, `fadeIn` → `base`, `transitionScreen` → `base`, `camera` → `slow`, `overlay` → `fast` -- and keeps its built-in default otherwise, so a timeline without `motion` renders exactly as before. A step may also name a token: `"duration": "fast"` (unset tokens mean fast 0.2 s, base 0.4 s, slow 1.2 s). See the motion tokens table below. |
 | `brand` | The brand kit the video wears: `accent` (spotlight, ripple, step badge), `caption` (`font`, `color`, `background`, `radius`), `cursor` (pointer fill), `logo` (an image path relative to `index.html`, or `{ src, place, height }`), `intro` / `outro` cards (`title`, `subtitle`, `duration`, `background`, `color`). Or a path, relative to the timeline, to a shared JSON brand file holding the same object. Values go into CSS verbatim; `check` warns on an unknown token and on caption or card text below 4.5:1 contrast. See the brand tokens table below. |
+| `audio` | The video's sound, opt-in: `click` (`true` for a short synthesized tick under every click step, or a path to your own sound), `music` (a path to a bed you bring, looped to the length and faded out; none is bundled), `musicVolume` (dB, default -18), `duck` (default `true`: the bed dips under narration) and `loudness` (the integrated LUFS the final mix is normalised to, default -16; -14 suits most social platforms). Paths are relative to the timeline. Without it the audio is exactly what it was; a reel is silent unless it sets this. |
 | `reset` | Live pages: a shell command run before each pass over the app (the recording, then the `--guide` replay), e.g. `"npm run db:seed"` or `"curl -X POST http://localhost:3000/api/test/reset"`. It runs in the shell, in the CLI's working directory, so a timeline is executable content: it runs only when you pass `--allow-reset`, and the command refuses rather than silently skipping a reset the timeline depends on. `--reset-cmd` gives your own command instead and never needs the flag. See [Live pages](#live-pages). |
 
 ### Steps
@@ -216,6 +217,14 @@ Frames of completion-type steps are taken once the CSS animations on the target 
 - **The follow window is clamped to the page**: a target near an edge is framed off-centre rather than showing beyond the content, so two targets in the same corner can share one window. That is the no-crop bound from « Authoring a reel » applied per move, not a fixed number -- a composition with no room to push still cannot be pushed.
 - **`check --trace` shows both** without a video: each record's `travel` says how far and how long the cursor moved and whether the camera followed, and `camera.window` says where the frame was.
 
+### Audio and channel presets: what is not guessable
+
+- **`meta.audio` is opt-in, and everything without it is unchanged**: a narrated video keeps exactly its narration track, a reel stays silent. With it, one ffmpeg pass mixes the narration, a click under each click step's measured moment, and the music bed (looped to the video's length, faded out over the last 1.5 s, ducked under the narration unless `duck: false`), then normalises the whole mix to `loudness` LUFS in two passes (true peak -1.5 dBTP).
+- **Clicks alone are not normalised.** Integrated loudness gates out silence, so a few ticks would be raised to programme loudness; they keep their fixed level instead. Add a bed or narration and the mix is normalised as a whole.
+- **No music is bundled.** `music` is your file, relative to the timeline; `build-all` hashes it and `localize` rebases its path, as for a brand file.
+- **`--aspect` sets the frame, not the layout.** A 9:16 frame of a desktop mockup is a tall desktop page; author the screen to reflow (see « Authoring a reel ») and pick the breakpoint from the frame width times `--scale`.
+- **Guide videos already burn their captions in** (the subtitle chip is drawn in the page); `--burn-subtitles` matters for a reel, whose profile turns the chip off.
+
 ### Motion tokens and the brand kit: what is not guessable
 
 - **Unset means unchanged, to the pixel.** A timeline without `meta.motion` or `meta.brand` renders byte-identical frames to one written before either existed; both are opt-in. An empty object is the same as none.
@@ -228,7 +237,7 @@ Frames of completion-type steps are taken once the CSS animations on the target 
 
 ## Outputs
 
-`export <dir> -o demo.mp4 --guide` writes, next to the video: `demo.vtt` (subtitles), chapters inside the MP4, and `<dir>/guide/`:
+`export <dir> -o demo.mp4 --guide` writes, next to the video: `demo.vtt` (subtitles), `demo.txt` (a plain-text transcript: each step's timestamp, title and narration or subtitle, for accessibility and search; not written with `--no-subtitles`), chapters inside the MP4, and `<dir>/guide/`:
 
 ```
 guide/
@@ -249,7 +258,7 @@ Publishing a guide means copying `guide.*` and the whole `assets/` directory: th
 
 ### Reel outputs
 
-`export <reel> -o clip.mp4` on a `kind: "reel"` timeline writes, beside the video, `clip.webm` (VP9, silent), `clip.poster.png` and `clip.gif` (long edge 720px at 15fps, roughly 2.2 to 2.9 MB in either orientation across the eight rows measured, since GIF weight tracks how much of the frame moves rather than its dimensions — the cap is on the **long** edge because a phone reel is portrait, and a 720px *width* would have made the mobile GIF 3.7x heavier than the desktop one it is meant to undercut). Each artifact's dimensions and weight are printed as it is written. The MP4 carries no audio stream, and no `.vtt` or chapters are written. `--narration`, `--voiceover` and `--clips` are warned about and ignored. The poster is the last step's completion by default, the composed payoff frame rather than the empty opening one; `meta.reel.poster` overrides it.
+`export <reel> -o clip.mp4` on a `kind: "reel"` timeline writes, beside the video, `clip.webm` (VP9, silent), `clip.poster.png` and `clip.gif` (long edge 720px at 15fps, roughly 2.2 to 2.9 MB in either orientation across the eight rows measured, since GIF weight tracks how much of the frame moves rather than its dimensions — the cap is on the **long** edge because a phone reel is portrait, and a 720px *width* would have made the mobile GIF 3.7x heavier than the desktop one it is meant to undercut). Each artifact's dimensions and weight are printed as it is written. The MP4 carries no audio stream unless the timeline sets `meta.audio` (clicks, a music bed), and no `.vtt` or chapters are written; `--burn-subtitles` draws the subtitle chip into the clip for a channel that ignores `.vtt` files. `--narration`, `--voiceover` and `--clips` are warned about and ignored. The poster is the last step's completion by default, the composed payoff frame rather than the empty opening one; `meta.reel.poster` overrides it.
 
 `build <reel> --embed --device <desktop|mobile>` additionally writes `embed-<device>.html`, a self-contained page with no margin or scrollbars, and `embed-<device>.snippet.html`, the parent-side snippet. **The names always carry the device** because a reel is genuinely two deliverables, and an unsuffixed pair would have the second build silently overwrite the first, leaving a desktop page inside a phone-shaped frame.
 
@@ -314,6 +323,7 @@ Then translate `strings.fr.json` and the visible text in `locales/fr/index.html`
 }
 ```
 
+- `aspect` (`"16:9"`, `"1:1"`, `"9:16"`) is a render setting like `width`/`height` and a shorthand for them (1920x1080, 1080x1080, 1080x1920 CSS px; `scale` multiplies them); setting both in one place is an error, and the most specific level wins as a whole.
 - Paths are relative to the catalog file. `outputDir` may not be `/`, the home directory, the catalog directory, or overlap a guide directory. Every default is also valid per guide (the guide wins). `outputs` are the extras: `guide` (default for a guide), `gif`, `clips`, `webm`, `poster`, `embed`; the video is always produced and never listed as an output.
 - A guide entry may set `kind: "reel"`, whose default outputs are `["webm", "poster", "gif"]` and which produces no guide. `devices: ["desktop", "mobile"]` expands it to one row per device, sharing `<slug>/<locale>/` with the device in every filename (`ask-anything-en-mobile.mp4`, `embed-mobile.html`). Render settings gain `device` and `scale`, both valid in `defaults` and per guide.
 - The manifest key is the plain locale for a guide and `<locale>:<device>` for a device-expanded row, so manifests written before reels existed stay valid.
@@ -658,6 +668,8 @@ Record the timeline to an MP4/GIF (plus .vtt subtitles, chapters, optional narra
 | `--no-subtitles` | Do not write <output>.vtt |
 | `--no-chapters` | Do not embed MP4 chapters for titled steps |
 | `--clips <format>` | Also cut one clip per step next to the video: mp4 or gif |
+| `--aspect <ratio>` | Frame preset instead of --width/--height: 16:9 (1920x1080), 1:1 (1080x1080) or 9:16 (1080x1920); combine with --scale for density |
+| `--burn-subtitles` | Draw the subtitle chip into the video even where the profile turns it off (a reel): for channels that ignore .vtt |
 | `--tail <ms>` | Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs, default 2500 |
 | `--config <file>` | Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--guide` | Also write the step-by-step guide (guide.json, guide.md, guide.html, assets/) after the video |
@@ -699,6 +711,7 @@ Record the timeline against a live page (URL) instead of a local mockup: real na
 | `--no-subtitles` | Do not write <output>.vtt |
 | `--no-chapters` | Do not embed MP4 chapters |
 | `--clips <format>` | Also cut one clip per step: mp4 or gif |
+| `--burn-subtitles` | Draw the subtitle chip into the video even where the profile turns it off |
 | `--tail <ms>` | Hold after the last step, in ms -- bare (2500) or unit-suffixed ("2.5s"); overrides meta.tailMs |
 | `--config <file>` | Use a timeline other than <dir>/vistaro.config.json (one screen, several scenarios); path is relative to the current directory |
 | `--guide` | Also capture the step guide against the live page (re-navigates, replays in step mode) |

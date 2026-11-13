@@ -191,13 +191,18 @@ function referencedOutside(dir: string): string[] {
  * same file seen from the copy; the rest of the bytes stay as the source wrote them.
  */
 function rebaseBrandPath(srcConfig: string, copiedConfig: string): void {
-    let ref: unknown;
-    try { ref = JSON.parse(fs.readFileSync(srcConfig, 'utf8'))?.meta?.brand; } catch { return; }
-    if (typeof ref !== 'string' || path.isAbsolute(ref)) return;
-    const target = path.resolve(path.dirname(srcConfig), ref);
-    const rebased = relPosix(path.dirname(copiedConfig), target);
-    if (rebased === ref) return;
-    const text = fs.readFileSync(copiedConfig, 'utf8');
-    const re = new RegExp(`("brand"\\s*:\\s*)${JSON.stringify(ref).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
-    if (re.test(text)) fs.writeFileSync(copiedConfig, text.replace(re, (_m, head) => head + JSON.stringify(rebased)));
+    let meta: any;
+    try { meta = JSON.parse(fs.readFileSync(srcConfig, 'utf8'))?.meta; } catch { return; }
+    // The same holds for meta.audio's music bed and click sound, which are relative to the timeline too.
+    const refs: [string, unknown][] = [['brand', meta?.brand], ['music', meta?.audio?.music], ['click', meta?.audio?.click]];
+    let text = fs.readFileSync(copiedConfig, 'utf8');
+    let changed = false;
+    for (const [key, ref] of refs) {
+        if (typeof ref !== 'string' || path.isAbsolute(ref)) continue;
+        const rebased = relPosix(path.dirname(copiedConfig), path.resolve(path.dirname(srcConfig), ref));
+        if (rebased === ref) continue;
+        const re = new RegExp(`("${key}"\\s*:\\s*)${JSON.stringify(ref).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+        if (re.test(text)) { text = text.replace(re, (_m, head) => head + JSON.stringify(rebased)); changed = true; }
+    }
+    if (changed) fs.writeFileSync(copiedConfig, text);
 }

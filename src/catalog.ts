@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { createHash } from 'crypto';
 import { isLocaleCode, localizedStringsFiles } from './engine/strings';
-import { TimelineKind, TIMELINE_KINDS, DeviceKind, DEVICE_KINDS, resolveConfigPath } from './engine/schema';
+import { TimelineKind, TIMELINE_KINDS, DeviceKind, DEVICE_KINDS, resolveConfigPath, ASPECT_PRESETS } from './engine/schema';
 
 /**
  * Files that define a guide's content: index.html, its timeline (`opts.config`, else
@@ -29,7 +29,16 @@ export function guideSourceFiles(dir: string, opts: { config?: string } = {}): s
     }
     for (const ref of referencedLocalFiles(dir)) add(ref);
     for (const full of brandSourceFiles(config, dir)) addFull(full);
+    for (const full of audioSourceFiles(config)) addFull(full);
     return [...out].sort();
+}
+
+/** meta.audio's music bed and click sound (relative to the timeline): empty without meta.audio. */
+export function audioSourceFiles(configFile: string): string[] {
+    let audio: any;
+    try { audio = JSON.parse(fs.readFileSync(configFile, 'utf8'))?.meta?.audio; } catch { return []; }
+    if (!audio || typeof audio !== 'object') return [];
+    return [audio.music, audio.click].filter((p): p is string => typeof p === 'string' && !!p.trim()).map(p => path.resolve(path.dirname(configFile), p));
 }
 
 /**
@@ -152,6 +161,8 @@ export interface RenderSettings {
     device?: DeviceKind;
     /** Pixel density: multiplies the viewport and zooms the page back (see ViewportOptions.scale). */
     scale?: number;
+    /** Frame preset ("16:9", "1:1", "9:16"): shorthand for width/height, resolved by effectiveSettings. */
+    aspect?: string;
 }
 
 export interface CatalogDefaults extends RenderSettings {
@@ -184,7 +195,7 @@ export interface Catalog {
 }
 
 const CATALOG_KEYS = new Set(['outputDir', 'defaults', 'guides', '$schema', 'title', 'version']);
-const SETTING_KEYS = ['outputs', 'width', 'height', 'theme', 'narration', 'crop', 'hideCursor', 'device', 'scale'];
+const SETTING_KEYS = ['outputs', 'width', 'height', 'theme', 'narration', 'crop', 'hideCursor', 'device', 'scale', 'aspect'];
 const DEFAULT_KEYS = new Set(['locales', ...SETTING_KEYS]);
 const GUIDE_KEYS = new Set(['slug', 'dir', 'locales', 'record', 'title', 'kind', 'devices', ...SETTING_KEYS]);
 const OUTPUTS = new Set<string>(CATALOG_OUTPUTS);
@@ -201,8 +212,12 @@ export interface EffectiveSettings {
 export function effectiveSettings(guide: CatalogGuide, defaults: CatalogDefaults = {}): EffectiveSettings {
     const pick = <K extends keyof RenderSettings>(k: K): RenderSettings[K] => (guide[k] !== undefined ? guide[k] : defaults[k]);
     const kind: TimelineKind = guide.kind === 'reel' ? 'reel' : 'guide';
+    // An aspect preset is a width/height pair: the most specific level wins as a whole (a guide's
+    // own width/height beat a default aspect, a guide's aspect beats default width/height).
+    const own = (k: keyof RenderSettings) => guide[k] !== undefined;
+    const aspect = ASPECT_PRESETS[(own('aspect') || !(own('width') || own('height')) ? pick('aspect') : undefined) as string];
     return {
-        width: pick('width'), height: pick('height'), theme: pick('theme'), crop: pick('crop'),
+        width: aspect ? aspect.width : pick('width'), height: aspect ? aspect.height : pick('height'), theme: pick('theme'), crop: pick('crop'),
         narration: pick('narration') ?? false, hideCursor: pick('hideCursor') ?? false,
         device: pick('device'), scale: pick('scale'), kind,
         // The legacy "video" entry is implied (readCatalog warns about it) and never an extra.
@@ -220,6 +235,8 @@ function validateSettings(o: any, where: string, errors: string[], warn: (m: str
     if (o.hideCursor !== undefined && typeof o.hideCursor !== 'boolean') errors.push(`${where}: "hideCursor" must be true or false`);
     if (o.crop !== undefined && o.crop !== false && !(typeof o.crop === 'number' && Number.isFinite(o.crop) && o.crop >= 0)) errors.push(`${where}: "crop" must be a padding in px (>= 0) or false`);
     if (o.device !== undefined && !DEVICE_KINDS.includes(o.device)) errors.push(`${where}: "device" must be ${DEVICE_KINDS.map(d => `"${d}"`).join(' or ')}`);
+    if (o.aspect !== undefined && !ASPECT_PRESETS[o.aspect]) errors.push(`${where}: "aspect" must be one of ${Object.keys(ASPECT_PRESETS).map(a => `"${a}"`).join(', ')}`);
+    if (o.aspect !== undefined && (o.width !== undefined || o.height !== undefined)) errors.push(`${where}: "aspect" is a shorthand for width/height: set one or the other`);
     if (o.scale !== undefined && !(typeof o.scale === 'number' && Number.isFinite(o.scale) && o.scale > 0)) errors.push(`${where}: "scale" must be a positive number (e.g. 2)`);
     if (o.outputs !== undefined) {
         if (!Array.isArray(o.outputs)) errors.push(`${where}: "outputs" must be an array (e.g. ["guide", "gif"])`);

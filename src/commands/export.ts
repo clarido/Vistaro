@@ -1,15 +1,15 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { recordEvent } from '../manifest';
-import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS, deviceKind, reelOptions, intrinsicDurationMs, parseTime, parseTailMs, parseDurationS, emulateMobileFor, resolveConfigPath, cliConfigPath, configStem, outroMs } from '../engine/schema';
+import { Step, Timeline, loadTimeline, validateTimeline, formatIssue, hasErrors, isReel, computeDurationMs, formatTime, leadMsFor, DEFAULT_TAIL_MS, deviceKind, reelOptions, intrinsicDurationMs, parseTime, parseTailMs, parseDurationS, emulateMobileFor, resolveConfigPath, cliConfigPath, configStem, outroMs, audioOf, ASPECT_PRESETS, DEFAULT_MUSIC_DB, DEFAULT_LOUDNESS_LUFS } from '../engine/schema';
 import { runTimeline, ensureRuntime, StepResult, RunState, LiveOptions, RunAbortedError, errorMessage } from '../engine/driver';
 import { launchPage, fileUrl, ViewportOptions, resolveViewport, closeWithWatchdog, closeBrowser, sanitizeUrl } from '../browser';
 import { bootOptions } from '../engine/inject';
-import { encodeMp4, encodeGif, encodeWebm, extractPoster, cutClip, probeDurationMs, describeAsset, ensureFfmpeg } from '../media/ffmpeg';
+import { encodeMp4, encodeGif, encodeWebm, extractPoster, cutClip, probeDurationMs, describeAsset, ensureFfmpeg, mixAudio } from '../media/ffmpeg';
 import { synthesizeSteps, synthesizeScript, mixNarration, narrationOverruns, ttsEngine, VoiceOptions, NarrationClip } from '../media/tts';
 import { buildGuide, resolveCrop, VideoInfo } from './guide';
 import { hashGuideDir, relPosix, displayPath } from '../catalog';
-import { subtitleCues, buildVtt } from '../media/vtt';
+import { subtitleCues, buildVtt, buildTranscript } from '../media/vtt';
 import { chaptersFor, ffmetadata } from '../media/chapters';
 import { runResetCommand, resolveResetCommand } from '../reset';
 import { learnCollector, writeLearnDraft, LearnSummary } from './learn';
@@ -45,6 +45,10 @@ export interface ExportOptions extends ViewportOptions {
     allowReset?: boolean;
     /** `record --learn <file>`: write the interactions the recording performed as a draft timeline. Set by the record command only; `export` never passes it. */
     learn?: string;
+    /** `--aspect 16:9|1:1|9:16`: shorthand for --width/--height (see ASPECT_PRESETS). */
+    aspect?: string;
+    /** `--burn-subtitles`: draw the subtitle chip into the video even where the profile turns it off (a reel). */
+    burnSubtitles?: boolean;
 }
 
 /** Output containers `export`/`record` can write; anything else is refused before the browser starts. */
@@ -76,6 +80,10 @@ export interface ExportSummary {
     poster?: string;
     gif?: string;
     vtt?: string;
+    /** Plain-text transcript beside the .vtt. */
+    transcript?: string;
+    /** meta.audio's mix (clicks, music bed, normalised loudness), when one was made. */
+    audioMix?: string;
     chapters: number;
     narration?: string;
     clips: string[];
@@ -94,7 +102,7 @@ export interface ExportSummary {
 /** Shared by export and record: the success line, or the failure summary + exit code 1. */
 export function reportOutcome(verb: string, summary: ExportSummary, extra = ''): void {
     const rel = displayPath;
-    const details = (summary.vtt ? `, subtitles ${rel(summary.vtt)}` : '') +
+    const details = (summary.vtt ? `, subtitles ${rel(summary.vtt)}` : '') + (summary.transcript ? `, transcript ${rel(summary.transcript)}` : '') +
         (summary.chapters ? `, ${summary.chapters} chapters` : '') +
         (summary.narration ? `, narration mixed in` : '') +
         (summary.clips.length ? `, ${summary.clips.length} clips` : '') +
@@ -154,6 +162,12 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     const hasConfig = fs.existsSync(configPath);
     if (options.config && !hasConfig) throw new Error(`timeline not found: ${displayPath(configPath)}`);
 
+    if (options.aspect !== undefined) {
+        const preset = ASPECT_PRESETS[options.aspect];
+        if (!preset) throw new Error(`unknown --aspect "${options.aspect}" (use ${Object.keys(ASPECT_PRESETS).join(', ')})`);
+        if (options.width !== undefined || options.height !== undefined) throw new Error('--aspect is a shorthand for --width/--height: pass one or the other, not both');
+        options = { ...options, width: preset.width, height: preset.height };
+    }
     let htmlPath = path.resolve(outputDir, 'index.html');
     if (!session) {
         const animated = path.resolve(outputDir, 'animated.html');
@@ -248,7 +262,8 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
     const pageUrl = session ? session.url : fileUrl(htmlPath);
     const shownUrl = session ? sanitizeUrl(session.url) : pageUrl;
     // Live pages: no body drift by default (a transformed <body> can break a real app's fixed layout).
-    const liveBoot = session && timeline ? bootOptions(timeline, { drift: timeline.meta.drift === true }, false) : undefined;
+    const burn = options.burnSubtitles ? { subtitles: true } : {};
+    const liveBoot = session && timeline ? bootOptions(timeline, { drift: timeline.meta.drift === true, ...burn }, false) : undefined;
     const live: LiveOptions | undefined = liveBoot ? { boot: liveBoot } : undefined;
     let firstPaintWall = NaN;
     const readFirstPaint = async (p: import('playwright').Page) => {
@@ -285,8 +300,8 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         await open(page, true);
         loadWall = Date.now();
         if (driven) {
-            if (live) await ensureRuntime(page, timeline!, { drift: timeline!.meta.drift === true });
-            else await ensureRuntime(page, timeline!, { zoom: recordScale });
+            if (live) await ensureRuntime(page, timeline!, { drift: timeline!.meta.drift === true, ...burn });
+            else await ensureRuntime(page, timeline!, { zoom: recordScale, ...burn });
             // Make sure a few frames of the settled page are in the recording before the clock starts,
             // so t0 is always at a positive offset that can be trimmed exactly.
             await page.waitForTimeout(START_SETTLE_MS);
@@ -448,6 +463,11 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
                 summary.vtt = base + '.vtt';
                 fs.writeFileSync(summary.vtt, buildVtt(cues));
             }
+            const transcript = buildTranscript(timeline!, actualMs, durationMs);
+            if (transcript.trim() && transcript.trim() !== String(timeline!.meta.title ?? '').trim()) {
+                summary.transcript = base + '.txt';
+                fs.writeFileSync(summary.transcript, transcript);
+            }
         }
         // Chapters (ffmetadata muxed into the MP4); a reel has no numbered steps to chapter.
         let chaptersFile: string | undefined;
@@ -479,8 +499,24 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
             audio = await synthesizeScript(options.voiceover, voice, tempVideoDir);
             summary.narration = audio;
         }
+        // meta.audio: clicks, a music bed ducked under the narration, and normalised loudness, on top
+        // of whatever narration the step above produced. A reel is silent unless it asks for this.
+        const audioSpec = driven ? audioOf(timeline!) : undefined;
+        if (audioSpec) {
+            const baseDir = path.dirname(timeline!.configFile ?? configPath);
+            const fileOf = (p: string) => path.resolve(baseDir, p);
+            const clicksAtMs = audioSpec.click ? results.filter(r => r.action === 'click' && !r.error && Number.isFinite(r.actualMs)).map(r => r.actualMs) : [];
+            const music = typeof audioSpec.music === 'string' ? fileOf(audioSpec.music) : undefined;
+            const clickFile = typeof audioSpec.click === 'string' ? fileOf(audioSpec.click) : undefined;
+            for (const f of [music, clickFile]) if (f && !fs.existsSync(f)) throw new Error(`meta.audio names ${displayPath(f)}, which does not exist`);
+            if (music || clicksAtMs.length || audio) {
+                console.log(`Mixing audio${clicksAtMs.length ? `: ${clicksAtMs.length} click(s)` : ''}${music ? `${clicksAtMs.length ? ',' : ':'} music bed ${path.basename(music)}` : ''}${audio ? ', narration' : ''}...`);
+                audio = mixAudio({ durationMs, narration: audio, clicksAtMs, clickFile, music, musicDb: audioSpec.musicVolume ?? DEFAULT_MUSIC_DB, duck: audioSpec.duck !== false, loudnessLufs: audioSpec.loudness ?? DEFAULT_LOUDNESS_LUFS }, path.join(tempVideoDir, 'mix.m4a'));
+                summary.audioMix = audio;
+            }
+        }
         console.log(`Converting to MP4: ${outputFile}...`);
-        encodeMp4({ input: webmFile, output: outputFile, audio, chaptersFile, startMs: startOffsetMs, durationMs, muted: reel });
+        encodeMp4({ input: webmFile, output: outputFile, audio, chaptersFile, startMs: startOffsetMs, durationMs, muted: reel && !audio });
         encodedOutput = true;
 
         // A reel ships in every form a homepage needs: WebM beside the MP4, a poster to show before
@@ -598,6 +634,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
         ...baseEvent(),
         duration: durationMs / 1000, output: relToDir(outputFile),
         voiceover: options.voiceover ? relToDir(path.resolve(options.voiceover)) : undefined, narration: !!options.narration, subtitles: summary.vtt ? path.basename(summary.vtt) : false,
+        transcript: summary.transcript ? path.basename(summary.transcript) : undefined, audio: summary.audioMix ? true : undefined, aspect: options.aspect, burnSubtitles: options.burnSubtitles || undefined,
         chapters: summary.chapters, clips: summary.clips.map(c => path.basename(c)), guide: guideDir ? relToDir(guideDir) : undefined,
         contentHash: driven ? hashGuideDir(outputDir, { config: cliConfigPath(options.config) }) : undefined,
         // Which timeline produced this video: guide --config must not link a sibling scenario's.

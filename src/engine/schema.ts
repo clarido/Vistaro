@@ -205,6 +205,47 @@ export function resolveMotion(timeline: Timeline): void {
     }
 }
 
+// --- Audio (meta.audio) and channel presets ------------------------------------------------------
+/**
+ * meta.audio: a click under every click step, a music bed (a file the author brings -- none is
+ * bundled), ducking of the bed under narration, and the loudness the final mix is normalised to.
+ * Opt-in: without it the audio track is exactly what it was (narration only, or none), and a reel
+ * stays silent. Paths are relative to the timeline file.
+ */
+export const AUDIO_KEYS = ['click', 'music', 'musicVolume', 'duck', 'loudness'] as const;
+export const DEFAULT_MUSIC_DB = -18;
+export const DEFAULT_LOUDNESS_LUFS = -16;
+export interface AudioOptions { click?: boolean | string; music?: string; musicVolume?: number; duck?: boolean; loudness?: number }
+
+/** meta.audio when it is a usable object, else undefined. */
+export function audioOf(timeline: Timeline): AudioOptions | undefined {
+    const a = timeline.meta?.audio;
+    return a && typeof a === 'object' && !Array.isArray(a) ? a as AudioOptions : undefined;
+}
+
+export function validateAudio(audio: unknown): Issue[] {
+    if (audio === undefined) return [];
+    const issues: Issue[] = [];
+    const err = (message: string) => issues.push({ level: 'error', field: 'audio', message });
+    if (!audio || typeof audio !== 'object' || Array.isArray(audio)) { err(`meta.audio must be an object (${AUDIO_KEYS.join(', ')})`); return issues; }
+    const a = audio as Record<string, unknown>;
+    if (a.click !== undefined && typeof a.click !== 'boolean' && !(typeof a.click === 'string' && a.click.trim())) err('meta.audio.click must be true, false, or a path to a short sound file');
+    if (a.music !== undefined && !(typeof a.music === 'string' && a.music.trim())) err('meta.audio.music must be a path to an audio file (relative to the timeline)');
+    if (a.musicVolume !== undefined && !(typeof a.musicVolume === 'number' && Number.isFinite(a.musicVolume) && a.musicVolume <= 0)) err('meta.audio.musicVolume must be a gain in dB, 0 or below (e.g. -18)');
+    if (a.duck !== undefined && typeof a.duck !== 'boolean') err('meta.audio.duck must be true or false');
+    if (a.loudness !== undefined && !(typeof a.loudness === 'number' && a.loudness >= -40 && a.loudness <= -5)) err('meta.audio.loudness must be a target in LUFS between -40 and -5 (e.g. -16, -14 for social)');
+    for (const k of Object.keys(a)) if (!(AUDIO_KEYS as readonly string[]).includes(k)) issues.push({ level: 'warning', field: 'audio', message: `meta.audio: unknown key "${k}" ignored (known: ${AUDIO_KEYS.join(', ')})` });
+    if (a.click === undefined && a.music === undefined) issues.push({ level: 'warning', field: 'audio', message: 'meta.audio sets neither "click" nor "music": it only normalises the narration loudness' });
+    return issues;
+}
+
+/** `--aspect` / catalog `aspect`: shorthand for a frame size in CSS px (multiply by --scale for density). */
+export const ASPECT_PRESETS: Readonly<Record<string, { width: number; height: number }>> = {
+    '16:9': { width: 1920, height: 1080 },
+    '1:1': { width: 1080, height: 1080 },
+    '9:16': { width: 1080, height: 1920 },
+};
+
 // --- Brand kit (meta.brand) ---------------------------------------------------------------------
 // The colours and furniture a video wears. Values go into CSS verbatim (as the tour theme does), so
 // contrast is the author's call -- check measures it and warns below 4.5:1. `meta.brand` may also be
@@ -383,6 +424,7 @@ export const META_FIELD_DOCS: readonly FieldDoc[] = [
     { names: ['reel'], description: 'Overrides of whatever `kind` implies: `spotlight`, `ripple`, `subtitles`, `loop` (booleans), `autoplay` (`immediate`, `inview`, `message`), `poster` (`last` (default), `first`, or a time such as `"3.2s"`). An explicit value always beats the profile default.' },
     { names: ['motion'], description: `Named durations and default easings, set once instead of per step: ${MOTION_TOKENS.map(t => `\`${t}\``).join(', ')} (seconds), \`ease\` (default easing for \`animate\` and \`camera\`) and \`cameraEase\` (wins for \`camera\`). An action with no \`duration\` reads its token when this object sets it -- ${Object.entries(MOTION_TOKEN_FOR_ACTION).map(([a, t]) => `\`${a}\` → \`${t}\``).join(', ')} -- and keeps its built-in default otherwise, so a timeline without \`motion\` renders exactly as before. A step may also name a token: \`"duration": "fast"\` (unset tokens mean ${MOTION_TOKENS.map(t => `${t} ${DEFAULT_MOTION_S[t]} s`).join(', ')}). See the motion tokens table below.` },
     { names: ['brand'], description: 'The brand kit the video wears: `accent` (spotlight, ripple, step badge), `caption` (`font`, `color`, `background`, `radius`), `cursor` (pointer fill), `logo` (an image path relative to `index.html`, or `{ src, place, height }`), `intro` / `outro` cards (`title`, `subtitle`, `duration`, `background`, `color`). Or a path, relative to the timeline, to a shared JSON brand file holding the same object. Values go into CSS verbatim; `check` warns on an unknown token and on caption or card text below 4.5:1 contrast. See the brand tokens table below.' },
+    { names: ['audio'], description: `The video's sound, opt-in: \`click\` (\`true\` for a short synthesized tick under every click step, or a path to your own sound), \`music\` (a path to a bed you bring, looped to the length and faded out; none is bundled), \`musicVolume\` (dB, default ${DEFAULT_MUSIC_DB}), \`duck\` (default \`true\`: the bed dips under narration) and \`loudness\` (the integrated LUFS the final mix is normalised to, default ${DEFAULT_LOUDNESS_LUFS}; -14 suits most social platforms). Paths are relative to the timeline. Without it the audio is exactly what it was; a reel is silent unless it sets this.` },
     { names: ['reset'], description: 'Live pages: a shell command run before each pass over the app (the recording, then the `--guide` replay), e.g. `"npm run db:seed"` or `"curl -X POST http://localhost:3000/api/test/reset"`. It runs in the shell, in the CLI\'s working directory, so a timeline is executable content: it runs only when you pass `--allow-reset`, and the command refuses rather than silently skipping a reset the timeline depends on. `--reset-cmd` gives your own command instead and never needs the flag. See [Live pages](#live-pages).' },
 ];
 
@@ -989,7 +1031,7 @@ export function validateTimeline(timeline: Timeline, opts: { live?: boolean; gui
     if (meta.subtitleScale !== undefined && (typeof meta.subtitleScale !== 'number' || !Number.isFinite(meta.subtitleScale) || meta.subtitleScale <= 0)) {
         issues.push({ level: 'error', field: 'subtitleScale', message: `meta.subtitleScale must be a positive number multiplying the automatic subtitle size (got ${JSON.stringify(meta.subtitleScale)})` });
     }
-    issues.push(...validateMotion(meta.motion), ...validateBrand(meta.brand));
+    issues.push(...validateMotion(meta.motion), ...validateBrand(meta.brand), ...validateAudio(meta.audio));
     if (meta.reel !== undefined) {
         if (!meta.reel || typeof meta.reel !== 'object' || Array.isArray(meta.reel)) {
             issues.push({ level: 'error', field: 'reel', message: 'meta.reel must be an object of profile overrides (spotlight, ripple, subtitles, loop, autoplay)' });
