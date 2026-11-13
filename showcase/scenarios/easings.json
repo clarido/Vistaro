@@ -1,0 +1,124 @@
+{
+  "meta": {
+    "title": "Easings",
+    "slug": "showcase-easings",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "none",
+    "tailMs": 2600
+  },
+  "steps": [
+    {
+      "id": "intro",
+      "time": "0s",
+      "action": "fadeIn",
+      "target": "body",
+      "guide": false
+    },
+    {
+      "id": "linear",
+      "time": "2.2s",
+      "action": "animate",
+      "target": "#chart",
+      "to": {
+        "x": 0
+      },
+      "duration": 1.1,
+      "ease": "linear",
+      "title": "linear: constant speed, for progress and counters",
+      "from": {
+        "x": 320
+      }
+    },
+    {
+      "id": "easeInCubic",
+      "time": "3.8s",
+      "action": "animate",
+      "target": "#chart",
+      "to": {
+        "x": 0
+      },
+      "duration": 1.1,
+      "ease": "easeInCubic",
+      "title": "easeInCubic: starts slow, leaves fast, for exits",
+      "from": {
+        "x": 320
+      }
+    },
+    {
+      "id": "easeOutCubic",
+      "time": "5.4s",
+      "action": "animate",
+      "target": "#chart",
+      "to": {
+        "x": 0
+      },
+      "duration": 1.1,
+      "ease": "easeOutCubic",
+      "title": "easeOutCubic: arrives fast, settles slow, for entrances",
+      "from": {
+        "x": 320
+      }
+    },
+    {
+      "id": "easeInOutCubic",
+      "time": "7.0s",
+      "action": "animate",
+      "target": "#chart",
+      "to": {
+        "x": 0
+      },
+      "duration": 1.1,
+      "ease": "easeInOutCubic",
+      "title": "easeInOutCubic: slow, fast, slow, for moves between two rests",
+      "from": {
+        "x": 320
+      }
+    },
+    {
+      "id": "easeOutBack",
+      "time": "8.6s",
+      "action": "animate",
+      "target": "#chart",
+      "to": {
+        "x": 0
+      },
+      "duration": 1.1,
+      "ease": "easeOutBack",
+      "title": "easeOutBack: a slight overshoot, for a tactile pop",
+      "from": {
+        "x": 320
+      }
+    },
+    {
+      "id": "easeOutExpo",
+      "time": "10.2s",
+      "action": "animate",
+      "target": "#chart",
+      "to": {
+        "x": 0
+      },
+      "duration": 1.1,
+      "ease": "easeOutExpo",
+      "title": "easeOutExpo: a very fast arrival, for a confident reveal",
+      "from": {
+        "x": 320
+      }
+    },
+    {
+      "id": "spring",
+      "time": "11.8s",
+      "action": "animate",
+      "target": "#chart",
+      "to": {
+        "x": 0
+      },
+      "duration": 1.1,
+      "ease": "spring",
+      "title": "spring: a springy overshoot, use sparingly",
+      "from": {
+        "x": 320
+      }
+    }
+  ]
+}

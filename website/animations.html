@@ -10,15 +10,15 @@
 <meta name="author" content="Vistaro">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta property="og:title" content="Vistaro — Every animation, played live">
-<meta property="og:description" content="Fifteen interactive scenarios, one per animation type, running on the engine itself. Pause, scrub, replay.">
+<meta property="og:description" content="Eighteen interactive scenarios, one per animation type, running on the engine itself. Pause, scrub, replay.">
 <meta property="og:image" content="https://vistaro.dev/assets/og.jpg">
-<meta property="og:image:alt" content="Vistaro animation showcase: fifteen interactive scenarios.">
+<meta property="og:image:alt" content="Vistaro animation showcase: eighteen interactive scenarios.">
 <meta property="og:url" content="https://vistaro.dev/animations.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Vistaro">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Vistaro — Every animation, played live">
-<meta name="twitter:description" content="Fifteen interactive scenarios, one per animation type, running on the engine itself. Pause, scrub, replay.">
+<meta name="twitter:description" content="Eighteen interactive scenarios, one per animation type, running on the engine itself. Pause, scrub, replay.">
 <meta name="twitter:image" content="https://vistaro.dev/assets/og.jpg">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B101B'/%3E%3Cpath d='M16 5l2.6 7.4L26 15l-7.4 2.6L16 25l-2.6-7.4L6 15l7.4-2.6L16 5z' fill='%23E4632B'/%3E%3C/svg%3E">
 <link rel="preload" href="assets/fonts/bricolage-grotesque-latin-opsz.woff2" as="font" type="font/woff2" crossorigin>
@@ -318,6 +318,44 @@
       <p>The 20-second overview: a highlight, a real click, character-by-character typing, a camera push, a staggered chart build and a closing fade. One timeline, in the order you'd tell the story.</p>
     </div>
     <vistaro-tour src="src/showcase-out/" scenario="medley" device="desktop" autoplay="inview" height="640"></vistaro-tour>
+  </div>
+</div>
+
+<!-- ======================= MOTION ======================= -->
+<section class="vistaro-group" aria-label="Motion">
+  <div class="container"><div class="group-label">Motion</div></div>
+</section>
+
+<div class="vistaro-block" id="easings">
+  <div class="container">
+    <div class="vistaro-head">
+      <span class="action-chip"><span class="q">"ease":</span> "linear" … "spring"</span>
+      <h2>Easings</h2>
+      <p>Seven named curves, each on the same slide. <b>easeOutCubic</b> is the default for entrances, <b>easeInOutCubic</b> for camera moves, <b>easeOutBack</b> and <b>spring</b> overshoot for a tactile pop. Set one with <code>ease</code> on any <code>animate</code>, <code>camera</code>, <code>overlay</code> or moving transition.</p>
+    </div>
+    <vistaro-tour src="src/showcase-out/" scenario="easings" device="desktop" autoplay="inview" height="640"></vistaro-tour>
+  </div>
+</div>
+
+<div class="vistaro-block" id="natural-cursor">
+  <div class="container">
+    <div class="vistaro-head">
+      <span class="action-chip"><span class="q">"motion":</span> { "cursor": "natural" }</span>
+      <h2>Natural cursor</h2>
+      <p>By default the cursor glides for the whole lead, however far it goes. <b>Natural</b> times each move by its distance: a short hop waits, then moves quickly; a long one takes its time and bends into a slight arc. The click still lands at the step's <code>time</code>.</p>
+    </div>
+    <vistaro-tour src="src/showcase-out/" scenario="natural-cursor" device="desktop" autoplay="inview" height="640"></vistaro-tour>
+  </div>
+</div>
+
+<div class="vistaro-block" id="tempo">
+  <div class="container">
+    <div class="vistaro-head">
+      <span class="action-chip"><span class="q">"motion":</span> { "fast", "base", "slow", "ease" }</span>
+      <h2>One tempo</h2>
+      <p>Set durations and an easing once in <code>meta.motion</code> and every step without its own <code>duration</code> follows them: the camera reads <code>slow</code>, reveals and transitions read <code>base</code>, overlays read <code>fast</code>. Change one number and the whole demo speeds up or slows down.</p>
+    </div>
+    <vistaro-tour src="src/showcase-out/" scenario="tempo" device="desktop" autoplay="inview" height="640"></vistaro-tour>
   </div>
 </div>
 

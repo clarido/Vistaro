@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Natural cursor",
+    "slug": "showcase-natural-cursor",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600,
+    "motion": {
+      "cursor": "natural"
+    }
+  },
+  "steps": [
+    {
+      "id": "intro",
+      "time": "0s",
+      "action": "fadeIn",
+      "target": "body",
+      "guide": false
+    },
+    {
+      "id": "start",
+      "time": "1s",
+      "action": "hover",
+      "target": "#item-1",
+      "title": "Start on the first tender",
+      "subtitle": "\"motion\": { \"cursor\": \"natural\" }"
+    },
+    {
+      "id": "hop",
+      "time": "2.4s",
+      "action": "hover",
+      "target": "#item-2",
+      "title": "A short hop is quick",
+      "subtitle": "The cursor waits, then moves fast: it still lands on time."
+    },
+    {
+      "id": "hop2",
+      "time": "3.6s",
+      "action": "hover",
+      "target": "#item-3",
+      "title": "…and another",
+      "subtitle": "Each hop is timed by its own distance."
+    },
+    {
+      "id": "long",
+      "time": "5.2s",
+      "action": "click",
+      "target": "#btn-new",
+      "title": "A long move takes its time",
+      "subtitle": "Travel grows with distance, and a long move bends into a slight arc."
+    },
+    {
+      "id": "back",
+      "time": "7.2s",
+      "action": "click",
+      "target": "#chip-1",
+      "title": "The click still lands at the step's time: only the travel changes"
+    }
+  ]
+}

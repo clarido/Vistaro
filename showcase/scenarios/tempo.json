@@ -1,0 +1,65 @@
+{
+  "meta": {
+    "title": "One tempo",
+    "slug": "showcase-tempo",
+    "app": "Clarido",
+    "locale": "en",
+    "cursor": "mac",
+    "tailMs": 2600,
+    "motion": {
+      "fast": 0.15,
+      "base": 0.3,
+      "slow": 0.9,
+      "ease": "easeOutExpo"
+    }
+  },
+  "steps": [
+    {
+      "id": "intro",
+      "time": "0s",
+      "action": "fadeIn",
+      "target": "body",
+      "guide": false
+    },
+    {
+      "id": "push",
+      "time": "0.8s",
+      "action": "camera",
+      "target": "#ask-row",
+      "scale": 1.25,
+      "title": "The camera reads \"slow\"",
+      "subtitle": "No duration on any step: meta.motion sets the tempo once."
+    },
+    {
+      "id": "ask",
+      "time": "2.4s",
+      "action": "type",
+      "target": "#ask-input",
+      "value": "What is due this week?",
+      "title": "Typing keeps its own pace",
+      "subtitle": null
+    },
+    {
+      "id": "answer",
+      "time": "4.4s",
+      "action": "fadeIn",
+      "target": "#answer",
+      "title": "A reveal reads \"base\": 0.3 s, with the demo's own easing"
+    },
+    {
+      "id": "back",
+      "time": "5.8s",
+      "action": "camera",
+      "scale": 1,
+      "title": "Change one number and the whole demo speeds up or slows down"
+    },
+    {
+      "id": "report",
+      "time": "7.4s",
+      "action": "transitionScreen",
+      "target": "#screen-report",
+      "transition": "crossfade",
+      "title": "Transitions follow it too"
+    }
+  ]
+}

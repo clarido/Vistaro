@@ -31,7 +31,7 @@
 - Website: https://vistaro.dev/
 - Getting started: https://vistaro.dev/start.html
 - Every format (videos, guides, reels for desktop and phone, brand kit, sound and 9:16, embeddable tours, languages, live apps): https://vistaro.dev/formats.html
-- Animation showcase (interactive, including transitions, overlays and the follow camera): https://vistaro.dev/animations.html
+- Animation showcase (interactive, including easings, the natural cursor, one-tempo motion tokens, transitions, overlays and the follow camera): https://vistaro.dev/animations.html
 - Studio, the local visual timeline editor (`npx vistaro studio`): https://vistaro.dev/studio.html
 - Source code: https://github.com/clarido/Vistaro
 - npm package: https://www.npmjs.com/package/vistaro

@@ -23,6 +23,7 @@
   },
   "groups": [
     { "id": "overview", "label": "Start here" },
+    { "id": "motion", "label": "Motion" },
     { "id": "interact", "label": "Interactions" },
     { "id": "movement", "label": "Camera & movement" },
     { "id": "reveal", "label": "Reveals & motion" }
@@ -32,6 +33,15 @@
     { "slug": "medley", "dir": "showcase", "group": "overview",
       "label": "Everything at once",
       "blurb": "A 20-second tour through highlight, click, type, camera, animate and fade." },
+    { "slug": "easings", "dir": "showcase", "config": "showcase/scenarios/easings.json", "group": "motion",
+      "label": "Easings",
+      "blurb": "The same slide, seven curves: from linear to spring." },
+    { "slug": "natural-cursor", "dir": "showcase", "config": "showcase/scenarios/natural-cursor.json", "group": "motion",
+      "label": "Natural cursor",
+      "blurb": "Short hops are quick, long moves take their time, every click lands on cue." },
+    { "slug": "tempo", "dir": "showcase", "config": "showcase/scenarios/tempo.json", "group": "motion",
+      "label": "One tempo",
+      "blurb": "meta.motion sets durations and easing once, for the whole demo." },
     { "slug": "click", "dir": "showcase", "config": "showcase/scenarios/click.json", "group": "interact",
       "label": "Click",
       "blurb": "Cursor travel, spotlight, ripple — and the page's own handlers run." },
