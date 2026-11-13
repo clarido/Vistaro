@@ -202,3 +202,21 @@ test('camera follow: the spotlight frames the target where the pan leaves it, no
         await context.close();
     }
 });
+
+test('camera follow: the camera step that turns it on is clamped to the page too, so a corner target shows no void', { skip }, () => {
+    const dir = path.join(work, 'follow-corner');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'index.html'), PAGE);
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { drift: false }, steps: [
+        { id: 'zoom', time: 0.5, action: 'camera', target: '#a', scale: 1.5, duration: 0.5, follow: true, title: 'Zoom' },
+        { id: 'plain', time: 1.5, action: 'camera', target: '#a', scale: 1.5, duration: 0.5, title: 'Plain' },
+    ] }));
+    const r = cli(['check', dir, '--trace', '-w', '1280', '-H', '720']);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    const trace = JSON.parse(fs.readFileSync(path.join(dir, 'trace.json'), 'utf8')).steps as any[];
+    const w = trace.find(t => t.id === 'zoom').camera.window;
+    assert.ok(w.x >= -1 && w.y >= -1 && w.x + w.w <= 1281 && w.y + w.h <= 721, `the follow camera's own window stays on the page (${JSON.stringify(w)})`);
+    // A camera without follow still centres its target exactly, void and all: unchanged behaviour.
+    const p = trace.find(t => t.id === 'plain').camera.window;
+    assert.ok(p.x < -1 && p.y < -1, `a plain camera still centres the corner target (${JSON.stringify(p)})`);
+});

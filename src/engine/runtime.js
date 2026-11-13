@@ -1901,7 +1901,8 @@
           case 'navigate': // not implemented until `record` (Phase 4): validation warns, no-op in the page
             break;
           case 'camera':
-            done = camera(step, instant);
+            // A following camera's own framing obeys the same page clamp as the pans it starts.
+            done = camera(step, instant, step.follow === true ? { clamp: true } : undefined);
             break;
           case 'scroll':
             done = scrollTo(el, instant);
