@@ -42,7 +42,7 @@ const dimensions = (file: string) => {
 let work: string;
 let orphanBaseline = -1;
 before(() => {
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-channels-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-channels-'));
     orphanBaseline = countOrphans();
 });
 after(() => {
@@ -68,7 +68,7 @@ test('meta.audio is validated; an aspect preset resolves to width/height in the 
     const dir = path.join(work, 'catalog');
     fs.mkdirSync(path.join(dir, 'g'), { recursive: true });
     fs.writeFileSync(path.join(dir, 'g', 'index.html'), '<!doctype html><body></body>');
-    fs.writeFileSync(path.join(dir, 'g', 'anim.config.json'), JSON.stringify({ steps: [] }));
+    fs.writeFileSync(path.join(dir, 'g', 'vistaro.config.json'), JSON.stringify({ steps: [] }));
     const file = path.join(dir, 'help.catalog.json');
     fs.writeFileSync(file, JSON.stringify({ outputDir: 'out', guides: [{ slug: 'g', dir: 'g', aspect: '4:3' }, { slug: 'h', dir: 'g', aspect: '1:1', width: 10 }] }));
     assert.throws(() => readCatalog(file), (e: any) => /"aspect" must be one of "16:9", "1:1", "9:16"/.test(e.message) && /"aspect" is a shorthand for width\/height/.test(e.message));
@@ -90,7 +90,7 @@ test('the audio guide sources are hashed: editing the music bed rebuilds the gui
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><body></body>');
     fs.writeFileSync(path.join(dir, 'bed.mp3'), 'x');
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { audio: { music: 'bed.mp3', click: true } }, steps: [] }));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { audio: { music: 'bed.mp3', click: true } }, steps: [] }));
     assert.ok(guideSourceFiles(dir).includes(path.join(dir, 'bed.mp3')));
 });
 
@@ -118,7 +118,7 @@ function reelDir(name: string, meta: Record<string, unknown>): string {
     const dir = path.join(work, name);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><html><body style="margin:0;background:#fff"><h1 style="margin:40px">Clip</h1><button id="go" style="margin:40px">Go</button></body></html>');
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({
         meta: { kind: 'reel', tailMs: 600, cursor: 'none', ...meta },
         steps: [
             { id: 'say', time: 0.3, action: 'wait', subtitle: 'Captions burned in' },
@@ -159,7 +159,7 @@ test('--aspect presets produce their stated frames, refuse explicit sizes, and t
     const dir = path.join(work, 'aspect');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><html><body style="margin:0"><button id="go" style="margin:40px">Go</button></body></html>');
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { title: 'Aspect', tailMs: 300 }, steps: [{ id: 'go', time: 0.5, action: 'click', target: '#go', title: 'Press go', subtitle: 'Press it.' }] }));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { title: 'Aspect', tailMs: 300 }, steps: [{ id: 'go', time: 0.5, action: 'click', target: '#go', title: 'Press go', subtitle: 'Press it.' }] }));
     for (const [aspect, size] of Object.entries(ASPECT_PRESETS)) {
         const out = path.join(work, `aspect-${aspect.replace(':', 'x')}.mp4`);
         const r = cli(['export', dir, '-o', out, '--aspect', aspect]);

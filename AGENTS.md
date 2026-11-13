@@ -73,7 +73,7 @@ Object form (a bare array of steps is still accepted):
 ```
 
 <!-- capabilities:start -->
-Generated from the capability registry in `src/engine/schema.ts` by `npm run docs`; do not edit by hand. `npx tsx cli.ts capabilities --json` prints the same data for an agent.
+Generated from the capability registry in `src/engine/schema.ts` by `npm run docs`; do not edit by hand. `npx vistaro capabilities --json` prints the same data for an agent.
 
 ### `meta`
 
@@ -508,7 +508,7 @@ Scaffold an vistaro.config.json timeline file in the target directory
 ### `capabilities`
 
 ```bash
-npx tsx cli.ts capabilities [options]
+npx vistaro capabilities [options]
 ```
 
 List everything a timeline can say -- actions (target required, when the guide frame is taken), step and meta fields, easings, studio presets, devices, subtitle placements -- from the same registry the validator and the AGENTS.md tables use

@@ -45,7 +45,7 @@ same for every language. Read the full manual and the file contracts in AGENTS.m
 
 WORKFLOW (an AI agent or a person writes the screen and the timeline; no API key):
   0. Learn the vocabulary (actions, fields, easings, presets) from the tool itself:
-       npx tsx cli.ts capabilities [--json]
+       npx vistaro capabilities [--json]
   1. Write <dir>/index.html (a faithful mockup of the screen) and the timeline:
        npx vistaro init-config <dir>        # scaffolds vistaro.config.json (object form)
   2. Validate: selectors, timing, strings, and every target in a headless browser:

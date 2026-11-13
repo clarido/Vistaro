@@ -1,0 +1,204 @@
+{
+  "history": [
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-11-13T00:12:30.815Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "open",
+          "actualMs": 807,
+          "completedMs": 810
+        },
+        {
+          "index": 2,
+          "id": "push-in",
+          "actualMs": 1007,
+          "completedMs": 1425
+        },
+        {
+          "index": 3,
+          "id": "share",
+          "actualMs": 2206,
+          "completedMs": 2214
+        },
+        {
+          "index": 4,
+          "id": "modal",
+          "actualMs": 2304,
+          "completedMs": 2625
+        },
+        {
+          "index": 5,
+          "id": "send",
+          "actualMs": 3405,
+          "completedMs": 3407
+        },
+        {
+          "index": 6,
+          "id": "close",
+          "actualMs": 3504,
+          "completedMs": 3725
+        },
+        {
+          "index": 7,
+          "id": "toast",
+          "actualMs": 3704,
+          "completedMs": 4025
+        },
+        {
+          "index": 8,
+          "id": "back",
+          "actualMs": 5004,
+          "completedMs": 5007
+        },
+        {
+          "index": 9,
+          "id": "push-back",
+          "actualMs": 5104,
+          "completedMs": 5525
+        },
+        {
+          "index": 10,
+          "id": "toast-off",
+          "actualMs": 5602,
+          "completedMs": 5908
+        }
+      ],
+      "duration": 6.808,
+      "output": "../../showcase-out/transitions/en/transitions-en.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:c97dc80b08ea5a440c826b7ed79d3c18481a8aff8271284043949e2cd4882010",
+      "timestamp": "2026-11-13T00:12:45.957Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../showcase.catalog.json",
+      "locale": "en",
+      "kind": "reel",
+      "output": "../../showcase-out/transitions/en",
+      "contentHash": "sha256:c97dc80b08ea5a440c826b7ed79d3c18481a8aff8271284043949e2cd4882010",
+      "buildKey": "sha256:5720805f80523f26b9f7642375372e60117d57a56c131e9a93acf52fb1ee86ed",
+      "builtAt": "2026-11-13T00:12:46.019Z",
+      "timestamp": "2026-11-13T00:12:46.020Z"
+    },
+    {
+      "command": "build",
+      "cursor": "mac",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-11-13T01:28:54.496Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "open",
+          "actualMs": 805,
+          "completedMs": 807
+        },
+        {
+          "index": 2,
+          "id": "push-in",
+          "actualMs": 1005,
+          "completedMs": 1426
+        },
+        {
+          "index": 3,
+          "id": "share",
+          "actualMs": 2209,
+          "completedMs": 2224
+        },
+        {
+          "index": 4,
+          "id": "modal",
+          "actualMs": 2305,
+          "completedMs": 2609
+        },
+        {
+          "index": 5,
+          "id": "send",
+          "actualMs": 3406,
+          "completedMs": 3408
+        },
+        {
+          "index": 6,
+          "id": "close",
+          "actualMs": 3505,
+          "completedMs": 3726
+        },
+        {
+          "index": 7,
+          "id": "toast",
+          "actualMs": 3705,
+          "completedMs": 4009
+        },
+        {
+          "index": 8,
+          "id": "back",
+          "actualMs": 5005,
+          "completedMs": 5006
+        },
+        {
+          "index": 9,
+          "id": "push-back",
+          "actualMs": 5104,
+          "completedMs": 5509
+        },
+        {
+          "index": 10,
+          "id": "toast-off",
+          "actualMs": 5606,
+          "completedMs": 5925
+        }
+      ],
+      "duration": 6.825,
+      "output": "../../showcase-out/transitions/en/transitions-en.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:22b7f5a7e2deeb0d1d96c9664d558176a47477d209e95005fc65cd42815e9996",
+      "timestamp": "2026-11-13T01:29:12.592Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../showcase.catalog.json",
+      "locale": "en",
+      "kind": "reel",
+      "output": "../../showcase-out/transitions/en",
+      "contentHash": "sha256:22b7f5a7e2deeb0d1d96c9664d558176a47477d209e95005fc65cd42815e9996",
+      "buildKey": "sha256:163a5c51010530370bb4f6c45f36111b83baf7f57f9975c2217baf9cd6de3bf9",
+      "builtAt": "2026-11-13T01:29:12.634Z",
+      "timestamp": "2026-11-13T01:29:12.639Z"
+    }
+  ],
+  "contentHash": {
+    "en": "sha256:22b7f5a7e2deeb0d1d96c9664d558176a47477d209e95005fc65cd42815e9996"
+  },
+  "buildKey": {
+    "en": "sha256:163a5c51010530370bb4f6c45f36111b83baf7f57f9975c2217baf9cd6de3bf9"
+  }
+}

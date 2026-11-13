@@ -82,7 +82,7 @@ let work: string;
 
 before(async () => {
     if (skip) return;
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-transitions-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-transitions-'));
     fs.writeFileSync(path.join(work, 'index.html'), SCREENS_HTML);
     orphanBaseline = countOrphans();
     browser = await chromium.launch({ headless: true });
@@ -103,10 +103,10 @@ async function openPage(context: BrowserContext) {
     // No drift: its 16 s body transition would be a running animation in every state read below.
     fs.writeFileSync(file, buildAnimatedHtml(SCREENS_HTML, tl, { cursor: 'none', drift: false }));
     const page = await context.newPage();
-    await page.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+    await page.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
     await page.goto(fileUrl(file));
-    await page.waitForFunction(() => (window as any).__anim?.isReady());
-    await page.evaluate(() => (window as any).__anim.start());
+    await page.waitForFunction(() => (window as any).__vistaro?.isReady());
+    await page.evaluate(() => (window as any).__vistaro.start());
     return page;
 }
 
@@ -131,7 +131,7 @@ test('every transition, played or instant, ends in the same page state as the hi
                 const page = await openPage(context);
                 const step = { index: 1, id: 'swap', time: 0, timeMs: 0, action: 'transitionScreen', target: '#s2', ...(transition ? { transition, direction: 'up' } : {}), duration: 0.25 };
                 const t0 = Date.now();
-                await page.evaluate(async (s) => { const a = (window as any).__anim; const r = await a.runStep(s, { leadMs: 0, instant: s.__instant }); await a.whenDone(r.token); await a.whenSettled(); }, { ...step, __instant: instant });
+                await page.evaluate(async (s) => { const a = (window as any).__vistaro; const r = await a.runStep(s, { leadMs: 0, instant: s.__instant }); await a.whenDone(r.token); await a.whenSettled(); }, { ...step, __instant: instant });
                 const took = Date.now() - t0;
                 // Read after whenSettled, the moment a guide frame or a tour's next step sees the page.
                 states[`${transition ?? 'none'}/${instant ? 'instant' : 'played'}`] = await page.evaluate(SCREEN_STATE);
@@ -153,7 +153,7 @@ test('a slide inside a panel is clipped to the panel while it runs, and the clip
     try {
         const page = await openPage(context);
         const mid = await page.evaluate(async () => {
-            const a = (window as any).__anim;
+            const a = (window as any).__vistaro;
             const r = await a.runStep({ index: 1, id: 'x', time: 0, timeMs: 0, action: 'transitionScreen', target: '#s2', transition: 'slide', duration: 0.4 }, { leadMs: 0 });
             await new Promise(res => setTimeout(res, 150));
             const out = { clip: (document.querySelector('main') as HTMLElement).style.clipPath, moving: getComputedStyle(document.getElementById('s2')!).translate };
@@ -173,7 +173,7 @@ test('prefers-reduced-motion plays every transition and overlay as a cut', { ski
     try {
         const page = await openPage(context);
         const r = await page.evaluate(async () => {
-            const a = (window as any).__anim;
+            const a = (window as any).__vistaro;
             const t0 = performance.now();
             const one = await a.runStep({ index: 1, id: 'x', time: 0, timeMs: 0, action: 'transitionScreen', target: '#s2', transition: 'push', duration: 1 }, { leadMs: 0 });
             await a.whenDone(one.token);
@@ -192,10 +192,10 @@ test('overlay: a modal keeps its own centring transform, gets a scrim, and dismi
     const context = await browser.newContext({ viewport: { width: 1000, height: 600 } });
     try {
         const page = await openPage(context);
-        const run = (s: Record<string, unknown>) => page.evaluate(async (step) => { const a = (window as any).__anim; const r = await a.runStep(step, { leadMs: 0 }); await a.whenDone(r.token); }, { index: 1, id: 'o', time: 0, timeMs: 0, action: 'overlay', target: '#modal', duration: 0.2, ...s });
+        const run = (s: Record<string, unknown>) => page.evaluate(async (step) => { const a = (window as any).__vistaro; const r = await a.runStep(step, { leadMs: 0 }); await a.whenDone(r.token); }, { index: 1, id: 'o', time: 0, timeMs: 0, action: 'overlay', target: '#modal', duration: 0.2, ...s });
         // Mid-entrance, the modal must still be centred by its own transform (the motion uses `scale`).
         const midway = await page.evaluate(async () => {
-            const a = (window as any).__anim;
+            const a = (window as any).__vistaro;
             const r = await a.runStep({ index: 1, id: 'o', time: 0, timeMs: 0, action: 'overlay', target: '#modal', duration: 0.4 }, { leadMs: 0 });
             await new Promise(res => setTimeout(res, 120));
             const m = document.getElementById('modal')!;
@@ -208,13 +208,13 @@ test('overlay: a modal keeps its own centring transform, gets a scrim, and dismi
         // The individual `scale` composes before the app's own transform, so a 0.96 scale moves a
         // translate(-50%)-centred 300px modal by at most 2% of its width: centred to the eye.
         assert.ok(Math.abs(midway.centreX - 500) <= 6, `the modal stays centred while it scales in (centre ${midway.centreX})`);
-        const shown = await page.evaluate(() => ({ display: getComputedStyle(document.getElementById('modal')!).display, scrims: document.querySelectorAll('.anim-cli-scrim').length, scrimBefore: document.getElementById('modal')!.previousElementSibling?.className }));
-        assert.deepEqual(shown, { display: 'block', scrims: 1, scrimBefore: 'anim-cli-scrim' });
+        const shown = await page.evaluate(() => ({ display: getComputedStyle(document.getElementById('modal')!).display, scrims: document.querySelectorAll('.vistaro-scrim').length, scrimBefore: document.getElementById('modal')!.previousElementSibling?.className }));
+        assert.deepEqual(shown, { display: 'block', scrims: 1, scrimBefore: 'vistaro-scrim' });
         await run({ dismiss: true });
-        const gone = await page.evaluate(() => ({ display: getComputedStyle(document.getElementById('modal')!).display, scrims: document.querySelectorAll('.anim-cli-scrim').length, animations: document.getAnimations().length }));
+        const gone = await page.evaluate(() => ({ display: getComputedStyle(document.getElementById('modal')!).display, scrims: document.querySelectorAll('.vistaro-scrim').length, animations: document.getAnimations().length }));
         assert.deepEqual(gone, { display: 'none', scrims: 0, animations: 0 });
         await run({ target: '#toast', variant: 'toast' });
-        assert.equal(await page.evaluate(() => document.querySelectorAll('.anim-cli-scrim').length), 0, 'a toast has no scrim by default');
+        assert.equal(await page.evaluate(() => document.querySelectorAll('.vistaro-scrim').length), 0, 'a toast has no scrim by default');
     } finally {
         await context.close();
     }
@@ -238,14 +238,14 @@ test('a tour seek back and forward across transitions and an overlay leaves the 
         await page.goto(fileUrl(file));
         await page.waitForFunction(() => (window as any).__tour && (window as any).__tour.state().total === 6, null, { timeout: 15000 });
         const goto = async (index: number) => {
-            await page.evaluate((m) => window.postMessage(m, '*'), { source: 'anim-tour', type: 'goto', index });
+            await page.evaluate((m) => window.postMessage(m, '*'), { source: 'vistaro-tour', type: 'goto', index });
             await page.waitForFunction((i) => { const s = (window as any).__tour.state(); return s.index === i && !s.busy; }, index, { timeout: 20000 });
-            await page.evaluate(() => (window as any).__anim.whenSettled());
+            await page.evaluate(() => (window as any).__vistaro.whenSettled());
             return page.evaluate(() => ({
                 s1: getComputedStyle(document.getElementById('s1')!).display,
                 s2: getComputedStyle(document.getElementById('s2')!).display,
                 modal: getComputedStyle(document.getElementById('modal')!).display,
-                scrims: document.querySelectorAll('.anim-cli-scrim').length,
+                scrims: document.querySelectorAll('.vistaro-scrim').length,
             }));
         };
         assert.deepEqual(await goto(2), { s1: 'none', s2: 'block', modal: 'block', scrims: 1 }, 'the overlay played');
@@ -262,7 +262,7 @@ test('check warns when a transition or an overlay would bring in something alrea
     const dir = path.join(work, 'check');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'index.html'), SCREENS_HTML.replace('#s2 { background: #fde68a; display: none; }', '#s2 { background: #fde68a; }'));
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ steps: [
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ steps: [
         { id: 'swap', time: 1, action: 'transitionScreen', target: '#s2', transition: 'crossfade', title: 'Swap' },
         { id: 'open', time: 2, action: 'overlay', target: '#modal', title: 'Open' },
     ] }));
@@ -279,7 +279,7 @@ test('check: a screen that is display:none until its transition is not reported 
     const dir = path.join(work, 'hidden-crop');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'index.html'), SCREENS_HTML.replace('main { flex: 1; position: relative; }', 'main { flex: 1; position: relative; overflow: hidden; margin-top: 62px; }'));
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { kind: 'reel', cursor: 'none' }, steps: [
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { kind: 'reel', cursor: 'none' }, steps: [
         { id: 'swap', time: 1, action: 'transitionScreen', target: '#s2', transition: 'push' },
     ] }));
     const r = cli(['check', dir, '--json', '-w', '1000', '-H', '600']);

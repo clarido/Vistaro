@@ -240,8 +240,10 @@ export function mixAudio(o: AudioMixOptions, outFile: string): string {
 /** Integrated loudness (LUFS) of a file's audio, measured with the EBU R128 scanner. NaN without audio. */
 export function measureLoudness(file: string): number {
     const r = run(['-hide_banner', '-nostats', '-i', file, '-filter_complex', 'ebur128', '-f', 'null', '-'], { allowFailure: true }).stderr;
-    const m = /Summary:[\s\S]*?I:\s*(-?[\d.]+) LUFS/.exec(r);
-    return m ? parseFloat(m[1]) : NaN;
+    // The LAST summary: ffmpeg 6.0 (ffmpeg-static) reconfigures the graph on an AAC input and
+    // prints a first summary for the discarded instance, which saw no audio and reads -70 LUFS.
+    const all = [...r.matchAll(/Summary:[\s\S]*?I:\s*(-?[\d.]+) LUFS/g)];
+    return all.length ? parseFloat(all[all.length - 1][1]) : NaN;
 }
 
 /** Number of audio streams in a media file. */

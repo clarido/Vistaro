@@ -81,8 +81,8 @@ async function methodB(run, browser) {
     const page = await context.newPage();
     await page.clock.install({ time: 0 });
     await page.goto('file://' + path.resolve(html));
-    await page.waitForFunction(() => window.__anim && window.__anim.isReady());
-    const durationMs = await page.evaluate(() => window.__anim.getState().opts.durationMs);
+    await page.waitForFunction(() => window.__vistaro && window.__vistaro.isReady());
+    const durationMs = await page.evaluate(() => window.__vistaro.getState().opts.durationMs);
     const total = Math.ceil(durationMs / 1000 * FPS);
     const enc = spawn(ffmpeg, ['-y', '-v', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-', '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', out], { stdio: ['pipe', 'inherit', 'inherit'] });
     const shotHashes = [];

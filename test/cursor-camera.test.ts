@@ -59,7 +59,7 @@ let work: string;
 
 before(async () => {
     if (skip) return;
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-cursor-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-cursor-'));
     orphanBaseline = countOrphans();
     browser = await chromium.launch({ headless: true });
 });
@@ -80,19 +80,19 @@ async function hops(motion: Record<string, unknown> | undefined) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     try {
         const page = await context.newPage();
-        await page.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+        await page.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
         await page.goto(fileUrl(file));
-        await page.waitForFunction(() => (window as any).__anim?.isReady());
-        await page.evaluate(() => (window as any).__anim.start());
+        await page.waitForFunction(() => (window as any).__vistaro?.isReady());
+        await page.evaluate(() => (window as any).__vistaro.start());
         const out: any[] = [];
         for (const [i, target] of [[1, '#a'], [2, '#b'], [3, '#far']] as const) {
             out.push(await page.evaluate(async ([idx, sel]) => {
-                const a = (window as any).__anim;
+                const a = (window as any).__vistaro;
                 const pending = a.runStep({ index: idx, id: 's' + idx, time: 0, timeMs: 0, action: 'hover', target: sel }, { leadMs: 950 });
                 // Sampled mid-flight: by the arrival the glide is over and the press's CSS transition
                 // is the cursor's only animation. A CSS transition carries transitionProperty; the glide does not.
                 await new Promise(res => setTimeout(res, 40));
-                const glide = document.getElementById('anim-cli-cursor')!.getAnimations().find(x => !('transitionProperty' in x));
+                const glide = document.getElementById('vistaro-cursor')!.getAnimations().find(x => !('transitionProperty' in x));
                 const t = glide ? glide.effect!.getComputedTiming() : null;
                 const r = await pending;
                 await a.whenDone(r.token);
@@ -132,7 +132,7 @@ test('camera follow: every later target lands inside the window, the window move
     const dir = path.join(work, 'follow');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'index.html'), PAGE);
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify({ meta: { drift: false }, steps: [
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify({ meta: { drift: false }, steps: [
         { id: 'zoom', time: 0.5, action: 'camera', target: '#mid', scale: 1.8, duration: 0.5, follow: true, guide: false },
         { id: 'a', time: 1.5, action: 'click', target: '#a', title: 'A' },
         { id: 'far', time: 2.5, action: 'click', target: '#far', title: 'Far' },
@@ -159,4 +159,46 @@ test('camera follow: every later target lands inside the window, the window move
     assert.ok(windows[0] !== windows[1] && windows[1] !== windows[2], `the window moved between targets: ${windows.join(' | ')}`);
     assert.equal(windows[0], '0,0', 'a corner target clamps the window to the page corner instead of showing beyond it');
     assert.equal(by('far2').travel.follow, false, 'a camera step without follow ends it');
+});
+
+test('camera follow: the spotlight frames the target where the pan leaves it, not where it was mid-pan', { skip }, async () => {
+    const tl = parseTimeline({ steps: [] });
+    const file = path.join(work, 'follow-ring.html');
+    fs.writeFileSync(file, buildAnimatedHtml(PAGE, tl, { drift: false }));
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    try {
+        const page = await context.newPage();
+        await page.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
+        await page.goto(fileUrl(file));
+        await page.waitForFunction(() => (window as any).__vistaro?.isReady());
+        await page.evaluate(() => (window as any).__vistaro.start());
+        const steps = [
+            { index: 1, id: 'cam', time: 0, timeMs: 0, action: 'camera', target: '#a', scale: 1.5, follow: true, duration: 0.3 },
+            { index: 2, id: 'near', time: 0, timeMs: 0, action: 'click', target: '#a' },
+            { index: 3, id: 'far', time: 0, timeMs: 0, action: 'click', target: '#far' },
+        ];
+        for (const s of steps) {
+            await page.evaluate(async (step) => {
+                const a = (window as any).__vistaro;
+                const r = await a.runStep(step, { leadMs: 950 });
+                await a.whenDone(r.token);
+                await a.whenSettled();
+            }, s);
+        }
+        // Past the ring's own 0.5 s position transition, so the inline style is where it rests.
+        await page.waitForTimeout(800);
+        // The ring is read from its inline style (the pulse scales its measured box; see AGENTS.md),
+        // the oracle from the target's settled on-screen box, which positionHighlight pads by 6 px.
+        const got = await page.evaluate(() => {
+            const h = document.getElementById('vistaro-highlight')!;
+            const r = document.getElementById('far')!.getBoundingClientRect();
+            return { ring: { left: parseFloat(h.style.left), top: parseFloat(h.style.top), width: parseFloat(h.style.width), height: parseFloat(h.style.height) },
+                     want: { left: r.left - 6, top: r.top - 6, width: r.width + 12, height: r.height + 12 } };
+        });
+        for (const k of ['left', 'top', 'width', 'height'] as const) {
+            assert.ok(Math.abs(got.ring[k] - got.want[k]) <= 2, `ring ${k} ${got.ring[k].toFixed(1)} vs the settled target's ${got.want[k].toFixed(1)}`);
+        }
+    } finally {
+        await context.close();
+    }
 });

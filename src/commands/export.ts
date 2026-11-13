@@ -346,7 +346,7 @@ export async function runExport(outputDir: string, options: ExportOptions, tempV
                 const outroAt = durationMs - outro;
                 const untilOutro = outroAt - (Date.now() - t0Wall);
                 if (untilOutro > 0) await page.waitForTimeout(untilOutro);
-                await page.evaluate(() => (window as any).__anim.showCard('outro')).catch((e: any) => console.error(`warning  could not show the outro card: ${errorMessage(e)}`));
+                await page.evaluate(() => (window as any).__vistaro.showCard('outro')).catch((e: any) => console.error(`warning  could not show the outro card: ${errorMessage(e)}`));
             }
             const nowMs = Date.now() - t0Wall; // Node-owned clock (valid across navigations)
             if (nowMs < durationMs) await page.waitForTimeout(durationMs - nowMs);

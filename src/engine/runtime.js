@@ -673,7 +673,7 @@
   /**
    * Show the intro or outro card. The intro is up on the first frame (the video opens on it) and
    * fades out at the end of its duration; the outro fades in and holds to the end of the clip.
-   * Returns false when the brand has no such card. Timers go through setAnimTimeout, so restart()
+   * Returns false when the brand has no such card. Timers go through setRunTimeout, so restart()
    * cancels a pending fade with everything else.
    */
   function showCard(kind) {
@@ -695,10 +695,10 @@
       el.style.transition = 'none';
       el.style.opacity = '1';
       void el.offsetWidth;
-      setAnimTimeout(function () {
+      setRunTimeout(function () {
         el.style.transition = 'opacity ' + CARD_FADE_MS + 'ms ease';
         el.style.opacity = '0';
-        setAnimTimeout(function () { if (el.getAttribute('data-card') === 'intro') el.style.display = 'none'; }, CARD_FADE_MS);
+        setRunTimeout(function () { if (el.getAttribute('data-card') === 'intro') el.style.display = 'none'; }, CARD_FADE_MS);
       }, Math.max(0, (card.ms || 0) - CARD_FADE_MS));
     } else {
       el.style.transition = 'none';

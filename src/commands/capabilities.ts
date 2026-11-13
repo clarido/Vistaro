@@ -93,7 +93,7 @@ const names = (ns: string[]) => ns.map(n => `\`${n}\``).join(' / ');
 /** The markdown block written between the capabilities markers in AGENTS.md (without the markers). */
 export function renderCapabilitiesMarkdown(c: Capabilities = capabilities()): string {
     const out: string[] = [
-        'Generated from the capability registry in `src/engine/schema.ts` by `npm run docs`; do not edit by hand. `npx tsx cli.ts capabilities --json` prints the same data for an agent.',
+        'Generated from the capability registry in `src/engine/schema.ts` by `npm run docs`; do not edit by hand. `npx vistaro capabilities --json` prints the same data for an agent.',
         '',
         '### `meta`',
         '',

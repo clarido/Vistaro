@@ -1,0 +1,132 @@
+{
+  "history": [
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-11-13T00:13:26.631Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "say",
+          "actualMs": 417,
+          "completedMs": 422
+        },
+        {
+          "index": 2,
+          "id": "detail",
+          "actualMs": 1608,
+          "completedMs": 2018
+        },
+        {
+          "index": 3,
+          "id": "share",
+          "actualMs": 3004,
+          "completedMs": 3317
+        },
+        {
+          "index": 4,
+          "id": "type",
+          "actualMs": 3605,
+          "completedMs": 4225
+        }
+      ],
+      "duration": 5.125,
+      "output": "../../showcase-out/vertical/en/vertical-en.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:d4a1edf4a290c23b84545c6495d8e9f8dfba81f6e69ad4d679cbb243e17bc9ab",
+      "timestamp": "2026-11-13T00:13:38.177Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../showcase.catalog.json",
+      "locale": "en",
+      "kind": "reel",
+      "output": "../../showcase-out/vertical/en",
+      "contentHash": "sha256:d4a1edf4a290c23b84545c6495d8e9f8dfba81f6e69ad4d679cbb243e17bc9ab",
+      "buildKey": "sha256:39a9a682faf1dd943f63be139c59661c94c47f7e9ee828bb05bfd39a2f2ec7de",
+      "builtAt": "2026-11-13T00:13:38.235Z",
+      "timestamp": "2026-11-13T00:13:38.237Z"
+    },
+    {
+      "command": "build",
+      "cursor": "none",
+      "loop": true,
+      "locale": "en",
+      "force": false,
+      "output": "animated.html",
+      "timestamp": "2026-11-13T01:29:58.773Z"
+    },
+    {
+      "command": "export",
+      "device": "desktop",
+      "theme": "light",
+      "locale": "en",
+      "driven": true,
+      "steps": [
+        {
+          "index": 1,
+          "id": "say",
+          "actualMs": 404,
+          "completedMs": 407
+        },
+        {
+          "index": 2,
+          "id": "detail",
+          "actualMs": 1604,
+          "completedMs": 2021
+        },
+        {
+          "index": 3,
+          "id": "share",
+          "actualMs": 3004,
+          "completedMs": 3321
+        },
+        {
+          "index": 4,
+          "id": "type",
+          "actualMs": 3604,
+          "completedMs": 4220
+        }
+      ],
+      "duration": 5.12,
+      "output": "../../showcase-out/vertical/en/vertical-en.mp4",
+      "narration": false,
+      "subtitles": false,
+      "chapters": 0,
+      "clips": [],
+      "contentHash": "sha256:3941a5772eea4400620de10236b6f4af4720224117bf95aae16ec79c4970a2f6",
+      "timestamp": "2026-11-13T01:30:10.448Z"
+    },
+    {
+      "command": "build-all",
+      "catalog": "../../showcase.catalog.json",
+      "locale": "en",
+      "kind": "reel",
+      "output": "../../showcase-out/vertical/en",
+      "contentHash": "sha256:3941a5772eea4400620de10236b6f4af4720224117bf95aae16ec79c4970a2f6",
+      "buildKey": "sha256:4187eb2eab2a5dc22de679036cccd052da54d5a6c4f2d4660fa08064907aeeae",
+      "builtAt": "2026-11-13T01:30:10.480Z",
+      "timestamp": "2026-11-13T01:30:10.481Z"
+    }
+  ],
+  "contentHash": {
+    "en": "sha256:3941a5772eea4400620de10236b6f4af4720224117bf95aae16ec79c4970a2f6"
+  },
+  "buildKey": {
+    "en": "sha256:4187eb2eab2a5dc22de679036cccd052da54d5a6c4f2d4660fa08064907aeeae"
+  }
+}

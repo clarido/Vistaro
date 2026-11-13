@@ -203,7 +203,7 @@ Scaffold an vistaro.config.json timeline file in the target directory
 ### `capabilities`
 
 ```bash
-npx tsx cli.ts capabilities [options]
+npx vistaro capabilities [options]
 ```
 
 List everything a timeline can say -- actions (target required, when the guide frame is taken), step and meta fields, easings, studio presets, devices, subtitle placements -- from the same registry the validator and the AGENTS.md tables use

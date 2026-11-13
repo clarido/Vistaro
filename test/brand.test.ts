@@ -31,7 +31,7 @@ const cli = (args: string[]) => {
     assertRan(res, args);
     return res;
 };
-const basicRaw = () => JSON.parse(fs.readFileSync(path.join(fixture, 'anim.config.json'), 'utf8'));
+const basicRaw = () => JSON.parse(fs.readFileSync(path.join(fixture, 'vistaro.config.json'), 'utf8'));
 
 // ---------------------------------------------------------------------------------- static
 
@@ -116,14 +116,14 @@ test('an intro card warns every step that would run under it; the outro lengthen
 });
 
 test('meta.brand may name a shared file: read in place, hashed by build-all, rebased by localize', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-brand-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-brand-'));
     try {
         const guide = path.join(dir, 'guides', 'one');
         fs.mkdirSync(guide, { recursive: true });
         fs.writeFileSync(path.join(dir, 'brand.json'), JSON.stringify({ accent: '#e11d48', logo: 'logo.svg' }));
         fs.writeFileSync(path.join(guide, 'index.html'), '<!doctype html><body><button id="b">Go</button></body>');
         fs.writeFileSync(path.join(guide, 'logo.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
-        fs.writeFileSync(path.join(guide, 'anim.config.json'), JSON.stringify({ meta: { brand: '../../brand.json' }, steps: [{ id: 'go', time: 1, action: 'click', target: '#b', title: 'Go' }] }, null, 2));
+        fs.writeFileSync(path.join(guide, 'vistaro.config.json'), JSON.stringify({ meta: { brand: '../../brand.json' }, steps: [{ id: 'go', time: 1, action: 'click', target: '#b', title: 'Go' }] }, null, 2));
         const tl = loadTimeline(guide);
         assert.equal((tl.meta.brand as any).accent, '#e11d48');
         assert.equal(tl.brandFile, path.join(dir, 'brand.json'));
@@ -135,11 +135,11 @@ test('meta.brand may name a shared file: read in place, hashed by build-all, reb
         const r = cli(['localize', guide, 'fr']);
         assert.equal(r.status, 0, r.stderr);
         const fr = path.join(guide, 'locales', 'fr');
-        assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'anim.config.json'), 'utf8')).meta.brand, '../../../../brand.json');
+        assert.equal(JSON.parse(fs.readFileSync(path.join(fr, 'vistaro.config.json'), 'utf8')).meta.brand, '../../../../brand.json');
         assert.equal((loadTimeline(fr).meta.brand as any).accent, '#e11d48');
         assert.ok(fs.existsSync(path.join(fr, 'logo.svg')), 'the logo travels with the locale');
         // A missing brand file is a readable error, not a silent unbranded render.
-        fs.writeFileSync(path.join(guide, 'anim.config.json'), JSON.stringify({ meta: { brand: 'nope.json' }, steps: [] }));
+        fs.writeFileSync(path.join(guide, 'vistaro.config.json'), JSON.stringify({ meta: { brand: 'nope.json' }, steps: [] }));
         assert.throws(() => loadTimeline(guide), /meta\.brand names nope\.json, which does not exist/);
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
@@ -148,9 +148,9 @@ test('meta.brand may name a shared file: read in place, hashed by build-all, reb
 
 /** Parse + per-device resolution, the way loadTimeline does it, without a directory. */
 function loadTimelineFrom(raw: unknown, device: 'desktop' | 'mobile') {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-motion-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-motion-'));
     try {
-        fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(raw));
+        fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify(raw));
         return loadTimeline(dir, { device });
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
@@ -165,7 +165,7 @@ let work: string;
 
 before(async () => {
     if (skip) return;
-    work = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-brand-b-'));
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-brand-b-'));
     orphanBaseline = countOrphans();
     browser = await chromium.launch({ headless: true });
 });
@@ -190,14 +190,14 @@ async function frameOf(metaPatch: Record<string, unknown>, upto: number): Promis
     const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     try {
         const page = await context.newPage();
-        await page.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+        await page.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
         await page.goto(fileUrl(file));
-        await page.waitForFunction(() => (window as any).__anim?.isReady());
+        await page.waitForFunction(() => (window as any).__vistaro?.isReady());
         await runTimeline(page, tl, { mode: 'step', instant: true, settleMs: 0 });
-        await page.evaluate(() => (window as any).__anim.whenSettled());
+        await page.evaluate(() => (window as any).__vistaro.whenSettled());
         // A held spotlight, so the frame contains the ring whose colour a brand would change.
-        await page.evaluate(() => { const a = (window as any).__anim; a.holdHighlight(document.querySelector('#note')); });
-        await page.evaluate(() => (window as any).__anim.nextFrames(2));
+        await page.evaluate(() => { const a = (window as any).__vistaro; a.holdHighlight(document.querySelector('#note')); });
+        await page.evaluate(() => (window as any).__vistaro.nextFrames(2));
         return await page.screenshot();
     } finally {
         await context.close();
@@ -222,25 +222,25 @@ test('a branded spotlight, ripple, badge, cursor, caption and logo wear the bran
     const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     try {
         const page = await context.newPage();
-        await page.addInitScript(() => { (window as any).__ANIM_DRIVEN = true; });
+        await page.addInitScript(() => { (window as any).__VISTARO_DRIVEN = true; });
         await page.goto(fileUrl(file));
-        await page.waitForFunction(() => (window as any).__anim?.isReady());
+        await page.waitForFunction(() => (window as any).__vistaro?.isReady());
         await runTimeline(page, { ...tl, steps: tl.steps.slice(0, 2) }, { mode: 'step', instant: true, settleMs: 0 });
         const got = await page.evaluate(() => {
-            const a = (window as any).__anim;
+            const a = (window as any).__vistaro;
             a.showSubtitle('Branded caption', 4000);
             a.ripple(100, 100);
             a.showCallout(1, document.querySelector('#btn'));
-            const h = document.getElementById('anim-cli-highlight')!;
-            const chip = document.querySelector('.anim-cli-sub-item') as HTMLElement;
+            const h = document.getElementById('vistaro-highlight')!;
+            const chip = document.querySelector('.vistaro-sub-item') as HTMLElement;
             const cs = getComputedStyle(chip);
-            const logo = document.getElementById('anim-cli-logo') as HTMLImageElement;
-            const rip = document.querySelector('.anim-cli-ripple') as HTMLElement;
+            const logo = document.getElementById('vistaro-logo') as HTMLImageElement;
+            const rip = document.querySelector('.vistaro-ripple') as HTMLElement;
             return {
                 ring: h.style.borderColor, // inline style, never getBoundingClientRect (AGENTS.md spotlight rule)
                 rippleBg: rip.style.background,
-                badge: (document.getElementById('anim-cli-callout') as HTMLElement).style.background,
-                cursorCss: document.getElementById('anim-cli-runtime-style')!.textContent!,
+                badge: (document.getElementById('vistaro-callout') as HTMLElement).style.background,
+                cursorCss: document.getElementById('vistaro-runtime-style')!.textContent!,
                 chipFont: cs.fontFamily, chipColor: cs.color, chipBg: cs.backgroundColor, chipRadius: cs.borderTopLeftRadius,
                 logoPlace: logo?.getAttribute('data-place'), logoHeight: logo?.style.height, logoParent: logo?.parentElement?.tagName,
             };
@@ -255,7 +255,7 @@ test('a branded spotlight, ripple, badge, cursor, caption and logo wear the bran
         assert.equal(got.chipRadius, '4px');
         assert.deepEqual([got.logoPlace, got.logoHeight, got.logoParent], ['bottom-left', '30px', 'HTML']);
         // Guide frames are documentation: the logo hides during a capture and comes back after.
-        const hidden = await page.evaluate(() => { const a = (window as any).__anim; a.beginCapture({}); const v = document.getElementById('anim-cli-logo')!.style.visibility; a.endCapture(); return [v, document.getElementById('anim-cli-logo')!.style.visibility]; });
+        const hidden = await page.evaluate(() => { const a = (window as any).__vistaro; a.beginCapture({}); const v = document.getElementById('vistaro-logo')!.style.visibility; a.endCapture(); return [v, document.getElementById('vistaro-logo')!.style.visibility]; });
         assert.deepEqual(hidden, ['hidden', '']);
     } finally {
         await context.close();
@@ -273,7 +273,7 @@ test('export opens on the intro card and ends on the outro card; the clip is lon
         { id: 'open', time: 1.5, action: 'click', target: '#btn', title: 'Open' },
         { id: 'name', time: 2.2, action: 'type', target: '#field', value: 'Ada', cps: 50, title: 'Type' },
     ];
-    fs.writeFileSync(path.join(dir, 'anim.config.json'), JSON.stringify(raw, null, 2));
+    fs.writeFileSync(path.join(dir, 'vistaro.config.json'), JSON.stringify(raw, null, 2));
     const out = path.join(work, 'cards.mp4');
     const r = cli(['export', dir, '-o', out]);
     assert.equal(r.status, 0, r.stderr + r.stdout);
@@ -301,11 +301,11 @@ test('export opens on the intro card and ends on the outro card; the clip is lon
 
 test('a tour catalog may name the brand file: its accent and font seed the theme, an explicit theme value wins', () => {
     const { readTourCatalog } = require('../src/commands/tour');
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-brand-tour-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vistaro-brand-tour-'));
     try {
         fs.mkdirSync(path.join(dir, 'demo'));
         fs.writeFileSync(path.join(dir, 'demo', 'index.html'), '<!doctype html><body></body>');
-        fs.writeFileSync(path.join(dir, 'demo', 'anim.config.json'), JSON.stringify({ steps: [] }));
+        fs.writeFileSync(path.join(dir, 'demo', 'vistaro.config.json'), JSON.stringify({ steps: [] }));
         fs.writeFileSync(path.join(dir, 'brand.json'), JSON.stringify({ accent: '#e11d48', caption: { font: 'Inter, sans-serif' } }));
         const catalog = (extra: object) => {
             const file = path.join(dir, 'tour.catalog.json');
